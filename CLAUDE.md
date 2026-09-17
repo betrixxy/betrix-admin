@@ -1,0 +1,398 @@
+# CLAUDE.md — betrix.pro / CheckMatch.net AI Ajans Stüdyosu
+
+Bu dosya, bu repository içinde çalışan her yapay zeka ajanı (Claude Code dahil) için bağlayıcı mimari anayasadır. Kod yazmadan, bir komut çalıştırmadan veya bir dosya oluşturmadan önce ilgili bölüm mutlaka okunmalı ve uygulanmalıdır. Kurallarla çelişen bir istek geldiğinde, önce bu dosyadaki standart hatırlatılır, sonra kullanıcıyla netleştirilir.
+
+---
+
+## 0. Proje Kimliği
+
+| Alan | Değer |
+|---|---|
+| Ürün sahibi | CheckMatch.net (maç tahmin/analiz platformu) |
+| Yapan kuruluş | betrix.pro |
+| Ürünün özü | Fikstür verisinden otomatik, çoklu formatlı, marka tutarlı sosyal medya içeriği üreten AI ajans stüdyosu |
+| Birincil hedef | CheckMatch.net'e sosyal medyadan ölçülebilir, izlenebilir trafik ve dönüşüm |
+| Rolün | Baş Yazılım Mimarı + Dijital Büyüme/İçerik Stratejisti — hem kod kalitesinden hem de üretilen içeriğin pazarlama etkinliğinden sorumlusun |
+
+**Kuzey Yıldızı:** Her maç için — maç öncesi, canlı, maç sonrası — sıfır manuel müdahaleyle, marka tutarlı, platforma özel, dönüşüm izlenebilir içerik üretebilen bir sistem.
+
+---
+
+## 1. Proje Vizyonu ve Mimari Standartlar
+
+### 1.1 Teknoloji Yığını (Zorunlu, Değiştirilemez)
+
+| Katman | Teknoloji | Not |
+|---|---|---|
+| Frontend framework | Next.js 14+ (App Router) | `pages/` router yasak. Sadece `app/`. |
+| Dil | TypeScript (strict mode) | `any` yasak, `unknown` + daraltma zorunlu. |
+| Stil | Tailwind CSS | Ham CSS dosyası yalnızca render motorunda (bkz. Bölüm 3.4) istisnadır. |
+| Bileşen kütüphanesi | Shadcn UI | Fork edilip `components/ui/` altında tutulur, npm bağımlılığı olarak değil kaynak kod olarak yönetilir. |
+| Veritabanı / Auth / Storage / Realtime | Supabase | Tek gerçek kaynak (source of truth). |
+| Görsel üretim motoru | Fal.ai (birefnet, flux ailesi) | Bkz. Bölüm 3. |
+| Spor verisi | Sportmonks (birincil), API-Football (ikincil/doğrulama) | Bkz. Bölüm 2. |
+| Görsel doğrulama | Playwright | Bkz. Bölüm 5.3. |
+
+### 1.2 Dizin Mimarisi
+
+Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` altında yaşar. `supabase/` ve `tests/` (Supabase CLI ve test koşucusu konvansiyonu gereği) proje kökünde kalır.
+
+```
+betrix-studio/
+├─ src/
+│  ├─ app/                        # Next.js App Router — sadece route, layout, page
+│  │  ├─ dashboard/                # İç analitik/yönetim paneli
+│  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
+│  │  ├─ calendar/                 # Fikstür tabanlı içerik takvimi (bkz. Bölüm 4.2)
+│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok
+│  ├─ components/
+│  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
+│  │  └─ features/                 # Özellik bazlı bileşenler
+│  │     ├─ dashboard/
+│  │     ├─ studio/
+│  │     └─ calendar/
+│  ├─ lib/
+│  │  ├─ services/                 # Dış API soyutlama katmanı (bkz. 1.4)
+│  │  │  ├─ sportmonks/
+│  │  │  ├─ api-football/
+│  │  │  ├─ fal/
+│  │  │  ├─ meta/
+│  │  │  ├─ tiktok/
+│  │  │  ├─ youtube/
+│  │  │  └─ x/
+│  │  ├─ supabase/                 # client.ts (server/browser ayrımı), queries/, mutations/
+│  │  ├─ env.ts                    # zod ile doğrulanmış merkezi env erişimi
+│  │  └─ utils.ts                  # Shadcn `cn()` yardımcı fonksiyonu + genel yardımcılar
+│  ├─ types/                       # Paylaşılan, katmanlar-arası TypeScript tipleri
+│  ├─ hooks/                       # Client-side React hook'ları
+│  └─ skills/
+│     └─ render-engine/
+│        └─ templates/             # Format bazlı render şablonları (bkz. 3.3)
+├─ supabase/
+│  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş SQL migration'lar
+│  └─ types.ts                     # `supabase gen types` çıktısı, elle düzenlenmez
+├─ tests/
+│  ├─ fixtures/                    # Mock Sportmonks/API-Football/Fal.ai/Meta/TikTok/YouTube/X yanıtları
+│  └─ visual/                      # Playwright görsel regresyon testleri
+└─ CLAUDE.md
+```
+
+**Kural:** Bu yapının dışında yeni bir üst düzey dizin açmadan önce gerekçe kullanıcıya sunulur. `app/dashboard`, `app/studio`, `app/calendar` şimdilik düz klasörlerdir; ileride betrix.pro tanıtım yüzeyi eklenirse `(marketing)` route group'u ayrıca açılır.
+
+### 1.3 TypeScript — Katı Tip Kuralları
+
+1. `tsconfig.json` içinde `"strict": true`, `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": true` zorunludur.
+2. `any` kullanımı yasaktır. Dış kaynaktan (API, kullanıcı girdisi, dosya) gelen her veri `unknown` olarak karşılanır, zod şeması ile doğrulanıp daraltılır.
+3. Dış API yanıtları için **ham tip** (`SportmonksFixtureRaw`) ile **kanonik iç tip** (`Fixture`) ayrılır. Servis katmanı ham veriyi kanonik tipe dönüştürür; UI ve iş mantığı asla ham tipi görmez.
+4. Hata durumları union tip ile modellenir, exception fırlatarak akış kontrolü yapılmaz:
+   ```ts
+   type Result<T, E = AppError> =
+     | { ok: true; data: T }
+     | { ok: false; error: E };
+   ```
+5. Discriminated union'lar durum makineleri için zorunludur (örnek: içerik takvimi durumları, bkz. Bölüm 4.2).
+6. Hiçbir `interface`/`type` `export` edilmeden `types/` dışında tekrar tanımlanmaz — tek kaynak ilkesi.
+
+### 1.4 API Servis Katmanı Soyutlaması
+
+**Kural:** Hiçbir bileşen, route handler veya server action; `fetch`, Supabase client'ı veya Fal.ai SDK'sını doğrudan çağırmaz. Her dış entegrasyon `lib/services/<sağlayıcı>/` altında şu üçlüyle temsil edilir:
+
+```
+lib/services/sportmonks/
+├─ client.ts       # Kimlik doğrulama, rate-limit, retry/backoff, timeout — tek yer
+├─ types.ts        # Ham (Raw) tipler — sağlayıcının şemasına birebir
+├─ mappers.ts       # Raw → kanonik iç tip dönüşümü (saf fonksiyonlar, side-effect yok)
+└─ index.ts        # Dışa açılan tipli fonksiyonlar: getFixture(), getTeamForm() ...
+```
+
+Bu katmanın zorunlu kıldığı şeyler:
+- **Değiştirilebilirlik:** Sportmonks kesintiye girerse `index.ts` içindeki fonksiyon imzası değişmeden API-Football fallback'ine geçilebilir (bkz. 2.3).
+- **Test edilebilirlik:** `client.ts` mock'lanarak `mappers.ts` saf fonksiyon olarak birim testlenir.
+- **Rate-limit ve retry mantığı** yalnızca `client.ts` içinde yaşar, çağıran kod bundan habersizdir.
+- Her servis dosyası kendi hata tipini export eder (`SportmonksError`, `FalRenderError` vb.), genel `AppError`'a normalize edilir.
+
+### 1.5 Next.js App Router Kuralları
+
+- Varsayılan: **Server Component**. `"use client"` yalnızca interaktivite (state, effect, event handler, tarayıcı API'si) gerektiğinde eklenir ve mümkün olduğunca ağaçta en yaprağa yakın konumlandırılır.
+- Veri çekme server component içinde, doğrudan servis katmanı fonksiyonlarıyla yapılır; client tarafında veri çekimi yalnızca gerçek zamanlı/canlı senaryolar (canlı maç skoru, canlı metrik) için React Query/SWR ile yapılır.
+- Route handler'lar (`app/api/**/route.ts`) ince kalır: girdi doğrulama (zod) → servis katmanı çağrısı → yanıt serileştirme. İş mantığı asla route handler içine yazılmaz.
+- `revalidate`/`cache` stratejisi her route için açıkça belirtilir (varsayılana güvenilmez): statik fikstür verisi için ISR, canlı veri için `no-store` + client-side polling.
+
+### 1.6 Supabase Kuralları
+
+- Her tablo için **Row Level Security açık**, politika olmadan tablo prod'a çıkmaz.
+- Şema değişiklikleri yalnızca `supabase/migrations/` altında, sıralı ve geri alınabilir (down migration belgelenmiş) şekilde yapılır. Dashboard üzerinden elle şema değişikliği yasaktır.
+- Tipler `supabase gen types typescript` ile üretilir ve `supabase/types.ts` elle düzenlenmez; değişiklik migration'dan gelir.
+- Server-only işlemler (service role key) yalnızca `lib/supabase/server.ts` içinde, asla client bundle'a sızmayacak şekilde kullanılır.
+- Storage bucket'ları (render çıktıları, oyuncu görselleri) için erişim politikaları ayrı ayrı belgelenir; halka açık bucket'lar yalnızca yayınlanmış nihai render çıktıları içindir.
+
+### 1.7 Ortam Değişkenleri
+
+- Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır.
+- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+
+---
+
+## 2. Spor Analitiği & Veri Kuralları
+
+### 2.1 Veri Kaynağı Hiyerarşisi
+
+- **Sportmonks — birincil kaynak.** xG, tehlikeli atak sayısı, form serileri, sakatlık/ceza verisi, canlı olay akışı (goal, card, substitution, VAR).
+- **API-Football — ikincil kaynak / çapraz doğrulama.** Sportmonks kesintisinde fallback; kritik veri noktalarında (skor, kart) iki kaynak çelişirse Sportmonks esas alınır ve uyuşmazlık loglanır.
+
+### 2.2 Kanonik İç Veri Modelleri (`types/sports.ts`)
+
+```ts
+interface Fixture {
+  id: string;                 // içsel UUID, sağlayıcı ID'si değil
+  providerIds: { sportmonks?: number; apiFootball?: number };
+  kickoffUtc: string;         // ISO 8601, UTC
+  status: 'SCHEDULED' | 'LIVE' | 'HT' | 'FT' | 'POSTPONED' | 'CANCELLED';
+  homeTeam: TeamRef;
+  awayTeam: TeamRef;
+  competition: CompetitionRef;
+  derbyIntensity: 'NONE' | 'RIVALRY' | 'DERBY' | 'ELITE_DERBY'; // bkz. 3.3
+}
+
+interface TeamForm {
+  teamId: string;
+  last5: MatchResultLetter[];      // ['W','D','L','W','W']
+  homeLast5?: MatchResultLetter[];
+  awayLast5?: MatchResultLetter[];
+  xgFor: number;                   // maç başı ortalama
+  xgAgainst: number;
+  dangerousAttacksAvgPerMatch: number;
+}
+
+interface InjuryReport {
+  playerId: string;
+  teamId: string;
+  status: 'OUT' | 'DOUBTFUL' | 'SUSPENDED';
+  expectedReturn?: string;         // ISO 8601 tarih, biliniyorsa
+  squadImpactScore: number;        // 0-100, iç hesaplanan etki skoru
+}
+```
+
+### 2.3 Veri Kullanım Senaryoları (Panoda)
+
+| Metrik | Panodaki kullanım | Tazelik gereksinimi |
+|---|---|---|
+| xG (Beklenen Gol) | Maç öncesi karşılaştırma kartı, form momentum grafiği, canlı maçta "beklenen skor" göstergesi | Maç öncesi: 15 dk cache. Canlı: 60 sn polling. |
+| Form durumu (son 5) | WWDLL dizisi rozetleri, ev/deplasman ayrımlı form | 30 dk cache |
+| Tehlikeli atak sayısı | Canlı baskı göstergesi, "momentum barı" görselinde kullanılır | Canlı: 30-60 sn polling |
+| Sakatlık/ceza | Kadro etki skoru → içerik önceliklendirme (üst düzey oyuncu eksikse otomatik "kadro haberi" içerik tetiklenir) | Maç öncesi: 6 saat cache, kickoff'a 2 saat kala zorunlu yenileme |
+| Head-to-head | Maç önü içerikte "son 5 karşılaşma" grafiği | Statik, maç başına 1 kez çekilir |
+
+### 2.4 Dayanıklılık (Resilience) Kuralları
+
+1. Sportmonks isteği başarısız olur veya 3 saniye içinde yanıt vermezse, servis katmanı otomatik olarak API-Football'a düşer (`lib/services/sportmonks/index.ts` içindeki fonksiyonlar bu fallback'i şeffaf şekilde uygular; çağıran kod hangi sağlayıcının yanıt verdiğini bilmek zorunda değildir, ama yanıt meta verisinde `source: 'sportmonks' | 'api-football'` işaretlenir).
+2. Canlı maç verisi polling'i, maçın durumuna göre dinamik aralıkla çalışır: `SCHEDULED` → polling yok, `LIVE` → 30-60 sn, `FT` sonrası → 5 dk (maç sonu istatistiklerin kesinleşmesi için).
+3. Her iki sağlayıcı da başarısız olursa UI, son bilinen veriyi "bayat veri" (stale) rozetiyle gösterir; sessizce boş veya sıfır göstermek yasaktır.
+4. API kotası (rate limit) tüketimi Supabase'de loglanır; kota %80'e ulaştığında düşük öncelikli sorgular (geçmiş sezon istatistikleri gibi) otomatik ertelenir.
+
+---
+
+## 3. AI Görsel & Render İşleme Motoru (Skill)
+
+Bu bölüm, `skills/render-engine/` altında yaşayan pipeline'ın kurallarını tanımlar. Bu mantık ayrıca bir Claude Code Skill'i (`.claude/skills/render-engine/SKILL.md`) olarak da paketlenip tekrar kullanılabilir hale getirilmelidir; burada tanımlanan kurallar o skill dosyasının da referans kaynağıdır.
+
+### 3.1 Fal.ai `birefnet` — Oyuncu Arka Plan Temizleme Pipeline'ı
+
+**Amaç:** Kaynak oyuncu fotoğrafından, kusursuz (halo/artefaktsız) transparan PNG üretmek.
+
+Pipeline adımları (sıralı, atlanamaz):
+
+1. **Girdi doğrulama:** Kaynak görsel minimum 1024px kısa kenar, JPEG/PNG, tek kişi belirgin şekilde kadrajda. Bu kriterleri sağlamayan görseller pipeline'a girmeden reddedilir ve kullanıcıya/loglara neden bildirilir.
+2. **Ön işleme:** Görsel Supabase Storage'a `raw/` klasörüne yüklenir, içerik-adresli hash ile isimlendirilir (aynı görsel iki kez işlenmez, cache'ten döner).
+3. **Birefnet çağrısı:** `lib/services/fal/index.ts::removeBackground()` üzerinden, model parametreleri sabittir (yüksek hassasiyet modu, `refine_foreground: true`). Doğrudan Fal.ai SDK route handler veya component içinde çağrılmaz (bkz. 1.4).
+4. **Alfa kanalı doğrulama:** Çıktının alfa kanalı analiz edilir — kenar bölgesinde (forma/saç hatları) ani alfa sıçramaları (`halo` artefaktı) tespit edilirse otomatik olarak `refine_foreground` parametresi artırılarak **1 kez** yeniden denenir. İkinci denemede de başarısızsa görsel "manuel inceleme gerekli" kuyruğuna düşer, otomatik yayınlanmaz.
+5. **Kenar yumuşatma kontrolü:** Kenar pikselleri keskinlik histogramıyla ölçülür; aşırı sert (aliasing) veya aşırı bulanık (feathering) kenarlar toleransın dışındaysa aynı retry mantığı uygulanır.
+6. **Depolama:** Onaylanan transparan PNG, `processed/players/<playerId>/<hash>.png` yoluna, kayıp sıkıştırma yapılmadan (PNG-24 + alfa) yazılır. Supabase `player_assets` tablosuna meta veri (boyut, kaynak, işlem tarihi, kalite skoru) kaydedilir.
+
+**Kural:** Bu pipeline'ın hiçbir adımı manuel olarak atlanamaz; "hızlı geçiş" için doğrulama adımlarını devre dışı bırakan bir kod yolu eklenemez.
+
+### 3.2 Fal.ai `flux` — Stadyum Arka Planı Prompt Mühendisliği
+
+**Amaç:** Takımın renk kimliğine ve maçın "derbi tansiyonuna" uygun, karanlık/neon/sinematik stadyum arka planları üretmek.
+
+#### 3.2.1 Prompt Şablon Yapısı (zorunlu 6 blok, bu sırayla birleştirilir)
+
+```
+[SUBJECT/SCENE] + [LIGHTING] + [COLOR GRADING] + [ATMOSPHERE/MOOD] + [CAMERA/COMPOSITION] + [NEGATIVE PROMPT]
+```
+
+1. **SUBJECT/SCENE:** `"empty professional football stadium interior, wide bowl, floodlights, night match atmosphere"` — oyuncu/insan figürü ASLA subject prompt'una dahil edilmez (oyuncular ayrı katman, bkz. 3.4).
+2. **LIGHTING:** Takımın ana renginden türetilen ışık kaynağı tanımı — örn. ev sahibi ana rengi kırmızı ise `"dramatic red rim lighting from floodlights, volumetric light shafts cutting through stadium mist"`.
+3. **COLOR GRADING:** İki takımın hex renk kodlarından üretilen bir gradient/ışık paleti tanımı — örn. `"cinematic color grade blending #DA020E and #6C1D45, deep shadows, high contrast teal-and-orange base with team accent overrides"`.
+4. **ATMOSPHERE/MOOD:** Derbi yoğunluğuna göre kademeli (bkz. 3.3).
+5. **CAMERA/COMPOSITION:** `"low-angle wide shot, shallow depth of field, negative space in lower-third and left third for typography overlay"` — kompozisyonda mutlaka veri/tipografi katmanı için boş alan bırakılır.
+6. **NEGATIVE PROMPT (sabit, her çağrıda eklenir):** `"no human figures, no faces, no visible sponsor logos, no readable text, no watermarks, no blurry crowd close-ups, no oversaturation, no cartoonish style"`.
+
+#### 3.2.2 Takım Renk Kodu Enjeksiyonu
+
+- Her takımın `primaryColorHex`/`secondaryColorHex` alanı Supabase `teams` tablosunda tutulur.
+- Prompt oluşturucu (`skills/render-engine/promptBuilder.ts`), iki takımın renklerini alıp çakışma/uyum kontrolü yapar (örn. iki takım da kırmızı ise ikincil takıma `secondaryColorHex` zorunlu kullanılır, aksi halde görsel ayrım kaybolur).
+
+#### 3.2.3 Derbi Tansiyonu Kademeleri (`derbyIntensity`)
+
+| Kademe | Mood/Atmosfer prompt eki | Örnek kullanım |
+|---|---|---|
+| `NONE` | `"calm professional match night, balanced neutral lighting"` | Lig ortası, rekabetsiz maç |
+| `RIVALRY` | `"tense competitive atmosphere, sharp contrast lighting, charged energy"` | Bölgesel rekabet |
+| `DERBY` | `"electric neon-accented rivalry atmosphere, pulsing crowd energy implied through light patterns, high saturation team-color neon glow"` | Şehir derbisi |
+| `ELITE_DERBY` | `"apocalyptic high-stakes cinematic atmosphere, extreme dramatic lighting, smoke and light beams, maximum tension, blockbuster movie poster energy"` | El Clasico düzeyi büyük maçlar |
+
+**Kural:** `derbyIntensity` alanı boşsa render tetiklenmez; sistem varsayılan olarak `NONE`'a düşmez, önce sınıflandırma yapılması zorunludur (bkz. Bölüm 4.2'deki takvim durum makinesi ile entegre).
+
+### 3.3 Çoklu Format Şablon Standartları
+
+| Format | Boyut | Oran | Platform | Güvenli alan kuralı |
+|---|---|---|---|---|
+| IG Feed | 1080×1350 | 4:5 | Instagram Feed | Üst %8, alt %10 payda kritik içerik yok (kırpma toleransı) |
+| Story/Reels/TikTok | 1080×1920 | 9:16 | Instagram Story/Reels, TikTok | Üst 250px ve alt 320px platform UI (profil, aksiyon butonları, caption) için tamamen boş — kritik veri/logo bu bölgeye asla yerleştirilmez |
+| X/Twitter | 1200×675 | 16:9 | X (Twitter) kartı | Kenarlardan %5 güvenli boşluk, yatay kompozisyon zorunlu |
+
+Her format için ayrı bir render şablonu (`skills/render-engine/templates/<format>.tsx` veya eşdeğer) tutulur; tek bir şablonun `scale()` ile üç orana zorlanması yasaktır — her oran kendi kompozisyon mantığına (oyuncu konumu, veri bloğu yerleşimi) sahiptir.
+
+### 3.4 CSS Katmanlama Kuralları
+
+Render çıktısı, aşağıdaki sabit z-index sırasıyla, her biri ayrı bir katman (layer) olarak birleştirilir. Bu sıra hiçbir şablonda değiştirilemez:
+
+```css
+.render-canvas {
+  --z-background: 0;      /* flux stadyum arka planı */
+  --z-light-bloom: 10;    /* ışık süzmesi / god-ray overlay, mix-blend-mode: screen */
+  --z-players: 20;        /* birefnet çıktısı transparan oyuncu PNG'leri */
+  --z-data-layer: 30;     /* istatistik kartları, xG grafiği, form rozetleri, tipografi */
+  --z-branding: 40;       /* CheckMatch.net logosu + sponsor logoları — her zaman en üstte */
+}
+```
+
+1. **Arka plan katmanı (`z-background`):** Flux çıktısı, tam kanvas boyutunda, `object-fit: cover`.
+2. **Işık süzmesi katmanı (`z-light-bloom`):** Ayrı bir overlay PNG/gradient, `mix-blend-mode: screen` veya `overlay` ile arka planla harmanlanır; oyuncuların arkasında kalmalı, oyuncuları asla örtmemeli.
+3. **Oyuncular katmanı (`z-players`):** Birefnet transparan PNG'leri; gölge, format bazlı kompozisyon kurallarına göre (bkz. 3.3) konumlandırılır.
+4. **Veri/tipografi katmanı (`z-data-layer`):** Tüm istatistik, skor, xG, form verisi. Bu katmanın arkasına her zaman okunabilirlik için bir kontrast panel/gradient (`backdrop-filter: blur()` veya yarı saydam gradient) eklenir — çıplak metin doğrudan render arka planına yerleştirilmez.
+5. **Marka/sponsor katmanı (`z-branding`):** CheckMatch.net logosu her formatta sabit konum ve minimum boyutla (marka kılavuzuna göre) yer alır; sponsor logoları varsa CheckMatch logosunun görsel ağırlığını geçemez.
+
+**Kural:** Yeni bir katman eklenmesi gerekiyorsa (örn. "canlı" rozeti), mevcut 5 katmanın z-index aralığı içine (`z-data-layer` ile `z-branding` arası, örn. `35`) yerleştirilir, mevcut sıralama asla bozulmaz.
+
+---
+
+## 4. Pazarlama, Analitik ve Takvim Sistemi
+
+### 4.1 Platform Metrik Veri Modelleri
+
+Her platformun ham metrik yanıtı, `lib/services/<platform>/mappers.ts` içinde aşağıdaki kanonik modele dönüştürülür:
+
+```ts
+interface PostMetrics {
+  postId: string;                 // içsel UUID
+  platform: 'meta_instagram' | 'meta_facebook' | 'tiktok' | 'youtube' | 'x';
+  providerPostId: string;
+  fixtureId: string;              // hangi maça bağlı içerik
+  contentStage: 'PRE_MATCH' | 'LIVE' | 'POST_MATCH';
+  publishedAtUtc: string;
+  impressions: number;
+  reach: number;
+  views: number;                  // video izlenme (YouTube/TikTok/Reels)
+  saves: number;                  // kaydetme (IG/TikTok)
+  engagementRate: number;         // (like+comment+share+save) / reach
+  linkClicks: number;             // CheckMatch.net'e giden tıklama
+  lastSyncedAtUtc: string;
+}
+```
+
+| Platform | API | Özel alanlar |
+|---|---|---|
+| Meta (Instagram/Facebook) | Meta Graph API | `saves`, `reach`, `video_avg_time_watched` |
+| TikTok | TikTok API (Business/Content) | `shares`, `avg_watch_time`, `full_video_watched_rate` |
+| YouTube | YouTube Data API v3 + Analytics API | `watchTimeMinutes`, `subscribersGained`, `averageViewDuration` |
+| X | X API v2 | `bookmarks`, `reposts`, `profileClicks` |
+
+**Senkronizasyon kuralı:** Metrik çekimi her içerik için yayından sonra kademeli aralıklarla yapılır (1 saat, 6 saat, 24 saat, 72 saat sonra) — sabit polling yerine kademeli (decaying) senkronizasyon, gereksiz API kotası tüketimini önler.
+
+### 4.2 Fikstür Tabanlı Takvim Durum Makinesi
+
+İçerik takvimi, her fikstür için aşağıdaki durum makinesini takip eder (`content_calendar` tablosu, discriminated union ile tipte yansıtılır):
+
+```
+SCHEDULED → PRE_MATCH_READY → PRE_MATCH_PUBLISHED → LIVE_TRACKING → POST_MATCH_READY → POST_MATCH_PUBLISHED → ARCHIVED
+                                                         │
+                                                         └─(maç iptal/ertelenirse)→ CANCELLED
+```
+
+| Durum | Tetikleyici | Beklenen içerik |
+|---|---|---|
+| `SCHEDULED` | Fikstür Sportmonks'tan çekildiğinde otomatik oluşturulur | — |
+| `PRE_MATCH_READY` | Kickoff'a T-24 saat; form/xG/sakatlık verisi tam | Maç önü analiz görseli, tahmin kartı |
+| `PRE_MATCH_PUBLISHED` | İçerik yayınlandı, UTM'li link CheckMatch'e eklendi | — |
+| `LIVE_TRACKING` | Kickoff anında otomatik geçiş | Gol/kart/önemli xG değişimi anlarında olay-tetiklemeli mikro içerik |
+| `POST_MATCH_READY` | Maç `FT` durumuna geçtikten 5 dk sonra, nihai istatistikler kesinleştiğinde | Maç sonu skor/istatistik özet görseli |
+| `POST_MATCH_PUBLISHED` | İçerik yayınlandı | — |
+| `ARCHIVED` | POST_MATCH_PUBLISHED'den 72 saat sonra, metrik son senkronizasyonu tamamlandığında | Metrik raporu kapatılır |
+| `CANCELLED` | Fikstür `POSTPONED`/`CANCELLED` olursa | Planlanan içerikler otomatik iptal edilir, kullanıcı bilgilendirilir |
+
+**Kural:** Durum geçişleri yalnızca `lib/services/calendar/stateMachine.ts` içinden yapılır; UI veya route handler doğrudan `content_calendar.status` alanını güncellemez — her geçiş merkezi bir fonksiyondan geçmek zorundadır (geçersiz geçişler derleme zamanında engellenir, discriminated union sayesinde).
+
+### 4.3 CheckMatch.net Dönüşüm İzleme — UTM Standardı
+
+Her yayınlanan içerikteki CheckMatch.net linki aşağıdaki sabit şemaya uymalıdır:
+
+```
+https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_campaign={fixtureSlug}&utm_content={contentStage}-{format}
+```
+
+| Parametre | Değer kümesi | Örnek |
+|---|---|---|
+| `utm_source` | `instagram`, `tiktok`, `youtube`, `x`, `facebook` | `instagram` |
+| `utm_medium` | Her zaman sabit `social` | `social` |
+| `utm_campaign` | `<ev-takim>-vs-<deplasman-takim>-<YYYYMMDD>` (kebab-case, ASCII) | `galatasaray-vs-fenerbahce-20260921` |
+| `utm_content` | `<contentStage>-<format>` | `pre_match-story`, `post_match-feed` |
+
+**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/utils/buildUtmLink.ts`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Supabase `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
+
+---
+
+## 5. Geliştirici Davranış Kuralları
+
+### 5.1 Kod Yazma Akışı (Her Görev İçin Zorunlu Sıra)
+
+1. **Anla:** İlgili servis katmanı/tip/şema zaten var mı diye önce mevcut kod taranır (`Grep`/`Glob`); var olan bir soyutlama varken yenisi yaratılmaz.
+2. **Tiple:** Önce tip/interface tanımlanır (`types/` veya ilgili servisin `types.ts`'i), sonra implementasyon yazılır.
+3. **Mock ile geliştir:** Dış API'ye (Sportmonks, API-Football, Fal.ai, Meta/TikTok/YouTube/X) canlı istek atmadan önce `tests/fixtures/` altındaki mock yanıtlarla akış uçtan uca çalıştırılır (bkz. 5.2).
+4. **Servis katmanından geç:** Doğrudan `fetch`/SDK çağrısı yerine `lib/services/*` fonksiyonu kullanılır ya da eksikse önce o fonksiyon eklenir.
+5. **Görsel doğrulama (render işleri için):** Playwright ile üç format da render edilip incelenir (bkz. 5.3).
+6. **Küçük tut:** Tek sorumluluk ilkesine uyulur (bkz. 5.4).
+7. **Gerçek çağrıyla doğrula:** Mock ile akış onaylandıktan sonra, kullanıcı onayıyla, gerçek API anahtarlarıyla tek bir örnek üzerinde doğrulama yapılır — kota tüketimi kontrollü tutulur.
+
+### 5.2 Mock Veriyle Test Disiplini
+
+- `tests/fixtures/sportmonks/`, `tests/fixtures/api-football/`, `tests/fixtures/fal/`, `tests/fixtures/meta/` vb. altında, gerçek API yanıt şemasına birebir uyan (ancak kurgusal veri içeren) JSON fixture'lar tutulur.
+- Yeni bir servis fonksiyonu yazıldığında, önce ilgili fixture ile birim test yazılır; fixture yoksa önce fixture oluşturulur.
+- **Kural:** Geliştirme ve CI ortamında gerçek dış API anahtarları asla varsayılan olarak kullanılmaz; `NODE_ENV=test` veya `USE_MOCKS=true` iken tüm servis katmanı fixture'lardan okuyacak şekilde tasarlanır (servis katmanının `client.ts`'i bu modda mock adaptörüne yönlendirilir).
+- Fal.ai render çağrıları özellikle mock'lanır — her geliştirme döngüsünde gerçek görsel üretim tetiklemek hem maliyetli hem yavaştır; render mantığı (prompt builder, katmanlama, format şablonları) mock görsellerle doğrulanır, gerçek Fal.ai çağrısı yalnızca son doğrulama adımında yapılır.
+
+### 5.3 Playwright ile Render Görsel Doğrulaması
+
+- Her render şablonu değişikliğinde, üç format (IG Feed, Story/Reels, X) için Playwright ile ekran görüntüsü alınır ve `tests/visual/` altındaki referans (golden) görsellerle piksel-fark eşiği içinde karşılaştırılır.
+- Yeni bir şablon veya katmanlama değişikliği, golden görseller güncellenmeden "tamamlandı" sayılmaz; golden güncellemesi kullanıcı onayı ile yapılır (görsel bir tasarım kararı olduğu için sessizce ezilmez).
+- Doğrulanacak asgari kontrol listesi her render için:
+  - [ ] 5 katman doğru z-sırasında (bkz. 3.4)
+  - [ ] Güvenli alan ihlali yok (platform UI ile çakışma, bkz. 3.3)
+  - [ ] CheckMatch.net logosu okunabilir ve sabit konumda
+  - [ ] Metin/veri katmanı arka plan üzerinde kontrast eşiğini karşılıyor (WCAG AA görsel eşdeğeri)
+  - [ ] Oyuncu kesiminde halo/artefakt yok (bkz. 3.1 adım 4-5 ile tutarlı)
+
+### 5.4 Monolitik Dosya Yazmama Kuralı
+
+- Hiçbir dosya ~300 satırı aşmamalıdır; aşıyorsa sorumluluk ayrıştırması (extract) yapılmadan görev tamamlanmış sayılmaz.
+- Bir React bileşeni birden fazla belirgin sorumluluk (veri çekme + karmaşık state + karmaşık render mantığı) taşıyorsa; veri çekme server component'e, state/etkileşim küçük bir client alt bileşenine, karmaşık türetilmiş veri bir `hooks/` fonksiyonuna ayrıştırılır.
+- Servis katmanında tek bir `index.ts` dosyasına onlarca fonksiyon yığılmaz; ilişkili fonksiyon grupları (`fixtures.ts`, `teams.ts`, `players.ts`) ayrı dosyalara bölünür ve `index.ts` yalnızca re-export yapar.
+- Prompt mühendisliği mantığı (3.2) tek bir dev fonksiyonda değil, blok bazlı küçük saf fonksiyonlara (`buildLightingBlock()`, `buildColorGradeBlock()`, `buildMoodBlock()`) bölünür — her blok bağımsız test edilebilir olmalıdır.
+- **Gerekçe:** Küçük, tek sorumluluklu dosyalar hem AI ajanlarının hem insan geliştiricilerin bağlamı doğru anlamasını sağlar; büyük dosyalar hem kod incelemeyi hem de ajan bağlamını bozar.
+
+### 5.5 Genel Disiplin
+
+- Yeni bir dış bağımlılık (npm paketi, üçüncü parti API) eklemeden önce mevcut yığında (Bölüm 1.1) karşılığı olup olmadığı kontrol edilir; gerekçesiz yeni bağımlılık eklenmez.
+- Gizli anahtar veya kimlik bilgisi asla kod içine, commit mesajına veya loglara yazılmaz; sızıntı şüphesi varsa iş durdurulup kullanıcı bilgilendirilir.
+- Supabase migration'ları, Fal.ai canlı render çağrıları, sosyal medya API'lerine gerçek yayın (post) işlemleri gibi geri dönüşü zor/paylaşılan sistemleri etkileyen eylemler öncesinde kullanıcı onayı alınır.
