@@ -2,7 +2,7 @@
 
 import { isPast } from "date-fns";
 import Link from "next/link";
-import { ArrowUpRight, CalendarClock, Megaphone } from "lucide-react";
+import { ArrowUpRight, CalendarClock, Megaphone, RadioTower } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Sheet,
@@ -15,6 +15,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AdSpendForm } from "@/components/features/calendar/ad-spend-form";
+import { MarketCalculationsPanel } from "@/components/features/calendar/market-calculations-panel";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
 import { buildStudioHref } from "@/lib/calendar/build-studio-href";
 import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
@@ -115,6 +116,14 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
           <div className="rounded-lg bg-muted/30 p-3">
             <AdSpendForm adSpend={fixture.contentPlan.adSpend} onSave={onSaveAdSpend} />
           </div>
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <RadioTower className="size-3.5" />
+            CheckMatch Canlı Veri
+          </h3>
+          <MarketCalculationsPanel fixtureId={fixture.id} />
         </section>
       </div>
 
