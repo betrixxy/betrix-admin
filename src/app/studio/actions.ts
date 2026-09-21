@@ -12,7 +12,7 @@ export interface GenerateMatchCardActionResult {
   message: string;
 }
 
-const MOCK_DELAY_MS = 2000;
+const MOCK_DELAY_MS = 3000;
 
 /**
  * Maç kartı üretim akışının giriş noktası.
