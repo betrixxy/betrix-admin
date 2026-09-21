@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
+
+# prisma (yerel SQLite veritabanı — FAZ 6, bkz. CLAUDE.md 1.1)
+/prisma/dev.db
+/prisma/dev.db-journal

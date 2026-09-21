@@ -28,14 +28,14 @@ Bu dosya, bu repository içinde çalışan her yapay zeka ajanı (Claude Code da
 | Dil | TypeScript (strict mode) | `any` yasak, `unknown` + daraltma zorunlu. |
 | Stil | Tailwind CSS | Ham CSS dosyası yalnızca render motorunda (bkz. Bölüm 3.4) istisnadır. |
 | Bileşen kütüphanesi | Shadcn UI | Fork edilip `components/ui/` altında tutulur, npm bağımlılığı olarak değil kaynak kod olarak yönetilir. |
-| Veritabanı / Auth / Storage / Realtime | Supabase | Tek gerçek kaynak (source of truth). |
+| Veritabanı / Auth / Storage / Realtime | Supabase | Tek gerçek kaynak (source of truth) — **FAZ 6'dan itibaren geçici olarak yerel SQLite + Prisma ile değiştirildi, bkz. 1.6a.** Supabase'e geçiş ayrı bir FAZ'da planlanacak. |
 | Görsel üretim motoru | Fal.ai (birefnet, flux ailesi) | Bkz. Bölüm 3. |
 | Spor verisi | Sportmonks (birincil), API-Football (ikincil/doğrulama) | Bkz. Bölüm 2. |
 | Görsel doğrulama | Playwright | Bkz. Bölüm 5.3. |
 
 ### 1.2 Dizin Mimarisi
 
-Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` altında yaşar. `supabase/` ve `tests/` (Supabase CLI ve test koşucusu konvansiyonu gereği) proje kökünde kalır.
+Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` altında yaşar. `supabase/`, `prisma/` ve `tests/` (ilgili CLI/koşucu konvansiyonu gereği) proje kökünde kalır.
 
 ```
 betrix-studio/
@@ -44,32 +44,43 @@ betrix-studio/
 │  │  ├─ dashboard/                # İç analitik/yönetim paneli
 │  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
 │  │  ├─ calendar/                 # Fikstür tabanlı içerik takvimi (bkz. Bölüm 4.2)
+│  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6a)
 │  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok
 │  ├─ components/
 │  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
 │  │  └─ features/                 # Özellik bazlı bileşenler
 │  │     ├─ dashboard/
 │  │     ├─ studio/
-│  │     └─ calendar/
+│  │     ├─ calendar/
+│  │     └─ auth/                  # Login formu vb. (bkz. 1.6a)
 │  ├─ lib/
 │  │  ├─ services/                 # Dış API soyutlama katmanı (bkz. 1.4)
 │  │  │  ├─ sportmonks/
 │  │  │  ├─ api-football/
+│  │  │  ├─ checkmatch-core/       # Mac sunucusu köprüsü (VIP token'lı service-to-service)
 │  │  │  ├─ fal/
 │  │  │  ├─ meta/
 │  │  │  ├─ tiktok/
 │  │  │  ├─ youtube/
 │  │  │  └─ x/
-│  │  ├─ supabase/                 # client.ts (server/browser ayrımı), queries/, mutations/
+│  │  ├─ supabase/                 # client.ts (server/browser ayrımı), queries/, mutations/ — FAZ 6'da boş, bkz. 1.6a
+│  │  ├─ auth/                     # password.ts, session.ts, credentials.ts (bkz. 1.6a)
+│  │  ├─ prisma.ts                 # PrismaClient tekil (singleton) — bkz. 1.6a
 │  │  ├─ env.ts                    # zod ile doğrulanmış merkezi env erişimi
 │  │  └─ utils.ts                  # Shadcn `cn()` yardımcı fonksiyonu + genel yardımcılar
+│  ├─ generated/prisma/            # `prisma generate` çıktısı, elle düzenlenmez, gitignore'da (bkz. 1.6a)
 │  ├─ types/                       # Paylaşılan, katmanlar-arası TypeScript tipleri
 │  ├─ hooks/                       # Client-side React hook'ları
+│  ├─ proxy.ts                     # Route koruması — Next.js 16 `proxy` konvansiyonu (eski adı `middleware`)
 │  └─ skills/
 │     └─ render-engine/
 │        └─ templates/             # Format bazlı render şablonları (bkz. 3.3)
+├─ prisma/
+│  ├─ schema.prisma                # FAZ 6 yerel modeller (ContentPlan, AdminUser) — bkz. 1.6a
+│  ├─ seed.ts                      # Tek admin hesabını oluşturur (`npx prisma db seed`)
+│  └─ dev.db                       # Yerel SQLite dosyası, gitignore'da — asla commit edilmez
 ├─ supabase/
-│  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş SQL migration'lar
+│  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş SQL migration'lar — FAZ 6'da boş
 │  └─ types.ts                     # `supabase gen types` çıktısı, elle düzenlenmez
 ├─ tests/
 │  ├─ fixtures/                    # Mock Sportmonks/API-Football/Fal.ai/Meta/TikTok/YouTube/X yanıtları
@@ -78,6 +89,8 @@ betrix-studio/
 ```
 
 **Kural:** Bu yapının dışında yeni bir üst düzey dizin açmadan önce gerekçe kullanıcıya sunulur. `app/dashboard`, `app/studio`, `app/calendar` şimdilik düz klasörlerdir; ileride betrix.pro tanıtım yüzeyi eklenirse `(marketing)` route group'u ayrıca açılır.
+
+**Not:** `prisma init` çalıştırıldığında proje köküne `.claude/skills/`, `.windsurf/skills/`, `.agents/skills/` (Prisma CLI/Client referans dokümanları, araç tarafından otomatik kurulur) ve `prisma7.config.ts` eklendi. Bunlar uygulama kodu değil, ajan/araç tooling'i içindir; yukarıdaki kuralın istisnasıdır ve elle düzenlenmez.
 
 ### 1.3 TypeScript — Katı Tip Kuralları
 
@@ -126,10 +139,31 @@ Bu katmanın zorunlu kıldığı şeyler:
 - Server-only işlemler (service role key) yalnızca `lib/supabase/server.ts` içinde, asla client bundle'a sızmayacak şekilde kullanılır.
 - Storage bucket'ları (render çıktıları, oyuncu görselleri) için erişim politikaları ayrı ayrı belgelenir; halka açık bucket'lar yalnızca yayınlanmış nihai render çıktıları içindir.
 
+**FAZ 6 durumu:** Bu bölümdeki kurallar Supabase'e geçilene kadar askıdadır — `supabase/migrations/` ve `lib/supabase/` şu an boş. Yerel geliştirme için 1.6a'daki SQLite/Prisma katmanı kullanılır.
+
+### 1.6a Yerel Veritabanı ve Auth (FAZ 6 — geçici, Supabase'e geçiş öncesi)
+
+Supabase henüz kurulmadığı için (bkz. 1.1, 1.6) FAZ 6'da CRM verisi ve admin auth'u için **geçici** bir yerel katman eklendi. Bu bölüm, Supabase'e geçiş yapılana kadar bağlayıcıdır; geçiş yapıldığında bu alt bölüm CLAUDE.md'den çıkarılır ve 1.6 tekrar geçerli olur.
+
+**Veritabanı — SQLite + Prisma:**
+- Şema `prisma/schema.prisma`'da tanımlanır: `ContentPlan` (fixtureId, scheduledFor, platforms, adSpend — bkz. `types/calendar.ts`) ve `AdminUser` (email, passwordHash).
+- SQLite dosyası `prisma/dev.db` — gitignore'da, asla commit edilmez. Bağlantı adresi `DATABASE_URL` (`.env`, `lib/env.ts` üzerinden okunur).
+- Client, `generator client { provider = "prisma-client" }` ile `src/generated/prisma`'ya üretilir (Prisma 7) — `supabase/types.ts` gibi elle düzenlenmez, gitignore'dadır.
+- Prisma 7'de runtime'da native bir driver adapter zorunlu. `better-sqlite3` Windows'ta prebuilt binary sağlamadığı (node-gyp + Python + MSVC gerektirir) için **`@prisma/adapter-libsql`** kullanılır — aynı yerel `file:` SQLite dosyasına bağlanır, ek bir servis gerekmez.
+- `lib/prisma.ts`, Next.js dev hot-reload'da bağlantı sızıntısını önlemek için `globalThis` üzerinde tekil (singleton) `PrismaClient` tutar (resmi Next.js+Prisma deseni).
+- Yeni admin hesabı: `npx prisma db seed` (`prisma/seed.ts`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` env'den okunur, idempotent upsert).
+
+**Auth — özel Credentials + JWT (dış servis yok):**
+- Tek admin hesabı `AdminUser` tablosunda tutulur; şifre `bcryptjs` ile hash'lenir (`lib/auth/password.ts`), zamanlama saldırılarına karşı kullanıcı bulunamasa da sabit bir hash ile karşılaştırma yapılır (`lib/auth/credentials.ts`).
+- Oturum, `jose` ile imzalanmış bir JWT olarak `httpOnly` cookie'de tutulur (`lib/auth/session.ts`, `SESSION_COOKIE_NAME`). `jose` seçildi çünkü Next.js Proxy (bkz. aşağı) hem Edge hem Node.js runtime'da çalışabilir ve `jose` her ikisiyle de uyumludur (`jsonwebtoken` Edge'de çalışmaz).
+- Giriş formu bir Server Action'dır (`app/login/actions.ts`) — zod ile doğrulanır, başarılı girişte cookie set edilir, `redirectTo` yalnızca site-içi göreli yollara izin verecek şekilde doğrulanır (open-redirect koruması).
+- **Route koruması:** `src/proxy.ts` — Next.js 16'da `middleware.ts` konvansiyonu deprecate edildi ve `proxy.ts`'e taşındı (fonksiyon adı `middleware` → `proxy`); `/calendar` ve `/studio` altındaki tüm yollar, geçerli oturum cookie'si yoksa `/login?from=<yol>`'a yönlendirilir.
+- Bu katman kasıtlı olarak ince tutuldu: Supabase'e geçişte `lib/auth/credentials.ts` + `lib/prisma.ts`, Supabase Auth + RLS ile değiştirilecek, `lib/auth/session.ts`'in dışa açtığı arayüz (cookie adı, `SessionPayload`) mümkün olduğunca korunacak.
+
 ### 1.7 Ortam Değişkenleri
 
-- Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır.
-- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+- Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır. (Tek istisna: `prisma7.config.ts`, Prisma CLI'ın kendi env yükleme mekanizması gereği `dotenv` kullanır — uygulama kodu değildir. `prisma/seed.ts` dahil tüm uygulama/araç kodu `lib/env.ts` üzerinden okur.)
+- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
 
 ---
 
@@ -390,6 +424,7 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 - Servis katmanında tek bir `index.ts` dosyasına onlarca fonksiyon yığılmaz; ilişkili fonksiyon grupları (`fixtures.ts`, `teams.ts`, `players.ts`) ayrı dosyalara bölünür ve `index.ts` yalnızca re-export yapar.
 - Prompt mühendisliği mantığı (3.2) tek bir dev fonksiyonda değil, blok bazlı küçük saf fonksiyonlara (`buildLightingBlock()`, `buildColorGradeBlock()`, `buildMoodBlock()`) bölünür — her blok bağımsız test edilebilir olmalıdır.
 - **Gerekçe:** Küçük, tek sorumluluklu dosyalar hem AI ajanlarının hem insan geliştiricilerin bağlamı doğru anlamasını sağlar; büyük dosyalar hem kod incelemeyi hem de ajan bağlamını bozar.
+- **İstisna:** Otomatik üretilen, elle düzenlenmeyen dosyalar (`supabase/types.ts`, `src/generated/prisma/**`) bu sınırın dışındadır.
 
 ### 5.5 Genel Disiplin
 

@@ -1,0 +1,36 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// CRM içerik planı — bkz. src/types/calendar.ts ContentPlan. Mock veriden
+/// (mock-fixtures.ts) kalıcı depolamaya geçişin ilk adımı; fixtureId, takvim
+/// modülündeki CalendarFixture.id'ye referans verir (henüz ayrı bir Fixture
+/// tablosu yok — fikstür verisi hâlâ API-Football'dan/mock'tan geliyor).
+model ContentPlan {
+  id           String   @id @default(cuid())
+  fixtureId    String   @unique
+  scheduledFor DateTime
+  /// AdPlatform[] — bkz. src/types/calendar.ts
+  platforms    Json
+  /// AdSpend — bkz. src/types/calendar.ts
+  adSpend      Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Tek admin hesabı — bkz. CLAUDE.md FAZ 6, yalnızca bu tablodaki kullanıcı
+/// /login üzerinden giriş yapabilir (src/middleware.ts route koruması).
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
