@@ -1,58 +1,53 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { addMonths, startOfMonth, subMonths } from "date-fns";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { addMonths, format, parseISO, subMonths } from "date-fns";
+import { saveAdSpendAction } from "@/app/calendar/actions";
 import { CalendarToolbar } from "@/components/features/calendar/calendar-toolbar";
 import { FixtureDetailSheet } from "@/components/features/calendar/fixture-detail-sheet";
 import { MonthGrid } from "@/components/features/calendar/month-grid";
-import { derivePlatformsFromAdSpend } from "@/lib/calendar/ad-spend";
-import { hasContentPlan } from "@/lib/calendar/content-plan";
 import type { AdSpend, CalendarFixture } from "@/types/calendar";
+import type { Result } from "@/types/result";
 
 interface CalendarWorkspaceProps {
+  /** Ay ızgarasının gerçek fikstürleri (API-Football) + içerik planı/durumu — sunucuda hazırlanır. */
   fixtures: CalendarFixture[];
+  /** `yyyy-MM` — ay değişimi URL ile yapılır, sunucu o ayın verisini çeker. */
+  month: string;
+  generationDisabled: boolean;
 }
 
-export function CalendarWorkspace({ fixtures: initialFixtures }: CalendarWorkspaceProps) {
-  const [fixtures, setFixtures] = useState(initialFixtures);
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
+export function CalendarWorkspace({ fixtures, month, generationDisabled }: CalendarWorkspaceProps) {
+  const router = useRouter();
   const [selectedFixtureId, setSelectedFixtureId] = useState<string | null>(null);
+  const monthDate = parseISO(`${month}-01`);
+  const selectedFixture = fixtures.find((fixture) => fixture.id === selectedFixtureId) ?? null;
 
-  // Yalnızca içerik planı olan (derbi/rekabet seviyesindeki) maçlar takvimde gösterilir.
-  const plannedFixtures = useMemo(() => fixtures.filter(hasContentPlan), [fixtures]);
-  const selectedFixture =
-    plannedFixtures.find((fixture) => fixture.id === selectedFixtureId) ?? null;
+  function goToMonth(target: Date) {
+    router.push(`/calendar?month=${format(target, "yyyy-MM")}`);
+  }
 
-  function handleSaveAdSpend(fixtureId: string, adSpend: AdSpend) {
-    setFixtures((current) =>
-      current.map((fixture) =>
-        fixture.id === fixtureId && fixture.contentPlan
-          ? {
-              ...fixture,
-              contentPlan: {
-                ...fixture.contentPlan,
-                adSpend,
-                platforms: derivePlatformsFromAdSpend(adSpend),
-              },
-            }
-          : fixture,
-      ),
-    );
+  async function handleSaveAdSpend(fixtureId: string, adSpend: AdSpend): Promise<Result<null>> {
+    const result = await saveAdSpendAction(fixtureId, adSpend);
+    if (result.ok) router.refresh();
+    return result;
   }
 
   return (
     <div className="flex flex-col gap-5">
       <CalendarToolbar
-        month={month}
-        onPrevMonth={() => setMonth((current) => subMonths(current, 1))}
-        onNextMonth={() => setMonth((current) => addMonths(current, 1))}
-        onToday={() => setMonth(startOfMonth(new Date()))}
+        month={monthDate}
+        onPrevMonth={() => goToMonth(subMonths(monthDate, 1))}
+        onNextMonth={() => goToMonth(addMonths(monthDate, 1))}
+        onToday={() => goToMonth(new Date())}
       />
 
-      <MonthGrid month={month} fixtures={plannedFixtures} onSelect={setSelectedFixtureId} />
+      <MonthGrid month={monthDate} fixtures={fixtures} onSelect={setSelectedFixtureId} />
 
       <FixtureDetailSheet
         fixture={selectedFixture}
+        generationDisabled={generationDisabled}
         onOpenChange={(open) => {
           if (!open) setSelectedFixtureId(null);
         }}

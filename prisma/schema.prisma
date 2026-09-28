@@ -10,10 +10,10 @@ datasource db {
   provider = "postgresql"
 }
 
-/// CRM içerik planı — bkz. src/types/calendar.ts ContentPlan. Mock veriden
-/// (mock-fixtures.ts) kalıcı depolamaya geçişin ilk adımı; fixtureId, takvim
-/// modülündeki CalendarFixture.id'ye referans verir (henüz ayrı bir Fixture
-/// tablosu yok — fikstür verisi hâlâ API-Football'dan/mock'tan geliyor).
+/// CRM içerik planı — bkz. src/types/calendar.ts ContentPlan. Admin takvimde bir maç
+/// için reklam bütçesi kaydettiğinde oluşur (app/calendar/actions.ts). fixtureId,
+/// gerçek API-Football fikstürüne (`api-football-<id>`) referans verir; ayrı bir
+/// Fixture tablosu yok, fikstür verisi her zaman API-Football'dan okunur.
 model ContentPlan {
   id           String   @id @default(cuid())
   fixtureId    String   @unique

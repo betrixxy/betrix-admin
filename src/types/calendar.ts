@@ -29,16 +29,12 @@ export interface ContentPlan {
 }
 
 /**
- * `contentPlan` isteğe bağlıdır: yalnızca derbi/rekabet seviyesi taşıyan maçlar otomatik
- * içerik planı alır (bkz. mock-fixtures.ts). Sıradan (`NONE`) maçlar planı olmadan var
- * olabilir ama içerik takviminde (bkz. month-grid.tsx) gösterilmez.
+ * Takvimdeki gerçek fikstür (API-Football) + veritabanından türetilen içerik durumu
+ * (bkz. lib/calendar/calendar-month.ts). `contentPlan` yalnızca admin bir reklam bütçesi
+ * kaydettiyse (ContentPlan tablosu) doludur.
  */
 export interface CalendarFixture extends Fixture {
   contentStatus: ContentStatus;
   contentPlan?: ContentPlan;
 }
 
-/** `contentPlan` alanı garanti dolu olan, takvimde gösterilmeye uygun fikstür. */
-export interface PlannedCalendarFixture extends CalendarFixture {
-  contentPlan: ContentPlan;
-}

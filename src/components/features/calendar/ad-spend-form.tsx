@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { Check } from "lucide-react";
+import { useState, useTransition } from "react";
+import { AlertCircle, Check, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AD_PLATFORM_META, AD_PLATFORM_ORDER } from "@/lib/calendar/ad-platform";
 import { formatAdSpend } from "@/lib/calendar/ad-spend";
 import type { AdPlatform, AdSpend } from "@/types/calendar";
+import type { Result } from "@/types/result";
 
 interface AdSpendFormProps {
   adSpend: AdSpend;
-  onSave: (adSpend: AdSpend) => void;
+  onSave: (adSpend: AdSpend) => Promise<Result<null>>;
 }
 
 type Draft = Record<AdPlatform, string>;
@@ -25,10 +26,12 @@ function toDraft(adSpend: AdSpend): Draft {
   };
 }
 
-/** Kullanıcının maç başına reklam bütçesini elle girdiği form — şimdilik yalnızca state ile (mock) çalışır. */
+/** Maç başına reklam bütçesi — `ContentPlan` tablosuna kalıcı yazılır (bkz. app/calendar/actions.ts). */
 export function AdSpendForm({ adSpend, onSave }: AdSpendFormProps) {
   const [draft, setDraft] = useState<Draft>(() => toDraft(adSpend));
   const [justSaved, setJustSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, startSaving] = useTransition();
 
   const total = AD_PLATFORM_ORDER.reduce(
     (sum, platform) => sum + (Number(draft[platform]) || 0),
@@ -37,6 +40,7 @@ export function AdSpendForm({ adSpend, onSave }: AdSpendFormProps) {
 
   function handleChange(platform: AdPlatform, value: string) {
     setJustSaved(false);
+    setError(null);
     setDraft((current) => ({ ...current, [platform]: value }));
   }
 
@@ -46,9 +50,15 @@ export function AdSpendForm({ adSpend, onSave }: AdSpendFormProps) {
       const amount = Number(draft[platform]);
       if (amount > 0) next[platform] = amount;
     }
-    onSave(next);
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
+    startSaving(async () => {
+      const result = await onSave(next);
+      if (!result.ok) {
+        setError(result.error.message);
+        return;
+      }
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    });
   }
 
   return (
@@ -94,11 +104,17 @@ export function AdSpendForm({ adSpend, onSave }: AdSpendFormProps) {
         <span className="text-sm text-muted-foreground">
           Toplam <span className="font-semibold text-foreground">{formatAdSpend(total)}</span>
         </span>
-        <Button size="sm" onClick={handleSave} className="gap-1.5">
-          {justSaved && <Check className="size-3.5" />}
+        <Button size="sm" onClick={handleSave} disabled={isSaving} className="gap-1.5">
+          {isSaving ? <LoaderCircle className="size-3.5 animate-spin" /> : justSaved ? <Check className="size-3.5" /> : null}
           {justSaved ? "Kaydedildi" : "Kaydet"}
         </Button>
       </div>
+      {error ? (
+        <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
+          <AlertCircle className="size-3.5 shrink-0" />
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

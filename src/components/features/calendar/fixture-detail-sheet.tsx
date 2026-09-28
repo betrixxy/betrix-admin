@@ -1,9 +1,7 @@
 "use client";
 
 import { isPast } from "date-fns";
-import Link from "next/link";
-import { ArrowUpRight, CalendarClock, Megaphone, RadioTower } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { CalendarClock, Megaphone, RadioTower } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -12,25 +10,27 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { AdSpendForm } from "@/components/features/calendar/ad-spend-form";
 import { MarketCalculationsPanel } from "@/components/features/calendar/market-calculations-panel";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
-import { buildStudioHref } from "@/lib/calendar/build-studio-href";
+import { GenerateDraftForm } from "@/components/features/dashboard/generate-draft-form";
 import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
 import { DERBY_INTENSITY_META } from "@/lib/calendar/derby-intensity";
 import { formatKickoffTime, formatMatchDayLabel } from "@/lib/calendar/format";
-import type { AdSpend, PlannedCalendarFixture, TeamRef } from "@/types/calendar";
+import type { AdSpend, CalendarFixture, TeamRef } from "@/types/calendar";
+import type { Result } from "@/types/result";
 
 interface FixtureDetailSheetProps {
-  fixture: PlannedCalendarFixture | null;
+  fixture: CalendarFixture | null;
+  generationDisabled: boolean;
   onOpenChange: (open: boolean) => void;
-  onSaveAdSpend: (fixtureId: string, adSpend: AdSpend) => void;
+  onSaveAdSpend: (fixtureId: string, adSpend: AdSpend) => Promise<Result<null>>;
 }
 
 export function FixtureDetailSheet({
   fixture,
+  generationDisabled,
   onOpenChange,
   onSaveAdSpend,
 }: FixtureDetailSheetProps) {
@@ -41,6 +41,7 @@ export function FixtureDetailSheet({
           <FixtureDetailContent
             key={fixture.id}
             fixture={fixture}
+            generationDisabled={generationDisabled}
             onSaveAdSpend={(adSpend) => onSaveAdSpend(fixture.id, adSpend)}
           />
         )}
@@ -61,11 +62,12 @@ function TeamColumn({ team }: { team: TeamRef }) {
 }
 
 interface FixtureDetailContentProps {
-  fixture: PlannedCalendarFixture;
-  onSaveAdSpend: (adSpend: AdSpend) => void;
+  fixture: CalendarFixture;
+  generationDisabled: boolean;
+  onSaveAdSpend: (adSpend: AdSpend) => Promise<Result<null>>;
 }
 
-function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentProps) {
+function FixtureDetailContent({ fixture, generationDisabled, onSaveAdSpend }: FixtureDetailContentProps) {
   const statusMeta = CONTENT_STATUS_META[fixture.contentStatus];
   const derbyMeta = DERBY_INTENSITY_META[fixture.derbyIntensity];
   const DerbyIcon = derbyMeta.icon;
@@ -114,7 +116,7 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
             Reklam Bütçesi
           </h3>
           <div className="rounded-lg bg-muted/30 p-3">
-            <AdSpendForm adSpend={fixture.contentPlan.adSpend} onSave={onSaveAdSpend} />
+            <AdSpendForm adSpend={fixture.contentPlan?.adSpend ?? { currency: "TRY" }} onSave={onSaveAdSpend} />
           </div>
         </section>
 
@@ -128,20 +130,8 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
       </div>
 
       <SheetFooter className="border-t border-border/60 pt-4">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Link
-                href={buildStudioHref(fixture)}
-                className={cn(buttonVariants({ variant: "default", size: "lg" }), "w-full")}
-              />
-            }
-          >
-            Stüdyoya Aktar
-            <ArrowUpRight className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent side="top">Bu maçı içerik üretim paneline aktarır</TooltipContent>
-        </Tooltip>
+        {/* Onay akışına bağlanır: gerçek istatistik + Fal.ai görseli → taslak inceleme ekranı (bkz. CLAUDE.md 1.10). */}
+        <GenerateDraftForm fixtureId={fixture.id} disabled={generationDisabled} />
       </SheetFooter>
     </>
   );

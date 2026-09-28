@@ -10,7 +10,7 @@ import {
 } from "date-fns";
 import { DayCell } from "@/components/features/calendar/day-cell";
 import { formatShortDay } from "@/lib/calendar/format";
-import type { PlannedCalendarFixture } from "@/types/calendar";
+import type { CalendarFixture } from "@/types/calendar";
 
 const WEEKDAY_REFERENCE = eachDayOfInterval({
   start: startOfWeek(new Date(2026, 0, 1), { weekStartsOn: 1 }),
@@ -19,8 +19,8 @@ const WEEKDAY_REFERENCE = eachDayOfInterval({
 
 interface MonthGridProps {
   month: Date;
-  /** Yalnızca içerik planı olan (bkz. hasContentPlan) fikstürler ızgarada gösterilir. */
-  fixtures: PlannedCalendarFixture[];
+  /** Gerçek fikstürler — başlama saatine göre günlere yerleşir. */
+  fixtures: CalendarFixture[];
   onSelect: (fixtureId: string) => void;
 }
 
@@ -44,10 +44,8 @@ export function MonthGrid({ month, fixtures, onSelect }: MonthGridProps) {
       <div className="grid grid-cols-7 [&>*:nth-child(7n)]:border-r-0 [&>*:nth-last-child(-n+7)]:border-b-0">
         {days.map((day) => {
           const dayFixtures = fixtures
-            .filter((fixture) => isSameDay(new Date(fixture.contentPlan.scheduledFor), day))
-            .sort((a, b) =>
-              a.contentPlan.scheduledFor.localeCompare(b.contentPlan.scheduledFor),
-            );
+            .filter((fixture) => isSameDay(new Date(fixture.kickoffUtc), day))
+            .sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));
 
           return (
             <div key={day.toISOString()} className="border-r border-b border-border/40">

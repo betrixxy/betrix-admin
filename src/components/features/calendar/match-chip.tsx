@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
 import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
 import { formatKickoffTime } from "@/lib/calendar/format";
-import type { PlannedCalendarFixture } from "@/types/calendar";
+import type { CalendarFixture } from "@/types/calendar";
 
 interface MatchChipProps {
-  fixture: PlannedCalendarFixture;
+  fixture: CalendarFixture;
   muted?: boolean;
   onSelect: (fixtureId: string) => void;
 }

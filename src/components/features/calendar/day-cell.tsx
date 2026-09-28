@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { MatchChip } from "@/components/features/calendar/match-chip";
 import { formatDayNumber } from "@/lib/calendar/format";
-import type { PlannedCalendarFixture } from "@/types/calendar";
+import type { CalendarFixture } from "@/types/calendar";
 
 const MAX_VISIBLE_CHIPS = 3;
 
@@ -11,12 +12,14 @@ interface DayCellProps {
   date: Date;
   isCurrentMonth: boolean;
   isToday: boolean;
-  fixtures: PlannedCalendarFixture[];
+  fixtures: CalendarFixture[];
   onSelect: (fixtureId: string) => void;
 }
 
+/** Gerçek bir maç gününde onlarca karşılaşma olabilir — "+N daha" hücreyi genişletir. */
 export function DayCell({ date, isCurrentMonth, isToday, fixtures, onSelect }: DayCellProps) {
-  const visible = fixtures.slice(0, MAX_VISIBLE_CHIPS);
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? fixtures : fixtures.slice(0, MAX_VISIBLE_CHIPS);
   const overflow = fixtures.length - visible.length;
 
   return (
@@ -42,11 +45,15 @@ export function DayCell({ date, isCurrentMonth, isToday, fixtures, onSelect }: D
             onSelect={onSelect}
           />
         ))}
-        {overflow > 0 && (
-          <span className="px-1.5 text-[10px] text-muted-foreground/60">
-            +{overflow} daha
-          </span>
-        )}
+        {overflow > 0 || expanded ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            className="w-fit rounded px-1.5 text-left text-[10px] text-muted-foreground/70 hover:text-white"
+          >
+            {expanded ? "Daralt" : `+${overflow} daha`}
+          </button>
+        ) : null}
       </div>
     </div>
   );

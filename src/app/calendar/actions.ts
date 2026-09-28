@@ -1,9 +1,16 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { subDays } from "date-fns";
+import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
+import { derivePlatformsFromAdSpend } from "@/lib/calendar/ad-spend";
 import { UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { prisma } from "@/lib/prisma";
+import { getFixtureById, parseFixtureId } from "@/lib/services/api-football";
 import { getMatchCalculations } from "@/lib/services/checkmatch-core";
 import type { CheckmatchCoreError } from "@/lib/services/checkmatch-core";
+import type { AdSpend } from "@/types/calendar";
 import type { MatchCalculations } from "@/types/market";
 import type { Result } from "@/types/result";
 
@@ -22,4 +29,53 @@ export async function getMatchCalculationsAction(
     return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
   }
   return getMatchCalculations(fixtureId);
+}
+
+const amount = z.number().int().min(0).max(10_000_000).optional();
+const adSpendSchema = z.object({
+  meta: amount,
+  tiktok: amount,
+  youtube: amount,
+  x: amount,
+  currency: z.literal("TRY"),
+});
+
+/** İçerik planı, maçtan bu kadar gün önce yayınlanacak şekilde varsayılan olarak planlanır. */
+const DEFAULT_PLAN_LEAD_DAYS = 1;
+
+/**
+ * Maç başına reklam bütçesini `ContentPlan` tablosuna kalıcı yazar (önceden yalnızca tarayıcı
+ * state'indeydi). Plan yoksa oluşturulur; yayın tarihi gerçek başlama saatinden türetilir.
+ */
+export async function saveAdSpendAction(fixtureId: string, adSpend: AdSpend): Promise<Result<null>> {
+  if (!(await getCurrentSession())) {
+    return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
+  }
+
+  const apiId = parseFixtureId(fixtureId);
+  const parsed = adSpendSchema.safeParse(adSpend);
+  if (apiId === null || !parsed.success) {
+    return { ok: false, error: { code: "INVALID_INPUT", message: "Geçersiz maç veya bütçe." } };
+  }
+
+  const fixture = await getFixtureById(apiId);
+  if (!fixture.ok) return { ok: false, error: { code: fixture.error.code, message: fixture.error.message } };
+
+  const data = { adSpend: parsed.data, platforms: derivePlatformsFromAdSpend(parsed.data) };
+  try {
+    await prisma.contentPlan.upsert({
+      where: { fixtureId },
+      update: data,
+      create: {
+        ...data,
+        fixtureId,
+        scheduledFor: subDays(new Date(fixture.data.kickoffUtc), DEFAULT_PLAN_LEAD_DAYS),
+      },
+    });
+  } catch (cause) {
+    return { ok: false, error: { code: "SAVE_FAILED", message: "Bütçe kaydedilemedi.", cause } };
+  }
+
+  revalidatePath("/calendar");
+  return { ok: true, data: null };
 }

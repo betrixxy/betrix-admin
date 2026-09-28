@@ -19,8 +19,10 @@ export interface FixtureDateRange {
   to: string;
 }
 
-/** Tek sorguda istenebilecek en uzun aralık — her gün ayrı bir istektir (bkz. aşağı). */
-export const MAX_RANGE_DAYS = 14;
+/** Tek sorguda istenebilecek en uzun aralık (ay ızgarası = 6 hafta) — her gün ayrı bir istektir. */
+export const MAX_RANGE_DAYS = 42;
+/** Aynı anda en fazla bu kadar gün sorgulanır — sağlayıcının dakika başı limitine nazik davranmak için. */
+const DAY_REQUEST_CONCURRENCY = 7;
 /** `/fixtures?ids=` tek istekte en fazla 20 kimlik kabul eder. */
 const MAX_IDS_PER_REQUEST = 20;
 /** Bitmiş maçların detayı değişmez — uzun süre önbellekte kalabilir. */
@@ -65,12 +67,13 @@ export async function getFixturesForDateRange(
   }
 
   const dates = Array.from({ length: days }, (_, i) => format(addDays(start, i), "yyyy-MM-dd"));
-  const results = await Promise.all(dates.map(getFixturesForDate));
-
   const fixtures: Fixture[] = [];
-  for (const result of results) {
-    if (!result.ok) return result;
-    fixtures.push(...result.data);
+  for (let i = 0; i < dates.length; i += DAY_REQUEST_CONCURRENCY) {
+    const results = await Promise.all(dates.slice(i, i + DAY_REQUEST_CONCURRENCY).map(getFixturesForDate));
+    for (const result of results) {
+      if (!result.ok) return result;
+      fixtures.push(...result.data);
+    }
   }
 
   fixtures.sort((a, b) => a.kickoffUtc.localeCompare(b.kickoffUtc));

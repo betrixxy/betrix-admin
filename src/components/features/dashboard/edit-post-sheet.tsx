@@ -33,7 +33,7 @@ export function EditPostSheet({ post, fixtures, closeHref }: EditPostSheetProps)
     if (state.success) router.push(closeHref);
   }, [state, router, closeHref]);
 
-  // Mock listede olmayan (ör. eski) bir maça bağlı gönderi de seçili kalabilsin.
+  // Seçilebilir pencerede (yaklaşan 7 gün) olmayan, ör. geçmiş bir maça bağlı gönderi de seçili kalabilsin.
   const options = fixtures.some((fixture) => fixture.id === post.fixtureId)
     ? fixtures
     : [{ id: post.fixtureId, label: post.fixtureId }, ...fixtures];

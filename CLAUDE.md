@@ -232,6 +232,8 @@ Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretim
 - **Sportmonks — birincil kaynak.** xG, tehlikeli atak sayısı, form serileri, sakatlık/ceza verisi, canlı olay akışı (goal, card, substitution, VAR).
 - **API-Football — ikincil kaynak / çapraz doğrulama.** Sportmonks kesintisinde fallback; kritik veri noktalarında (skor, kart) iki kaynak çelişirse Sportmonks esas alınır ve uyuşmazlık loglanır.
 - **Mevcut durum (FAZ 9):** Fikstür, form, xG ve H2H şu an **API-Football'dan** gelir (Ultra plan). Gerekçe: fikstür listesi API-Football kimlikleriyle çalışır ve iki sağlayıcı arasında takım/maç kimliği eşlemesi henüz yok; Sportmonks xG `type_id` eşlemesi doğrulanmamış (bkz. `sportmonks/mappers.ts`). Sportmonks'u birincil yapmak için önce kimlik eşleme tablosu kurulmalıdır. xG, maç istatistiklerindeki `expected_goals`'tan hesaplanır; kupa gibi kapsam dışı maçlarda yoktur ve ortalamaya girmez (`xgMatchesSampled`).
+- **Hız limiti:** API-Football 450 istek/dk'yı saniyeye yayılmış uygular; paralel istek patlamaları `rateLimit` hatası verir (HTTP 200 + `errors`). `api-football/client.ts` tüm istek başlangıçlarını süreç genelinde ≥150 ms aralıkla sıralar (~400/dk) ve limit hatasında kısa bekleyip yeniden dener. Yalnızca başarılı yanıtlar önbelleğe alınır. Soğuk bir ay görünümü (42 gün = 42 istek) ~5 sn, önbellekten ~150 ms sürer.
+- **Projede sahte maç verisi yoktur.** Hem dashboard hem `/calendar` (ay ızgarası, `?month=yyyy-MM`) gerçek fikstürü gösterir; takvimdeki içerik durumu `AiContent`'ten türetilir (onaylı → Üretildi, taslak → Bekliyor, yok → Fikir), reklam bütçesi `ContentPlan` tablosuna yazılır.
 
 ### 2.2 Kanonik İç Veri Modelleri (`types/sports.ts`)
 
