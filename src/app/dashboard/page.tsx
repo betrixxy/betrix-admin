@@ -99,7 +99,7 @@ export default async function DashboardPage() {
           accentClassName="bg-pink-500/15 text-pink-400"
           metrics={[
             { label: "Ziyaret", value: formatCompactNumber(traffic.totals.visits) },
-            { label: "Tekil ziyaretçi", value: formatCompactNumber(traffic.totals.uniques) },
+            { label: "Tekil ziyaretçi", value: formatCompactNumber(traffic.totals.sessions) },
             { label: "Sosyal payı", value: formatPercent(traffic.totals.socialShare) },
           ]}
         >

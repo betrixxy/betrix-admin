@@ -87,10 +87,15 @@ export async function POST(request: Request): Promise<Response> {
 
   // Sahte bir postId tüm isteği reddetmez — trafik doğrudan/organik sayılarak yine kaydedilir.
   const post = postId ? await prisma.socialPost.findUnique({ where: { id: postId }, select: { id: true } }) : null;
-  const isUniqueVisit = !(await prisma.trafficLog.findFirst({ where: { sessionId }, select: { id: true } }));
 
-  await prisma.trafficLog.create({
-    data: { path, sessionId, postId: post?.id ?? null, ipAddress: ip, isUniqueVisit },
+  // Aynı ziyaretçinin eşzamanlı istekleri (ör. hızlı SPA geçişi) "ilk ziyaret mi?" kontrolünde
+  // yarışmasın diye kontrol + yazma, ziyaretçi kimliği başına bir işlem kilidiyle sıralanır.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${sessionId}))`;
+    const seen = await tx.trafficLog.findFirst({ where: { sessionId }, select: { id: true } });
+    await tx.trafficLog.create({
+      data: { path, sessionId, postId: post?.id ?? null, ipAddress: ip, isUniqueVisit: !seen },
+    });
   });
 
   return jsonResponse(200, { ok: true }, headers);

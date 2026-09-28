@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
-import { Eye, Fingerprint, Share2, Users } from "lucide-react";
+import { headers } from "next/headers";
+import { Eye, Share2, UserPlus, Users } from "lucide-react";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { RecentVisitsTable } from "@/components/features/dashboard/recent-visits-table";
 import { StatCard } from "@/components/features/dashboard/stat-card";
 import { TopPagesChart, TrafficSourcesChart, VisitorsChart } from "@/components/features/dashboard/traffic-charts";
+import { TrackerSnippetCard } from "@/components/features/dashboard/tracker-snippet-card";
 import { TrafficControls } from "@/components/features/dashboard/traffic-controls";
+import { env } from "@/lib/env";
+import { allowedTrackOrigins } from "@/lib/dashboard/track-cors";
 import { formatCompactNumber, formatPercent } from "@/lib/dashboard/format";
 import { getTrafficData } from "@/lib/dashboard/traffic-data";
 import { TRAFFIC_GRANULARITIES, TRAFFIC_RANGES, type TrafficGranularity, type TrafficRange } from "@/types/traffic";
@@ -29,11 +33,19 @@ function parseGranularity(param: string | string[] | undefined): TrafficGranular
   return TRAFFIC_GRANULARITIES.find((granularity) => granularity === param) ?? "day";
 }
 
+/** Panelin dışarıdan görünen kökü — Caddy arkasında X-Forwarded-Proto/Host ile gelir. */
+async function panelOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 export default async function TrafficPage({ searchParams }: TrafficPageProps) {
   const params = await searchParams;
   const range = parseRange(params.range);
   const granularity = parseGranularity(params.by);
-  const data = await getTrafficData(range, granularity);
+  const [data, origin] = await Promise.all([getTrafficData(range, granularity), panelOrigin()]);
 
   return (
     <>
@@ -44,17 +56,19 @@ export default async function TrafficPage({ searchParams }: TrafficPageProps) {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Toplam Ziyaret" value={formatCompactNumber(data.totals.visits)} hint={`Son ${range} gün`} icon={Eye} />
+        <StatCard label="Sayfa Görüntüleme" value={formatCompactNumber(data.totals.visits)} hint={`Son ${range} gün`} icon={Eye} />
         <StatCard
           label="Tekil Ziyaretçi"
-          value={formatCompactNumber(data.totals.uniques)}
+          value={formatCompactNumber(data.totals.sessions)}
+          hint="Dönemdeki farklı ziyaretçi"
           icon={Users}
           accentClassName="bg-violet-500/15 text-violet-400"
         />
         <StatCard
-          label="Benzersiz Oturum"
-          value={formatCompactNumber(data.totals.sessions)}
-          icon={Fingerprint}
+          label="Yeni Ziyaretçi"
+          value={formatCompactNumber(data.totals.uniques)}
+          hint="Siteye ilk kez gelen"
+          icon={UserPlus}
           accentClassName="bg-sky-500/15 text-sky-400"
         />
         <StatCard
@@ -74,6 +88,13 @@ export default async function TrafficPage({ searchParams }: TrafficPageProps) {
       </div>
 
       <RecentVisitsTable visits={data.recent} />
+
+      <TrackerSnippetCard
+        panelOrigin={origin}
+        siteKey={env.TRACK_SITE_KEY}
+        allowedOrigins={allowedTrackOrigins()}
+        defaultOpen={data.recent.length === 0}
+      />
     </>
   );
 }

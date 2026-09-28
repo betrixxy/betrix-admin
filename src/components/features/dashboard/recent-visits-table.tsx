@@ -39,7 +39,7 @@ export function RecentVisitsTable({ visits }: { visits: RecentVisit[] }) {
                   <TableCell>{visit.sourceLabel}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{visit.sessionShort ?? "—"}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{visit.maskedIp ?? "—"}</TableCell>
-                  <TableCell>{visit.isUniqueVisit ? <Badge variant="outline">Tekil</Badge> : null}</TableCell>
+                  <TableCell>{visit.isUniqueVisit ? <Badge variant="outline">Yeni</Badge> : null}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

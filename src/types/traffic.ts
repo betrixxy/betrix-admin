@@ -12,7 +12,9 @@ export interface TrafficSeriesPoint {
   /** Kova anahtarı: gün için `yyyy-MM-dd`, hafta için haftanın pazartesisi. */
   key: string;
   label: string;
+  /** Sayfa görüntüleme. */
   visits: number;
+  /** Yeni ziyaretçi — kimliği (`sessionId`) ilk kez bu kovada görülen. */
   uniques: number;
 }
 
@@ -43,8 +45,11 @@ export interface RecentVisit {
 }
 
 export interface TrafficTotals {
+  /** Sayfa görüntüleme. */
   visits: number;
+  /** Yeni ziyaretçi — siteye ilk kez gelen (`TrafficLog.isUniqueVisit`). */
   uniques: number;
+  /** Tekil ziyaretçi — dönemdeki farklı ziyaretçi kimliği sayısı (izleme kodu kalıcı kimlik üretir). */
   sessions: number;
   /** Sosyal medya gönderilerinden gelen ziyaretlerin oranı (0-1). */
   socialShare: number;

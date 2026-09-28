@@ -46,38 +46,43 @@ interface VisitorsChartProps {
 }
 
 export function VisitorsChart({ series, granularity }: VisitorsChartProps) {
+  const hasVisits = series.some((point) => point.visits > 0);
   return (
     <Card>
       <CardHeader>
         <CardTitle>{granularity === "week" ? "Haftalık" : "Günlük"} Ziyaretçi</CardTitle>
-        <CardDescription>Toplam ziyaret ve tekil ziyaretçi sayısı</CardDescription>
+        <CardDescription>Sayfa görüntüleme ve siteye ilk kez gelen (yeni) ziyaretçi sayısı</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={series} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-              <defs>
-                <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={COLORS.visits} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={COLORS.visits} stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="uniquesFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={COLORS.uniques} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={COLORS.uniques} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke={COLORS.grid} vertical={false} />
-              <XAxis dataKey="label" stroke={COLORS.axis} fontSize={11} tickLine={false} axisLine={false} minTickGap={24} />
-              <YAxis stroke={COLORS.axis} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: COLORS.grid }} />
-              <Area isAnimationActive={false} type="monotone" dataKey="visits" name="Ziyaret" stroke={COLORS.visits} strokeWidth={2} fill="url(#visitsFill)" />
-              <Area isAnimationActive={false} type="monotone" dataKey="uniques" name="Tekil ziyaretçi" stroke={COLORS.uniques} strokeWidth={2} fill="url(#uniquesFill)" />
-            </AreaChart>
-          </ResponsiveContainer>
+          {!hasVisits ? (
+            <EmptyChart message="Bu dönemde ziyaret kaydı yok — izleme kodu checkmatch.net sitesine eklendiğinde veriler burada görünür." />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={series} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="visitsFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.visits} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={COLORS.visits} stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="uniquesFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={COLORS.uniques} stopOpacity={0.3} />
+                    <stop offset="100%" stopColor={COLORS.uniques} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke={COLORS.grid} vertical={false} />
+                <XAxis dataKey="label" stroke={COLORS.axis} fontSize={11} tickLine={false} axisLine={false} minTickGap={24} />
+                <YAxis stroke={COLORS.axis} fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: COLORS.grid }} />
+                <Area isAnimationActive={false} type="monotone" dataKey="visits" name="Ziyaret" stroke={COLORS.visits} strokeWidth={2} fill="url(#visitsFill)" />
+                <Area isAnimationActive={false} type="monotone" dataKey="uniques" name="Yeni ziyaretçi" stroke={COLORS.uniques} strokeWidth={2} fill="url(#uniquesFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
         <div className="mt-2 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: COLORS.visits }} />Ziyaret</span>
-          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: COLORS.uniques }} />Tekil ziyaretçi</span>
+          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: COLORS.uniques }} />Yeni ziyaretçi</span>
         </div>
       </CardContent>
     </Card>

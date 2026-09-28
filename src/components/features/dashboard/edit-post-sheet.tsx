@@ -2,17 +2,20 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Link2 } from "lucide-react";
 import { updateSocialPostAction } from "@/app/dashboard/calendar/actions";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useActionForm } from "@/hooks/use-action-form";
 import type { FixtureOption, SocialActionState, SocialPostView } from "@/types/social";
+import { CopyTextButton } from "./copy-text-button";
 import { PostFields, type PostFieldDefaults } from "./post-fields";
 
 interface EditPostSheetProps {
   post: SocialPostView;
   fixtures: FixtureOption[];
+  /** checkmatch.net takip linki (UTM + cm_post) — paylaşımda bu link kullanılırsa ziyaretler bu gönderiye yazılır. */
+  trackingLink: string | null;
   /** Sayfa `?edit=<id>` ile sunucuda açar; kapatmak bu adrese gitmektir. */
   closeHref: string;
 }
@@ -25,7 +28,7 @@ function toDatetimeLocal(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function EditPostSheet({ post, fixtures, closeHref }: EditPostSheetProps) {
+export function EditPostSheet({ post, fixtures, trackingLink, closeHref }: EditPostSheetProps) {
   const router = useRouter();
   const { state, isPending, onSubmit } = useActionForm(updateSocialPostAction, INITIAL_STATE);
 
@@ -53,6 +56,20 @@ export function EditPostSheet({ post, fixtures, closeHref }: EditPostSheetProps)
           <SheetTitle>Gönderiyi Düzenle</SheetTitle>
           <SheetDescription>Tarih, platform, metin ve durumu güncelleyin.</SheetDescription>
         </SheetHeader>
+
+        {trackingLink ? (
+          <section className="mx-4 flex flex-col gap-2 rounded-lg bg-muted/30 p-3">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-white">
+              <Link2 className="size-3.5" />
+              Takip linki
+            </span>
+            <code className="break-all rounded bg-black/30 px-2 py-1.5 text-[11px] text-muted-foreground">{trackingLink}</code>
+            <CopyTextButton text={trackingLink} label="Linki kopyala" />
+            <span className="text-[10px] text-muted-foreground/80">
+              Paylaşımda bu linki kullanın — checkmatch.net ziyaretleri Web Trafiği&apos;nde bu gönderiye yazılır.
+            </span>
+          </section>
+        ) : null}
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3.5 px-4 pb-4">
           <input type="hidden" name="postId" value={post.id} />

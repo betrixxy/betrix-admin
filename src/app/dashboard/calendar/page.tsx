@@ -11,6 +11,9 @@ import { getCalendarSummary, getPostById, getPostsInRange, getRecentPosts } from
 import { calendarHref, parseAnchor, parseView, resolveRange } from "@/lib/dashboard/calendar-range";
 import { getFixtureLabels, getFixtureOptions } from "@/lib/dashboard/fixtures";
 import { STATUS_BADGE_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
+import { buildCampaignSlug, buildTrackingLink } from "@/lib/dashboard/tracking-link";
+import { getFixtureById, parseFixtureId } from "@/lib/services/api-football";
+import type { SocialPostView } from "@/types/social";
 
 export const metadata: Metadata = {
   title: "İçerik Takvimi — betrix.pro",
@@ -24,6 +27,14 @@ const LIST_LIMIT = 50;
 
 interface CalendarPageProps {
   searchParams: Promise<{ view?: string | string[]; date?: string | string[]; edit?: string | string[] }>;
+}
+
+/** Düzenlenen gönderinin checkmatch.net takip linki (UTM + cm_post) — kampanya adı gerçek maçtan. */
+async function trackingLinkFor(post: SocialPostView): Promise<string> {
+  const apiId = parseFixtureId(post.fixtureId);
+  const fixture = apiId === null ? null : await getFixtureById(apiId);
+  const campaign = buildCampaignSlug(fixture?.ok ? fixture.data : null, post.fixtureId);
+  return buildTrackingLink({ postId: post.id, platform: post.platform.type, campaign });
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {
@@ -41,6 +52,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
 
   const fixtureOptions = await getFixtureOptions();
   const fixtureLabels = await getFixtureLabels();
+  const trackingLink = editingPost ? await trackingLinkFor(editingPost) : null;
   const editHref = (postId: string) => calendarHref({ view, anchor, edit: postId });
 
   return (
@@ -95,6 +107,7 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
           key={editingPost.id}
           post={editingPost}
           fixtures={fixtureOptions}
+          trackingLink={trackingLink}
           closeHref={calendarHref({ view, anchor })}
         />
       ) : null}

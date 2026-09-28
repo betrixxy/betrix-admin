@@ -1,7 +1,7 @@
 import { env } from "@/lib/env";
 
 /** Yerel geliştirmede tarayıcıdan test edebilmek için localhost otomatik izinlenir. */
-function allowedOrigins(): string[] {
+export function allowedTrackOrigins(): string[] {
   const configured = env.TRACK_ALLOWED_ORIGINS.split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -9,7 +9,7 @@ function allowedOrigins(): string[] {
 }
 
 export function isOriginAllowed(origin: string | null): origin is string {
-  return origin !== null && allowedOrigins().includes(origin);
+  return origin !== null && allowedTrackOrigins().includes(origin);
 }
 
 export function trackCorsHeaders(origin: string): HeadersInit {
