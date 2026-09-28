@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { AdBudgetPanel } from "@/components/features/dashboard/ad-budget-panel";
 import { AnalyticsSummary } from "@/components/features/dashboard/analytics-summary";
 import { ApiConnections } from "@/components/features/dashboard/api-connections";
 import { EditMetricsSheet } from "@/components/features/dashboard/edit-metrics-sheet";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { PlatformPerformanceTable } from "@/components/features/dashboard/platform-performance";
 import { TopPostsTable } from "@/components/features/dashboard/top-posts-table";
+import { getAdBudgetOverview } from "@/lib/dashboard/ad-budget-data";
 import { getAnalyticsData } from "@/lib/dashboard/analytics-data";
 import { getPostById } from "@/lib/dashboard/calendar-data";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
@@ -33,8 +35,9 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
   const sort = parseSort(params.sort);
   const metricsId = typeof params.metrics === "string" ? params.metrics : undefined;
 
-  const [data, metricsPost] = await Promise.all([
+  const [data, adBudget, metricsPost] = await Promise.all([
     getAnalyticsData(sort),
+    getAdBudgetOverview(),
     metricsId ? getPostById(metricsId) : Promise.resolve(null),
   ]);
   const fixtureLabels = await getFixtureLabels();
@@ -55,6 +58,8 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         sortHref={sortHref}
         metricsHref={(postId) => `/dashboard/analytics?sort=${sort}&metrics=${postId}`}
       />
+
+      <AdBudgetPanel overview={adBudget} fixtureLabels={fixtureLabels} />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <PlatformPerformanceTable platforms={data.platforms} />

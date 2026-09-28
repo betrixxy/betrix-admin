@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
+import { totalAdSpend } from "@/lib/calendar/ad-spend";
 import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
 import { formatKickoffTime } from "@/lib/calendar/format";
 import type { CalendarFixture } from "@/types/calendar";
@@ -14,6 +15,7 @@ interface MatchChipProps {
 
 export function MatchChip({ fixture, muted = false, onSelect }: MatchChipProps) {
   const statusDot = CONTENT_STATUS_META[fixture.contentStatus].dotClassName;
+  const hasBudget = fixture.contentPlan ? totalAdSpend(fixture.contentPlan.adSpend) > 0 : false;
 
   return (
     <button
@@ -30,6 +32,11 @@ export function MatchChip({ fixture, muted = false, onSelect }: MatchChipProps) 
         {fixture.homeTeam.shortName}-{fixture.awayTeam.shortName}
       </span>
       <TeamLogo logoUrl={fixture.awayTeam.logoUrl} teamName={fixture.awayTeam.name} size={16} />
+      {hasBudget ? (
+        <span className="shrink-0 text-[10px] font-semibold text-amber-300" title="Reklam bütçesi girildi">
+          ₺
+        </span>
+      ) : null}
       <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
         {formatKickoffTime(fixture.kickoffUtc)}
       </span>
