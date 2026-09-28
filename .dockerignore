@@ -1,0 +1,32 @@
+# Build bağlamını küçük ve sır içermez tutar — bkz. Dockerfile.
+.git
+.gitignore
+node_modules
+.next
+out
+build
+coverage
+storage
+src/generated
+*.tsbuildinfo
+next-env.d.ts
+
+# Gizli anahtarlar asla imaja girmez (çalışma zamanında env_file ile verilir)
+.env*
+!.env.production.example
+
+# Ajan/araç tooling'i ve dokümantasyon
+.claude
+.agents
+.windsurf
+tests
+CLAUDE.md
+AGENTS.md
+README.md
+skills-lock.json
+
+# Docker dosyalarının kendisi
+Dockerfile
+.dockerignore
+docker-compose*.yml
+Caddyfile

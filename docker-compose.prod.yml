@@ -1,0 +1,135 @@
+# betrix-studio — üretim yığını (Mac Mini sunucusu). Bkz. CLAUDE.md 1.9.
+#
+#   cp .env.production.example .env.production   # doldur, chmod 600
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# Ağ topolojisi:
+#   internet ──► caddy (80/443) ──[frontend]──► app:3000 ──[backend, internal]──► postgres:5432
+# Postgres ve app dışarıya hiç port açmaz; `backend` ağı internete çıkışı olmayan iç ağdır.
+
+name: betrix
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-betrix}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production içinde tanımlı olmalı}@postgres:5432/${POSTGRES_DB:-betrix}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-betrix}
+      POSTGRES_USER: ${POSTGRES_USER:-betrix}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production içinde tanımlı olmalı}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    shm_size: 256mb
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *logging
+
+  # Tek seferlik: bekleyen migration'ları uygular ve çıkar. app yalnızca bu başarıyla bitince kalkar.
+  # Admin hesabı (ilk kurulumda bir kez):
+  #   docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate npx prisma db seed --config prisma7.config.ts
+  migrate:
+    build:
+      context: .
+      target: migrator
+    image: betrix-studio-migrator:latest
+    restart: "no"
+    env_file: .env.production
+    environment:
+      DATABASE_URL: *database-url
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  app:
+    build:
+      context: .
+      target: runner
+    image: betrix-studio:latest
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: *database-url
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - storage:/app/storage
+      - next_cache:/app/.next/cache
+    networks:
+      - backend
+      - frontend
+    expose:
+      - "3000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN .env.production içinde tanımlı olmalı}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL .env.production içinde tanımlı olmalı}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - frontend
+    depends_on:
+      app:
+        condition: service_healthy
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+networks:
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  pgdata:
+  storage:
+  next_cache:
+  caddy_data:
+  caddy_config:

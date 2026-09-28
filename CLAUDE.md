@@ -82,6 +82,10 @@ betrix-studio/
 │     └─ render-engine/
 │        └─ templates/             # Format bazlı render şablonları (bkz. 3.3)
 ├─ docker-compose.yml              # Yerel PostgreSQL servisi (bkz. 1.6)
+├─ docker-compose.prod.yml         # Üretim yığını: postgres + migrate + app + caddy (bkz. 1.9)
+├─ Dockerfile                      # Çok aşamalı standalone imaj — runner/migrator hedefleri (bkz. 1.9)
+├─ Caddyfile                       # Ters vekil + otomatik HTTPS + güvenlik başlıkları (bkz. 1.9)
+├─ .env.production.example         # Üretim env şablonu (gerçek `.env.production` gitignore'da)
 ├─ storage/                        # Yüklemeler ve render çıktıları — gitignore'da, yalnızca /api/files ile servis edilir (bkz. 1.6)
 ├─ prisma/
 │  ├─ schema.prisma                # Veritabanı modelleri (ContentPlan, AdminUser) — bkz. 1.6
@@ -162,6 +166,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 
 - Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır. (Tek istisna: `prisma7.config.ts`, Prisma CLI'ın kendi env yükleme mekanizması gereği `dotenv` kullanır — uygulama kodu değildir. `prisma/seed.ts` dahil tüm uygulama/araç kodu `lib/env.ts` üzerinden okur.)
 - Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+- **Fail-fast:** `JWT_SECRET` (üretimde en az 32 karakter) ve `DATABASE_URL` (`postgresql://`) zorunludur, varsayılan değerleri yoktur; boş string "tanımsız" sayılır. Geçersizse `lib/env.ts` hata fırlatır, `src/instrumentation.ts` bunu sunucu açılışında tetikleyip süreci `exit 1` ile durdurur. Yalnızca `next build` aşamasında (`NEXT_PHASE`) derlemenin geçmesi için yer tutucu kullanılır.
 - `TRACK_ALLOWED_ORIGINS` (virgülle ayrılmış origin listesi) ve `TRACK_SITE_KEY` (isteğe bağlı, GA ölçüm ID'si gibi gizli olmayan bir "site anahtarı") gizli değildir — `/api/track` uç noktasının CORS/istemci doğrulaması için kullanılır, bkz. 1.8 ve `app/api/track/route.ts`.
 
 ### 1.8 Dashboard Modül Mimarisi
@@ -177,6 +182,29 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 | Web Trafiği | `/dashboard/traffic` | `TrafficLog` | Gün sınırları Europe/Istanbul; IP'ler arayüzde maskelenir; `POST /api/track` ile beslenir |
 
 Kurallar: (1) sayfalar `force-dynamic` Server Component'tir; durum (görünüm, tarih, sıralama, açık düzenleme paneli) URL parametrelerinde tutulur. (2) Dahili CRUD Server Action'dır; `app/api` yalnızca dış tüketiciler (ör. `track/`) ve dosya servisi (`files/`) içindir. (3) Sorgular `lib/dashboard/*-data.ts`, saf hesaplamalar `*-stats.ts` dosyalarındadır (birim test edilebilir). (4) `app/api/track/route.ts`, checkmatch.net'ten gelen trafiği `TrafficLog`'a yazan, oturumsuz ama dışa açık bir uç noktadır — kimlik doğrulaması yerine üç katman kullanılır: `TRACK_ALLOWED_ORIGINS` ile sunucu tarafında zorunlu kılınan CORS, isteğe bağlı gizli olmayan `TRACK_SITE_KEY`, ve `lib/dashboard/rate-limit.ts`'teki IP başına bellek-içi rate limit (tek instance için yeterli; yatay ölçeklenirse paylaşılan bir depoya taşınmalı).
+
+### 1.9 Üretim Dağıtımı (Docker — Mac Mini)
+
+Üretim, Mac Mini üzerinde `docker-compose.prod.yml` ile çalışır. `docker-compose.yml` yalnızca yerel geliştirme veritabanıdır.
+
+```
+internet ──► caddy (80/443) ──[frontend]──► app:3000 ──[backend, internal]──► postgres:5432
+```
+
+- **İmaj:** `Dockerfile` çok aşamalıdır (`deps → builder → runner`), `next.config.ts` içinde `output: "standalone"`. `runner` non-root (`nextjs`, uid 1001) çalışır; uygulama dosyaları root'a aittir, yalnızca `storage/` ve `.next/cache` yazılabilir. `migrator` hedefi tam `node_modules` içerir ve `prisma migrate deploy` / `db seed` için kullanılır.
+- **Ağ:** `backend` ağı `internal: true`'dur (internete çıkış yok); postgres ve app dışarıya port açmaz. App, dış API'ler (Fal.ai vb.) için ayrıca `frontend` ağındadır. Dışa açık tek servis Caddy'dir.
+- **Sertleştirme:** app `read_only` kök dosya sistemi, `cap_drop: ALL`, tüm servislerde `no-new-privileges`, log rotasyonu. Postgres `scram-sha-256` ile şifreli.
+- **Volume'lar:** `pgdata` (veritabanı), `storage` (yüklemeler/render çıktıları, bkz. 1.6), `next_cache`, `caddy_data` (TLS sertifikaları — silinirse Let's Encrypt limitine takılabilir), `caddy_config`.
+- **Sırlar:** `.env.production` (gitignore'da, `chmod 600`) — şablon `.env.production.example`. `DATABASE_URL` compose tarafından `POSTGRES_*`'tan üretilir; şifre URL'e girdiği için hex olmalıdır (`openssl rand -hex 32`). Sır asla imaja girmez (`.dockerignore`).
+- **Akış:** `migrate` servisi bekleyen migration'ları uygulayıp çıkar; app yalnızca o başarıyla bitince kalkar, Caddy app sağlıklı olunca kalkar.
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# İlk kurulumda bir kez — admin hesabı:
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate npx prisma db seed --config prisma7.config.ts
+```
+
+**Not:** Oturum çerezi üretimde `Secure`'dur; giriş yalnızca HTTPS üzerinden (Caddy) çalışır, `app:3000`'e doğrudan HTTP ile giriş yapılamaz.
 
 ---
 

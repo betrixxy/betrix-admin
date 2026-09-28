@@ -1,0 +1,28 @@
+# Ters vekil (reverse proxy) + otomatik HTTPS (Let's Encrypt) — bkz. docker-compose.prod.yml.
+# APP_DOMAIN ve ACME_EMAIL, .env.production'dan gelir.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Stüdyo görsel yüklemeleri için üst sınır (oyuncu fotoğrafı + logo).
+	request_body {
+		max_size 25MB
+	}
+
+	# Caddy, istemcinin gönderdiği X-Forwarded-For'u gerçek IP ile ezer —
+	# /api/track rate limit'i sahte IP başlığıyla atlatılamaz.
+	reverse_proxy app:3000
+}

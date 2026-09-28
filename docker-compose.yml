@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: betrix
       POSTGRES_PASSWORD: betrix
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432" # yalnızca yerel makine; üretim için docker-compose.prod.yml
     volumes:
       - betrix_postgres_data:/var/lib/postgresql/data
 
