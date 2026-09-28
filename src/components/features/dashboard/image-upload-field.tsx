@@ -39,14 +39,14 @@ export function ImageUploadField({ name, label, hint, className }: ImageUploadFi
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={inputId}>{label}</Label>
+      {label ? <Label htmlFor={inputId}>{label}</Label> : null}
       <label
         htmlFor={inputId}
         className="group relative flex h-28 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-dashed border-input bg-muted/20 transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
       >
         {previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={previewUrl} alt={`${label} önizlemesi`} className="size-full object-contain p-1" />
+          <img src={previewUrl} alt={`${label || "Görsel"} önizlemesi`} className="size-full object-contain p-1" />
         ) : (
           <span className="flex flex-col items-center gap-1 text-muted-foreground">
             <ImagePlus className="size-5" />

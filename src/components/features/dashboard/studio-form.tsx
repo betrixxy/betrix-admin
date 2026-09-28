@@ -12,20 +12,24 @@ import { useActionForm } from "@/hooks/use-action-form";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { STUDIO_FORMATS, type StudioActionState, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { FixtureOption } from "@/types/social";
-import { ImageUploadField } from "./image-upload-field";
+import type { MediaAssetOption } from "@/types/media";
+import { LibraryImageField } from "./library-image-field";
 import { StatSelectionFields } from "./stat-selection-fields";
 import { StudioPreview } from "./studio-preview";
 
 interface StudioFormProps {
   fixtures: FixtureOption[];
   postOptions: StudioPostOption[];
+  /** Medya kütüphanesindeki seçilebilir logolar ve oyuncu fotoğrafları (bkz. CLAUDE.md 1.11). */
+  logoOptions: MediaAssetOption[];
+  playerOptions: MediaAssetOption[];
   /** FAL_KEY tanımlı değilken formu kilitler — bkz. dashboard/studio/page.tsx uyarı bandı. */
   disabled?: boolean;
 }
 
 const INITIAL_STATE: StudioActionState = {};
 
-export function StudioForm({ fixtures, postOptions, disabled = false }: StudioFormProps) {
+export function StudioForm({ fixtures, postOptions, logoOptions, playerOptions, disabled = false }: StudioFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateAiContentAction, INITIAL_STATE);
   const [format, setFormat] = useState<StudioFormat>("IG_FEED");
   const isDisabled = disabled || isPending;
@@ -73,12 +77,13 @@ export function StudioForm({ fixtures, postOptions, disabled = false }: StudioFo
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <ImageUploadField
+              <LibraryImageField
                 name="playerPhoto"
                 label="Oyuncu fotoğrafı"
                 hint="JPEG/PNG/WebP · en az 1024px kısa kenar"
+                options={playerOptions}
               />
-              <ImageUploadField name="logo" label="Özel logo" hint="JPEG/PNG/WebP · isteğe bağlı" />
+              <LibraryImageField name="logo" label="Logo" hint="JPEG/PNG/WebP · isteğe bağlı" options={logoOptions} />
             </div>
 
             <div className="flex flex-col gap-1.5">

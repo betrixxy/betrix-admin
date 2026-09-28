@@ -46,6 +46,8 @@ betrix-studio/
 │  │  ├─ dashboard/                # Ajans paneli: sol menülü layout + modüller (bkz. 1.8)
 │  │  │  ├─ matches/               # Maç Merkezi: gerçek fikstür + "AI İçerik Üret" (bkz. 1.10)
 │  │  │  ├─ drafts/[id]/           # Taslak inceleme: önizle / düzenle / onayla (bkz. 1.10)
+│  │  │  ├─ library/               # Medya/referans kütüphanesi (bkz. 1.11)
+│  │  │  ├─ (finance/)             # Planlanan: gelir/gider ve aylık bilanço (bkz. 1.12)
 │  │  │  ├─ calendar/              # İçerik Üretim Takvimi (SocialPost)
 │  │  │  ├─ analytics/             # Etkileşim ve Reklam Paneli (PostAnalytics)
 │  │  │  ├─ studio/                # AI İçerik Stüdyosu (AiContent)
@@ -88,7 +90,7 @@ betrix-studio/
 ├─ Dockerfile                      # Çok aşamalı standalone imaj — runner/migrator hedefleri (bkz. 1.9)
 ├─ Caddyfile                       # Ters vekil + otomatik HTTPS + güvenlik başlıkları (bkz. 1.9)
 ├─ .env.production.example         # Üretim env şablonu (gerçek `.env.production` gitignore'da)
-├─ storage/                        # Yüklemeler ve render çıktıları — gitignore'da, yalnızca /api/files ile servis edilir (bkz. 1.6)
+├─ storage/                        # uploads/ generated/ renders/ library/ — gitignore'da, yalnızca /api/files ile servis edilir (bkz. 1.6, 1.11)
 ├─ prisma/
 │  ├─ schema.prisma                # Veritabanı modelleri (ContentPlan, AdminUser) — bkz. 1.6
 │  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş Prisma migration'ları
@@ -222,6 +224,32 @@ Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretim
 **İnceleme ekranı:** "Kaydet ve yeniden çiz" görseli depodaki katmanlardan yeniden çizer (**ücretsiz**, Fal.ai'ye gidilmez); "Arka planı yeniden üret" Fal.ai'ye gider (**ücretli**) — maç tansiyonu (`derbyIntensity`, bkz. 3.2.3) burada admin tarafından sınıflandırılır. Onay/ret yalnızca `DRAFT` kayıtlara uygulanır; karara bağlanmış taslak düzenlenemez. Stüdyo'nun manuel üretimi de aynı motoru kullanır ve DRAFT doğar.
 
 **Kurallar:** (1) Statü geçişleri yalnızca `draft-engine.ts` içinden (`updateDraft`, `regenerateDraftBackground`, `decideDraft`). (2) `statsSnapshot` sonradan değişmez — taslak, üretildiği andaki veriyi gösterir. (3) Yeniden render/arka plan değişiminde eski dosyalar silinir (yetim dosya bırakılmaz).
+
+### 1.11 Medya / Referans Kütüphanesi
+
+Stüdyoda her üretimde logo/oyuncu fotoğrafı yüklemek yerine kalıcı, seçilebilir bir kütüphane (`/dashboard/library`, model `MediaAsset`).
+
+- **Klasörler = `MediaCategory`:** `LOGO` (takım/marka/sponsor), `PLAYER` (oyuncu fotoğrafı, ≥1024px kısa kenar — birefnet için), `REFERENCE` (stil/kompozisyon referansı; şimdilik yalnızca arşiv, üretim hattına bağlanması ayrı bir görev).
+- **Depolama:** `storage/library/<kategori>-<sha256>.<uzantı>` — içerik-adreslidir; aynı dosya aynı klasöre ikinci kez eklenmez (`@@unique([category, sha256])`). Tüm işlemler `lib/dashboard/media-library.ts`'ten geçer; istemci bileşenleri yalnızca `media-library-meta.ts`'i (sunucu bağımlılığı yok) içe aktarır.
+- **Stüdyo entegrasyonu:** logo/oyuncu alanlarında "kütüphaneden seç" önceliklidir; yeni yüklenen görsel sunucuda kütüphaneye **otomatik** kaydedilir. Taslak motoru logoyu kütüphane URL'i olarak alır (`CreateDraftInput.logoImageUrl`), ayrıca kopyalamaz.
+- **Silme:** kayıt silinir; dosya yalnızca hiçbir `AiContent` ona referans vermiyorsa diskten kaldırılır (aksi halde taslakların Fal.ai'siz yeniden render'ı logosuz kalırdı).
+- Logolarda isteğe bağlı `teamId` (API-Football) / `teamName` tutulur — ileride maç seçilince iki takımın logosunun otomatik gelmesi bu alanla yapılacak.
+
+### 1.12 Planlanan: Finans Modülü (Gelir/Gider ve Aylık Bilanço)
+
+Henüz kod yok — mimari bu yapıya göre açık tutulur, yeni bir yapı icat edilmez:
+
+```
+src/app/dashboard/finance/          # Aylık bilanço sayfası (+ actions.ts) — nav.ts'e tek satır
+src/lib/dashboard/finance-data.ts   # Sorgular (Prisma)
+src/lib/dashboard/finance-stats.ts  # Saf hesaplamalar (aylık toplam, kategori kırılımı, bilanço)
+src/types/finance.ts                # Kanonik tipler
+prisma: FinanceEntry { kind: INCOME|EXPENSE, category, amount (Decimal, TRY), occurredAt, note, source }
+```
+
+- **Para birimi:** tutarlar `Decimal` (asla `Float`) ve TRY; `lib/calendar/ad-spend.ts::formatAdSpend` biçimi.
+- **Otomatik gider kaynakları (bağlanacak):** Fal.ai (her `AiContent` üretimi / arka plan yenileme — `draft-engine.ts` tek çağrı noktasıdır), API-Football/Sportmonks abonelikleri, sunucu (Mac Mini elektrik/internet, alan adı). Reklam bütçesi (`ContentPlan.adSpend`) **planlanan** harcamadır; gerçekleşen harcama ayrı `FinanceEntry` olarak girilir.
+- Gelir/gider kaydı yalnızca Server Action ile, oturum kontrollü; silme yerine düzeltme kaydı tercih edilir (denetim izi).
 
 ---
 
@@ -444,7 +472,9 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 | `utm_campaign` | `<ev-takim>-vs-<deplasman-takim>-<YYYYMMDD>` (kebab-case, ASCII) | `galatasaray-vs-fenerbahce-20260921` |
 | `utm_content` | `<contentStage>-<format>` | `pre_match-story`, `post_match-feed` |
 
-**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/utils/buildUtmLink.ts`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Postgres `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
+**Gönderi atfı:** linke ayrıca `cm_post=<SocialPost.id>` eklenir. checkmatch.net'teki izleme kodu (`lib/dashboard/tracker-snippet.ts` — Web Trafiği sayfasında kopyalanabilir) bu parametreyi okuyup oturum boyunca `/api/track`'e iletir; böylece ziyaret, trafik kaynağı ve Reklam Bütçeleri'ndeki "ziyaret başı maliyet" o gönderiye/maça yazılır. Ziyaretçi kimliği tarayıcıda kalıcıdır (`localStorage`): "Tekil ziyaretçi" = dönemdeki farklı kimlik, "Yeni ziyaretçi" = ilk kez görülen kimlik (`isUniqueVisit`, eşzamanlı isteklerde kimlik başına advisory lock ile tekil).
+
+**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/dashboard/tracking-link.ts::buildTrackingLink`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Postgres `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
 
 ---
 

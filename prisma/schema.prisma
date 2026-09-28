@@ -178,3 +178,41 @@ model TrafficLog {
   @@index([postId])
   @@index([visitedAt])
 }
+
+/// Kalıcı medya/referans kütüphanesi (bkz. CLAUDE.md 1.11): stüdyoda her seferinde yükleme
+/// yerine seçilebilen logolar, oyuncu fotoğrafları ve referans görseller. Dosya
+/// `storage/library/<kategori>-<sha256>.<uzantı>` altında içerik-adresli tutulur; aynı dosya
+/// aynı kategoriye ikinci kez eklenmez (`@@unique([category, sha256])`).
+model MediaAsset {
+  id          String        @id @default(cuid())
+  /// "Klasör" — kütüphane arayüzü sekmeleri bu alana göre ayrılır.
+  category    MediaCategory
+  /// Admin'in verdiği görünen ad (ör. "Galatasaray logo — beyaz").
+  label       String
+  /// `/api/files/library/<dosya>` — yalnızca oturumlu admin'e servis edilir.
+  fileUrl     String
+  sha256      String
+  contentType String
+  width       Int
+  height      Int
+  sizeBytes   Int
+  hasAlpha    Boolean       @default(false)
+  /// Logolar için isteğe bağlı API-Football takım kimliği/adı — ileride maça göre otomatik seçim.
+  teamId      String?
+  teamName    String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([category, sha256])
+  @@index([category])
+  @@index([teamId])
+}
+
+enum MediaCategory {
+  /// Takım / marka / sponsor logoları
+  LOGO
+  /// Oyuncu fotoğrafları (birefnet kesimine uygun, ≥1024px kısa kenar)
+  PLAYER
+  /// Stil / kompozisyon referans görselleri
+  REFERENCE
+}

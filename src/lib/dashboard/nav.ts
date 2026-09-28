@@ -2,6 +2,7 @@ import {
   BarChart3,
   CalendarDays,
   Globe,
+  Images,
   LayoutDashboard,
   Layers,
   Sparkles,
@@ -51,6 +52,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "AI İçerik Stüdyosu",
     description: "Görsel üretimi",
     icon: Sparkles,
+  },
+  {
+    href: "/dashboard/library",
+    label: "Medya Kütüphanesi",
+    description: "Logo, oyuncu, referans",
+    icon: Images,
   },
   {
     href: "/dashboard/traffic",

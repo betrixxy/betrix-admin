@@ -49,7 +49,8 @@ export interface CreateDraftInput {
   renderOptions: DraftRenderOptions;
   customPrompt?: string | undefined;
   playerPhoto?: UploadedImage | null;
-  logo?: UploadedImage | null;
+  /** Medya kütüphanesindeki logonun kalıcı URL'i (bkz. lib/dashboard/media-library.ts). */
+  logoImageUrl?: string | null;
   postId?: string | null;
 }
 
@@ -88,9 +89,7 @@ export async function createMatchDraft(input: CreateDraftInput): Promise<Result<
     const playerImageUrl = cutout
       ? await saveStoredFile("generated", `${randomUUID()}.png`, await downloadImage(cutout.data.transparentImageUrl))
       : null;
-    const logoImageUrl = input.logo
-      ? await saveStoredFile("uploads", `${input.logo.hash}.${input.logo.extension}`, input.logo.bytes)
-      : null;
+    const logoImageUrl = input.logoImageUrl ?? null;
 
     const assets = { backgroundImageUrl, playerImageUrl, logoImageUrl };
     const resultImageUrl = await renderDraftImage(stats, input.format, input.renderOptions, assets);

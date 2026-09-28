@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { Result } from "@/types/result";
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
-/** Bkz. CLAUDE.md 3.1 adım 1 — oyuncu fotoğrafı minimum 1024px kısa kenar. */
-export const PLAYER_MIN_SHORT_SIDE = 1024;
+import { MAX_UPLOAD_BYTES, PLAYER_MIN_SHORT_SIDE } from "@/lib/dashboard/image-limits";
+
+export { MAX_UPLOAD_BYTES, PLAYER_MIN_SHORT_SIDE };
 
 const EXTENSION_BY_FORMAT = { jpeg: "jpg", png: "png", webp: "webp" } as const;
 type UploadExtension = (typeof EXTENSION_BY_FORMAT)[keyof typeof EXTENSION_BY_FORMAT];
@@ -34,8 +34,15 @@ export async function inspectImageUpload(
   if (file.size > MAX_UPLOAD_BYTES) {
     return fail("FILE_TOO_LARGE", `${label} en fazla ${MAX_UPLOAD_BYTES / 1024 / 1024} MB olabilir.`);
   }
+  return inspectImageBytes(Buffer.from(await file.arrayBuffer()), label, options);
+}
 
-  const bytes = Buffer.from(await file.arrayBuffer());
+/** Bayt dizisini doğrular — yükleme dışındaki kaynaklar (ör. medya kütüphanesindeki dosya) için. */
+export async function inspectImageBytes(
+  bytes: Buffer,
+  label: string,
+  options: { minShortSide?: number } = {},
+): Promise<Result<UploadedImage>> {
 
   try {
     const { format, width, height, hasAlpha } = await sharp(bytes).metadata();
