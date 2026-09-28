@@ -1,18 +1,12 @@
 import type { Metadata } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoginForm } from "@/components/features/auth/login-form";
+import { resolveRedirectTarget } from "@/lib/auth/redirect";
 
 export const metadata: Metadata = {
   title: "Giriş Yap — betrix.pro",
   description: "CheckMatch.net CRM paneline admin girişi",
 };
-
-const DEFAULT_REDIRECT = "/dashboard";
-
-function resolveRedirectTarget(from: string | undefined): string {
-  if (from && from.startsWith("/") && !from.startsWith("//")) return from;
-  return DEFAULT_REDIRECT;
-}
 
 interface LoginPageProps {
   searchParams: Promise<{ from?: string | string[] }>;

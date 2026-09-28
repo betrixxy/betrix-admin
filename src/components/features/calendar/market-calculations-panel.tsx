@@ -17,6 +17,7 @@ type PanelState =
   | { status: "success"; data: MatchCalculations };
 
 const ERROR_MESSAGES: Record<CheckmatchCoreError["code"], string> = {
+  UNAUTHORIZED: "Oturum bulunamadı — lütfen tekrar giriş yapın.",
   NOT_CONFIGURED: "Mac sunucusu bağlantı bilgileri eksik — .env.local dosyasını kontrol edin.",
   TIMEOUT: "Mac sunucusundan yanıt alınamadı (timeout).",
   NETWORK: "Mac sunucusuna ulaşılamıyor — sunucunun çalıştığından emin olun.",

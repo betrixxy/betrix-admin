@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { verifyAdminCredentials } from "@/lib/auth/credentials";
+import { resolveRedirectTarget } from "@/lib/auth/redirect";
 import {
   createSessionToken,
   SESSION_COOKIE_NAME,
@@ -19,16 +20,6 @@ const loginSchema = z.object({
 
 export interface LoginActionState {
   error?: string;
-}
-
-const DEFAULT_REDIRECT = "/dashboard";
-
-/** Açık yönlendirme (open redirect) saldırılarına karşı yalnızca site-içi göreli yollara izin verir. */
-function resolveRedirectTarget(redirectTo: string | undefined): string {
-  if (redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")) {
-    return redirectTo;
-  }
-  return DEFAULT_REDIRECT;
 }
 
 export async function loginAction(

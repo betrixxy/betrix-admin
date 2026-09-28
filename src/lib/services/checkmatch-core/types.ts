@@ -20,7 +20,7 @@ export const checkmatchMatchCalculationsRawSchema = z.object({
 export type CheckmatchMatchCalculationsRaw = z.infer<typeof checkmatchMatchCalculationsRawSchema>;
 
 export interface CheckmatchCoreError {
-  code: "NOT_CONFIGURED" | "TIMEOUT" | "NETWORK" | "HTTP_STATUS" | "INVALID_RESPONSE";
+  code: "UNAUTHORIZED" | "NOT_CONFIGURED" | "TIMEOUT" | "NETWORK" | "HTTP_STATUS" | "INVALID_RESPONSE";
   message: string;
   status?: number;
 }
