@@ -1,4 +1,5 @@
-import { Download, LoaderCircle, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { ClipboardCheck, Download, LoaderCircle, Sparkles } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
@@ -47,6 +48,10 @@ export function StudioPreview({ format, result, isPending }: StudioPreviewProps)
 
         {result && !isPending ? (
           <>
+            <Link href={`/dashboard/drafts/${result.id}`} className={cn(buttonVariants(), "w-full")}>
+              <ClipboardCheck />
+              Taslağı İncele ve Onayla
+            </Link>
             <a
               href={result.resultImageUrl}
               download={`checkmatch-${result.format.toLowerCase()}-${result.id}.svg`}

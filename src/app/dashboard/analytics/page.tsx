@@ -37,7 +37,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     getAnalyticsData(sort),
     metricsId ? getPostById(metricsId) : Promise.resolve(null),
   ]);
-  const fixtureLabels = getFixtureLabels();
+  const fixtureLabels = await getFixtureLabels();
 
   return (
     <>

@@ -128,11 +128,38 @@ model AiContent {
   /// Kullanıcının yüklediği özel marka/sponsor logosu — oyuncu fotoğrafından ayrı saklanır.
   logoImageUrl   String?
   resultImageUrl String?
+
+  /// İnsan onaylı akış (human-in-the-loop): her üretim DRAFT doğar, admin önizleyip
+  /// düzenledikten sonra APPROVED/REJECTED olur — bkz. CLAUDE.md 1.10.
+  status             AiContentStatus @default(DRAFT)
+  /// StudioFormat (IG_FEED | STORY | X_CARD) — yeniden render için gerekli.
+  format             String?
+  /// Gönderi metni taslağı — gerçek istatistiklerden şablonla üretilir, admin düzenler.
+  caption            String?
+  /// Üretim anındaki gerçek maç verisi (MatchStats, API-Football) — onay ekranı ve denetim izi.
+  statsSnapshot      Json?
+  /// Görselde gösterilen istatistik seçimi + derbi tansiyonu (DraftRenderOptions).
+  renderOptions      Json?
+  /// Kalıcı depolamadaki Fal.ai `flux` arka planı — metin/istatistik düzenlemesinde
+  /// Fal.ai'ye tekrar gitmeden (ücretsiz) yeniden render için saklanır.
+  backgroundImageUrl String?
+  reviewedAt         DateTime?
+
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   @@index([postId])
   @@index([fixtureId])
+  @@index([status])
+}
+
+enum AiContentStatus {
+  /// Onay bekliyor
+  DRAFT
+  /// Admin onayladı — yayına hazır
+  APPROVED
+  /// Admin reddetti
+  REJECTED
 }
 
 /// checkmatch.net'e giden sosyal medya trafiğinin izlenmesi (bkz. CLAUDE.md §4.3 UTM

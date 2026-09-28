@@ -1,10 +1,14 @@
 export { isApiFootballConfigured } from "@/lib/services/api-football/client";
 export {
+  MAX_RANGE_DAYS,
+  getFixtureById,
+  getFixturesByIds,
   getFixturesForDateRange,
-  getTodaysFixtures,
-  getFixturesForCurrentWeek,
+  getUpcomingFixtures,
 } from "@/lib/services/api-football/fixtures";
 export type { FixtureDateRange } from "@/lib/services/api-football/fixtures";
+export { getHeadToHead, getMatchStats, getTeamRecentForm } from "@/lib/services/api-football/match-stats";
+export { parseFixtureId, toFixtureId } from "@/lib/services/api-football/mappers";
 export type { ApiFootballError } from "@/lib/services/api-football/types";
 export {
   SUPPORTED_LEAGUES,

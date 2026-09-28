@@ -43,7 +43,9 @@ Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` 
 betrix-studio/
 ├─ src/
 │  ├─ app/                        # Next.js App Router — sadece route, layout, page
-│  │  ├─ dashboard/                # Ajans paneli: sol menülü layout + 4 modül (bkz. 1.8)
+│  │  ├─ dashboard/                # Ajans paneli: sol menülü layout + modüller (bkz. 1.8)
+│  │  │  ├─ matches/               # Maç Merkezi: gerçek fikstür + "AI İçerik Üret" (bkz. 1.10)
+│  │  │  ├─ drafts/[id]/           # Taslak inceleme: önizle / düzenle / onayla (bkz. 1.10)
 │  │  │  ├─ calendar/              # İçerik Üretim Takvimi (SocialPost)
 │  │  │  ├─ analytics/             # Etkileşim ve Reklam Paneli (PostAnalytics)
 │  │  │  ├─ studio/                # AI İçerik Stüdyosu (AiContent)
@@ -176,6 +178,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 | Modül | Route | Ana model | Not |
 |---|---|---|---|
 | Genel Bakış | `/dashboard` | hepsi | 4 modülün özet kartları |
+| Maç Merkezi | `/dashboard/matches` | `AiContent` | Gerçek fikstür (API-Football, 7 gün), maç başına "AI İçerik Üret", onay kuyruğu — bkz. 1.10 |
 | İçerik Takvimi | `/dashboard/calendar` | `SocialPost` | Ay/Hafta/Liste görünümü, planlama, düzenleme, Hazırlanıyor/Paylaşıldı |
 | Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics` | Metrikler API bağlanana kadar elle girilir; `lib/dashboard/integrations.ts` gelecekteki Meta/TikTok/YouTube/X bağlantılarının listesidir |
 | AI İçerik Stüdyosu | `/dashboard/studio` | `AiContent` | Fal.ai `flux`+`birefnet` ile gerçek görsel üretir (`FAL_KEY` zorunlu, boşsa form kilitlenir); istatistik/logo/marka katmanı her zaman programatik SVG'dir, bkz. Bölüm 3 |
@@ -206,6 +209,20 @@ docker compose -f docker-compose.prod.yml --env-file .env.production run --rm mi
 
 **Not:** Oturum çerezi üretimde `Secure`'dur; giriş yalnızca HTTPS üzerinden (Caddy) çalışır, `app:3000`'e doğrudan HTTP ile giriş yapılamaz.
 
+### 1.10 Yarı Otomatik İçerik Motoru (Human-in-the-loop — Kurucu Kararı)
+
+Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretimi **tam otomatik değildir**: cron/worker/zamanlayıcı ile kendi kendine içerik üreten veya yayınlayan kod yolu **eklenmez**. Her üretim bir admin tıklamasıyla tetiklenir ve onaysız hiçbir içerik yayına hazır sayılmaz.
+
+**Akış:** Maç Merkezi'nde "AI İçerik Üret" → `lib/dashboard/draft-engine.ts::createMatchDraft()`:
+1. Gerçek maç verisi (`lib/services/api-football::getMatchStats` — fikstür, iki takımın son 5 bitmiş maçı: form, gol ve xG ortalamaları, H2H).
+2. Fal.ai `flux` arka planı (+ stüdyodan yüklendiyse `birefnet` oyuncu kesimi) → kalıcı depolamaya indirilir.
+3. Görsel `renderDraftImage()` ile çizilir; gönderi metni `draft-caption.ts` ile **şablondan** üretilir (LLM yok — her sayı snapshot'tan gelir, olmayan metrik yazılmaz).
+4. `AiContent` kaydı `status = DRAFT`, `statsSnapshot` (üretim anındaki gerçek veri) ve `renderOptions` ile yazılır → admin `/dashboard/drafts/<id>`'ye yönlendirilir.
+
+**İnceleme ekranı:** "Kaydet ve yeniden çiz" görseli depodaki katmanlardan yeniden çizer (**ücretsiz**, Fal.ai'ye gidilmez); "Arka planı yeniden üret" Fal.ai'ye gider (**ücretli**) — maç tansiyonu (`derbyIntensity`, bkz. 3.2.3) burada admin tarafından sınıflandırılır. Onay/ret yalnızca `DRAFT` kayıtlara uygulanır; karara bağlanmış taslak düzenlenemez. Stüdyo'nun manuel üretimi de aynı motoru kullanır ve DRAFT doğar.
+
+**Kurallar:** (1) Statü geçişleri yalnızca `draft-engine.ts` içinden (`updateDraft`, `regenerateDraftBackground`, `decideDraft`). (2) `statsSnapshot` sonradan değişmez — taslak, üretildiği andaki veriyi gösterir. (3) Yeniden render/arka plan değişiminde eski dosyalar silinir (yetim dosya bırakılmaz).
+
 ---
 
 ## 2. Spor Analitiği & Veri Kuralları
@@ -214,6 +231,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.production run --rm mi
 
 - **Sportmonks — birincil kaynak.** xG, tehlikeli atak sayısı, form serileri, sakatlık/ceza verisi, canlı olay akışı (goal, card, substitution, VAR).
 - **API-Football — ikincil kaynak / çapraz doğrulama.** Sportmonks kesintisinde fallback; kritik veri noktalarında (skor, kart) iki kaynak çelişirse Sportmonks esas alınır ve uyuşmazlık loglanır.
+- **Mevcut durum (FAZ 9):** Fikstür, form, xG ve H2H şu an **API-Football'dan** gelir (Ultra plan). Gerekçe: fikstür listesi API-Football kimlikleriyle çalışır ve iki sağlayıcı arasında takım/maç kimliği eşlemesi henüz yok; Sportmonks xG `type_id` eşlemesi doğrulanmamış (bkz. `sportmonks/mappers.ts`). Sportmonks'u birincil yapmak için önce kimlik eşleme tablosu kurulmalıdır. xG, maç istatistiklerindeki `expected_goals`'tan hesaplanır; kupa gibi kapsam dışı maçlarda yoktur ve ortalamaya girmez (`xgMatchesSampled`).
 
 ### 2.2 Kanonik İç Veri Modelleri (`types/sports.ts`)
 

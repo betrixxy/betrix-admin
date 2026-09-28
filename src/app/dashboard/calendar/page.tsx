@@ -39,8 +39,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
     editId ? getPostById(editId) : Promise.resolve(null),
   ]);
 
-  const fixtureOptions = getFixtureOptions();
-  const fixtureLabels = getFixtureLabels();
+  const fixtureOptions = await getFixtureOptions();
+  const fixtureLabels = await getFixtureLabels();
   const editHref = (postId: string) => calendarHref({ view, anchor, edit: postId });
 
   return (

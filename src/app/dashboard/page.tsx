@@ -40,7 +40,7 @@ export default async function DashboardPage() {
     getRecentAiContent(RECENT_RENDERS_LIMIT),
     getTrafficData(7, "day"),
   ]);
-  const fixtureLabels = getFixtureLabels();
+  const fixtureLabels = await getFixtureLabels();
 
   return (
     <>

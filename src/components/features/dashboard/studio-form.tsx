@@ -13,6 +13,7 @@ import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { STUDIO_FORMATS, type StudioActionState, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { FixtureOption } from "@/types/social";
 import { ImageUploadField } from "./image-upload-field";
+import { StatSelectionFields } from "./stat-selection-fields";
 import { StudioPreview } from "./studio-preview";
 
 interface StudioFormProps {
@@ -94,17 +95,7 @@ export function StudioForm({ fixtures, postOptions, disabled = false }: StudioFo
               </span>
             </div>
 
-            <fieldset className="flex flex-col gap-2">
-              <legend className="mb-1 text-sm font-medium">Görsele eklenecek maç istatistikleri</legend>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="includeForm" defaultChecked className="size-4 accent-emerald-500" />
-                Son 5 maç formu
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="includeXg" defaultChecked className="size-4 accent-emerald-500" />
-                xG / xGA (maç başı)
-              </label>
-            </fieldset>
+            <StatSelectionFields />
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="postId">Gönderiye bağla (isteğe bağlı)</Label>

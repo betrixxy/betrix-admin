@@ -20,6 +20,7 @@ export interface AiContentView {
   playerImageUrl: string | null;
   logoImageUrl: string | null;
   resultImageUrl: string | null;
+  status: AiContentStatus;
   /** ISO 8601, UTC */
   createdAt: string;
 }
@@ -34,6 +35,8 @@ export interface StudioGenerationResult {
   resultImageUrl: string;
   prompt: string;
   format: StudioFormat;
+  /** Taslak — admin inceleme ekranında (`/dashboard/drafts/<id>`) onaylar/düzenler. */
+  status: AiContentStatus;
 }
 
 export interface StudioActionState {
@@ -41,17 +44,6 @@ export interface StudioActionState {
   result?: StudioGenerationResult;
 }
 
-export interface StudioTeamStats {
-  teamName: string;
-  /** Son 5 maç, en yeni sağda — örn. "WWDLW". */
-  form: string;
-  xgFor: number;
-  xgAgainst: number;
-}
-
-export interface StudioMatchStats {
-  home: StudioTeamStats;
-  away: StudioTeamStats;
-  /** İstatistiklerin nereden geldiği — gerçek Sportmonks bağlanana kadar "mock". */
-  source: "mock" | "sportmonks";
-}
+/** Bkz. prisma AiContentStatus — insan onaylı akış (CLAUDE.md 1.10). */
+export const AI_CONTENT_STATUSES = ["DRAFT", "APPROVED", "REJECTED"] as const;
+export type AiContentStatus = (typeof AI_CONTENT_STATUSES)[number];

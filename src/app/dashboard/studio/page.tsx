@@ -16,7 +16,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage() {
-  const [data, falConfigured] = await Promise.all([getStudioData(), Promise.resolve(isFalConfigured())]);
+  const [data, fixtureOptions] = await Promise.all([getStudioData(), getFixtureOptions()]);
+  const falConfigured = isFalConfigured();
 
   return (
     <>
@@ -36,7 +37,7 @@ export default async function StudioPage() {
         </div>
       ) : null}
 
-      <StudioForm fixtures={getFixtureOptions()} postOptions={data.postOptions} disabled={!falConfigured} />
+      <StudioForm fixtures={fixtureOptions} postOptions={data.postOptions} disabled={!falConfigured} />
       <AiContentGallery items={data.recent} totalCount={data.totalCount} fixtureLabels={data.fixtureLabels} />
     </>
   );

@@ -3,7 +3,9 @@ import { tr } from "date-fns/locale";
 import { ImageOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AiContentView } from "@/types/ai-content";
+import Link from "next/link";
 import { AiContentDeleteButton } from "./ai-content-delete-button";
+import { DraftStatusBadge } from "./draft-status-badge";
 
 interface AiContentGalleryProps {
   items: AiContentView[];
@@ -36,7 +38,10 @@ export function AiContentGallery({ items, totalCount, fixtureLabels }: AiContent
                   )}
                 </div>
                 <div className="flex items-start justify-between gap-1">
-                  <div className="flex min-w-0 flex-col">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <Link href={`/dashboard/drafts/${item.id}`} className="w-fit hover:opacity-80">
+                      <DraftStatusBadge status={item.status} />
+                    </Link>
                     <span className="text-[11px] text-white">
                       {format(new Date(item.createdAt), "d MMM, HH:mm", { locale: tr })}
                     </span>

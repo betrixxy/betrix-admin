@@ -1,12 +1,27 @@
+import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
 import type { ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
-import type { Fixture, FixtureStatus, TeamRef } from "@/types/sports";
+import type { CompetitionRef, Fixture, FixtureStatus, TeamRef } from "@/types/sports";
 
 /**
  * API-Football forma/marka rengi döndürmüyor (yalnızca logo URL'i verir). Gerçek
- * `primaryColorHex` değeri Supabase `teams` tablosundan zenginleştirilene kadar (bkz.
+ * `primaryColorHex` değeri bir `teams` tablosundan zenginleştirilene kadar (bkz.
  * CLAUDE.md 3.2.2) nötr bir varsayılan kullanılır.
  */
 export const FALLBACK_TEAM_COLOR_HEX = "#6B7280";
+
+/** Kanonik fikstür kimliği ön eki — `Fixture.id` ↔ API-Football fixture ID dönüşümü. */
+const FIXTURE_ID_PREFIX = "api-football-";
+
+export function toFixtureId(apiFootballFixtureId: number): string {
+  return `${FIXTURE_ID_PREFIX}${apiFootballFixtureId}`;
+}
+
+/** `api-football-123` → 123; başka biçimdeki (ör. eski mock) kimliklerde null. */
+export function parseFixtureId(fixtureId: string): number | null {
+  if (!fixtureId.startsWith(FIXTURE_ID_PREFIX)) return null;
+  const numeric = Number(fixtureId.slice(FIXTURE_ID_PREFIX.length));
+  return Number.isSafeInteger(numeric) && numeric > 0 ? numeric : null;
+}
 
 const STATUS_MAP: Record<string, FixtureStatus> = {
   TBD: "SCHEDULED",
@@ -14,7 +29,10 @@ const STATUS_MAP: Record<string, FixtureStatus> = {
   "1H": "LIVE",
   "2H": "LIVE",
   ET: "LIVE",
+  BT: "LIVE",
   P: "LIVE",
+  SUSP: "LIVE",
+  INT: "LIVE",
   LIVE: "LIVE",
   HT: "HT",
   FT: "FT",
@@ -26,6 +44,12 @@ const STATUS_MAP: Record<string, FixtureStatus> = {
   AWD: "FT",
   WO: "FT",
 };
+
+const FINISHED_STATUS_CODES = new Set(["FT", "AET", "PEN", "AWD", "WO"]);
+
+export function isFinishedStatus(shortCode: string): boolean {
+  return FINISHED_STATUS_CODES.has(shortCode);
+}
 
 function mapStatus(shortCode: string): FixtureStatus {
   return STATUS_MAP[shortCode] ?? "SCHEDULED";
@@ -41,29 +65,30 @@ function mapTeam(raw: { id: number; name: string; logo: string }): TeamRef {
   };
 }
 
+/** Desteklenen liglerde Türkçe adı (bkz. leagues.ts), diğerlerinde sağlayıcının adını kullanır. */
+function mapCompetition(raw: ApiFootballFixtureRaw["league"]): CompetitionRef {
+  const supported = SUPPORTED_LEAGUES.find((league) => league.apiFootballId === raw.id);
+  return supported
+    ? { id: supported.id, name: supported.name, shortName: supported.shortName }
+    : { id: String(raw.id), name: raw.name, shortName: raw.name };
+}
+
 /**
  * Ham API-Football fikstürünü kanonik `Fixture`'a çevirir. Saf fonksiyon, side-effect
- * içermez (bkz. CLAUDE.md 1.4).
- *
- * `id`: gerçek içsel UUID, fikstür Supabase'e yazıldığında oradan gelecek (bkz. 1.6);
- * o entegrasyon bağlanana kadar sağlayıcı ID'sinden türetilen deterministik bir
- * placeholder kullanılır ki fonksiyon saf kalsın (aynı girdi → aynı çıktı).
+ * içermez (bkz. CLAUDE.md 1.4). Ayrı bir Fixture tablosu olmadığından `id`, sağlayıcı
+ * kimliğinden deterministik olarak türetilir (`toFixtureId`).
  */
 export function mapApiFootballFixtureToFixture(raw: ApiFootballFixtureRaw): Fixture {
   return {
-    id: `api-football-${raw.fixture.id}`,
+    id: toFixtureId(raw.fixture.id),
     providerIds: { apiFootball: raw.fixture.id },
     kickoffUtc: new Date(raw.fixture.date).toISOString(),
     status: mapStatus(raw.fixture.status.short),
     homeTeam: mapTeam(raw.teams.home),
     awayTeam: mapTeam(raw.teams.away),
-    competition: {
-      id: String(raw.league.id),
-      name: raw.league.name,
-      shortName: raw.league.name,
-    },
-    // Derbi tansiyonu sınıflandırması ayrı bir adımdır (bkz. CLAUDE.md 3.2.3); burada
-    // yalnızca alan boş kalmasın diye nötr varsayılan atanır.
+    competition: mapCompetition(raw.league),
+    // Derbi tansiyonu sınıflandırması insan onaylı bir adımdır (bkz. CLAUDE.md 3.2.3 ve
+    // taslak inceleme ekranı); burada yalnızca alan boş kalmasın diye nötr varsayılan atanır.
     derbyIntensity: "NONE",
   };
 }

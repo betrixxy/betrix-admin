@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
-import type { AiContentView, StudioPostOption } from "@/types/ai-content";
+import type { AiContentStatus, AiContentView, StudioPostOption } from "@/types/ai-content";
 
 const RECENT_AI_CONTENT_LIMIT = 12;
 
@@ -23,6 +23,7 @@ function toAiContentView(row: {
   playerImageUrl: string | null;
   logoImageUrl: string | null;
   resultImageUrl: string | null;
+  status: AiContentStatus;
   createdAt: Date;
 }): AiContentView {
   return {
@@ -33,6 +34,7 @@ function toAiContentView(row: {
     playerImageUrl: row.playerImageUrl,
     logoImageUrl: row.logoImageUrl,
     resultImageUrl: row.resultImageUrl,
+    status: row.status,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -58,7 +60,7 @@ export async function getStudioData(): Promise<StudioData> {
     }),
   ]);
 
-  const fixtureLabels = getFixtureLabels();
+  const fixtureLabels = await getFixtureLabels();
   const postOptions = posts.map((post) => ({
     id: post.id,
     label: `${PLATFORM_LABELS[post.platform.type]} · ${fixtureLabels[post.fixtureId] ?? post.fixtureId} · ${format(post.scheduledFor, "d MMM HH:mm")}`,

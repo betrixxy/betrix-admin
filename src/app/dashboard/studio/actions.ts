@@ -1,24 +1,14 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { getSelectableFixtures } from "@/lib/dashboard/fixtures";
-import { deleteStoredFile, parseStoredFileUrl, saveStoredFile } from "@/lib/dashboard/storage";
-import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
-import {
-  PLAYER_MIN_SHORT_SIDE,
-  downloadImage,
-  embedImageBytes,
-  inspectImageUpload,
-  toEmbeddedDataUri,
-  type UploadedImage,
-} from "@/lib/dashboard/studio-images";
-import { buildRenderSvg } from "@/lib/dashboard/studio-render";
-import { buildStatRows, getStudioMatchStats } from "@/lib/dashboard/studio-stats";
+import { createMatchDraft } from "@/lib/dashboard/draft-engine";
+import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
+import { PLAYER_MIN_SHORT_SIDE, inspectImageUpload, type UploadedImage } from "@/lib/dashboard/studio-images";
+import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { prisma } from "@/lib/prisma";
-import { generateStadiumBackground, isFalConfigured, removePlayerBackground } from "@/lib/services/fal";
+import { isFalConfigured } from "@/lib/services/fal";
 import type { Result } from "@/types/result";
 import { STUDIO_FORMATS, type StudioActionState } from "@/types/ai-content";
 
@@ -47,18 +37,10 @@ async function loadImage(
   return inspectImageUpload(file, label, options);
 }
 
-/** Fal.ai'nin geçici URL'indeki sonucu kalıcı depolamaya indirir (bkz. CLAUDE.md 3.1 adım 6). */
-async function persistGeneratedImage(url: string): Promise<{ url: string; bytes: Buffer }> {
-  const bytes = await downloadImage(url);
-  const storedUrl = await saveStoredFile("generated", `${randomUUID()}.png`, bytes);
-  return { url: storedUrl, bytes };
-}
-
 /**
- * Stüdyo üretim akışı: yüklemeleri doğrula → Fal.ai `flux`'tan stadyum arka planı ve
- * `birefnet`'ten oyuncu kesimi al (paralel) → oyuncu kesimini kalıcı depolamaya indir
- * (arka plan yalnızca nihai görsele gömülür, ayrıca saklanmaz) → maç istatistikleriyle
- * birleştirip nihai görseli render et → `AiContent` kaydı oluştur (bkz. CLAUDE.md Bölüm 3).
+ * Stüdyo (manuel, yüklemeli) üretim: yüklemeleri doğrula → taslak motoruna devret (gerçek
+ * istatistik + Fal.ai `flux`/`birefnet` + render, bkz. lib/dashboard/draft-engine.ts). Sonuç
+ * her zaman DRAFT'tır; admin `/dashboard/drafts/<id>` ekranında onaylar (bkz. CLAUDE.md 1.10).
  */
 export async function generateAiContentAction(
   _prevState: StudioActionState,
@@ -78,9 +60,6 @@ export async function generateAiContentAction(
   }
   const { fixtureId, format, customPrompt, postId } = parsed.data;
 
-  const fixture = getSelectableFixtures().find((candidate) => candidate.id === fixtureId);
-  if (!fixture) return { error: "Seçilen maç bulunamadı." };
-
   const [player, logo] = await Promise.all([
     loadImage(readFile(formData, "playerPhoto"), "Oyuncu fotoğrafı", { minShortSide: PLAYER_MIN_SHORT_SIDE }),
     loadImage(readFile(formData, "logo"), "Logo"),
@@ -88,70 +67,25 @@ export async function generateAiContentAction(
   if (!player.ok) return { error: player.error.message };
   if (!logo.ok) return { error: logo.error.message };
 
-  const formatDef = STUDIO_FORMAT_DEFS[format];
-  const playerPhoto = player.data;
+  const draft = await createMatchDraft({
+    fixtureId,
+    format,
+    customPrompt: customPrompt || undefined,
+    playerPhoto: player.data,
+    logo: logo.data,
+    postId: postId || null,
+    renderOptions: { selection: readStatSelection(formData), derbyIntensity: "NONE" },
+  });
+  if (!draft.ok) return { error: draft.error.message };
 
-  const [backgroundResult, playerCutoutResult] = await Promise.all([
-    generateStadiumBackground({
-      fixture,
-      customPrompt: customPrompt || undefined,
-      width: formatDef.width,
-      height: formatDef.height,
-    }),
-    playerPhoto
-      ? removePlayerBackground({ bytes: playerPhoto.bytes, contentType: playerPhoto.contentType })
-      : Promise.resolve(null),
-  ]);
-
-  if (!backgroundResult.ok) return { error: backgroundResult.error.message };
-  if (playerCutoutResult && !playerCutoutResult.ok) return { error: playerCutoutResult.error.message };
-
-  try {
-    const backgroundBytes = await downloadImage(backgroundResult.data.imageUrl);
-    const playerCutout = playerCutoutResult
-      ? await persistGeneratedImage(playerCutoutResult.data.transparentImageUrl)
-      : null;
-    const logoUrl = logo.data
-      ? await saveStoredFile("uploads", `${logo.data.hash}.${logo.data.extension}`, logo.data.bytes)
-      : null;
-
-    const stats = getStudioMatchStats(fixture);
-    const svg = buildRenderSvg({
-      format: formatDef,
-      fixture,
-      statRows: buildStatRows(stats, {
-        includeForm: formData.get("includeForm") === "on",
-        includeXg: formData.get("includeXg") === "on",
-      }),
-      backgroundDataUri: await embedImageBytes(backgroundBytes, 1600),
-      playerDataUri: playerCutout ? await embedImageBytes(playerCutout.bytes, 900, true) : undefined,
-      logoDataUri: logo.data ? await toEmbeddedDataUri(logo.data, 256) : undefined,
-    });
-
-    const resultImageUrl = await saveStoredFile("renders", `${randomUUID()}.svg`, Buffer.from(svg, "utf8"));
-
-    const record = await prisma.aiContent.create({
-      data: {
-        fixtureId,
-        postId: postId || null,
-        prompt: backgroundResult.data.prompt,
-        playerImageUrl: playerCutout?.url ?? null,
-        logoImageUrl: logoUrl,
-        resultImageUrl,
-      },
-    });
-
-    refreshDashboard();
-    return { result: { id: record.id, resultImageUrl, prompt: backgroundResult.data.prompt, format } };
-  } catch {
-    return { error: "Görsel üretilemedi — depolama alanına yazılamadı veya veritabanına ulaşılamadı." };
-  }
+  refreshDashboard();
+  return { result: { ...draft.data, format, status: "DRAFT" } };
 }
 
 /**
  * Kaydı ve ürettiği dosyaları siler. `logoImageUrl` içerik-adresli olduğundan (bkz.
  * `uploads` kovası) başka kayıtlarca paylaşılabilir — silinmez, yalnızca bu kayda özel
- * `resultImageUrl` (render) ve `playerImageUrl` (Fal.ai kesimi) temizlenir.
+ * render, Fal.ai oyuncu kesimi ve arka plan temizlenir.
  */
 export async function deleteAiContentAction(id: string): Promise<Result<null>> {
   if (!(await getCurrentSession())) {
@@ -160,10 +94,9 @@ export async function deleteAiContentAction(id: string): Promise<Result<null>> {
 
   try {
     const record = await prisma.aiContent.delete({ where: { id } });
-    for (const url of [record.resultImageUrl, record.playerImageUrl]) {
-      const stored = parseStoredFileUrl(url);
-      if (stored) await deleteStoredFile(stored.bucket, stored.fileName);
-    }
+    await Promise.all(
+      [record.resultImageUrl, record.playerImageUrl, record.backgroundImageUrl].map(deleteStoredUrl),
+    );
   } catch (cause) {
     return { ok: false, error: { code: "DELETE_FAILED", message: "Kayıt silinemedi.", cause } };
   }

@@ -1,5 +1,4 @@
-import type { CalendarFixture } from "@/types/calendar";
-import type { DerbyIntensity } from "@/types/sports";
+import type { DerbyIntensity, Fixture } from "@/types/sports";
 
 /** Bkz. CLAUDE.md 3.2.3 — derbi tansiyonu kademeleri ve mood/atmosfer prompt ekleri. */
 const MOOD_BY_DERBY_INTENSITY: Record<DerbyIntensity, string> = {
@@ -33,7 +32,7 @@ function resolveAwayColor(homeHex: string, awayHex: string): string {
 }
 
 export interface StadiumPromptInput {
-  fixture: CalendarFixture;
+  fixture: Fixture;
   /** Kullanıcının stüdyo formunda yazdığı ek yönerge — bkz. CLAUDE.md 3.2.1 blok yapısına eklenir. */
   customPrompt?: string;
 }
