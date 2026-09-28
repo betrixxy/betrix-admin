@@ -1,9 +1,9 @@
-import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
 
-const adapter = new PrismaLibSql({ url: env.DATABASE_URL });
+const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
 /**

@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 /// CRM içerik planı — bkz. src/types/calendar.ts ContentPlan. Mock veriden
@@ -24,13 +24,130 @@ model ContentPlan {
   adSpend      Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  /// Bu fikstür için üretilen platform bazlı somut gönderiler (bkz. SocialPost).
+  socialPosts  SocialPost[]
 }
 
-/// Tek admin hesabı — bkz. CLAUDE.md FAZ 6, yalnızca bu tablodaki kullanıcı
-/// /login üzerinden giriş yapabilir (src/middleware.ts route koruması).
+/// Tek admin hesabı — bkz. CLAUDE.md §1.6, yalnızca bu tablodaki kullanıcı
+/// /login üzerinden giriş yapabilir (src/proxy.ts route koruması).
 model AdminUser {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   createdAt    DateTime @default(now())
+}
+
+/// Bağlı sosyal medya hesabı/kanalı (bkz. CLAUDE.md Bölüm 4.1 — Meta/TikTok/YouTube/X).
+/// Her fiziksel platform (Instagram, TikTok vb.) için tek bir kayıt tutulur; ileride
+/// OAuth token'ları gibi hesap-bazlı bilgiler bu modele eklenir.
+model SocialPlatform {
+  id          String             @id @default(cuid())
+  type        SocialPlatformType @unique
+  displayName String
+  isActive    Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  posts       SocialPost[]
+}
+
+enum SocialPlatformType {
+  META_INSTAGRAM
+  META_FACEBOOK
+  TIKTOK
+  YOUTUBE
+  X
+}
+
+/// Belirli bir platformda, belirli bir maç için paylaşılan/paylaşılacak somut gönderi.
+/// ContentPlan bir fikstür için "içerik üretilecek" kararını temsil eder; SocialPost
+/// ise o kararın platform başına somutlaşmış hâlidir (bkz. CLAUDE.md §4.2 durum makinesi).
+model SocialPost {
+  id             String           @id @default(cuid())
+  /// Hedeflenen maç — bkz. ContentPlan.fixtureId, henüz ayrı bir Fixture tablosu yok.
+  fixtureId      String
+  contentPlanId  String?
+  contentPlan    ContentPlan?     @relation(fields: [contentPlanId], references: [id], onDelete: SetNull)
+  platformId     String
+  platform       SocialPlatform   @relation(fields: [platformId], references: [id])
+  caption        String
+  scheduledFor   DateTime
+  publishedAt    DateTime?
+  /// Hazırlanıyor / Paylaşıldı
+  status         SocialPostStatus @default(PREPARING)
+  /// Yayınlandıktan sonra platformun kendi post ID'si (metrik senkronizasyonu için).
+  providerPostId String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  analytics      PostAnalytics?
+  aiContents     AiContent[]
+  trafficLogs    TrafficLog[]
+
+  @@index([fixtureId])
+  @@index([scheduledFor])
+  @@index([status])
+}
+
+enum SocialPostStatus {
+  /// Hazırlanıyor
+  PREPARING
+  /// Paylaşıldı
+  PUBLISHED
+}
+
+/// Yayınlanmış bir SocialPost'un platform metrikleri (bkz. CLAUDE.md §4.1 PostMetrics).
+/// Post başına tek kayıt tutulur, kademeli senkronizasyonla (1s/6s/24s/72s) güncellenir.
+model PostAnalytics {
+  id           String     @id @default(cuid())
+  postId       String     @unique
+  post         SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  likes        Int        @default(0)
+  comments     Int        @default(0)
+  views        Int        @default(0)
+  shares       Int        @default(0)
+  lastSyncedAt DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+/// Fal.ai ile üretilen görsellerin kaydı (bkz. CLAUDE.md Bölüm 3 — birefnet/flux
+/// pipeline'ları). `postId` boş olabilir: bir görsel, henüz hangi gönderide
+/// kullanılacağı netleşmeden önce de üretilip depolanabilir; `fixtureId` ise her zaman
+/// doludur — üretim her zaman belirli bir maç için tetiklenir (bkz. `types/calendar.ts`
+/// `CalendarFixture.id`, henüz ayrı bir Fixture tablosu yok).
+model AiContent {
+  id             String      @id @default(cuid())
+  fixtureId      String
+  postId         String?
+  post           SocialPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  prompt         String
+  /// Arka planı temizlenmiş oyuncu fotoğrafı (bkz. CLAUDE.md 3.1 birefnet pipeline'ı).
+  playerImageUrl String?
+  /// Kullanıcının yüklediği özel marka/sponsor logosu — oyuncu fotoğrafından ayrı saklanır.
+  logoImageUrl   String?
+  resultImageUrl String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([postId])
+  @@index([fixtureId])
+}
+
+/// checkmatch.net'e giden sosyal medya trafiğinin izlenmesi (bkz. CLAUDE.md §4.3 UTM
+/// standardı). `postId` doldurulduğunda tıklama, kaynağı olan gönderiye kadar geriye
+/// izlenebilir; doğrudan/organik trafik için boş bırakılır.
+model TrafficLog {
+  id            String      @id @default(cuid())
+  postId        String?
+  post          SocialPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  path          String
+  ipAddress     String?
+  sessionId     String?
+  isUniqueVisit Boolean     @default(false)
+  visitedAt     DateTime    @default(now())
+
+  @@index([postId])
+  @@index([visitedAt])
 }

@@ -28,31 +28,37 @@ Bu dosya, bu repository içinde çalışan her yapay zeka ajanı (Claude Code da
 | Dil | TypeScript (strict mode) | `any` yasak, `unknown` + daraltma zorunlu. |
 | Stil | Tailwind CSS | Ham CSS dosyası yalnızca render motorunda (bkz. Bölüm 3.4) istisnadır. |
 | Bileşen kütüphanesi | Shadcn UI | Fork edilip `components/ui/` altında tutulur, npm bağımlılığı olarak değil kaynak kod olarak yönetilir. |
-| Veritabanı / Auth / Storage / Realtime | Supabase | Tek gerçek kaynak (source of truth) — **FAZ 6'dan itibaren geçici olarak yerel SQLite + Prisma ile değiştirildi, bkz. 1.6a.** Supabase'e geçiş ayrı bir FAZ'da planlanacak. |
+| Veritabanı / Auth | Yerel PostgreSQL (Docker) + Prisma ORM · Kendi Auth sistemimiz (bcryptjs + jose JWT) | **Kalıcı mimari karar, bkz. 1.6.** Üçüncü parti bir BaaS (Supabase vb.) kullanılmaz ve kullanılması planlanmamaktadır. |
 | Görsel üretim motoru | Fal.ai (birefnet, flux ailesi) | Bkz. Bölüm 3. |
 | Spor verisi | Sportmonks (birincil), API-Football (ikincil/doğrulama) | Bkz. Bölüm 2. |
 | Görsel doğrulama | Playwright | Bkz. Bölüm 5.3. |
+| Grafikler | Recharts | Yalnızca istemci bileşenlerinde (`"use client"`); veri sunucuda hazırlanıp serileştirilebilir dizi olarak geçirilir. |
+| Sunucu tarafı görsel işleme | sharp | Yüklenen görselin gerçek biçim/boyut doğrulaması ve render şablonuna gömülecek küçültme. |
 
 ### 1.2 Dizin Mimarisi
 
-Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` altında yaşar. `supabase/`, `prisma/` ve `tests/` (ilgili CLI/koşucu konvansiyonu gereği) proje kökünde kalır.
+Proje `create-next-app --src-dir` ile kurulmuştur; uygulama kaynak kodu `src/` altında yaşar. `prisma/` ve `tests/` (ilgili CLI/koşucu konvansiyonu gereği) proje kökünde kalır. Yerel PostgreSQL, `docker-compose.yml` (proje kökü) ile ayağa kaldırılır — bkz. 1.6.
 
 ```
 betrix-studio/
 ├─ src/
 │  ├─ app/                        # Next.js App Router — sadece route, layout, page
-│  │  ├─ dashboard/                # İç analitik/yönetim paneli
+│  │  ├─ dashboard/                # Ajans paneli: sol menülü layout + 4 modül (bkz. 1.8)
+│  │  │  ├─ calendar/              # İçerik Üretim Takvimi (SocialPost)
+│  │  │  ├─ analytics/             # Etkileşim ve Reklam Paneli (PostAnalytics)
+│  │  │  ├─ studio/                # AI İçerik Stüdyosu (AiContent)
+│  │  │  └─ traffic/               # Web Trafik Analizi (TrafficLog)
 │  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
 │  │  ├─ calendar/                 # Fikstür tabanlı içerik takvimi (bkz. Bölüm 4.2)
-│  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6a)
-│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok
+│  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6)
+│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: files/ — yerel depolama servisi, track/ — checkmatch.net trafik ingest'i)
 │  ├─ components/
 │  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
 │  │  └─ features/                 # Özellik bazlı bileşenler
 │  │     ├─ dashboard/
 │  │     ├─ studio/
 │  │     ├─ calendar/
-│  │     └─ auth/                  # Login formu vb. (bkz. 1.6a)
+│  │     └─ auth/                  # Login formu vb. (bkz. 1.6)
 │  ├─ lib/
 │  │  ├─ services/                 # Dış API soyutlama katmanı (bkz. 1.4)
 │  │  │  ├─ sportmonks/
@@ -63,25 +69,24 @@ betrix-studio/
 │  │  │  ├─ tiktok/
 │  │  │  ├─ youtube/
 │  │  │  └─ x/
-│  │  ├─ supabase/                 # client.ts (server/browser ayrımı), queries/, mutations/ — FAZ 6'da boş, bkz. 1.6a
-│  │  ├─ auth/                     # password.ts, session.ts, credentials.ts (bkz. 1.6a)
-│  │  ├─ prisma.ts                 # PrismaClient tekil (singleton) — bkz. 1.6a
+│  │  ├─ dashboard/                # Dashboard modüllerinin sorguları, saf istatistik fonksiyonları, depolama ve render yardımcıları (bkz. 1.8)
+│  │  ├─ auth/                     # password.ts, session.ts, credentials.ts, require-session.ts (bkz. 1.6)
+│  │  ├─ prisma.ts                 # PrismaClient tekil (singleton) — bkz. 1.6
 │  │  ├─ env.ts                    # zod ile doğrulanmış merkezi env erişimi
 │  │  └─ utils.ts                  # Shadcn `cn()` yardımcı fonksiyonu + genel yardımcılar
-│  ├─ generated/prisma/            # `prisma generate` çıktısı, elle düzenlenmez, gitignore'da (bkz. 1.6a)
+│  ├─ generated/prisma/            # `prisma generate` çıktısı, elle düzenlenmez, gitignore'da (bkz. 1.6)
 │  ├─ types/                       # Paylaşılan, katmanlar-arası TypeScript tipleri
 │  ├─ hooks/                       # Client-side React hook'ları
 │  ├─ proxy.ts                     # Route koruması — Next.js 16 `proxy` konvansiyonu (eski adı `middleware`)
 │  └─ skills/
 │     └─ render-engine/
 │        └─ templates/             # Format bazlı render şablonları (bkz. 3.3)
+├─ docker-compose.yml              # Yerel PostgreSQL servisi (bkz. 1.6)
+├─ storage/                        # Yüklemeler ve render çıktıları — gitignore'da, yalnızca /api/files ile servis edilir (bkz. 1.6)
 ├─ prisma/
-│  ├─ schema.prisma                # FAZ 6 yerel modeller (ContentPlan, AdminUser) — bkz. 1.6a
-│  ├─ seed.ts                      # Tek admin hesabını oluşturur (`npx prisma db seed`)
-│  └─ dev.db                       # Yerel SQLite dosyası, gitignore'da — asla commit edilmez
-├─ supabase/
-│  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş SQL migration'lar — FAZ 6'da boş
-│  └─ types.ts                     # `supabase gen types` çıktısı, elle düzenlenmez
+│  ├─ schema.prisma                # Veritabanı modelleri (ContentPlan, AdminUser) — bkz. 1.6
+│  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş Prisma migration'ları
+│  └─ seed.ts                      # Tek admin hesabını oluşturur (`npx prisma db seed`)
 ├─ tests/
 │  ├─ fixtures/                    # Mock Sportmonks/API-Football/Fal.ai/Meta/TikTok/YouTube/X yanıtları
 │  └─ visual/                      # Playwright görsel regresyon testleri
@@ -108,7 +113,7 @@ betrix-studio/
 
 ### 1.4 API Servis Katmanı Soyutlaması
 
-**Kural:** Hiçbir bileşen, route handler veya server action; `fetch`, Supabase client'ı veya Fal.ai SDK'sını doğrudan çağırmaz. Her dış entegrasyon `lib/services/<sağlayıcı>/` altında şu üçlüyle temsil edilir:
+**Kural:** Hiçbir bileşen, route handler veya server action; `fetch`'i veya Fal.ai SDK'sını doğrudan çağırmaz. Her dış entegrasyon `lib/services/<sağlayıcı>/` altında şu üçlüyle temsil edilir:
 
 ```
 lib/services/sportmonks/
@@ -131,39 +136,47 @@ Bu katmanın zorunlu kıldığı şeyler:
 - Route handler'lar (`app/api/**/route.ts`) ince kalır: girdi doğrulama (zod) → servis katmanı çağrısı → yanıt serileştirme. İş mantığı asla route handler içine yazılmaz.
 - `revalidate`/`cache` stratejisi her route için açıkça belirtilir (varsayılana güvenilmez): statik fikstür verisi için ISR, canlı veri için `no-store` + client-side polling.
 
-### 1.6 Supabase Kuralları
+### 1.6 Veritabanı ve Auth Mimarisi (Yerel PostgreSQL + Kendi Auth Sistemimiz — Kalıcı)
 
-- Her tablo için **Row Level Security açık**, politika olmadan tablo prod'a çıkmaz.
-- Şema değişiklikleri yalnızca `supabase/migrations/` altında, sıralı ve geri alınabilir (down migration belgelenmiş) şekilde yapılır. Dashboard üzerinden elle şema değişikliği yasaktır.
-- Tipler `supabase gen types typescript` ile üretilir ve `supabase/types.ts` elle düzenlenmez; değişiklik migration'dan gelir.
-- Server-only işlemler (service role key) yalnızca `lib/supabase/server.ts` içinde, asla client bundle'a sızmayacak şekilde kullanılır.
-- Storage bucket'ları (render çıktıları, oyuncu görselleri) için erişim politikaları ayrı ayrı belgelenir; halka açık bucket'lar yalnızca yayınlanmış nihai render çıktıları içindir.
+Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda çalışır. Supabase veya başka bir üçüncü parti BaaS (Backend-as-a-Service) **kullanılmaz**; bu geçici bir ara çözüm değil, projenin kalıcı mimari kararıdır. Bu bölümle çelişen (örn. "ileride Supabase'e geçilecek" varsayımı içeren) her türlü eski not geçersizdir.
 
-**FAZ 6 durumu:** Bu bölümdeki kurallar Supabase'e geçilene kadar askıdadır — `supabase/migrations/` ve `lib/supabase/` şu an boş. Yerel geliştirme için 1.6a'daki SQLite/Prisma katmanı kullanılır.
-
-### 1.6a Yerel Veritabanı ve Auth (FAZ 6 — geçici, Supabase'e geçiş öncesi)
-
-Supabase henüz kurulmadığı için (bkz. 1.1, 1.6) FAZ 6'da CRM verisi ve admin auth'u için **geçici** bir yerel katman eklendi. Bu bölüm, Supabase'e geçiş yapılana kadar bağlayıcıdır; geçiş yapıldığında bu alt bölüm CLAUDE.md'den çıkarılır ve 1.6 tekrar geçerli olur.
-
-**Veritabanı — SQLite + Prisma:**
-- Şema `prisma/schema.prisma`'da tanımlanır: `ContentPlan` (fixtureId, scheduledFor, platforms, adSpend — bkz. `types/calendar.ts`) ve `AdminUser` (email, passwordHash).
-- SQLite dosyası `prisma/dev.db` — gitignore'da, asla commit edilmez. Bağlantı adresi `DATABASE_URL` (`.env`, `lib/env.ts` üzerinden okunur).
-- Client, `generator client { provider = "prisma-client" }` ile `src/generated/prisma`'ya üretilir (Prisma 7) — `supabase/types.ts` gibi elle düzenlenmez, gitignore'dadır.
-- Prisma 7'de runtime'da native bir driver adapter zorunlu. `better-sqlite3` Windows'ta prebuilt binary sağlamadığı (node-gyp + Python + MSVC gerektirir) için **`@prisma/adapter-libsql`** kullanılır — aynı yerel `file:` SQLite dosyasına bağlanır, ek bir servis gerekmez.
+**Veritabanı — PostgreSQL + Prisma:**
+- Yerel geliştirme veritabanı `docker-compose.yml` (proje kökü) ile ayağa kaldırılır: `postgres` servisi, `betrix` adında bir veritabanı, `5432` portunda.
+- Şema `prisma/schema.prisma`'da tanımlanır: `ContentPlan` (fixtureId, scheduledFor, platforms, adSpend — bkz. `types/calendar.ts`), `AdminUser` (email, passwordHash), `SocialPlatform` (bağlı sosyal medya hesabı/kanalı), `SocialPost` (platform bazlı somut gönderi, `ContentPlan`+`SocialPlatform`'a bağlı), `PostAnalytics` (bir `SocialPost`'un beğeni/yorum/izlenme metrikleri), `AiContent` (Fal.ai prompt, `playerImageUrl`/`logoImageUrl`/`resultImageUrl` — oyuncu kesimi, logo ve nihai render ayrı ayrı saklanır, bkz. Bölüm 3) ve `TrafficLog` (checkmatch.net'e giden trafiğin `SocialPost`'a kadar izlenmesi). Yeni modüller (gerçek `Fixture` tablosu vb.) eklendikçe bu şema genişletilir.
+- Şema değişiklikleri yalnızca `prisma migrate` ile, sıralı ve `prisma/migrations/` altında versiyonlanan migration dosyaları üzerinden yapılır. Veritabanına elle (psql ile doğrudan DDL) şema değişikliği yasaktır.
+- Bağlantı adresi `DATABASE_URL` (`.env`, `lib/env.ts` üzerinden okunur), standart `postgresql://kullanici:sifre@host:port/veritabani` formatındadır; gizli anahtardır, asla commit edilmez.
+- Client, `generator client { provider = "prisma-client" }` ile `src/generated/prisma`'ya üretilir (Prisma 7) — elle düzenlenmez, gitignore'dadır.
+- Prisma 7'de runtime'da native bir driver adapter zorunlu; PostgreSQL için **`@prisma/adapter-pg`** (`pg` üzerine kurulu resmi adaptör) kullanılır.
 - `lib/prisma.ts`, Next.js dev hot-reload'da bağlantı sızıntısını önlemek için `globalThis` üzerinde tekil (singleton) `PrismaClient` tutar (resmi Next.js+Prisma deseni).
 - Yeni admin hesabı: `npx prisma db seed` (`prisma/seed.ts`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` env'den okunur, idempotent upsert).
+- **Dosya/görsel depolama:** yüklemeler ve render çıktıları proje kökündeki `storage/{uploads,generated,renders}/` altına yazılır (`lib/dashboard/storage.ts`; gitignore'da). `uploads` içerik-adresli (SHA-256) kullanıcı yüklemeleri (oyuncu fotoğrafı/logo), `generated` Fal.ai'den indirilip kalıcılaştırılan çıktılar (ör. `birefnet` oyuncu kesimi — bkz. 3.1 adım 6), `renders` nihai SVG kompozisyonlarıdır. Dosyalara doğrudan URL yoktur: yalnızca oturum doğrulayan `app/api/files/[...path]/route.ts` üzerinden (`/api/files/<kova>/<dosya>`) servis edilir; dosya adı katı bir desenle doğrulanır (yol gezinmesi yok). Üretim ölçeğinde ihtiyaç netleştiğinde S3-uyumlu bir obje depolamaya geçiş, yalnızca `storage.ts` içinde yapılacak ayrı bir görev olarak planlanır.
 
 **Auth — özel Credentials + JWT (dış servis yok):**
 - Tek admin hesabı `AdminUser` tablosunda tutulur; şifre `bcryptjs` ile hash'lenir (`lib/auth/password.ts`), zamanlama saldırılarına karşı kullanıcı bulunamasa da sabit bir hash ile karşılaştırma yapılır (`lib/auth/credentials.ts`).
 - Oturum, `jose` ile imzalanmış bir JWT olarak `httpOnly` cookie'de tutulur (`lib/auth/session.ts`, `SESSION_COOKIE_NAME`). `jose` seçildi çünkü Next.js Proxy (bkz. aşağı) hem Edge hem Node.js runtime'da çalışabilir ve `jose` her ikisiyle de uyumludur (`jsonwebtoken` Edge'de çalışmaz).
 - Giriş formu bir Server Action'dır (`app/login/actions.ts`) — zod ile doğrulanır, başarılı girişte cookie set edilir, `redirectTo` yalnızca site-içi göreli yollara izin verecek şekilde doğrulanır (open-redirect koruması).
-- **Route koruması:** `src/proxy.ts` — Next.js 16'da `middleware.ts` konvansiyonu deprecate edildi ve `proxy.ts`'e taşındı (fonksiyon adı `middleware` → `proxy`); `/calendar` ve `/studio` altındaki tüm yollar, geçerli oturum cookie'si yoksa `/login?from=<yol>`'a yönlendirilir.
-- Bu katman kasıtlı olarak ince tutuldu: Supabase'e geçişte `lib/auth/credentials.ts` + `lib/prisma.ts`, Supabase Auth + RLS ile değiştirilecek, `lib/auth/session.ts`'in dışa açtığı arayüz (cookie adı, `SessionPayload`) mümkün olduğunca korunacak.
+- **Route koruması:** `src/proxy.ts` — Next.js 16'da `middleware.ts` konvansiyonu deprecate edildi ve `proxy.ts`'e taşındı (fonksiyon adı `middleware` → `proxy`); `/dashboard`, `/calendar` ve `/studio` altındaki tüm yollar, geçerli oturum cookie'si yoksa `/login?from=<yol>`'a yönlendirilir. Giriş sonrası varsayılan hedef `/dashboard`'tur; `/api/files` proxy kapsamında olmadığından oturumu kendisi doğrular, veritabanına yazan her Server Action da `getCurrentSession()` ile oturumu ayrıca kontrol eder.
+- Yetki modeli şu an tek admin rolüyle sınırlıdır. Çoklu rol/izin (RBAC) ihtiyacı doğarsa `AdminUser` tablosuna alan eklenerek bu katman genişletilir — ayrı bir auth sağlayıcıya geçiş gerekmez, bu katman kalıcıdır.
 
 ### 1.7 Ortam Değişkenleri
 
 - Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır. (Tek istisna: `prisma7.config.ts`, Prisma CLI'ın kendi env yükleme mekanizması gereği `dotenv` kullanır — uygulama kodu değildir. `prisma/seed.ts` dahil tüm uygulama/araç kodu `lib/env.ts` üzerinden okur.)
-- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+- `TRACK_ALLOWED_ORIGINS` (virgülle ayrılmış origin listesi) ve `TRACK_SITE_KEY` (isteğe bağlı, GA ölçüm ID'si gibi gizli olmayan bir "site anahtarı") gizli değildir — `/api/track` uç noktasının CORS/istemci doğrulaması için kullanılır, bkz. 1.8 ve `app/api/track/route.ts`.
+
+### 1.8 Dashboard Modül Mimarisi
+
+`app/dashboard/layout.tsx` sol menü (`components/features/dashboard/sidebar*.tsx`) ve içerik kabuğunu sağlar; menü `lib/dashboard/nav.ts` listesinden üretilir. **Yeni modül eklemek:** `app/dashboard/<modül>/page.tsx` (+ gerekiyorsa `actions.ts`) aç, `nav.ts`'e bir satır ekle — layout ve aktif-menü vurgusu otomatik gelir.
+
+| Modül | Route | Ana model | Not |
+|---|---|---|---|
+| Genel Bakış | `/dashboard` | hepsi | 4 modülün özet kartları |
+| İçerik Takvimi | `/dashboard/calendar` | `SocialPost` | Ay/Hafta/Liste görünümü, planlama, düzenleme, Hazırlanıyor/Paylaşıldı |
+| Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics` | Metrikler API bağlanana kadar elle girilir; `lib/dashboard/integrations.ts` gelecekteki Meta/TikTok/YouTube/X bağlantılarının listesidir |
+| AI İçerik Stüdyosu | `/dashboard/studio` | `AiContent` | Fal.ai `flux`+`birefnet` ile gerçek görsel üretir (`FAL_KEY` zorunlu, boşsa form kilitlenir); istatistik/logo/marka katmanı her zaman programatik SVG'dir, bkz. Bölüm 3 |
+| Web Trafiği | `/dashboard/traffic` | `TrafficLog` | Gün sınırları Europe/Istanbul; IP'ler arayüzde maskelenir; `POST /api/track` ile beslenir |
+
+Kurallar: (1) sayfalar `force-dynamic` Server Component'tir; durum (görünüm, tarih, sıralama, açık düzenleme paneli) URL parametrelerinde tutulur. (2) Dahili CRUD Server Action'dır; `app/api` yalnızca dış tüketiciler (ör. `track/`) ve dosya servisi (`files/`) içindir. (3) Sorgular `lib/dashboard/*-data.ts`, saf hesaplamalar `*-stats.ts` dosyalarındadır (birim test edilebilir). (4) `app/api/track/route.ts`, checkmatch.net'ten gelen trafiği `TrafficLog`'a yazan, oturumsuz ama dışa açık bir uç noktadır — kimlik doğrulaması yerine üç katman kullanılır: `TRACK_ALLOWED_ORIGINS` ile sunucu tarafında zorunlu kılınan CORS, isteğe bağlı gizli olmayan `TRACK_SITE_KEY`, ve `lib/dashboard/rate-limit.ts`'teki IP başına bellek-içi rate limit (tek instance için yeterli; yatay ölçeklenirse paylaşılan bir depoya taşınmalı).
 
 ---
 
@@ -222,7 +235,7 @@ interface InjuryReport {
 1. Sportmonks isteği başarısız olur veya 3 saniye içinde yanıt vermezse, servis katmanı otomatik olarak API-Football'a düşer (`lib/services/sportmonks/index.ts` içindeki fonksiyonlar bu fallback'i şeffaf şekilde uygular; çağıran kod hangi sağlayıcının yanıt verdiğini bilmek zorunda değildir, ama yanıt meta verisinde `source: 'sportmonks' | 'api-football'` işaretlenir).
 2. Canlı maç verisi polling'i, maçın durumuna göre dinamik aralıkla çalışır: `SCHEDULED` → polling yok, `LIVE` → 30-60 sn, `FT` sonrası → 5 dk (maç sonu istatistiklerin kesinleşmesi için).
 3. Her iki sağlayıcı da başarısız olursa UI, son bilinen veriyi "bayat veri" (stale) rozetiyle gösterir; sessizce boş veya sıfır göstermek yasaktır.
-4. API kotası (rate limit) tüketimi Supabase'de loglanır; kota %80'e ulaştığında düşük öncelikli sorgular (geçmiş sezon istatistikleri gibi) otomatik ertelenir.
+4. API kotası (rate limit) tüketimi Postgres'te loglanır; kota %80'e ulaştığında düşük öncelikli sorgular (geçmiş sezon istatistikleri gibi) otomatik ertelenir.
 
 ---
 
@@ -237,11 +250,11 @@ Bu bölüm, `skills/render-engine/` altında yaşayan pipeline'ın kurallarını
 Pipeline adımları (sıralı, atlanamaz):
 
 1. **Girdi doğrulama:** Kaynak görsel minimum 1024px kısa kenar, JPEG/PNG, tek kişi belirgin şekilde kadrajda. Bu kriterleri sağlamayan görseller pipeline'a girmeden reddedilir ve kullanıcıya/loglara neden bildirilir.
-2. **Ön işleme:** Görsel Supabase Storage'a `raw/` klasörüne yüklenir, içerik-adresli hash ile isimlendirilir (aynı görsel iki kez işlenmez, cache'ten döner).
+2. **Ön işleme:** Görsel yerel depolamaya (bkz. 1.6) `raw/` klasörüne yüklenir, içerik-adresli hash ile isimlendirilir (aynı görsel iki kez işlenmez, cache'ten döner).
 3. **Birefnet çağrısı:** `lib/services/fal/index.ts::removeBackground()` üzerinden, model parametreleri sabittir (yüksek hassasiyet modu, `refine_foreground: true`). Doğrudan Fal.ai SDK route handler veya component içinde çağrılmaz (bkz. 1.4).
 4. **Alfa kanalı doğrulama:** Çıktının alfa kanalı analiz edilir — kenar bölgesinde (forma/saç hatları) ani alfa sıçramaları (`halo` artefaktı) tespit edilirse otomatik olarak `refine_foreground` parametresi artırılarak **1 kez** yeniden denenir. İkinci denemede de başarısızsa görsel "manuel inceleme gerekli" kuyruğuna düşer, otomatik yayınlanmaz.
 5. **Kenar yumuşatma kontrolü:** Kenar pikselleri keskinlik histogramıyla ölçülür; aşırı sert (aliasing) veya aşırı bulanık (feathering) kenarlar toleransın dışındaysa aynı retry mantığı uygulanır.
-6. **Depolama:** Onaylanan transparan PNG, `processed/players/<playerId>/<hash>.png` yoluna, kayıp sıkıştırma yapılmadan (PNG-24 + alfa) yazılır. Supabase `player_assets` tablosuna meta veri (boyut, kaynak, işlem tarihi, kalite skoru) kaydedilir.
+6. **Depolama:** Onaylanan transparan PNG, `processed/players/<playerId>/<hash>.png` yoluna, kayıp sıkıştırma yapılmadan (PNG-24 + alfa) yazılır. Postgres `player_assets` tablosuna meta veri (boyut, kaynak, işlem tarihi, kalite skoru) kaydedilir.
 
 **Kural:** Bu pipeline'ın hiçbir adımı manuel olarak atlanamaz; "hızlı geçiş" için doğrulama adımlarını devre dışı bırakan bir kod yolu eklenemez.
 
@@ -264,7 +277,7 @@ Pipeline adımları (sıralı, atlanamaz):
 
 #### 3.2.2 Takım Renk Kodu Enjeksiyonu
 
-- Her takımın `primaryColorHex`/`secondaryColorHex` alanı Supabase `teams` tablosunda tutulur.
+- Her takımın `primaryColorHex`/`secondaryColorHex` alanı Postgres `teams` tablosunda tutulur.
 - Prompt oluşturucu (`skills/render-engine/promptBuilder.ts`), iki takımın renklerini alıp çakışma/uyum kontrolü yapar (örn. iki takım da kırmızı ise ikincil takıma `secondaryColorHex` zorunlu kullanılır, aksi halde görsel ayrım kaybolur).
 
 #### 3.2.3 Derbi Tansiyonu Kademeleri (`derbyIntensity`)
@@ -383,7 +396,7 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 | `utm_campaign` | `<ev-takim>-vs-<deplasman-takim>-<YYYYMMDD>` (kebab-case, ASCII) | `galatasaray-vs-fenerbahce-20260921` |
 | `utm_content` | `<contentStage>-<format>` | `pre_match-story`, `post_match-feed` |
 
-**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/utils/buildUtmLink.ts`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Supabase `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
+**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/utils/buildUtmLink.ts`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Postgres `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
 
 ---
 
@@ -424,10 +437,10 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 - Servis katmanında tek bir `index.ts` dosyasına onlarca fonksiyon yığılmaz; ilişkili fonksiyon grupları (`fixtures.ts`, `teams.ts`, `players.ts`) ayrı dosyalara bölünür ve `index.ts` yalnızca re-export yapar.
 - Prompt mühendisliği mantığı (3.2) tek bir dev fonksiyonda değil, blok bazlı küçük saf fonksiyonlara (`buildLightingBlock()`, `buildColorGradeBlock()`, `buildMoodBlock()`) bölünür — her blok bağımsız test edilebilir olmalıdır.
 - **Gerekçe:** Küçük, tek sorumluluklu dosyalar hem AI ajanlarının hem insan geliştiricilerin bağlamı doğru anlamasını sağlar; büyük dosyalar hem kod incelemeyi hem de ajan bağlamını bozar.
-- **İstisna:** Otomatik üretilen, elle düzenlenmeyen dosyalar (`supabase/types.ts`, `src/generated/prisma/**`) bu sınırın dışındadır.
+- **İstisna:** Otomatik üretilen, elle düzenlenmeyen dosyalar (`src/generated/prisma/**`) bu sınırın dışındadır.
 
 ### 5.5 Genel Disiplin
 
 - Yeni bir dış bağımlılık (npm paketi, üçüncü parti API) eklemeden önce mevcut yığında (Bölüm 1.1) karşılığı olup olmadığı kontrol edilir; gerekçesiz yeni bağımlılık eklenmez.
 - Gizli anahtar veya kimlik bilgisi asla kod içine, commit mesajına veya loglara yazılmaz; sızıntı şüphesi varsa iş durdurulup kullanıcı bilgilendirilir.
-- Supabase migration'ları, Fal.ai canlı render çağrıları, sosyal medya API'lerine gerçek yayın (post) işlemleri gibi geri dönüşü zor/paylaşılan sistemleri etkileyen eylemler öncesinde kullanıcı onayı alınır.
+- Veritabanı migration'ları (Prisma), Fal.ai canlı render çağrıları, sosyal medya API'lerine gerçek yayın (post) işlemleri gibi geri dönüşü zor/paylaşılan sistemleri etkileyen eylemler öncesinde kullanıcı onayı alınır.

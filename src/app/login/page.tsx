@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "CheckMatch.net CRM paneline admin girişi",
 };
 
-const DEFAULT_REDIRECT = "/calendar";
+const DEFAULT_REDIRECT = "/dashboard";
 
 function resolveRedirectTarget(from: string | undefined): string {
   if (from && from.startsWith("/") && !from.startsWith("//")) return from;

@@ -12,8 +12,15 @@ const envSchema = z.object({
   ADMIN_EMAIL: z.string().optional().default(""),
   ADMIN_PASSWORD: z.string().optional().default(""),
   NODE_ENV: z.enum(["development", "production", "test"]).optional().default("development"),
-  /** Prisma/libSQL bağlantı adresi — bkz. lib/prisma.ts. */
-  DATABASE_URL: z.string().optional().default("file:./prisma/dev.db"),
+  /** Prisma/PostgreSQL bağlantı adresi — bkz. lib/prisma.ts. */
+  DATABASE_URL: z.string().optional().default("postgresql://betrix:betrix@localhost:5432/betrix"),
+  /** `/api/track`'e CORS ile izin verilen kaynaklar, virgülle ayrılmış — bkz. app/api/track/route.ts. */
+  TRACK_ALLOWED_ORIGINS: z
+    .string()
+    .optional()
+    .default("https://checkmatch.net,https://www.checkmatch.net"),
+  /** İsteğe bağlı, gizli olmayan "site anahtarı" (GA/Plausible ölçüm ID'si gibi) — boşsa zorunlu tutulmaz. */
+  TRACK_SITE_KEY: z.string().optional().default(""),
 });
 
 /**
@@ -31,4 +38,6 @@ export const env = envSchema.parse({
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
   NODE_ENV: process.env.NODE_ENV,
   DATABASE_URL: process.env.DATABASE_URL,
+  TRACK_ALLOWED_ORIGINS: process.env.TRACK_ALLOWED_ORIGINS,
+  TRACK_SITE_KEY: process.env.TRACK_SITE_KEY,
 });

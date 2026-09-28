@@ -21,7 +21,7 @@ export interface LoginActionState {
   error?: string;
 }
 
-const DEFAULT_REDIRECT = "/calendar";
+const DEFAULT_REDIRECT = "/dashboard";
 
 /** Açık yönlendirme (open redirect) saldırılarına karşı yalnızca site-içi göreli yollara izin verir. */
 function resolveRedirectTarget(redirectTo: string | undefined): string {

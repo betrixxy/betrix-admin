@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: betrix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: betrix
+      POSTGRES_USER: betrix
+      POSTGRES_PASSWORD: betrix
+    ports:
+      - "5432:5432"
+    volumes:
+      - betrix_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  betrix_postgres_data:

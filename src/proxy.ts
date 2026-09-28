@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/session";
 
-const PROTECTED_PATH_PREFIXES = ["/calendar", "/studio"];
+const PROTECTED_PATH_PREFIXES = ["/calendar", "/studio", "/dashboard"];
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PATH_PREFIXES.some(
@@ -9,7 +9,7 @@ function isProtectedPath(pathname: string): boolean {
   );
 }
 
-/** Oturum açmamış kullanıcıları /calendar ve /studio'dan /login'e yönlendirir (bkz. CLAUDE.md FAZ 6). */
+/** Oturum açmamış kullanıcıları /calendar, /studio ve /dashboard yollarından /login'e yönlendirir (bkz. CLAUDE.md 1.6). */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -24,12 +24,12 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/login" && session) {
-    return NextResponse.redirect(new URL("/calendar", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/calendar/:path*", "/studio/:path*", "/login"],
+  matcher: ["/calendar/:path*", "/studio/:path*", "/dashboard/:path*", "/login"],
 };

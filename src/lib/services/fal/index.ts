@@ -1,89 +1,119 @@
-import { FAL_MODELS, isFalConfigured } from "@/lib/services/fal/client";
-import type {
-  GenerateStadiumBackgroundResult,
-  RemovePlayerBackgroundResult,
+import { ApiError } from "@fal-ai/client";
+import { FAL_MODELS, getFalClient, isFalConfigured, toFalImageSize } from "@/lib/services/fal/client";
+import { buildStadiumPrompt, type StadiumPromptInput } from "@/lib/services/fal/prompt-builder";
+import {
+  birefnetOutputSchema,
+  fluxOutputSchema,
+  type FalError,
+  type GenerateStadiumBackgroundResult,
+  type RemovePlayerBackgroundResult,
 } from "@/lib/services/fal/types";
+import type { Result } from "@/types/result";
 
-const MOCK_DELAY_MS = 1200;
+export { isFalConfigured, toFalImageSize };
+export type { FalError };
 
-function wait(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const NOT_CONFIGURED_ERROR: FalError = {
+  code: "NOT_CONFIGURED",
+  message: "FAL_KEY tanımlı değil — .env.local dosyasını doldurun.",
+};
+
+function toFalError(cause: unknown, fallbackMessage: string): FalError {
+  const message = cause instanceof ApiError || cause instanceof Error ? cause.message : fallbackMessage;
+  return { code: "REQUEST_FAILED", message: message || fallbackMessage, cause };
+}
+
+export interface UploadableImage {
+  bytes: Buffer;
+  contentType: string;
 }
 
 /**
  * Oyuncu fotoğrafının arka planını Fal.ai `birefnet` modeliyle temizler (bkz. CLAUDE.md 3.1).
- *
- * MOCK: `FAL_KEY` tanımlanana kadar gerçek Fal.ai isteği ATILMAZ, simüle edilmiş bir
- * gecikmeyle kaynak görsel doğrudan geri döner. Gerçek entegrasyon `isFalConfigured()`
- * true döndüğünde aşağıdaki çağrıyla değiştirilecek:
- *
- *   const result = await fal.subscribe(FAL_MODELS.BACKGROUND_REMOVAL, {
- *     input: { image_url: imageUrl, refine_foreground: true },
- *   });
+ * Görsel önce Fal'ın geçici depolamasına yüklenir (model yalnızca URL kabul eder); dönen
+ * sonucun URL'i de geçicidir — çağıran kod bunu kalıcı depolamaya indirip kaydetmekle
+ * yükümlüdür (bkz. `app/dashboard/studio/actions.ts`).
  */
 export async function removePlayerBackground(
-  imageUrl: string,
-): Promise<RemovePlayerBackgroundResult> {
-  await wait(MOCK_DELAY_MS);
+  image: UploadableImage,
+): Promise<Result<RemovePlayerBackgroundResult, FalError>> {
+  if (!isFalConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR };
+  const client = getFalClient();
 
-  if (!isFalConfigured()) {
-    console.warn(
-      `[fal:${FAL_MODELS.BACKGROUND_REMOVAL}] FAL_KEY tanımlı değil, mock sonuç döndürülüyor.`,
-    );
+  let imageUrl: string;
+  try {
+    imageUrl = await client.storage.upload(new Blob([new Uint8Array(image.bytes)], { type: image.contentType }));
+  } catch (cause) {
+    return { ok: false, error: { code: "UPLOAD_FAILED", message: "Oyuncu fotoğrafı Fal.ai'ye yüklenemedi.", cause } };
   }
 
-  return {
-    transparentImageUrl: imageUrl,
-    width: 1024,
-    height: 1024,
-  };
+  try {
+    const result = await client.subscribe(FAL_MODELS.BACKGROUND_REMOVAL, {
+      input: { image_url: imageUrl, refine_foreground: true },
+      logs: false,
+    });
+
+    const parsed = birefnetOutputSchema.safeParse(result.data);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: { code: "INVALID_RESPONSE", message: "Birefnet yanıtı beklenen şemaya uymuyor.", cause: parsed.error },
+      };
+    }
+
+    return {
+      ok: true,
+      data: {
+        transparentImageUrl: parsed.data.image.url,
+        width: parsed.data.image.width,
+        height: parsed.data.image.height,
+      },
+    };
+  } catch (cause) {
+    return { ok: false, error: toFalError(cause, "Arka plan temizleme isteği başarısız oldu.") };
+  }
+}
+
+export interface GenerateStadiumBackgroundInput extends StadiumPromptInput {
+  width: number;
+  height: number;
 }
 
 /**
- * Takım renklerine ve derbi tansiyonuna uygun stadyum arka planını Fal.ai `flux`
- * ailesiyle üretir (bkz. CLAUDE.md 3.2 — prompt mühendisliği kuralları).
- *
- * MOCK: `FAL_KEY` tanımlanana kadar gerçek Fal.ai isteği ATILMAZ. Gerçek entegrasyon:
- *
- *   const result = await fal.subscribe(FAL_MODELS.STADIUM_BACKGROUND, {
- *     input: { prompt, image_size: "landscape_16_9" },
- *   });
+ * Takım renklerine, derbi tansiyonuna ve seçilen formata uygun stadyum arka planını
+ * Fal.ai `flux` ailesiyle üretir (bkz. CLAUDE.md 3.2 — prompt mühendisliği kuralları,
+ * `prompt-builder.ts`). Dönen sonucun URL'i geçicidir, bkz. `removePlayerBackground`.
  */
 export async function generateStadiumBackground(
-  team1: string,
-  team2: string,
-  tournamentTheme: string,
-): Promise<GenerateStadiumBackgroundResult> {
-  await wait(MOCK_DELAY_MS);
+  input: GenerateStadiumBackgroundInput,
+): Promise<Result<GenerateStadiumBackgroundResult, FalError>> {
+  if (!isFalConfigured()) return { ok: false, error: NOT_CONFIGURED_ERROR };
 
-  const prompt = buildStadiumPrompt(team1, team2, tournamentTheme);
+  const prompt = buildStadiumPrompt(input);
+  const imageSize = toFalImageSize(input.width, input.height);
+  const client = getFalClient();
 
-  if (!isFalConfigured()) {
-    console.warn(
-      `[fal:${FAL_MODELS.STADIUM_BACKGROUND}] FAL_KEY tanımlı değil, mock sonuç döndürülüyor.`,
-    );
+  try {
+    const result = await client.subscribe(FAL_MODELS.STADIUM_BACKGROUND, {
+      input: { prompt, image_size: imageSize, num_images: 1, enable_safety_checker: true },
+      logs: false,
+    });
+
+    const parsed = fluxOutputSchema.safeParse(result.data);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: { code: "INVALID_RESPONSE", message: "Flux yanıtı beklenen şemaya uymuyor.", cause: parsed.error },
+      };
+    }
+
+    const image = parsed.data.images[0];
+    if (!image) {
+      return { ok: false, error: { code: "INVALID_RESPONSE", message: "Flux görsel listesi boş döndü." } };
+    }
+
+    return { ok: true, data: { imageUrl: image.url, prompt, width: image.width, height: image.height } };
+  } catch (cause) {
+    return { ok: false, error: toFalError(cause, "Stadyum arka planı üretimi başarısız oldu.") };
   }
-
-  return {
-    imageUrl: "/mock/stadium-placeholder.png",
-    prompt,
-  };
-}
-
-function buildStadiumPrompt(
-  team1: string,
-  team2: string,
-  tournamentTheme: string,
-): string {
-  const subject =
-    "empty professional football stadium interior, wide bowl, floodlights, night match atmosphere";
-  const lighting = `dramatic rim lighting from floodlights inspired by ${team1} and ${team2} identity, volumetric light shafts cutting through stadium mist`;
-  const colorGrade = `cinematic color grade reflecting the ${tournamentTheme} tournament palette, deep shadows, high contrast`;
-  const mood = `${tournamentTheme} atmosphere, charged competitive energy`;
-  const camera =
-    "low-angle wide shot, shallow depth of field, negative space in lower-third and left third for typography overlay";
-  const negative =
-    "no human figures, no faces, no visible sponsor logos, no readable text, no watermarks, no oversaturation, no cartoonish style";
-
-  return [subject, lighting, colorGrade, mood, camera, negative].join(", ");
 }
