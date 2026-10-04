@@ -6,7 +6,7 @@ import { matchDayGeometry, type TemplateGeometry } from "./match-day/geometry";
 import { PremiumBroadcastTemplate } from "./match-day/premium-broadcast";
 
 /**
- * "Maç Günü" kartı — IG Feed (4:5) formatı, Satori (`@vercel/og`) ile PNG'ye çizilir.
+ * "Maç Günü" kartı — IG Feed (4:5) formatı, Satori (`next/og`) ile PNG'ye çizilir.
  *
  * - `MatchDayTemplateCard`: üretim hattının kullandığı şeffaf tipografi katmanı; tasarım
  *   şablonu (PREMIUM_BROADCAST / DATA_DRIVEN / EDITORIAL_PORTRAIT) ve platform formatı (4:5, 1:1, 9:16, 16:9) `./match-day/` altındadır.

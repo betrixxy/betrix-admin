@@ -1,4 +1,4 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { loadMatchDayFonts, resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
 import { parseMatchDayParams } from "@/lib/dashboard/match-day-params";

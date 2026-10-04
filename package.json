@@ -7,14 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test:visual": "tsx --test tests/visual/match-day.test.ts",
+    "test:visual:update": "tsx --test tests/visual/match-day.test.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@fal-ai/client": "^1.10.1",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
-    "@vercel/og": "^1.0.3",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",

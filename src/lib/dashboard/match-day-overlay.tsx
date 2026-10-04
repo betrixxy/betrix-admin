@@ -1,4 +1,4 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";

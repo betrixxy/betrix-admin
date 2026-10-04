@@ -49,3 +49,6 @@ next-env.d.ts
 
 # Yerel dosya depolaması (yüklemeler ve render çıktıları) — bkz. CLAUDE.md 1.6
 /storage
+
+# görsel regresyon testlerinin başarısız çıktıları (baseline değil)
+/tests/visual/__output__
