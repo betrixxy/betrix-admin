@@ -44,7 +44,7 @@ betrix-studio/
 ├─ src/
 │  ├─ app/                        # Next.js App Router — sadece route, layout, page
 │  │  ├─ dashboard/                # Ajans paneli: sol menülü layout + modüller (bkz. 1.8)
-│  │  │  ├─ matches/               # Maç Merkezi: gerçek fikstür + "AI İçerik Üret" (bkz. 1.10)
+│  │  │  ├─ matches/               # Maç Merkezi: gerçek fikstür + içerik türü → "Stüdyoya Git" (bkz. 1.10)
 │  │  │  ├─ drafts/[id]/           # Taslak inceleme: önizle / düzenle / onayla (bkz. 1.10)
 │  │  │  ├─ library/               # Medya/referans kütüphanesi (bkz. 1.11)
 │  │  │  ├─ (finance/)             # Planlanan: gelir/gider ve aylık bilanço (bkz. 1.12)
@@ -181,7 +181,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 | Modül | Route | Ana model | Not |
 |---|---|---|---|
 | Genel Bakış | `/dashboard` | hepsi | 4 modülün özet kartları |
-| Maç Merkezi | `/dashboard/matches` | `AiContent` | Gerçek fikstür (API-Football, 7 gün), maç başına "AI İçerik Üret", onay kuyruğu — bkz. 1.10 |
+| Maç Merkezi | `/dashboard/matches` | `AiContent` | Gerçek fikstür (API-Football, 7 gün), maç başına içerik türü menüsü + "Stüdyoya Git", onay kuyruğu — bkz. 1.10 |
 | İçerik Takvimi | `/dashboard/calendar` | `SocialPost` | Ay/Hafta/Liste görünümü, planlama, düzenleme, Hazırlanıyor/Paylaşıldı |
 | Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics`, `SocialConnection` | Bağlı hesaplardan "Senkronize et" ile çekilir, bağlı olmayanlarda elle girilir; `?sort=` (En Çok Yorum Alan/Kaydedilen/İzlenen…) + `?platform=` filtresi; "Hangi istatistik tutuyor?" analizi (`content-insights-stats.ts`) — bkz. 4.4 |
 | AI İçerik Stüdyosu | `/dashboard/studio` | `AiContent` | Fal.ai `flux`+`birefnet` ile gerçek görsel üretir (`FAL_KEY` zorunlu, boşsa form kilitlenir); istatistik/logo/marka katmanı her zaman programatik SVG'dir, bkz. Bölüm 3 |
@@ -218,7 +218,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.production run --rm mi
 
 Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretimi **tam otomatik değildir**: cron/worker/zamanlayıcı ile kendi kendine içerik üreten veya yayınlayan kod yolu **eklenmez**. Her üretim bir admin tıklamasıyla tetiklenir ve onaysız hiçbir içerik yayına hazır sayılmaz.
 
-**Akış:** Maç Merkezi'nde "AI İçerik Üret" → `lib/dashboard/draft-engine.ts::createMatchDraft()`:
+**İçerik türü kataloğu:** Maç Merkezi ve Takvim'in maç detayındaki menü `lib/dashboard/content-types.ts`'ten beslenir (tipler `types/content-type.ts`; tek kaynak, ileride `rules` alanı buraya eklenecek). Ortak bileşen `StudioLauncher`: aktif türde "Stüdyoya Git" → `<route>?fixtureId=<id>`, "Yakında" türlerde pasif. Stüdyo `fixtureId`'yi sunucuda okur, 7 günlük fikstürde doğrular ve formu dolu açar (şu an: Maç Günü). Yeni bir stüdyo aktifleştiğinde aynı `fixtureId` ön-doldurmasını eklemelidir.
+
+**Akış (taslak motoru — Stüdyo):** `lib/dashboard/draft-engine.ts::createMatchDraft()`:
 1. Gerçek maç verisi (`lib/services/api-football::getMatchStats` — fikstür, iki takımın son 5 bitmiş maçı: form, gol ve xG ortalamaları, H2H).
 2. Fal.ai `flux` arka planı (+ stüdyodan yüklendiyse `birefnet` oyuncu kesimi) → kalıcı depolamaya indirilir.
 3. Görsel `renderDraftImage()` ile çizilir; gönderi metni `draft-caption.ts` ile **şablondan** üretilir (LLM yok — her sayı snapshot'tan gelir, olmayan metrik yazılmaz).

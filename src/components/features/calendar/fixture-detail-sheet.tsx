@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { AdSpendForm } from "@/components/features/calendar/ad-spend-form";
 import { MarketCalculationsPanel } from "@/components/features/calendar/market-calculations-panel";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
-import { GenerateDraftForm } from "@/components/features/dashboard/generate-draft-form";
+import { StudioLauncher } from "@/components/features/dashboard/studio-launcher";
 import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
 import { DERBY_INTENSITY_META } from "@/lib/calendar/derby-intensity";
 import { formatKickoffTime, formatMatchDayLabel } from "@/lib/calendar/format";
@@ -23,14 +23,12 @@ import type { Result } from "@/types/result";
 
 interface FixtureDetailSheetProps {
   fixture: CalendarFixture | null;
-  generationDisabled: boolean;
   onOpenChange: (open: boolean) => void;
   onSaveAdSpend: (fixtureId: string, adSpend: AdSpend) => Promise<Result<null>>;
 }
 
 export function FixtureDetailSheet({
   fixture,
-  generationDisabled,
   onOpenChange,
   onSaveAdSpend,
 }: FixtureDetailSheetProps) {
@@ -41,7 +39,6 @@ export function FixtureDetailSheet({
           <FixtureDetailContent
             key={fixture.id}
             fixture={fixture}
-            generationDisabled={generationDisabled}
             onSaveAdSpend={(adSpend) => onSaveAdSpend(fixture.id, adSpend)}
           />
         )}
@@ -63,11 +60,10 @@ function TeamColumn({ team }: { team: TeamRef }) {
 
 interface FixtureDetailContentProps {
   fixture: CalendarFixture;
-  generationDisabled: boolean;
   onSaveAdSpend: (adSpend: AdSpend) => Promise<Result<null>>;
 }
 
-function FixtureDetailContent({ fixture, generationDisabled, onSaveAdSpend }: FixtureDetailContentProps) {
+function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentProps) {
   const statusMeta = CONTENT_STATUS_META[fixture.contentStatus];
   const derbyMeta = DERBY_INTENSITY_META[fixture.derbyIntensity];
   const DerbyIcon = derbyMeta.icon;
@@ -130,8 +126,8 @@ function FixtureDetailContent({ fixture, generationDisabled, onSaveAdSpend }: Fi
       </div>
 
       <SheetFooter className="border-t border-border/60 pt-4">
-        {/* Onay akışına bağlanır: gerçek istatistik + Fal.ai görseli → taslak inceleme ekranı (bkz. CLAUDE.md 1.10). */}
-        <GenerateDraftForm fixtureId={fixture.id} disabled={generationDisabled} />
+        {/* Maç Merkezi ile aynı akış: içerik türü → stüdyo (maç bilgileri dolu) → taslak onayı (bkz. CLAUDE.md 1.10). */}
+        <StudioLauncher fixtureId={fixture.id} />
       </SheetFooter>
     </>
   );

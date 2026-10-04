@@ -15,10 +15,9 @@ interface CalendarWorkspaceProps {
   fixtures: CalendarFixture[];
   /** `yyyy-MM` — ay değişimi URL ile yapılır, sunucu o ayın verisini çeker. */
   month: string;
-  generationDisabled: boolean;
 }
 
-export function CalendarWorkspace({ fixtures, month, generationDisabled }: CalendarWorkspaceProps) {
+export function CalendarWorkspace({ fixtures, month }: CalendarWorkspaceProps) {
   const router = useRouter();
   const [selectedFixtureId, setSelectedFixtureId] = useState<string | null>(null);
   const monthDate = parseISO(`${month}-01`);
@@ -47,7 +46,6 @@ export function CalendarWorkspace({ fixtures, month, generationDisabled }: Calen
 
       <FixtureDetailSheet
         fixture={selectedFixture}
-        generationDisabled={generationDisabled}
         onOpenChange={(open) => {
           if (!open) setSelectedFixtureId(null);
         }}

@@ -4,7 +4,6 @@ import { AlertTriangle } from "lucide-react";
 import { StudioBrand } from "@/components/features/brand/brand-logo";
 import { CalendarWorkspace } from "@/components/features/calendar/calendar-workspace";
 import { formatMonthParam, getCalendarMonth, parseMonthParam } from "@/lib/calendar/calendar-month";
-import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
   title: "İçerik Takvimi — betrix.pro",
@@ -83,7 +82,6 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
         <CalendarWorkspace
           fixtures={fixtures.ok ? fixtures.data : []}
           month={formatMonthParam(month)}
-          generationDisabled={!isFalConfigured()}
         />
       </main>
     </div>
