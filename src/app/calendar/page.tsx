@@ -68,8 +68,8 @@ export default async function CalendarPage({ searchParams }: CalendarPageProps) 
             İçerik Takvimi
           </h1>
           <p className="text-sm text-muted-foreground">
-            Desteklenen liglerin gerçek fikstürü. Bir maça tıklayıp reklam bütçesini
-            kaydedin ya da doğrudan AI içerik taslağı üretin.
+            Desteklenen liglerin gerçek fikstürü. Her maçın altındaki çubuk içerik paketinin
+            ilerlemesini gösterir; maça tıklayıp eksik içerikleri stüdyoda üretin.
           </p>
         </div>
 

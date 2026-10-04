@@ -1,3 +1,4 @@
+import type { ContentTypeId } from "@/types/content-type";
 import type { Fixture } from "@/types/sports";
 
 export type { FixtureStatus, DerbyIntensity, TeamRef, CompetitionRef } from "@/types/sports";
@@ -36,5 +37,16 @@ export interface ContentPlan {
 export interface CalendarFixture extends Fixture {
   contentStatus: ContentStatus;
   contentPlan?: ContentPlan;
+  /** İçerik türü bazında üretim durumu (AiContent.contentType) — yalnızca üretilmiş türler bulunur. */
+  production: FixtureProduction;
 }
+
+/** Bir maçın bir içerik türü için en ileri kaydı: onaylı varsa o, yoksa en yeni taslak. */
+export interface FixtureContentItem {
+  status: "approved" | "draft";
+  /** Taslak inceleme ekranı: /dashboard/drafts/<draftId> */
+  draftId: string;
+}
+
+export type FixtureProduction = Partial<Record<ContentTypeId, FixtureContentItem>>;
 

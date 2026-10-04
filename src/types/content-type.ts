@@ -19,11 +19,16 @@ export const CONTENT_TYPE_IDS = [
 ] as const;
 export type ContentTypeId = (typeof CONTENT_TYPE_IDS)[number];
 
+/** Takvimdeki kontrol merkezinde gruplama: maç öncesi mi, maç sonrası mı üretilir. */
+export const CONTENT_PHASES = ["pre_match", "post_match"] as const;
+export type ContentPhase = (typeof CONTENT_PHASES)[number];
+
 interface ContentTypeBase {
   id: ContentTypeId;
   label: string;
   /** Seçim menüsünde/ipucunda gösterilen tek cümlelik açıklama. */
   description: string;
+  phase: ContentPhase;
 }
 
 export interface ActiveContentType extends ContentTypeBase {

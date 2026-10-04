@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Layers,
   Sparkles,
-  Swords,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -53,12 +52,6 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "AI İçerik Stüdyosu",
     description: "Görsel üretimi",
     icon: Sparkles,
-  },
-  {
-    href: "/dashboard/studio/match-day",
-    label: "Maç Günü Kartı",
-    description: "Maç seç + oyuncu yükle → AI poster",
-    icon: Swords,
   },
   {
     href: "/dashboard/library",

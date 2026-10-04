@@ -4,8 +4,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CONTENT_STATUS_META, CONTENT_STATUS_ORDER } from "@/lib/calendar/content-status";
 import { formatMonthTitle } from "@/lib/calendar/format";
+
+const PRODUCTION_LEGEND = [
+  { label: "Hazır (onaylı)", className: "bg-emerald-400" },
+  { label: "Onay bekliyor", className: "bg-amber-400/80" },
+  { label: "Üretilmedi", className: "bg-white/[0.08]" },
+] as const;
 
 interface CalendarToolbarProps {
   month: Date;
@@ -58,19 +63,14 @@ export function CalendarToolbar({
         </div>
       </div>
 
+      {/* Maç kartlarındaki içerik paketi çubuğunun açıklaması (bkz. production-bar.tsx). */}
       <div className="flex items-center gap-3">
-        {CONTENT_STATUS_ORDER.map((status) => {
-          const meta = CONTENT_STATUS_META[status];
-          return (
-            <span
-              key={status}
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-            >
-              <span className={cn("size-1.5 rounded-full", meta.dotClassName)} aria-hidden />
-              {meta.label}
-            </span>
-          );
-        })}
+        {PRODUCTION_LEGEND.map((item) => (
+          <span key={item.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <span className={cn("h-1 w-3 rounded-full", item.className)} aria-hidden />
+            {item.label}
+          </span>
+        ))}
       </div>
     </div>
   );

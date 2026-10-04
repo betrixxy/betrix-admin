@@ -20,6 +20,7 @@ import type {
   MatchDayQualityMode,
   MatchDayTemplateId,
 } from "@/types/match-day";
+import type { ContentTypeId } from "@/types/content-type";
 import type { Result } from "@/types/result";
 import type { DerbyIntensity } from "@/types/sports";
 
@@ -207,6 +208,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     const record = await prisma.aiContent.create({
       data: {
         fixtureId: input.fixtureId ?? MANUAL_MATCH_DAY_FIXTURE_ID,
+        contentType: "MATCH_DAY" satisfies ContentTypeId,
         prompt,
         backgroundImageUrl,
         resultImageUrl,

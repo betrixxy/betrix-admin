@@ -1,12 +1,11 @@
 "use client";
 
 import { isPast } from "date-fns";
-import { CalendarClock, Megaphone, RadioTower } from "lucide-react";
+import { CalendarClock, LayoutList, Megaphone, RadioTower } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -14,8 +13,9 @@ import { cn } from "@/lib/utils";
 import { AdSpendForm } from "@/components/features/calendar/ad-spend-form";
 import { MarketCalculationsPanel } from "@/components/features/calendar/market-calculations-panel";
 import { TeamLogo } from "@/components/features/calendar/team-logo";
-import { StudioLauncher } from "@/components/features/dashboard/studio-launcher";
-import { CONTENT_STATUS_META } from "@/lib/calendar/content-status";
+import { FixtureContentChecklist } from "@/components/features/calendar/fixture-content-checklist";
+import { ProductionBar } from "@/components/features/calendar/production-bar";
+import { summarizeProduction } from "@/lib/calendar/content-progress";
 import { DERBY_INTENSITY_META } from "@/lib/calendar/derby-intensity";
 import { formatKickoffTime, formatMatchDayLabel } from "@/lib/calendar/format";
 import type { AdSpend, CalendarFixture, TeamRef } from "@/types/calendar";
@@ -34,7 +34,7 @@ export function FixtureDetailSheet({
 }: FixtureDetailSheetProps) {
   return (
     <Sheet open={fixture !== null} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 sm:max-w-sm">
+      <SheetContent side="right" className="w-full gap-0 data-[side=right]:sm:max-w-lg">
         {fixture && (
           <FixtureDetailContent
             key={fixture.id}
@@ -64,7 +64,7 @@ interface FixtureDetailContentProps {
 }
 
 function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentProps) {
-  const statusMeta = CONTENT_STATUS_META[fixture.contentStatus];
+  const summary = summarizeProduction(fixture.production);
   const derbyMeta = DERBY_INTENSITY_META[fixture.derbyIntensity];
   const DerbyIcon = derbyMeta.icon;
   const isArchived = isPast(new Date(fixture.kickoffUtc));
@@ -94,9 +94,13 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
             Maç günü: {formatMatchDayLabel(fixture.kickoffUtc)} · {formatKickoffTime(fixture.kickoffUtc)}
           </div>
           <div className="flex items-center gap-2">
-            <span className={cn("size-1.5 shrink-0 rounded-full", statusMeta.dotClassName)} />
-            İçerik durumu:{" "}
-            <span className="font-medium text-foreground">{statusMeta.label}</span>
+            <ProductionBar summary={summary} className="w-20" />
+            <span>
+              <span className="font-medium text-foreground">
+                {summary.approved}/{summary.total}
+              </span>{" "}
+              içerik hazır{summary.draft > 0 ? ` · ${summary.draft} onay bekliyor` : ""}
+            </span>
           </div>
           {derbyMeta.label && DerbyIcon && (
             <div className={cn("flex items-center gap-2", derbyMeta.textClassName)}>
@@ -104,6 +108,14 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
               {derbyMeta.label}
             </div>
           )}
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h3 className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-foreground">
+            <LayoutList className="size-3.5" />
+            İçerik Kontrol Merkezi
+          </h3>
+          <FixtureContentChecklist fixtureId={fixture.id} production={fixture.production} />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -125,10 +137,6 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
         </section>
       </div>
 
-      <SheetFooter className="border-t border-border/60 pt-4">
-        {/* Maç Merkezi ile aynı akış: içerik türü → stüdyo (maç bilgileri dolu) → taslak onayı (bkz. CLAUDE.md 1.10). */}
-        <StudioLauncher fixtureId={fixture.id} />
-      </SheetFooter>
     </>
   );
 }

@@ -186,13 +186,20 @@ model AiContent {
   /// Fal.ai'ye tekrar gitmeden (ücretsiz) yeniden render için saklanır.
   backgroundImageUrl String?
   reviewedAt         DateTime?
+  /// İçerik türü kataloğundaki kimlik (ContentTypeId, bkz. lib/dashboard/content-types.ts) — ör. "MATCH_DAY".
+  /// Katalogdan önceki genel stüdyo taslaklarında null.
+  contentType        String?
+  /// Planlanan yayın zamanı (UTC) — ileriye dönük içerik planlaması için; null = planlanmadı.
+  publishAt          DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([postId])
   @@index([fixtureId])
+  @@index([fixtureId, contentType])
   @@index([status])
+  @@index([publishAt])
 }
 
 enum AiContentStatus {

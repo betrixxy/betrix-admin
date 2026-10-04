@@ -3,7 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getFixturesForDateRange, type ApiFootballError } from "@/lib/services/api-football";
 import type { Result } from "@/types/result";
-import type { AdSpend, CalendarFixture, ContentPlan, ContentStatus } from "@/types/calendar";
+import { isContentTypeId } from "@/lib/dashboard/content-types";
+import type { AdSpend, CalendarFixture, ContentPlan, ContentStatus, FixtureProduction } from "@/types/calendar";
 
 /** URL'deki `?month=2026-09` parametresi; geçersiz/eksikse içinde bulunulan ay. */
 export function parseMonthParam(value: string | string[] | undefined): Date {
@@ -82,16 +83,27 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
     prisma.contentPlan.findMany({ where: { fixtureId: { in: fixtureIds } } }),
     prisma.aiContent.findMany({
       where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] } },
-      select: { fixtureId: true, status: true },
+      select: { id: true, fixtureId: true, status: true, contentType: true },
+      orderBy: { createdAt: "desc" },
     }),
   ]);
 
   const planByFixture = new Map(plans.map((plan) => [plan.fixtureId, toContentPlan(plan)]));
   const statusesByFixture = new Map<string, Set<string>>();
+  const productionByFixture = new Map<string, FixtureProduction>();
   for (const content of contents) {
     const set = statusesByFixture.get(content.fixtureId) ?? new Set<string>();
     set.add(content.status);
     statusesByFixture.set(content.fixtureId, set);
+
+    // Katalog türü olan kayıtlar (en yeniden eskiye): onaylı her zaman kazanır, aksi halde en yeni taslak.
+    if (!content.contentType || !isContentTypeId(content.contentType)) continue;
+    const production = productionByFixture.get(content.fixtureId) ?? {};
+    const current = production[content.contentType];
+    if (!current || (current.status === "draft" && content.status === "APPROVED")) {
+      production[content.contentType] = { status: content.status === "APPROVED" ? "approved" : "draft", draftId: content.id };
+    }
+    productionByFixture.set(content.fixtureId, production);
   }
 
   return {
@@ -101,6 +113,7 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
       return {
         ...fixture,
         contentStatus: deriveContentStatus(statusesByFixture.get(fixture.id)),
+        production: productionByFixture.get(fixture.id) ?? {},
         ...(plan ? { contentPlan: plan } : {}),
       };
     }),
