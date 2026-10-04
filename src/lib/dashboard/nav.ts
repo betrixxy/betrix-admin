@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Layers,
   Sparkles,
+  Swords,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -54,6 +55,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     icon: Sparkles,
   },
   {
+    href: "/dashboard/studio/match-day",
+    label: "Maç Günü Kartı",
+    description: "Maç seç + oyuncu yükle → AI poster",
+    icon: Swords,
+  },
+  {
     href: "/dashboard/library",
     label: "Medya Kütüphanesi",
     description: "Logo, oyuncu, referans",
@@ -86,5 +93,10 @@ export const LEGACY_NAV: readonly NavItem[] = [
 /** `/dashboard` yalnızca tam eşleşmede aktiftir; diğerleri alt yollarda da aktif kalır. */
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const matches = (candidate: string) => pathname === candidate || pathname.startsWith(`${candidate}/`);
+  if (!matches(href)) return false;
+  // Alt rotası ayrı bir menü öğesi olan modül (ör. studio → studio/match-day) orada aktif sayılmaz.
+  return ![...DASHBOARD_NAV, ...LEGACY_NAV].some(
+    (item) => item.href.length > href.length && item.href.startsWith(`${href}/`) && matches(item.href),
+  );
 }

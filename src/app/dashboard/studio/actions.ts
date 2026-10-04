@@ -5,14 +5,12 @@ import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createMatchDraft } from "@/lib/dashboard/draft-engine";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
-import { addMediaAsset, loadMediaAssetImage } from "@/lib/dashboard/media-library";
-import { PLAYER_MIN_SHORT_SIDE, inspectImageUpload, type UploadedImage } from "@/lib/dashboard/studio-images";
+import { resolveStudioImage, type ResolvedImage } from "@/lib/dashboard/studio-image-input";
 import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { prisma } from "@/lib/prisma";
 import { isFalConfigured } from "@/lib/services/fal";
 import type { Result } from "@/types/result";
 import { STUDIO_FORMATS, type StudioActionState } from "@/types/ai-content";
-import type { MediaCategory } from "@/types/media";
 
 const generateSchema = z.object({
   fixtureId: z.string().min(1, "Bir maç seçin."),
@@ -23,51 +21,6 @@ const generateSchema = z.object({
 
 const FAL_NOT_CONFIGURED_MESSAGE =
   "FAL_KEY tanımlı değil — .env.local dosyasına ekleyip sunucuyu yeniden başlatın.";
-
-/** Boş bırakılan `<input type="file">` da bir `File` (0 bayt) olarak gelir — yok sayılır. */
-function readFile(formData: FormData, name: string): File | null {
-  const value = formData.get(name);
-  return value instanceof File && value.size > 0 ? value : null;
-}
-
-/** Dosya adından kütüphane etiketi — "gs-logo_beyaz.png" → "gs logo beyaz". */
-function labelFromFileName(file: File, fallback: string): string {
-  const base = file.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-  return base.slice(0, 120) || fallback;
-}
-
-interface ResolvedImage {
-  image: UploadedImage;
-  /** Kütüphanedeki kalıcı URL. */
-  fileUrl: string;
-}
-
-/**
- * Stüdyo görsel alanı: kütüphaneden seçilen varlık (`<ad>AssetId`) önceliklidir; yoksa yeni
- * yüklenen dosya doğrulanır ve kütüphaneye kaydedilir (içerik-adresli — tekrar yükleme kopya
- * üretmez). Böylece bir kez yüklenen logo/oyuncu sonraki üretimlerde listeden seçilebilir.
- */
-async function resolveStudioImage(
-  formData: FormData,
-  field: "logo" | "playerPhoto",
-  category: MediaCategory,
-  label: string,
-): Promise<Result<ResolvedImage | null>> {
-  const assetId = formData.get(`${field}AssetId`);
-  if (typeof assetId === "string" && assetId.length > 0) {
-    return loadMediaAssetImage(assetId, category);
-  }
-
-  const file = readFile(formData, field);
-  if (!file) return { ok: true, data: null };
-
-  const minShortSide = category === "PLAYER" ? PLAYER_MIN_SHORT_SIDE : undefined;
-  const inspected = await inspectImageUpload(file, label, minShortSide ? { minShortSide } : {});
-  if (!inspected.ok) return inspected;
-
-  const { asset } = await addMediaAsset({ image: inspected.data, category, label: labelFromFileName(file, label) });
-  return { ok: true, data: { image: inspected.data, fileUrl: asset.fileUrl } };
-}
 
 /**
  * Stüdyo (manuel, yüklemeli) üretim: yüklemeleri doğrula → taslak motoruna devret (gerçek

@@ -9,7 +9,7 @@ import { ImageUploadField } from "./image-upload-field";
 
 interface LibraryImageFieldProps {
   /** Form alan adı: yükleme `name`, kütüphane seçimi `${name}AssetId` olarak gönderilir. */
-  name: "logo" | "playerPhoto";
+  name: string;
   label: string;
   hint: string;
   options: MediaAssetOption[];

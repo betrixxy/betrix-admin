@@ -68,9 +68,10 @@ function mapTeam(raw: { id: number; name: string; logo: string }): TeamRef {
 /** Desteklenen liglerde Türkçe adı (bkz. leagues.ts), diğerlerinde sağlayıcının adını kullanır. */
 function mapCompetition(raw: ApiFootballFixtureRaw["league"]): CompetitionRef {
   const supported = SUPPORTED_LEAGUES.find((league) => league.apiFootballId === raw.id);
+  const logo = raw.logo ? { logoUrl: raw.logo } : {};
   return supported
-    ? { id: supported.id, name: supported.name, shortName: supported.shortName }
-    : { id: String(raw.id), name: raw.name, shortName: raw.name };
+    ? { id: supported.id, name: supported.name, shortName: supported.shortName, ...logo }
+    : { id: String(raw.id), name: raw.name, shortName: raw.name, ...logo };
 }
 
 /**
@@ -90,5 +91,11 @@ export function mapApiFootballFixtureToFixture(raw: ApiFootballFixtureRaw): Fixt
     // Derbi tansiyonu sınıflandırması insan onaylı bir adımdır (bkz. CLAUDE.md 3.2.3 ve
     // taslak inceleme ekranı); burada yalnızca alan boş kalmasın diye nötr varsayılan atanır.
     derbyIntensity: "NONE",
+    details: {
+      venueName: raw.fixture.venue?.name ?? null,
+      venueCity: raw.fixture.venue?.city ?? null,
+      referee: raw.fixture.referee ?? null,
+      round: raw.league.round || null,
+    },
   };
 }

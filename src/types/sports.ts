@@ -24,6 +24,8 @@ export interface CompetitionRef {
   id: string;
   name: string;
   shortName: string;
+  /** Sağlayıcının lig logosu (media.api-sports.io/football/leagues/<id>.png), varsa. */
+  logoUrl?: string;
 }
 
 export interface Fixture {
@@ -36,6 +38,16 @@ export interface Fixture {
   awayTeam: TeamRef;
   competition: CompetitionRef;
   derbyIntensity: DerbyIntensity;
+  /** Sağlayıcı verdiyse maç künyesi (stadyum, hakem, tur) — "Maç Günü" kartı bunları kullanır. */
+  details?: FixtureDetails;
+}
+
+export interface FixtureDetails {
+  venueName: string | null;
+  venueCity: string | null;
+  referee: string | null;
+  /** Sağlayıcının ham tur etiketi, ör. "Regular Season - 3". */
+  round: string | null;
 }
 
 export interface TeamForm {

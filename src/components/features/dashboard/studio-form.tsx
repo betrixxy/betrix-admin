@@ -80,7 +80,7 @@ export function StudioForm({ fixtures, postOptions, logoOptions, playerOptions, 
               <LibraryImageField
                 name="playerPhoto"
                 label="Oyuncu fotoğrafı"
-                hint="JPEG/PNG/WebP · en az 1024px kısa kenar"
+                hint="JPEG/PNG/WebP · küçükse AI ile büyütülür"
                 options={playerOptions}
               />
               <LibraryImageField name="logo" label="Logo" hint="JPEG/PNG/WebP · isteğe bağlı" options={logoOptions} />

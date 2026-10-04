@@ -19,6 +19,7 @@ export const apiFootballLeagueSchema = z.object({
   country: z.string(),
   season: z.number(),
   round: z.string(),
+  logo: z.string().optional(),
 });
 
 export const apiFootballFixtureRawSchema = z.object({
@@ -27,6 +28,11 @@ export const apiFootballFixtureRawSchema = z.object({
     date: z.string(),
     timestamp: z.number(),
     status: apiFootballFixtureStatusSchema,
+    referee: z.string().nullable().optional(),
+    venue: z
+      .object({ name: z.string().nullable().optional(), city: z.string().nullable().optional() })
+      .nullable()
+      .optional(),
   }),
   league: apiFootballLeagueSchema,
   teams: z.object({

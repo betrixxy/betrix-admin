@@ -65,6 +65,23 @@ function readEnvelopeError(data: unknown): string | null {
   return messages.length > 0 ? messages.join("; ") : null;
 }
 
+/**
+ * Bir günün `/fixtures?date=` yanıtı 1+ MB olabilir ve gün sorguları paralel gider; 8 sn'lik
+ * genel varsayılan gövde indirilirken dolup isteği düşürüyordu.
+ */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Hatanın gerçek nedenini (kota/limit mi, ağ mı, zaman aşımı mı) sunucu terminaline yazar.
+ * API anahtarı URL'de değil başlıkta olduğundan loga sızmaz.
+ */
+function logRequestFailure(path: string, params: Record<string, string>, error: ApiFootballError): void {
+  console.error(
+    `[api-football] ${path}?${new URLSearchParams(params).toString()} → ${error.code}` +
+      `${error.status ? ` (HTTP ${error.status})` : ""}: ${error.message}`,
+  );
+}
+
 export interface ApiFootballRequestOptions {
   /** Başarılı yanıtın süreç içi önbellekte tutulma süresi. 0 → önbelleğe alınmaz. */
   ttlMs?: number;
@@ -96,9 +113,13 @@ export async function apiFootballRequest(
 
   for (let attempt = 0; ; attempt += 1) {
     await waitForRequestSlot();
-    const result = await fetchJson(url, {
-      headers: { "x-apisports-key": env.API_FOOTBALL_KEY },
-    });
+    const result = await fetchJson(
+      url,
+      // Önbellek süreç içi TtlCache'tedir; Next.js'in fetch önbelleği devre dışı bırakılır ki
+      // başarısız/bayat bir yanıt framework katmanında takılı kalmasın.
+      { headers: { "x-apisports-key": env.API_FOOTBALL_KEY }, cache: "no-store" },
+      { timeoutMs: REQUEST_TIMEOUT_MS, retries: 2 },
+    );
 
     if (!result.ok) {
       const rateLimited = result.error.status === 429;
@@ -106,7 +127,9 @@ export async function apiFootballRequest(
         await sleep(RATE_LIMIT_BACKOFF_MS * (attempt + 1));
         continue;
       }
-      return { ok: false, error: mapHttpFailure(result.error) };
+      const error = mapHttpFailure(result.error);
+      logRequestFailure(path, params, error);
+      return { ok: false, error };
     }
 
     const envelopeError = readEnvelopeError(result.data);
@@ -115,7 +138,9 @@ export async function apiFootballRequest(
         await sleep(RATE_LIMIT_BACKOFF_MS * (attempt + 1));
         continue;
       }
-      return { ok: false, error: { code: "API_ERROR", message: `API-Football: ${envelopeError}` } };
+      const error: ApiFootballError = { code: "API_ERROR", message: `API-Football: ${envelopeError}` };
+      logRequestFailure(path, params, error);
+      return { ok: false, error };
     }
 
     // Hatalar asla önbelleğe alınmaz — yalnızca başarılı yanıtlar.

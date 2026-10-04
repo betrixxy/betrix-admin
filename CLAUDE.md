@@ -55,7 +55,7 @@ betrix-studio/
 │  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
 │  │  ├─ calendar/                 # Fikstür tabanlı içerik takvimi (bkz. Bölüm 4.2)
 │  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6)
-│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: files/ — yerel depolama servisi, track/ — checkmatch.net trafik ingest'i)
+│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: files/ — yerel depolama servisi, track/ — checkmatch.net trafik ingest'i, auth/[platform]/{connect,callback} — sosyal hesap OAuth'u, bkz. 4.4, og/match-day — DEVRE DIŞI (410); Maç Günü kartı artık `/dashboard/studio/match-day` → `lib/dashboard/match-day-engine.ts` (Fal.ai birefnet + flux + image-to-image harmanlama, şablonlar `templates/match-day/{premium-broadcast,data-driven,editorial-portrait}.tsx` × formatlar `lib/dashboard/match-day-formats.ts` (4:5, 1:1, 9:16 güvenli alanlı, 16:9); yazı konumu ve oyuncu yerleşimi TEK kaynaktan: `templates/match-day/geometry.ts`; AI sanat yönetimi `lib/services/fal/match-day-prompts.ts` (gerçekçi spor fotoğrafçılığı, hex yerine renk adı, istenmeyen kavram anılmaz); maliyet: kesim/arka plan önbelleği `lib/dashboard/match-day-cache.ts`, düşük çözünürlüklü arka plan, Ekonomik mod (harmanlamasız), Data Driven programatik zemin; fontlar `public/fonts/` (Geist + Anton + DM Serif Display, OFL), marka logoları `public/brand/`))
 │  ├─ components/
 │  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
 │  │  └─ features/                 # Özellik bazlı bileşenler
@@ -157,7 +157,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 - Prisma 7'de runtime'da native bir driver adapter zorunlu; PostgreSQL için **`@prisma/adapter-pg`** (`pg` üzerine kurulu resmi adaptör) kullanılır.
 - `lib/prisma.ts`, Next.js dev hot-reload'da bağlantı sızıntısını önlemek için `globalThis` üzerinde tekil (singleton) `PrismaClient` tutar (resmi Next.js+Prisma deseni).
 - Yeni admin hesabı: `npx prisma db seed` (`prisma/seed.ts`, `ADMIN_EMAIL`/`ADMIN_PASSWORD` env'den okunur, idempotent upsert).
-- **Dosya/görsel depolama:** yüklemeler ve render çıktıları proje kökündeki `storage/{uploads,generated,renders}/` altına yazılır (`lib/dashboard/storage.ts`; gitignore'da). `uploads` içerik-adresli (SHA-256) kullanıcı yüklemeleri (oyuncu fotoğrafı/logo), `generated` Fal.ai'den indirilip kalıcılaştırılan çıktılar (ör. `birefnet` oyuncu kesimi — bkz. 3.1 adım 6), `renders` nihai SVG kompozisyonlarıdır. Dosyalara doğrudan URL yoktur: yalnızca oturum doğrulayan `app/api/files/[...path]/route.ts` üzerinden (`/api/files/<kova>/<dosya>`) servis edilir; dosya adı katı bir desenle doğrulanır (yol gezinmesi yok). Üretim ölçeğinde ihtiyaç netleştiğinde S3-uyumlu bir obje depolamaya geçiş, yalnızca `storage.ts` içinde yapılacak ayrı bir görev olarak planlanır.
+- **Dosya/görsel depolama:** yüklemeler ve render çıktıları proje kökündeki `storage/{uploads,generated,renders}/` altına yazılır (`lib/dashboard/storage.ts`; gitignore'da). `uploads` içerik-adresli (SHA-256) kullanıcı yüklemeleri (oyuncu fotoğrafı/logo), `generated` Fal.ai'den indirilip kalıcılaştırılan çıktılar (ör. `birefnet` oyuncu kesimi — bkz. 3.1 adım 6), `renders` nihai SVG kompozisyonlarıdır. Dosyalara doğrudan URL yoktur: yalnızca oturum doğrulayan `app/api/storage-file/route.ts` üzerinden servis edilir; genel adres `/api/files/<kova>/<dosya>`, `next.config.ts` rewrite kuralıyla oraya yönlenir (route bilerek dinamik segmentsizdir — Next dev her yeni dinamik URL için alt süreç açıp bellek baskısında dosya servisini kilitliyordu); dosya adı katı bir desenle doğrulanır (yol gezinmesi yok). Üretim ölçeğinde ihtiyaç netleştiğinde S3-uyumlu bir obje depolamaya geçiş, yalnızca `storage.ts` içinde yapılacak ayrı bir görev olarak planlanır.
 
 **Auth — özel Credentials + JWT (dış servis yok):**
 - Tek admin hesabı `AdminUser` tablosunda tutulur; şifre `bcryptjs` ile hash'lenir (`lib/auth/password.ts`), zamanlama saldırılarına karşı kullanıcı bulunamasa da sabit bir hash ile karşılaştırma yapılır (`lib/auth/credentials.ts`).
@@ -172,6 +172,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 - Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
 - **Fail-fast:** `JWT_SECRET` (üretimde en az 32 karakter) ve `DATABASE_URL` (`postgresql://`) zorunludur, varsayılan değerleri yoktur; boş string "tanımsız" sayılır. Geçersizse `lib/env.ts` hata fırlatır, `src/instrumentation.ts` bunu sunucu açılışında tetikleyip süreci `exit 1` ile durdurur. Yalnızca `next build` aşamasında (`NEXT_PHASE`) derlemenin geçmesi için yer tutucu kullanılır.
 - `TRACK_ALLOWED_ORIGINS` (virgülle ayrılmış origin listesi) ve `TRACK_SITE_KEY` (isteğe bağlı, GA ölçüm ID'si gibi gizli olmayan bir "site anahtarı") gizli değildir — `/api/track` uç noktasının CORS/istemci doğrulaması için kullanılır, bkz. 1.8 ve `app/api/track/route.ts`.
+- **Sosyal OAuth (bkz. 4.4):** `APP_BASE_URL` (OAuth `redirect_uri` kökü, gizli değil), `SOCIAL_TOKEN_ENCRYPTION_KEY` (64 hex; üretimde bağlantı için zorunlu, geliştirmede boşsa `JWT_SECRET`'tan türetilir), `SOCIAL_USE_MOCKS` (tanımsızsa üretim dışında `true`), `META_APP_ID`/`META_APP_SECRET`, `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET`, `YOUTUBE_CLIENT_ID`/`YOUTUBE_CLIENT_SECRET`, `X_CLIENT_ID`/`X_CLIENT_SECRET`. Sırlar yalnızca sunucuda okunur.
 
 ### 1.8 Dashboard Modül Mimarisi
 
@@ -182,7 +183,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 | Genel Bakış | `/dashboard` | hepsi | 4 modülün özet kartları |
 | Maç Merkezi | `/dashboard/matches` | `AiContent` | Gerçek fikstür (API-Football, 7 gün), maç başına "AI İçerik Üret", onay kuyruğu — bkz. 1.10 |
 | İçerik Takvimi | `/dashboard/calendar` | `SocialPost` | Ay/Hafta/Liste görünümü, planlama, düzenleme, Hazırlanıyor/Paylaşıldı |
-| Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics` | Metrikler API bağlanana kadar elle girilir; `lib/dashboard/integrations.ts` gelecekteki Meta/TikTok/YouTube/X bağlantılarının listesidir |
+| Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics`, `SocialConnection` | Bağlı hesaplardan "Senkronize et" ile çekilir, bağlı olmayanlarda elle girilir; `?sort=` (En Çok Yorum Alan/Kaydedilen/İzlenen…) + `?platform=` filtresi; "Hangi istatistik tutuyor?" analizi (`content-insights-stats.ts`) — bkz. 4.4 |
 | AI İçerik Stüdyosu | `/dashboard/studio` | `AiContent` | Fal.ai `flux`+`birefnet` ile gerçek görsel üretir (`FAL_KEY` zorunlu, boşsa form kilitlenir); istatistik/logo/marka katmanı her zaman programatik SVG'dir, bkz. Bölüm 3 |
 | Web Trafiği | `/dashboard/traffic` | `TrafficLog` | Gün sınırları Europe/Istanbul; IP'ler arayüzde maskelenir; `POST /api/track` ile beslenir |
 
@@ -193,11 +194,13 @@ Kurallar: (1) sayfalar `force-dynamic` Server Component'tir; durum (görünüm, 
 Üretim, Mac Mini üzerinde `docker-compose.prod.yml` ile çalışır. `docker-compose.yml` yalnızca yerel geliştirme veritabanıdır.
 
 ```
-internet ──► caddy (80/443) ──[frontend]──► app:3000 ──[backend, internal]──► postgres:5432
+internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ──[frontend]──► caddy:80 ──► app:3000 ──[backend, internal]──► postgres:5432
 ```
 
+- **Cloudflare Tunnel:** sunucu ev bağlantısındadır; modemde port açılmaz. `cloudflared` Cloudflare'e giden bir tünel açar (`CLOUDFLARE_TUNNEL_TOKEN`), yönlendirme (`www.betrix.pro → http://caddy:80`) Cloudflare panelinde tanımlıdır. HTTPS Cloudflare kenarında sonlanır; Caddy ACME kullanmaz ve host'a port açmaz. Gerçek ziyaretçi IP'si `CF-Connecting-IP`'den alınır (Caddyfile `client_ip_headers`), uygulamaya tek değerli `X-Forwarded-For` olarak iletilir.
+
 - **İmaj:** `Dockerfile` çok aşamalıdır (`deps → builder → runner`), `next.config.ts` içinde `output: "standalone"`. `runner` non-root (`nextjs`, uid 1001) çalışır; uygulama dosyaları root'a aittir, yalnızca `storage/` ve `.next/cache` yazılabilir. `migrator` hedefi tam `node_modules` içerir ve `prisma migrate deploy` / `db seed` için kullanılır.
-- **Ağ:** `backend` ağı `internal: true`'dur (internete çıkış yok); postgres ve app dışarıya port açmaz. App, dış API'ler (Fal.ai vb.) için ayrıca `frontend` ağındadır. Dışa açık tek servis Caddy'dir.
+- **Ağ:** `backend` ağı `internal: true`'dur (internete çıkış yok); postgres ve app dışarıya port açmaz. App, dış API'ler (Fal.ai vb.) için ayrıca `frontend` ağındadır. Hiçbir servis host'a port açmaz; dış dünyaya tek yol Cloudflare Tunnel'dır.
 - **Sertleştirme:** app `read_only` kök dosya sistemi, `cap_drop: ALL`, tüm servislerde `no-new-privileges`, log rotasyonu. Postgres `scram-sha-256` ile şifreli.
 - **Volume'lar:** `pgdata` (veritabanı), `storage` (yüklemeler/render çıktıları, bkz. 1.6), `next_cache`, `caddy_data` (TLS sertifikaları — silinirse Let's Encrypt limitine takılabilir), `caddy_config`.
 - **Sırlar:** `.env.production` (gitignore'da, `chmod 600`) — şablon `.env.production.example`. `DATABASE_URL` compose tarafından `POSTGRES_*`'tan üretilir; şifre URL'e girdiği için hex olmalıdır (`openssl rand -hex 32`). Sır asla imaja girmez (`.dockerignore`).
@@ -325,7 +328,7 @@ Bu bölüm, `skills/render-engine/` altında yaşayan pipeline'ın kurallarını
 
 Pipeline adımları (sıralı, atlanamaz):
 
-1. **Girdi doğrulama:** Kaynak görsel minimum 1024px kısa kenar, JPEG/PNG, tek kişi belirgin şekilde kadrajda. Bu kriterleri sağlamayan görseller pipeline'a girmeden reddedilir ve kullanıcıya/loglara neden bildirilir.
+1. **Girdi doğrulama + AI Upscale:** Kaynak görsel JPEG/PNG/WebP, en az 256px kısa kenar (`PLAYER_MIN_SHORT_SIDE`), tek kişi belirgin şekilde kadrajda; bunu sağlamayanlar reddedilir ve neden bildirilir. Kısa kenarı 1024px'in (`PLAYER_TARGET_SHORT_SIDE`) altındaki görseller birefnet'ten hemen önce Fal.ai `esrgan` (Real-ESRGAN x4plus, en fazla 4×, yüz restorasyonu kapalı) ile netleştirilerek büyütülür — `lib/dashboard/player-upscale.ts`.
 2. **Ön işleme:** Görsel yerel depolamaya (bkz. 1.6) `raw/` klasörüne yüklenir, içerik-adresli hash ile isimlendirilir (aynı görsel iki kez işlenmez, cache'ten döner).
 3. **Birefnet çağrısı:** `lib/services/fal/index.ts::removeBackground()` üzerinden, model parametreleri sabittir (yüksek hassasiyet modu, `refine_foreground: true`). Doğrudan Fal.ai SDK route handler veya component içinde çağrılmaz (bkz. 1.4).
 4. **Alfa kanalı doğrulama:** Çıktının alfa kanalı analiz edilir — kenar bölgesinde (forma/saç hatları) ani alfa sıçramaları (`halo` artefaktı) tespit edilirse otomatik olarak `refine_foreground` parametresi artırılarak **1 kez** yeniden denenir. İkinci denemede de başarısızsa görsel "manuel inceleme gerekli" kuyruğuna düşer, otomatik yayınlanmaz.
@@ -475,6 +478,23 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 **Gönderi atfı:** linke ayrıca `cm_post=<SocialPost.id>` eklenir. checkmatch.net'teki izleme kodu (`lib/dashboard/tracker-snippet.ts` — Web Trafiği sayfasında kopyalanabilir) bu parametreyi okuyup oturum boyunca `/api/track`'e iletir; böylece ziyaret, trafik kaynağı ve Reklam Bütçeleri'ndeki "ziyaret başı maliyet" o gönderiye/maça yazılır. Ziyaretçi kimliği tarayıcıda kalıcıdır (`localStorage`): "Tekil ziyaretçi" = dönemdeki farklı kimlik, "Yeni ziyaretçi" = ilk kez görülen kimlik (`isUniqueVisit`, eşzamanlı isteklerde kimlik başına advisory lock ile tekil).
 
 **Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/dashboard/tracking-link.ts::buildTrackingLink`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Postgres `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
+
+### 4.4 Sosyal Hesap Bağlama ve Veri Çekme Motoru (Kurucu Vizyonu: Veriye Dayalı İçerik Planlama)
+
+İçerik planlaması, yayınlanan gönderilerin gerçek etkileşim verisine (beğeni, yorum, paylaşım, kaydetme, izlenme, erişim) dayanır.
+
+```
+/api/auth/<slug>/connect ──► sağlayıcı onay ekranı ──► /api/auth/<slug>/callback ──► SocialConnection (token'lar şifreli)
+"Senkronize et" ──► lib/services/social-metrics.ts ──► social/adapter.ts (mock | gerçek) ──► ham yanıt ──► metrics/mappers.ts ──► PostAnalytics
+```
+
+- **Bağlama:** `connect` state (CSRF) + PKCE (X, YouTube) üretir, httpOnly/yola kısıtlı/10 dk'lık cookie'ye yazar; `callback` state'i sabit zamanlı karşılaştırır, cookie'yi her durumda siler. İkisi de `proxy.ts` dışındadır, oturumu kendileri doğrular. Panele yalnızca sabit hata kodları döner (`CONNECT_ERROR_CODES`). Koparma bir Server Action'dır (`disconnectSocialAction`); geçmiş metrikler korunur.
+- **Token güvenliği:** `lib/services/social/token-crypto.ts` (AES-256-GCM) — veritabanına düz metin token yazılmaz, token'lar asla loglanmaz ve `SocialConnectionView`'a girmez. Süresi 5 dk içinde dolacak token senkronizasyondan önce yenilenir.
+- **Senkronizasyon:** kademeli takvim (`metrics/schedule.ts`, 1/6/24/72 sa), "tümünü çek" ile zorlanabilir. **Tetikleme manueldir** — cron/worker eklenmedi (1.10 ruhu); zamanlayıcı gerekirse yalnızca `syncSocialMetrics()`'i çağırır. `PostAnalytics.source`: `MANUAL | API | MOCK` — mock senkronizasyon `MANUAL` kayıtların üzerine yazmaz.
+- **Mock modu (`SOCIAL_USE_MOCKS`, 5.2):** OAuth sağlayıcıya gitmeden callback'e döner; metrikler sağlayıcının **ham** biçiminde üretilip gerçek şema/mapper'dan geçer.
+- **Gerçek mod durumu:** OAuth kod değişimi ve token yenileme gerçek çağrıdır. Hesap bilgisi ve gönderi metrikleri `adapter.ts` içinde **yer tutucudur** (`NOT_IMPLEMENTED`); çağrılacak uç noktalar orada not edilmiştir. Gerçek senkronizasyon için `SocialPost.providerPostId` dolu olmalıdır.
+- **Etkileşim oranı:** (beğeni + yorum + paylaşım + kaydetme) / erişim; erişim yoksa izlenme. Gruplarda toplu oran (toplam etkileşim / toplam kitle) kullanılır.
+- **İçerik stratejisi analizi:** gönderiye bağlı `AiContent.renderOptions.selection` (form/gol/xG/H2H) ile etkileşim karşılaştırılır; her grupta < 3 gönderi varsa "az veri" işaretlenir. Nedensellik iddiası taşımaz.
 
 ---
 

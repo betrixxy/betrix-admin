@@ -54,7 +54,7 @@ export function StudioPreview({ format, result, isPending }: StudioPreviewProps)
             </Link>
             <a
               href={result.resultImageUrl}
-              download={`checkmatch-${result.format.toLowerCase()}-${result.id}.svg`}
+              download={`checkmatch-${result.format.toLowerCase()}-${result.id}.png`}
               className={cn(buttonVariants({ variant: "outline" }), "w-full")}
             >
               <Download />
