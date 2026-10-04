@@ -186,9 +186,18 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     savedSteps.push(meta.harmonize ? "AI harmanlama atlandı (Ekonomik mod)" : "AI harmanlama gerekmiyor (düz zeminli şablon)");
   }
 
+  // 5. Tipografi katmanı → nihai PNG. Depolamadan ayrı yakalanır: Satori/sharp hatası
+  // "kaydedilemedi" diye görünmesin, gerçek neden loglansın.
+  let final: Buffer;
   try {
-    // 5. Tipografi katmanı → nihai PNG.
-    const final = await finalizeMatchDayImage(art, await renderMatchDayOverlay(card, input.template, frame), frame);
+    final = await finalizeMatchDayImage(art, await renderMatchDayOverlay(card, input.template, frame), frame);
+  } catch (error: unknown) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.error(`[match-day] ${input.template}/${input.format} tipografi katmanı çizilemedi:`, error);
+    return fail("RENDER_FAILED", `Kartın yazı katmanı çizilemedi (${meta.label}, ${frame.ratioLabel}): ${reason}`);
+  }
+
+  try {
     const [backgroundImageUrl, compositeImageUrl, resultImageUrl] = await Promise.all([
       saveJpeg(background.data.bytes),
       saveJpeg(composite),
@@ -237,7 +246,8 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
         savedSteps,
       },
     };
-  } catch {
+  } catch (error: unknown) {
+    console.error("[match-day] kart kaydedilemedi:", error);
     return fail("STORAGE_FAILED", "Kart kaydedilemedi — depolamaya ya da veritabanına yazılamadı.");
   }
 }

@@ -1,6 +1,6 @@
 import type { MatchDayCard } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
-import { BrandLogo, Canvas, Eyebrow, LeagueLogo, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, px } from "./shared";
+import { BrandLogo, Canvas, Eyebrow, LeagueLogo, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px } from "./shared";
 
 /**
  * EDITORIAL PORTRAIT — spor dergisi kapağı: dramatik stüdyo ışığında oyuncu portreleri,
@@ -38,11 +38,16 @@ function Names({ card, k, width }: { card: MatchDayCard; k: number; width: numbe
       <span style={{ fontFamily: SERIF, fontSize: size, lineHeight: 0.98, color: "white", textShadow: TEXT_SHADOW }}>{text}</span>
     </div>
   );
+  // Büyük adlarda "vs" satırlara sıkıca yaslanır (negatif boşluk); uzun adlar küçüldüğünde ise
+  // "vs" okunur boyutta kalır ve satırlarla çakışmasın diye pozitif boşluk alır.
+  const compact = size < px(80, k);
+  const vsSize = Math.max(size * 0.42, px(22, k));
+  const vsGap = compact ? Math.round(size * 0.15) : px(-6, k);
   return (
     <div tw="flex flex-col">
       {name(card.homeTeamName, "flex-start")}
-      <div tw="flex" style={{ width, justifyContent: "center", margin: `${px(-6, k)}px 0` }}>
-        <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: size * 0.42, color: "rgba(255,255,255,0.85)" }}>vs</span>
+      <div tw="flex" style={{ width, justifyContent: "center", margin: `${vsGap}px 0` }}>
+        <span style={{ fontFamily: SERIF, fontStyle: "italic", fontSize: vsSize, lineHeight: 1, color: "rgba(255,255,255,0.85)" }}>vs</span>
       </div>
       {name(card.awayTeamName, "flex-end")}
     </div>
@@ -50,17 +55,21 @@ function Names({ card, k, width }: { card: MatchDayCard; k: number; width: numbe
 }
 
 function Credits({ card, k }: { card: MatchDayCard; k: number }) {
-  const line = [card.dateLabel, card.timeLabel].filter((item) => item && item !== "—").join("  ·  ");
-  const sub = [clip(card.stadiumLabel, 34), card.refereeLabel !== "—" ? `Hakem ${card.refereeLabel}` : ""].filter(Boolean).join("  ·  ");
+  const line = [known(card.dateLabel), known(card.timeLabel)].filter(Boolean).join("  ·  ");
+  const stadium = known(card.stadiumLabel);
+  const referee = known(card.refereeLabel);
+  const sub = [stadium ? clip(stadium, 34) : null, referee ? `Hakem ${referee}` : null].filter(Boolean).join("  ·  ");
   return (
     <div tw="flex flex-col items-center">
       <div tw="flex items-center">
         <TeamLogo src={card.homeLogo} name={card.homeTeam} size={px(44, k)} />
         <div tw="flex flex-col items-center" style={{ margin: `0 ${px(24, k)}px` }}>
-          <Eyebrow size={px(16, k)} color="white">{line.toLocaleUpperCase("tr-TR")}</Eyebrow>
-          <div tw="flex" style={{ marginTop: px(6, k) }}>
-            <Eyebrow size={px(11, k)} color="rgba(255,255,255,0.62)">{sub.toLocaleUpperCase("tr-TR")}</Eyebrow>
-          </div>
+          {line ? <Eyebrow size={px(16, k)} color="white">{line.toLocaleUpperCase("tr-TR")}</Eyebrow> : null}
+          {sub ? (
+            <div tw="flex" style={{ marginTop: line ? px(6, k) : 0 }}>
+              <Eyebrow size={px(11, k)} color="rgba(255,255,255,0.62)">{sub.toLocaleUpperCase("tr-TR")}</Eyebrow>
+            </div>
+          ) : null}
         </div>
         <TeamLogo src={card.awayLogo} name={card.awayTeam} size={px(44, k)} />
       </div>

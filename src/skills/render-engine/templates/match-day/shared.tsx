@@ -22,6 +22,14 @@ export function clip(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+/** Kart verisindeki "bilinmiyor" yer tutucusu (`match-day-assets.ts`) — şablonlar bunu çizmez. */
+const PLACEHOLDER = "—";
+
+/** Değer gerçekten biliniyorsa onu, boş ya da yer tutucuysa `null` döner. */
+export function known(value: string | null | undefined): string | null {
+  return value && value !== PLACEHOLDER ? value : null;
+}
+
 export function px(value: number, k: number): number {
   return Math.round(value * k);
 }
