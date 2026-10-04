@@ -4,8 +4,8 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 #
 # Ağ topolojisi:
-#   internet ──► caddy (80/443) ──[frontend]──► app:3000 ──[backend, internal]──► postgres:5432
-# Postgres ve app dışarıya hiç port açmaz; `backend` ağı internete çıkışı olmayan iç ağdır.
+#   internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ──[frontend]──► caddy:80 ──► app:3000 ──[backend, internal]──► postgres:5432
+# Hiçbir servis host'a port açmaz; `backend` ağı internete çıkışı olmayan iç ağdır.
 
 name: betrix
 
@@ -95,16 +95,15 @@ services:
       - no-new-privileges:true
     logging: *logging
 
+  # İç ters vekil: güvenlik başlıkları, gövde sınırı, gerçek ziyaretçi IP'si. HTTPS Cloudflare
+  # kenarında sonlandığı için ACME yok ve host'a HİÇBİR port açılmaz (bkz. Caddyfile).
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     environment:
       APP_DOMAIN: ${APP_DOMAIN:?APP_DOMAIN .env.production içinde tanımlı olmalı}
-      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL .env.production içinde tanımlı olmalı}
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp" # HTTP/3
+    expose:
+      - "80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -118,6 +117,25 @@ services:
       - ALL
     cap_add:
       - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  # Cloudflare Tunnel: Cloudflare'e GİDEN bir bağlantı açar; modemde port yönlendirme veya sabit
+  # IP gerekmez. Yönlendirme (www.betrix.pro → http://caddy:80) Cloudflare panelinde tanımlıdır.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?CLOUDFLARE_TUNNEL_TOKEN .env.production içinde tanımlı olmalı}
+    networks:
+      - frontend
+    depends_on:
+      - caddy
+    read_only: true
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
     logging: *logging

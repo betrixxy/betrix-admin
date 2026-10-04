@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { RenderThumbnail } from "./render-thumbnail";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ImageOff } from "lucide-react";
 import { PLATFORM_DOT_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
 import type { AiContentView } from "@/types/ai-content";
@@ -55,12 +55,7 @@ export function RecentRenders({ items }: { items: AiContentView[] }) {
           key={item.id}
           className="flex h-20 w-16 items-center justify-center overflow-hidden rounded-md bg-muted/30 ring-1 ring-border"
         >
-          {item.resultImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={item.resultImageUrl} alt="Üretilen görsel" loading="lazy" className="size-full object-contain" />
-          ) : (
-            <ImageOff className="size-4 text-muted-foreground" />
-          )}
+          <RenderThumbnail src={item.resultImageUrl} alt="Üretilen görsel" />
         </li>
       ))}
     </ul>

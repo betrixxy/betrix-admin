@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { RenderThumbnail } from "./render-thumbnail";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ImageOff } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { DraftSummary } from "@/types/draft";
 
@@ -29,12 +29,7 @@ export function DraftQueue({ drafts, fixtureLabels }: DraftQueueProps) {
               <li key={draft.id} className="w-32 shrink-0">
                 <Link href={`/dashboard/drafts/${draft.id}`} className="group flex flex-col gap-1.5">
                   <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-md bg-muted/30 ring-1 ring-border transition group-hover:ring-emerald-500/60">
-                    {draft.resultImageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={draft.resultImageUrl} alt="Taslak görsel" loading="lazy" className="size-full object-contain" />
-                    ) : (
-                      <ImageOff className="size-4 text-muted-foreground" />
-                    )}
+                    <RenderThumbnail src={draft.resultImageUrl} alt="Taslak görsel" />
                   </div>
                   <span className="truncate text-[11px] text-white">{fixtureLabels[draft.fixtureId] ?? draft.fixtureId}</span>
                   <span className="text-[10px] text-muted-foreground">

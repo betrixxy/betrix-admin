@@ -40,6 +40,10 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
+# Taslak görselleri SVG'den PNG'ye sharp/librsvg ile çevrilir; metinler sistem fontlarıyla
+# çizilir. Alpine'de font yoktur — yoksa yazılar boş kutu olarak render edilir.
+RUN apk add --no-cache fontconfig font-inter ttf-dejavu
+
 RUN addgroup -S -g 1001 nodejs \
  && adduser -S -u 1001 -G nodejs -H -s /sbin/nologin nextjs
 

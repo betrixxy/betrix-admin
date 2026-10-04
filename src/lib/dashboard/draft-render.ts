@@ -62,5 +62,14 @@ export async function renderDraftImage(
     logoDataUri: logo ? await embedImageBytes(logo, 256) : undefined,
   });
 
-  return saveStoredFile("renders", `${randomUUID()}.svg`, Buffer.from(svg, "utf8"));
+  return saveStoredFile("renders", `${randomUUID()}.png`, await rasterizeSvg(svg));
+}
+
+/**
+ * Kompozisyon SVG olarak kurulur ama PNG olarak saklanır: sosyal platformlar SVG kabul
+ * etmez ve tarayıcılar `<img>` içindeki SVG'yi CSP/font farklarıyla tutarsız çizebilir.
+ * SVG kanvas boyutu (ör. 1080×1350) piksel boyutu olarak korunur.
+ */
+export async function rasterizeSvg(svg: string): Promise<Buffer> {
+  return sharp(Buffer.from(svg, "utf8")).png({ compressionLevel: 9 }).toBuffer();
 }

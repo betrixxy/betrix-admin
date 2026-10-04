@@ -1,4 +1,30 @@
-import type { SocialPlatformType, SocialPostStatus } from "@/types/social";
+import type { PostAnalyticsSource } from "@/types/social-connection";
+import type { AnalyticsSort, ContentStatKey, SocialPlatformType, SocialPostStatus } from "@/types/social";
+
+/** Etkileşim panelindeki sıralama sekmeleri. */
+export const SORT_LABELS: Record<AnalyticsSort, string> = {
+  engagement: "Etkileşim Oranı",
+  views: "En Çok İzlenen",
+  comments: "En Çok Yorum Alan",
+  saves: "En Çok Kaydedilen",
+  shares: "En Çok Paylaşılan",
+  likes: "En Çok Beğenilen",
+  reach: "En Geniş Erişim",
+  clicks: "En Çok Tıklanan",
+};
+
+export const STAT_LABELS: Record<ContentStatKey, string> = {
+  form: "Form (son 5 maç)",
+  goals: "Gol ortalamaları",
+  xg: "xG (beklenen gol)",
+  headToHead: "Aralarındaki maçlar (H2H)",
+};
+
+export const ANALYTICS_SOURCE_LABELS: Record<PostAnalyticsSource, string> = {
+  MANUAL: "elle girildi",
+  API: "API",
+  MOCK: "mock veri",
+};
 
 export const PLATFORM_LABELS: Record<SocialPlatformType, string> = {
   META_INSTAGRAM: "Instagram",

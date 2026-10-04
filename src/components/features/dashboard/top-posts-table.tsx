@@ -6,55 +6,53 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCompactNumber, formatNumber, formatPercent } from "@/lib/dashboard/format";
-import { PLATFORM_DOT_CLASS } from "@/lib/dashboard/social-meta";
+import { ANALYTICS_SOURCE_LABELS, PLATFORM_DOT_CLASS, SORT_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
-import { ANALYTICS_SORTS, type AnalyticsSort, type TopPostItem } from "@/types/social";
+import type { AnalyticsSort, PostAnalyticsSummary, TopPostItem } from "@/types/social";
+import { AnalyticsFilters, type AnalyticsFilterState } from "./analytics-filters";
 
-const SORT_LABELS: Record<AnalyticsSort, string> = {
-  engagement: "Etkileşim oranı",
-  views: "İzlenme",
-  clicks: "Tıklama",
-};
+type CountColumn = "views" | "reach" | "likes" | "comments" | "shares" | "saves";
 
-interface TopPostsTableProps {
+const COUNT_COLUMNS: { key: CountColumn; label: string }[] = [
+  { key: "views", label: "İzlenme" },
+  { key: "reach", label: "Erişim" },
+  { key: "likes", label: "Beğeni" },
+  { key: "comments", label: "Yorum" },
+  { key: "shares", label: "Paylaşım" },
+  { key: "saves", label: "Kaydetme" },
+];
+
+interface TopPostsTableProps extends AnalyticsFilterState {
   items: TopPostItem[];
-  sort: AnalyticsSort;
   fixtureLabels: Record<string, string>;
-  /** Sıralama değiştirme ve metrik girme bağlantıları — tamamı URL tabanlı. */
-  sortHref: (sort: AnalyticsSort) => string;
+  /** Filtre ve metrik girme bağlantıları — tamamı URL tabanlı. */
+  href: (patch: Partial<AnalyticsFilterState>) => string;
   metricsHref: (postId: string) => string;
 }
 
-export function TopPostsTable({ items, sort, fixtureLabels, sortHref, metricsHref }: TopPostsTableProps) {
+/** Sıralama ölçütüne karşılık gelen sütun vurgulanır. */
+const highlight = (sort: AnalyticsSort, column: AnalyticsSort) =>
+  sort === column ? "font-semibold text-white" : undefined;
+
+const countOf = (analytics: PostAnalyticsSummary | null, key: CountColumn) => analytics?.[key] ?? 0;
+
+export function TopPostsTable({ items, sort, platform, fixtureLabels, href, metricsHref }: TopPostsTableProps) {
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-3">
+      <CardHeader className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
           <CardTitle className="flex items-center gap-2">
             <Trophy className="size-4 text-amber-400" />
-            En Başarılı Gönderiler
+            En Başarılı Gönderiler — {SORT_LABELS[sort]}
           </CardTitle>
-          <CardDescription>Yayınlanmış gönderiler, seçilen ölçüte göre sıralı</CardDescription>
+          <CardDescription>Yayınlanmış gönderiler, seçilen ölçüte göre ilk 10</CardDescription>
         </div>
-        <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
-          {ANALYTICS_SORTS.map((option) => (
-            <Link
-              key={option}
-              href={sortHref(option)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                option === sort ? "bg-card text-white shadow-sm" : "text-muted-foreground hover:text-white",
-              )}
-            >
-              {SORT_LABELS[option]}
-            </Link>
-          ))}
-        </div>
+        <AnalyticsFilters sort={sort} platform={platform} href={href} />
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (
           <p className="py-10 text-center text-sm text-muted-foreground">
-            Henüz yayınlanmış gönderi yok. Takvimden bir gönderiyi &quot;Paylaşıldı&quot; yapınca burada görünür.
+            Bu filtrede yayınlanmış gönderi yok. Takvimden bir gönderiyi &quot;Paylaşıldı&quot; yapınca burada görünür.
           </p>
         ) : (
           <Table>
@@ -62,12 +60,13 @@ export function TopPostsTable({ items, sort, fixtureLabels, sortHref, metricsHre
               <TableRow className="hover:bg-transparent">
                 <TableHead className="w-8">#</TableHead>
                 <TableHead>Gönderi</TableHead>
-                <TableHead className="text-right">İzlenme</TableHead>
-                <TableHead className="text-right">Beğeni</TableHead>
-                <TableHead className="text-right">Yorum</TableHead>
-                <TableHead className="text-right">Paylaşım</TableHead>
-                <TableHead className="text-right">Etkileşim</TableHead>
-                <TableHead className="text-right">Tıklama</TableHead>
+                {COUNT_COLUMNS.map((column) => (
+                  <TableHead key={column.key} className={cn("text-right", highlight(sort, column.key))}>
+                    {column.label}
+                  </TableHead>
+                ))}
+                <TableHead className={cn("text-right", highlight(sort, "engagement"))}>Etkileşim</TableHead>
+                <TableHead className={cn("text-right", highlight(sort, "clicks"))}>Tıklama</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -83,16 +82,18 @@ export function TopPostsTable({ items, sort, fixtureLabels, sortHref, metricsHre
                     <div className="truncate text-xs text-muted-foreground">
                       {post.platform.displayName} ·{" "}
                       {format(new Date(post.publishedAt ?? post.scheduledFor), "d MMM", { locale: tr })}
+                      {post.analytics ? ` · ${ANALYTICS_SOURCE_LABELS[post.analytics.source]}` : " · metrik yok"}
                     </div>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCompactNumber(post.analytics?.views ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCompactNumber(post.analytics?.likes ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCompactNumber(post.analytics?.comments ?? 0)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatCompactNumber(post.analytics?.shares ?? 0)}</TableCell>
+                  {COUNT_COLUMNS.map((column) => (
+                    <TableCell key={column.key} className={cn("text-right tabular-nums", highlight(sort, column.key))}>
+                      {formatCompactNumber(countOf(post.analytics, column.key))}
+                    </TableCell>
+                  ))}
                   <TableCell className="text-right font-medium text-emerald-400 tabular-nums">
                     {formatPercent(engagementRate)}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
+                  <TableCell className={cn("text-right tabular-nums", highlight(sort, "clicks"))}>
                     {formatNumber(post.trafficCount)}
                     <span className="ml-1 text-[10px] text-muted-foreground">({formatPercent(clickThroughRate)})</span>
                   </TableCell>

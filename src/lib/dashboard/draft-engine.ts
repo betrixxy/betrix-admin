@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { buildDraftCaption } from "@/lib/dashboard/draft-caption";
 import { deleteStoredUrl, persistBackground, renderDraftImage } from "@/lib/dashboard/draft-render";
 import { parseStatsSnapshot, toJsonValue } from "@/lib/dashboard/draft-snapshot";
+import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
@@ -43,6 +44,13 @@ async function loadMatchStats(fixtureId: string): Promise<Result<MatchStats, Eng
   return result.ok ? result : fail(result.error.code, STATS_ERROR_MESSAGES[result.error.code]);
 }
 
+/** Küçük fotoğraf önce AI Upscale'den geçer, hemen ardından birefnet (bkz. player-upscale.ts). */
+async function cutPlayer(photo: UploadedImage) {
+  const ready = await ensurePlayerResolution(photo, "Oyuncu fotoğrafı");
+  if (!ready.ok) return ready;
+  return removePlayerBackground({ bytes: ready.data.bytes, contentType: ready.data.contentType });
+}
+
 export interface CreateDraftInput {
   fixtureId: string;
   format: StudioFormat;
@@ -77,9 +85,7 @@ export async function createMatchDraft(input: CreateDraftInput): Promise<Result<
       width: formatDef.width,
       height: formatDef.height,
     }),
-    input.playerPhoto
-      ? removePlayerBackground({ bytes: input.playerPhoto.bytes, contentType: input.playerPhoto.contentType })
-      : Promise.resolve(null),
+    input.playerPhoto ? cutPlayer(input.playerPhoto) : Promise.resolve(null),
   ]);
   if (!background.ok) return fail(background.error.code, background.error.message);
   if (cutout && !cutout.ok) return fail(cutout.error.code, cutout.error.message);

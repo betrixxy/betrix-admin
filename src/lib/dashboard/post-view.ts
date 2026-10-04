@@ -28,6 +28,11 @@ export function toPostView(row: SocialPostRow): SocialPostView {
           comments: row.analytics.comments,
           views: row.analytics.views,
           shares: row.analytics.shares,
+          saves: row.analytics.saves,
+          reach: row.analytics.reach,
+          impressions: row.analytics.impressions,
+          watchTimeSeconds: row.analytics.watchTimeSeconds,
+          source: row.analytics.source,
           lastSyncedAt: row.analytics.lastSyncedAt.toISOString(),
         }
       : null,

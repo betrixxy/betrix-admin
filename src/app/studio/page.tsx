@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cn } from "@/lib/utils";
+import { StudioBrand } from "@/components/features/brand/brand-logo";
 import { StudioWorkspace } from "@/components/features/studio/studio-workspace";
 
 export const metadata: Metadata = {
@@ -24,19 +25,7 @@ export default function StudioPage() {
       <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-3.5 lg:px-10">
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-7 items-center justify-center rounded-md bg-emerald-500/15 text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30">
-                CM
-              </div>
-              <div className="flex flex-col leading-none">
-                <span className="text-sm font-semibold text-white">
-                  CheckMatch.net
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  betrix.pro Studio
-                </span>
-              </div>
-            </div>
+            <StudioBrand />
 
             <nav className="hidden items-center gap-1 sm:flex">
               {NAV_SECTIONS.map((section) => (

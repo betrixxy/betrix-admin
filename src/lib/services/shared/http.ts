@@ -16,6 +16,25 @@ export type HttpResult<T> = { ok: true; data: T } | { ok: false; error: HttpFail
 
 const DEFAULT_TIMEOUT_MS = 8000;
 const DEFAULT_RETRIES = 1;
+const RETRY_BACKOFF_MS = 1000;
+
+function timeoutFailure(timeoutMs: number, phase: string): HttpResult<never> {
+  return { ok: false, error: { kind: "TIMEOUT", message: `${timeoutMs}ms içinde tamamlanamadı (${phase}).` } };
+}
+
+/**
+ * Node/undici ağ hataları yalnızca "fetch failed" der; asıl neden `cause` içindedir
+ * (ör. ECONNRESET, ENOTFOUND, UND_ERR_CONNECT_TIMEOUT). Teşhis için mesaja eklenir.
+ */
+function describeNetworkError(cause: unknown): string {
+  if (!(cause instanceof Error)) return "Bilinmeyen ağ hatası.";
+  const inner: unknown = cause.cause;
+  if (inner instanceof Error) {
+    const code = "code" in inner && typeof inner.code === "string" ? inner.code : inner.name;
+    return `${cause.message} (${code}: ${inner.message})`;
+  }
+  return cause.message;
+}
 
 async function fetchOnce(
   url: string,
@@ -42,25 +61,17 @@ async function fetchOnce(
     try {
       return { ok: true, data: (await response.json()) as unknown };
     } catch {
+      // Zaman aşımı gövde indirilirken de dolabilir (büyük yanıtlar) — bu bir JSON hatası
+      // değil, yeniden denenebilir bir TIMEOUT'tur.
+      if (controller.signal.aborted) return timeoutFailure(timeoutMs, "gövde indirilirken");
       return {
         ok: false,
         error: { kind: "INVALID_JSON", message: "Yanıt gövdesi JSON olarak ayrıştırılamadı." },
       };
     }
   } catch (cause) {
-    if (controller.signal.aborted) {
-      return {
-        ok: false,
-        error: { kind: "TIMEOUT", message: `${timeoutMs}ms içinde yanıt alınamadı.` },
-      };
-    }
-    return {
-      ok: false,
-      error: {
-        kind: "NETWORK",
-        message: cause instanceof Error ? cause.message : "Bilinmeyen ağ hatası.",
-      },
-    };
+    if (controller.signal.aborted) return timeoutFailure(timeoutMs, "yanıt beklenirken");
+    return { ok: false, error: { kind: "NETWORK", message: describeNetworkError(cause) } };
   } finally {
     clearTimeout(timeout);
   }
@@ -87,6 +98,8 @@ export async function fetchJson(
     lastResult = await fetchOnce(url, init, timeoutMs);
     if (lastResult.ok || !isRetryable(lastResult.error)) return lastResult;
     attempt += 1;
+    // Geçici ağ/yük sorunlarında hemen tekrar vurmak yerine artan bekleme (1 sn, 2 sn, …).
+    if (attempt <= retries) await new Promise((resolve) => setTimeout(resolve, RETRY_BACKOFF_MS * attempt));
   } while (attempt <= retries);
 
   return lastResult;

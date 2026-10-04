@@ -26,7 +26,7 @@ model ContentPlan {
   updatedAt    DateTime @updatedAt
 
   /// Bu fikstür için üretilen platform bazlı somut gönderiler (bkz. SocialPost).
-  socialPosts  SocialPost[]
+  socialPosts SocialPost[]
 }
 
 /// Tek admin hesabı — bkz. CLAUDE.md §1.6, yalnızca bu tablodaki kullanıcı
@@ -49,7 +49,7 @@ model SocialPlatform {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  posts       SocialPost[]
+  posts SocialPost[]
 }
 
 enum SocialPlatformType {
@@ -81,9 +81,9 @@ model SocialPost {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  analytics      PostAnalytics?
-  aiContents     AiContent[]
-  trafficLogs    TrafficLog[]
+  analytics   PostAnalytics?
+  aiContents  AiContent[]
+  trafficLogs TrafficLog[]
 
   @@index([fixtureId])
   @@index([scheduledFor])
@@ -98,18 +98,60 @@ enum SocialPostStatus {
 }
 
 /// Yayınlanmış bir SocialPost'un platform metrikleri (bkz. CLAUDE.md §4.1 PostMetrics).
-/// Post başına tek kayıt tutulur, kademeli senkronizasyonla (1s/6s/24s/72s) güncellenir.
+/// Post başına tek kayıt tutulur, kademeli senkronizasyonla (1s/6s/24s/72s) güncellenir
+/// (`lib/services/social-metrics.ts`). Platformun vermediği metrik 0 kalır.
 model PostAnalytics {
-  id           String     @id @default(cuid())
-  postId       String     @unique
-  post         SocialPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  likes        Int        @default(0)
-  comments     Int        @default(0)
-  views        Int        @default(0)
-  shares       Int        @default(0)
-  lastSyncedAt DateTime   @default(now())
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id               String              @id @default(cuid())
+  postId           String              @unique
+  post             SocialPost          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  likes            Int                 @default(0)
+  comments         Int                 @default(0)
+  views            Int                 @default(0)
+  shares           Int                 @default(0)
+  /// Kaydetme / yer imi (IG saves, TikTok favorites, X bookmarks).
+  saves            Int                 @default(0)
+  /// Erişim — gönderiyi gören tekil hesap sayısı.
+  reach            Int                 @default(0)
+  /// Gösterim — toplam görüntülenme (aynı hesap birden çok kez sayılır).
+  impressions      Int                 @default(0)
+  /// Video toplam izlenme süresi (saniye) — YouTube/TikTok/Reels.
+  watchTimeSeconds Int                 @default(0)
+  /// Metriğin kaynağı: elle giriş, platform API'si veya geliştirme mock'u.
+  source           PostAnalyticsSource @default(MANUAL)
+  lastSyncedAt     DateTime            @default(now())
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+enum PostAnalyticsSource {
+  /// Admin tarafından elle girildi
+  MANUAL
+  /// Platform API'sinden senkronize edildi
+  API
+  /// Geliştirme ortamında mock adaptöründen üretildi — gerçek veri değil
+  MOCK
+}
+
+/// Bir sosyal medya hesabının OAuth bağlantısı (bkz. CLAUDE.md §4.1). Platform başına tek hesap.
+/// Token'lar AES-256-GCM ile şifreli saklanır (`lib/services/social/token-crypto.ts`) —
+/// veritabanına asla düz metin token yazılmaz.
+model SocialConnection {
+  id            String             @id @default(cuid())
+  platform      SocialPlatformType @unique
+  /// Platformdaki hesap/sayfa/kanal kimliği.
+  accountId     String
+  accountName   String?
+  /// Şifreli (iv.tag.ciphertext, base64url).
+  accessToken   String
+  /// Şifreli; platform yenileme token'ı vermiyorsa boş.
+  refreshToken  String?
+  expiresAt     DateTime?
+  scopes        String[]
+  lastSyncedAt  DateTime?
+  /// Son senkronizasyon/yenileme hatası — başarılı senkronizasyonda temizlenir.
+  lastSyncError String?
+  connectedAt   DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 }
 
 /// Fal.ai ile üretilen görsellerin kaydı (bkz. CLAUDE.md Bölüm 3 — birefnet/flux
@@ -145,8 +187,8 @@ model AiContent {
   backgroundImageUrl String?
   reviewedAt         DateTime?
 
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([postId])
   @@index([fixtureId])

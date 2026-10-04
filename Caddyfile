@@ -1,11 +1,23 @@
-# Ters vekil (reverse proxy) + otomatik HTTPS (Let's Encrypt) — bkz. docker-compose.prod.yml.
-# APP_DOMAIN ve ACME_EMAIL, .env.production'dan gelir.
+# İç ters vekil — bkz. docker-compose.prod.yml ve CLAUDE.md 1.9.
+#
+#   ziyaretçi ──HTTPS──► Cloudflare kenarı ──(giden) tünel──► cloudflared ──HTTP──► caddy:80 ──► app:3000
+#
+# HTTPS sertifikası Cloudflare kenarında sonlanır; Caddy ACME/Let's Encrypt kullanmaz ve
+# hiçbir portu host'a açmaz — tek giriş yolu, iç ağdaki cloudflared konteyneridir.
+# APP_DOMAIN .env.production'dan gelir.
 
 {
-	email {$ACME_EMAIL}
+	auto_https off
+
+	servers {
+		# İstekler yalnızca iç ağdaki cloudflared'den gelir; gerçek ziyaretçi IP'si Cloudflare'in
+		# koyduğu CF-Connecting-IP başlığındadır (istemcinin gönderdiğini Cloudflare ezer).
+		trusted_proxies static private_ranges
+		client_ip_headers Cf-Connecting-Ip
+	}
 }
 
-{$APP_DOMAIN} {
+http://{$APP_DOMAIN} {
 	encode zstd gzip
 
 	header {
@@ -22,7 +34,11 @@
 		max_size 25MB
 	}
 
-	# Caddy, istemcinin gönderdiği X-Forwarded-For'u gerçek IP ile ezer —
-	# /api/track rate limit'i sahte IP başlığıyla atlatılamaz.
-	reverse_proxy app:3000
+	# Uygulama gerçek ziyaretçi IP'sini tek değerli X-Forwarded-For'dan okur (/api/track rate
+	# limit'i). {client_ip} yukarıdaki güvenilir vekil ayarıyla CF-Connecting-IP'dir; istemcinin
+	# gönderdiği sahte X-Forwarded-For zinciri burada tamamen ezilir.
+	reverse_proxy app:3000 {
+		header_up X-Forwarded-For {client_ip}
+		header_up X-Real-IP {client_ip}
+	}
 }

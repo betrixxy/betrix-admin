@@ -1,45 +1,51 @@
-import type { SocialPlatformType } from "@/types/social";
+import { listConnections, toConnectionView } from "@/lib/services/social/connections";
+import { isProviderConfigured } from "@/lib/services/social/oauth-providers";
+import { PLATFORM_TO_SLUG } from "@/lib/services/social/platforms";
+import { SOCIAL_PLATFORM_TYPES, type SocialPlatformType } from "@/types/social";
+import type { IntegrationStatus } from "@/types/social-connection";
 
-export interface IntegrationDef {
-  id: string;
+interface IntegrationDef {
   name: string;
   description: string;
-  platforms: readonly SocialPlatformType[];
-  /** Şu an hiçbir entegrasyon canlı değil; API bağlandığında "connected" olur. */
-  status: "not_connected" | "connected";
 }
 
-/**
- * Metrik ve reklam verisini çekecek gelecekteki API bağlantıları (bkz. CLAUDE.md 4.1 —
- * `lib/services/meta|tiktok|youtube|x`). Yeni bir sağlayıcı eklemek için bu listeye satır eklemek yeterli.
- */
-export const INTEGRATIONS: readonly IntegrationDef[] = [
-  {
-    id: "meta",
-    name: "Meta (Instagram + Facebook)",
-    description: "Graph API ile erişim, kaydetme ve izlenme; Marketing API ile reklam harcaması.",
-    platforms: ["META_INSTAGRAM", "META_FACEBOOK"],
-    status: "not_connected",
+/** Platform başına OAuth bağlantısı (bkz. CLAUDE.md 4.1). Instagram ve Facebook aynı Meta uygulamasını kullanır. */
+const INTEGRATION_DEFS: Record<SocialPlatformType, IntegrationDef> = {
+  META_INSTAGRAM: {
+    name: "Instagram",
+    description: "Graph API: beğeni, yorum, paylaşım, kaydetme, erişim, izlenme.",
   },
-  {
-    id: "tiktok",
+  META_FACEBOOK: {
+    name: "Facebook",
+    description: "Graph API: tepki, yorum, paylaşım, erişim ve gösterim.",
+  },
+  TIKTOK: {
     name: "TikTok",
-    description: "Content/Business API ile izlenme, ortalama izlenme süresi ve reklam performansı.",
-    platforms: ["TIKTOK"],
-    status: "not_connected",
+    description: "Display API: izlenme, beğeni, yorum, paylaşım.",
   },
-  {
-    id: "youtube",
+  YOUTUBE: {
     name: "YouTube",
-    description: "Data + Analytics API ile izlenme süresi ve abone kazanımı.",
-    platforms: ["YOUTUBE"],
-    status: "not_connected",
+    description: "Data + Analytics API: izlenme, beğeni, yorum, izlenme süresi.",
   },
-  {
-    id: "x",
+  X: {
     name: "X (Twitter)",
-    description: "X API v2 ile gösterim, yeniden paylaşım ve profil tıklamaları.",
-    platforms: ["X"],
-    status: "not_connected",
+    description: "X API v2: gösterim, beğeni, yanıt, yeniden paylaşım, yer imi.",
   },
-];
+};
+
+/** Her platform için bağlantı durumu — token'lar bu görünüme asla girmez. */
+export async function getIntegrationStatuses(): Promise<IntegrationStatus[]> {
+  const connections = await listConnections();
+  const byPlatform = new Map(connections.map((row) => [row.platform, toConnectionView(row)]));
+
+  return SOCIAL_PLATFORM_TYPES.map((platform) => {
+    const slug = PLATFORM_TO_SLUG[platform];
+    return {
+      platform,
+      slug,
+      ...INTEGRATION_DEFS[platform],
+      configured: isProviderConfigured(slug),
+      connection: byPlatform.get(platform) ?? null,
+    };
+  });
+}

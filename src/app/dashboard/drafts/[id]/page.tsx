@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download, ImageOff } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
 import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
 import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { PageHeader } from "@/components/features/dashboard/page-header";
+import { RenderThumbnail } from "@/components/features/dashboard/render-thumbnail";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDraft, getLinkablePosts } from "@/lib/dashboard/draft-data";
@@ -29,6 +30,11 @@ const backLink = (
   </Link>
 );
 
+/** Eski kayıtlar SVG, yeniler PNG olabilir — indirme adı dosyanın gerçek uzantısını izler. */
+function fileExtension(url: string): string {
+  return /.([a-z0-9]+)$/i.exec(url)?.[1]?.toLowerCase() ?? "png";
+}
+
 function Preview({ url, width, height, downloadName }: { url: string | null; width: number; height: number; downloadName: string }) {
   return (
     <div className="flex flex-col gap-3">
@@ -36,17 +42,12 @@ function Preview({ url, width, height, downloadName }: { url: string | null; wid
         className="mx-auto flex max-h-[640px] w-full items-center justify-center overflow-hidden rounded-lg bg-muted/30 ring-1 ring-border"
         style={{ aspectRatio: `${width} / ${height}` }}
       >
-        {url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={url} alt="Taslak görsel" className="size-full object-contain" />
-        ) : (
-          <ImageOff className="size-6 text-muted-foreground" />
-        )}
+        <RenderThumbnail src={url} alt="Taslak görsel" iconClassName="size-6" />
       </div>
       {url ? (
-        <a href={url} download={downloadName} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+        <a href={url} download={`${downloadName}.${fileExtension(url)}`} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
           <Download />
-          Görseli indir (SVG)
+          Görseli indir ({fileExtension(url).toUpperCase()})
         </a>
       ) : null}
     </div>
@@ -61,11 +62,11 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   if (lookup.kind === "legacy") {
     return (
       <>
-        <PageHeader title="Eski Kayıt" description="Bu görsel onay akışından önce, maç verisi saklanmadan üretildi — yalnızca görüntülenebilir." actions={backLink} />
+        <PageHeader title="Eski Kayıt" description="Bu görsel maç istatistiği anlık görüntüsü olmadan üretildi (ör. Maç Günü kartı veya eski bir kayıt) — yalnızca görüntülenebilir ve indirilebilir." actions={backLink} />
         <Card className="max-w-md">
           <CardContent className="flex flex-col gap-3 pt-6">
             <DraftStatusBadge status={lookup.status} />
-            <Preview url={lookup.resultImageUrl} width={1080} height={1350} downloadName={`checkmatch-${lookup.id}.svg`} />
+            <Preview url={lookup.resultImageUrl} width={1080} height={1350} downloadName={`checkmatch-${lookup.id}`} />
           </CardContent>
         </Card>
       </>
@@ -101,7 +102,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
                 url={draft.resultImageUrl}
                 width={formatDef.width}
                 height={formatDef.height}
-                downloadName={`checkmatch-${draft.format.toLowerCase()}-${draft.id}.svg`}
+                downloadName={`checkmatch-${draft.format.toLowerCase()}-${draft.id}`}
               />
               <CopyTextButton text={draft.caption} />
               <details className="text-[11px] text-muted-foreground">

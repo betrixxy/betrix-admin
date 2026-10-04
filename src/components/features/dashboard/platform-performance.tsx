@@ -19,6 +19,7 @@ export function PlatformPerformanceTable({ platforms }: { platforms: PlatformPer
               <TableHead>Platform</TableHead>
               <TableHead className="text-right">Gönderi</TableHead>
               <TableHead className="text-right">İzlenme</TableHead>
+              <TableHead className="text-right">Kaydetme</TableHead>
               <TableHead className="text-right">Etkileşim</TableHead>
               <TableHead className="text-right">Tıklama</TableHead>
             </TableRow>
@@ -34,6 +35,7 @@ export function PlatformPerformanceTable({ platforms }: { platforms: PlatformPer
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{formatNumber(platform.postCount)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatCompactNumber(platform.views)}</TableCell>
+                <TableCell className="text-right tabular-nums">{formatCompactNumber(platform.saves)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatPercent(platform.engagementRate)}</TableCell>
                 <TableCell className="text-right tabular-nums">{formatNumber(platform.clicks)}</TableCell>
               </TableRow>

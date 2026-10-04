@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandLogo } from "@/components/features/brand/brand-logo";
 import { LoginForm } from "@/components/features/auth/login-form";
 import { resolveRedirectTarget } from "@/lib/auth/redirect";
 
@@ -26,10 +27,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <Card className="relative w-full max-w-sm">
         <CardHeader className="items-center gap-1.5 pb-2 text-center">
-          <div className="mb-2 flex size-9 items-center justify-center rounded-md bg-emerald-500/15 text-sm font-bold text-emerald-400 ring-1 ring-emerald-500/30">
-            CM
-          </div>
-          <CardTitle className="text-lg">CheckMatch.net</CardTitle>
+          <CardTitle className="mb-1 flex justify-center">
+            <BrandLogo className="h-8" priority />
+          </CardTitle>
           <CardDescription>betrix.pro Studio · Admin Girişi</CardDescription>
         </CardHeader>
         <CardContent>

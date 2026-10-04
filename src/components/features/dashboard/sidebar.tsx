@@ -1,21 +1,8 @@
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/app/login/actions";
 import { Button } from "@/components/ui/button";
+import { StudioBrand as Brand } from "@/components/features/brand/brand-logo";
 import { SidebarNav, TopBarNav } from "./sidebar-nav";
-
-function Brand() {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex size-8 items-center justify-center rounded-md bg-emerald-500/15 text-xs font-bold text-emerald-400 ring-1 ring-emerald-500/30">
-        CM
-      </div>
-      <div className="flex flex-col leading-none">
-        <span className="text-sm font-semibold text-white">CheckMatch.net</span>
-        <span className="text-[10px] text-muted-foreground">betrix.pro Studio</span>
-      </div>
-    </div>
-  );
-}
 
 function LogoutButton() {
   return (

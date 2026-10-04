@@ -21,12 +21,15 @@ const INITIAL_STATE: SocialActionState = {};
 
 const FIELDS = [
   { name: "views", label: "İzlenme" },
+  { name: "reach", label: "Erişim (tekil hesap)" },
+  { name: "impressions", label: "Gösterim" },
   { name: "likes", label: "Beğeni" },
   { name: "comments", label: "Yorum" },
   { name: "shares", label: "Paylaşım" },
+  { name: "saves", label: "Kaydetme" },
 ] as const;
 
-/** Meta/TikTok API'leri bağlanana kadar metrikleri elle girmek için. */
+/** API'si bağlanmamış platformlar için metrikleri elle girmek; bağlı platformlarda senkronizasyon ezer. */
 export function EditMetricsSheet({ post, postLabel, closeHref }: EditMetricsSheetProps) {
   const router = useRouter();
   const { state, isPending, onSubmit } = useActionForm(updatePostAnalyticsAction, INITIAL_STATE);
@@ -45,7 +48,7 @@ export function EditMetricsSheet({ post, postLabel, closeHref }: EditMetricsShee
           </SheetDescription>
         </SheetHeader>
 
-        <form onSubmit={onSubmit} className="flex flex-col gap-3.5 px-4 pb-4">
+        <form onSubmit={onSubmit} className="flex flex-col gap-3.5 overflow-y-auto px-4 pb-4">
           <input type="hidden" name="postId" value={post.id} />
           {FIELDS.map((field) => (
             <div key={field.name} className="flex flex-col gap-1.5">
