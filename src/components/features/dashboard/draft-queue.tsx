@@ -18,7 +18,7 @@ export function DraftQueue({ drafts, fixtureLabels }: DraftQueueProps) {
         <CardTitle>Onay Bekleyen Taslaklar</CardTitle>
         <CardDescription>
           {drafts.length === 0
-            ? "Bekleyen taslak yok — bir maçın yanındaki \"AI İçerik Üret\" ile başlayın."
+            ? "Bekleyen taslak yok — bir maçın yanında içerik türünü seçip \"Stüdyoya Git\" ile başlayın."
             : `${drafts.length} taslak incelemenizi bekliyor.`}
         </CardDescription>
       </CardHeader>
