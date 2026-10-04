@@ -10,7 +10,7 @@ import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
   title: "Maç Merkezi — betrix.pro",
-  description: "Gerçek fikstür, tek tıkla AI içerik taslağı ve onay kuyruğu",
+  description: "Gerçek fikstür, içerik türü seçimi ve onay kuyruğu",
 };
 
 // Canlı fikstür ve veritabanı — statik önbelleğe alınmaz (bkz. CLAUDE.md 1.5).
@@ -39,7 +39,7 @@ export default async function MatchesPage() {
     <>
       <PageHeader
         title="Maç Merkezi"
-        description={`Önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). "AI İçerik Üret" maçın gerçek istatistiklerini çeker, Fal.ai ile görseli üretir ve taslağı onayınıza sunar — hiçbir içerik onaysız yayına hazır sayılmaz.`}
+        description={`Önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Her maç için içerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
       />
 
       {!falConfigured ? (
@@ -50,7 +50,7 @@ export default async function MatchesPage() {
       {!fixtures.ok ? <Warning>Fikstür alınamadı: {fixtures.error.message}</Warning> : null}
 
       <DraftQueue drafts={queue} fixtureLabels={fixtureLabels} />
-      <MatchList fixtures={fixtureList} draftCounts={draftCounts} generationDisabled={!falConfigured} />
+      <MatchList fixtures={fixtureList} draftCounts={draftCounts} />
     </>
   );
 }

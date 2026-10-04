@@ -33,7 +33,7 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
   {
     href: "/dashboard/matches",
     label: "Maç Merkezi",
-    description: "Tek tıkla AI taslağı + onay",
+    description: "İçerik türü seç → stüdyo + onay",
     icon: Trophy,
   },
   {

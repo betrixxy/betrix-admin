@@ -23,9 +23,22 @@ function Notice({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default async function MatchDayPage() {
-  const [fixtures, playerOptions] = await Promise.all([getMatchDayFixtureOptions(), getMediaAssetOptions("PLAYER")]);
+interface MatchDayPageProps {
+  /** Maç Merkezi'nin "Stüdyoya Git" bağlantısı `?fixtureId=api-football-<id>` ile açar (bkz. lib/dashboard/content-types.ts). */
+  searchParams: Promise<{ fixtureId?: string | string[] }>;
+}
+
+export default async function MatchDayPage({ searchParams }: MatchDayPageProps) {
+  const [fixtures, playerOptions, params] = await Promise.all([
+    getMatchDayFixtureOptions(),
+    getMediaAssetOptions("PLAYER"),
+    searchParams,
+  ]);
   const falConfigured = isFalConfigured();
+  const fixtureList = fixtures.ok ? fixtures.data : [];
+  const requestedFixtureId = typeof params.fixtureId === "string" ? params.fixtureId : null;
+  // Yalnızca listedeki (API-Football, önümüzdeki 7 gün) bir maç ön-seçilir; bilinmeyen kimlik formu doldurmaz.
+  const initialFixtureId = fixtureList.some((fixture) => fixture.id === requestedFixtureId) ? requestedFixtureId : null;
 
   return (
     <>
@@ -45,8 +58,13 @@ export default async function MatchDayPage() {
         </Notice>
       ) : null}
 
+      {requestedFixtureId && !initialFixtureId && fixtures.ok ? (
+        <Notice>Seçilen maç önümüzdeki 7 günün fikstüründe bulunamadı — maçı listeden seçin ya da alanları elle doldurun.</Notice>
+      ) : null}
+
       <MatchDayForm
-        fixtures={fixtures.ok ? fixtures.data : []}
+        fixtures={fixtureList}
+        initialFixtureId={initialFixtureId}
         playerOptions={playerOptions}
         disabled={!falConfigured}
       />

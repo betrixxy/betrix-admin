@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { FixtureDraftCounts } from "@/lib/dashboard/draft-data";
 import type { Fixture, FixtureStatus } from "@/types/sports";
-import { GenerateDraftForm } from "./generate-draft-form";
+import { StudioLauncher } from "./studio-launcher";
 
 const dayFormatter = new Intl.DateTimeFormat("tr-TR", {
   timeZone: "Europe/Istanbul",
@@ -42,10 +42,9 @@ function TeamCell({ name, logoUrl, align }: { name: string; logoUrl: string; ali
 interface MatchListProps {
   fixtures: Fixture[];
   draftCounts: Record<string, FixtureDraftCounts>;
-  generationDisabled: boolean;
 }
 
-export function MatchList({ fixtures, draftCounts, generationDisabled }: MatchListProps) {
+export function MatchList({ fixtures, draftCounts }: MatchListProps) {
   if (fixtures.length === 0) {
     return (
       <Card>
@@ -87,7 +86,7 @@ export function MatchList({ fixtures, draftCounts, generationDisabled }: MatchLi
                           {counts.drafts} taslak · {counts.approved} onaylı
                         </span>
                       ) : null}
-                      <GenerateDraftForm fixtureId={fixture.id} disabled={generationDisabled} />
+                      <StudioLauncher fixtureId={fixture.id} />
                     </div>
                   </li>
                 );

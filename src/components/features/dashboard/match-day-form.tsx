@@ -22,6 +22,8 @@ import { EMPTY_MATCH_DAY_INFO, MatchDayInfoFields, type MatchDayInfoValues } fro
 
 interface MatchDayFormProps {
   fixtures: MatchDayFixtureOption[];
+  /** URL'den (`?fixtureId=`) gelen, listede bulunduğu doğrulanmış maç — form bu maçla dolu açılır. */
+  initialFixtureId?: string | null;
   /** Medya kütüphanesindeki oyuncu fotoğrafları (bkz. CLAUDE.md 1.11). */
   playerOptions: MediaAssetOption[];
   disabled?: boolean;
@@ -52,17 +54,22 @@ function toInfo(fixture: MatchDayFixtureOption): MatchDayInfoValues {
   };
 }
 
-export function MatchDayForm({ fixtures, playerOptions, disabled = false }: MatchDayFormProps) {
+function infoFor(fixtures: MatchDayFixtureOption[], id: string): MatchDayInfoValues {
+  const fixture = fixtures.find((option) => option.id === id);
+  return fixture ? toInfo(fixture) : EMPTY_MATCH_DAY_INFO;
+}
+
+export function MatchDayForm({ fixtures, initialFixtureId = null, playerOptions, disabled = false }: MatchDayFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateMatchDayAction, INITIAL_STATE);
-  const [fixtureId, setFixtureId] = useState("");
-  const [info, setInfo] = useState<MatchDayInfoValues>(EMPTY_MATCH_DAY_INFO);
+  const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
+  // Maç Merkezi'nden gelindiyse takımlar, logolar, stadyum, tarih/saat ilk çizimde dolu gelir.
+  const [info, setInfo] = useState<MatchDayInfoValues>(() => infoFor(fixtures, initialFixtureId ?? ""));
   const [template, setTemplate] = useState<string>(RANDOM_TEMPLATE);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
 
   function selectFixture(id: string) {
     setFixtureId(id);
-    const fixture = fixtures.find((option) => option.id === id);
-    setInfo(fixture ? toInfo(fixture) : EMPTY_MATCH_DAY_INFO);
+    setInfo(infoFor(fixtures, id));
   }
 
   return (
