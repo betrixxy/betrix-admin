@@ -2,13 +2,13 @@ export type SupportedLeagueId =
   | "ucl"
   | "uel"
   | "uecl"
-  | "nations-league"
   | "premier-league"
   | "la-liga"
   | "serie-a"
   | "bundesliga"
   | "ligue-1"
-  | "super-lig";
+  | "super-lig"
+  | "tff-1-lig";
 
 export interface SupportedLeague {
   id: SupportedLeagueId;
@@ -26,18 +26,19 @@ export const SUPPORTED_LEAGUES: SupportedLeague[] = [
   { id: "ucl", apiFootballId: 2, name: "UEFA Şampiyonlar Ligi", shortName: "UCL" },
   { id: "uel", apiFootballId: 3, name: "UEFA Avrupa Ligi", shortName: "UEL" },
   { id: "uecl", apiFootballId: 848, name: "UEFA Konferans Ligi", shortName: "UECL" },
-  { id: "nations-league", apiFootballId: 5, name: "UEFA Uluslar Ligi", shortName: "Uluslar Ligi" },
   { id: "premier-league", apiFootballId: 39, name: "Premier Lig", shortName: "Premier Lig" },
   { id: "la-liga", apiFootballId: 140, name: "LaLiga", shortName: "LaLiga" },
   { id: "serie-a", apiFootballId: 135, name: "Serie A", shortName: "Serie A" },
   { id: "bundesliga", apiFootballId: 78, name: "Bundesliga", shortName: "Bundesliga" },
   { id: "ligue-1", apiFootballId: 61, name: "Ligue 1", shortName: "Ligue 1" },
   { id: "super-lig", apiFootballId: 203, name: "Trendyol Süper Lig", shortName: "Süper Lig" },
+  { id: "tff-1-lig", apiFootballId: 204, name: "Trendyol 1. Lig", shortName: "1. Lig" },
 ];
 
-const SUPPORTED_LEAGUE_API_FOOTBALL_IDS = new Set(
-  SUPPORTED_LEAGUES.map((league) => league.apiFootballId),
-);
+/** Fikstür listelerine geçmesine izin verilen API-Football `league.id`'leri; diğer ligler atılır. */
+export const SUPPORTED_LEAGUE_IDS: readonly number[] = SUPPORTED_LEAGUES.map((league) => league.apiFootballId);
+
+const SUPPORTED_LEAGUE_API_FOOTBALL_IDS = new Set(SUPPORTED_LEAGUE_IDS);
 
 export function isSupportedLeagueId(apiFootballLeagueId: number): boolean {
   return SUPPORTED_LEAGUE_API_FOOTBALL_IDS.has(apiFootballLeagueId);
