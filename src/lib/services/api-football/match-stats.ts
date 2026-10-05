@@ -6,7 +6,11 @@ import {
   computeRecentForm,
   selectFinishedBefore,
 } from "@/lib/services/api-football/form-mappers";
-import { apiFootballFixturesResponseSchema, type ApiFootballError } from "@/lib/services/api-football/types";
+import {
+  apiFootballFixturesResponseSchema,
+  type ApiFootballError,
+  type ApiFootballFixtureDetailRaw,
+} from "@/lib/services/api-football/types";
 import type { Result } from "@/types/result";
 import type { HeadToHeadSummary, MatchStats, TeamRecentForm, TeamRef } from "@/types/sports";
 
@@ -36,23 +40,30 @@ async function getLastFixtures(teamId: number) {
 }
 
 /**
- * Takımın maç öncesi son 5 bitmiş maçından form, gol ve xG ortalamaları. İki istek:
- * son maç listesi + bu maçların istatistikli detayı (`/fixtures?ids=`, xG buradan gelir).
+ * Takımın maç öncesi son 5 bitmiş maçının istatistikli detayı (eskiden yeniye). İki istek:
+ * son maç listesi + bu maçların detayı (`/fixtures?ids=` — xG, maç ve oyuncu istatistikleri).
  */
-export async function getTeamRecentForm(
+export async function getRecentFixtureDetails(
   team: TeamRef,
   beforeUtc: string,
-): Promise<Result<TeamRecentForm, ApiFootballError>> {
-  const teamId = Number(team.id);
-  const last = await getLastFixtures(teamId);
+): Promise<Result<ApiFootballFixtureDetailRaw[], ApiFootballError>> {
+  const last = await getLastFixtures(Number(team.id));
   if (!last.ok) return last;
 
   const recent = selectFinishedBefore(last.data, beforeUtc, RECENT_FORM_SIZE);
   const details = await getFixtureDetailsByIds(recent.map((raw) => raw.fixture.id));
   if (!details.ok) return details;
+  return { ok: true, data: selectFinishedBefore(details.data, beforeUtc, RECENT_FORM_SIZE) };
+}
 
-  const ordered = selectFinishedBefore(details.data, beforeUtc, RECENT_FORM_SIZE);
-  return { ok: true, data: computeRecentForm(ordered, { id: teamId, name: team.name, logoUrl: team.logoUrl }) };
+/** Takımın maç öncesi son 5 bitmiş maçından form, gol ve xG ortalamaları. */
+export async function getTeamRecentForm(
+  team: TeamRef,
+  beforeUtc: string,
+): Promise<Result<TeamRecentForm, ApiFootballError>> {
+  const details = await getRecentFixtureDetails(team, beforeUtc);
+  if (!details.ok) return details;
+  return { ok: true, data: computeRecentForm(details.data, { id: Number(team.id), name: team.name, logoUrl: team.logoUrl }) };
 }
 
 export async function getHeadToHead(

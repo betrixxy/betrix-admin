@@ -58,12 +58,42 @@ export const apiFootballTeamStatisticsSchema = z.object({
   statistics: z.array(apiFootballStatisticSchema),
 });
 
+const nullableNumber = z.number().nullish();
+
+/** `/fixtures?ids=` içindeki oyuncu satırı — yalnızca kullanılan alanlar; hepsi boş gelebilir. */
+export const apiFootballPlayerStatisticsSchema = z.object({
+  games: z.object({ minutes: nullableNumber, position: z.string().nullish(), rating: z.string().nullish() }).nullish(),
+  goals: z.object({ total: nullableNumber, assists: nullableNumber }).nullish(),
+  passes: z.object({ key: nullableNumber }).nullish(),
+  tackles: z.object({ total: nullableNumber, interceptions: nullableNumber }).nullish(),
+  duels: z.object({ total: nullableNumber, won: nullableNumber }).nullish(),
+});
+
+export const apiFootballTeamPlayersSchema = z.object({
+  team: z.object({ id: z.number() }),
+  players: z.array(
+    z.object({
+      player: z.object({ id: z.number(), name: z.string(), photo: z.string().nullish() }),
+      statistics: z.array(apiFootballPlayerStatisticsSchema),
+    }),
+  ),
+});
+
+export const apiFootballLineupSchema = z.object({
+  team: z.object({ id: z.number() }),
+  formation: z.string().nullish(),
+});
+
 /**
  * `/fixtures?ids=a-b-c` yanıtındaki ayrıntılı fikstür — temel alanlara ek olarak maç
- * istatistiklerini (xG dahil, `expected_goals`) içerir. Kapsam dışı liglerde boş gelir.
+ * istatistiklerini (xG dahil, `expected_goals`), oyuncu istatistiklerini ve dizilişi içerir.
+ * Kapsam dışı liglerde boş gelir. Oyuncu/diziliş blokları bozuk gelirse boş sayılır: derin
+ * analiz verisi eksik kalır ama form/xG kullanan mevcut akışlar asla bu yüzden düşmez.
  */
 export const apiFootballFixtureDetailRawSchema = apiFootballFixtureRawSchema.extend({
   statistics: z.array(apiFootballTeamStatisticsSchema).optional().default([]),
+  players: z.array(apiFootballTeamPlayersSchema).optional().default([]).catch([]),
+  lineups: z.array(apiFootballLineupSchema).optional().default([]).catch([]),
 });
 
 export type ApiFootballFixtureDetailRaw = z.infer<typeof apiFootballFixtureDetailRawSchema>;

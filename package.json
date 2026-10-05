@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:visual": "tsx --test tests/visual/match-day.test.ts",
     "test:visual:update": "tsx --test tests/visual/match-day.test.ts"
   },

@@ -55,7 +55,8 @@ export function loadMatchDayFonts(): Promise<MatchDayFont[]> {
   return fontsPromise;
 }
 
-function loadBrandLogo(): Promise<string> {
+/** CheckMatch.net logosu (data URL) — süreç başına bir kez okunur; diğer şablonlar da kullanır. */
+export function loadBrandLogo(): Promise<string> {
   brandLogoPromise ??= readFile(path.join(PUBLIC_ROOT, BRAND_LOGO_FILE))
     .then((bytes) => `data:image/png;base64,${bytes.toString("base64")}`)
     .catch((error: unknown) => {
@@ -110,7 +111,7 @@ async function fetchRemoteImage(ref: string): Promise<Buffer | null> {
  * Görsel referansını (`/api/files/...` veya `http(s)://`) Satori'nin okuyabileceği PNG/JPEG
  * `data:` URI'sine çevirir. WebP vb. biçimler sharp ile dönüştürülür. Başarısızlıkta `null`.
  */
-async function resolveImage(ref: string | undefined, maxSide: number): Promise<string | null> {
+export async function resolveImage(ref: string | undefined, maxSide: number): Promise<string | null> {
   if (!ref) return null;
   const stored = parseStoredFileUrl(ref);
   const bytes = stored ? await readStoredFile(stored.bucket, stored.fileName) : await fetchRemoteImage(ref);

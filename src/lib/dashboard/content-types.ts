@@ -22,10 +22,10 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
   {
     id: "AI_MARKET_PREDICTION",
     label: "AI Market Tahmin & Analiz",
-    description: "CheckMatch verisiyle maç öncesi market tahmini ve gerekçesi.",
+    description: "İki takımın Derinlemesine Analiz kartı (güçlü yönler, anahtar oyuncular, istatistik) ve market tahmini.",
     phase: "pre_match",
-    status: "coming_soon",
-    route: null,
+    status: "active",
+    route: "/dashboard/studio/market-analysis",
   },
   { id: "HEAD_TO_HEAD", label: "Head to Head", description: "İki takımın aralarındaki son maçlar.", phase: "pre_match", status: "coming_soon", route: null },
   {
