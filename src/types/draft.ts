@@ -50,10 +50,26 @@ export interface DraftActionState {
   notice?: string;
 }
 
+/** AI Market Tahmin & Analiz taslağı — iki takımın kartı + market tahmini (bkz. market-analysis-engine.ts). */
+export interface MarketAnalysisDraftView {
+  id: string;
+  fixtureId: string;
+  status: AiContentStatus;
+  caption: string;
+  postId: string | null;
+  reviewedAt: string | null;
+  home: { teamName: string; imageUrl: string };
+  away: { teamName: string; imageUrl: string };
+  marketPick: string;
+  marketRationale: string;
+}
+
 /**
- * İnceleme ekranı araması: tam taslak, ya da onay akışı öncesi üretilmiş (maç verisi snapshot'ı
- * olmayan) eski bir kayıt — ikincisi yalnızca görüntülenir, düzenlenemez.
+ * İnceleme ekranı araması: tam taslak, market analizi taslağı (iki kart, onaylanabilir) ya da
+ * onay akışı öncesi üretilmiş (maç verisi snapshot'ı olmayan) eski bir kayıt — sonuncusu yalnızca
+ * görüntülenir, düzenlenemez.
  */
 export type DraftLookup =
   | { kind: "draft"; draft: DraftView }
+  | { kind: "market-analysis"; draft: MarketAnalysisDraftView }
   | { kind: "legacy"; id: string; status: AiContentStatus; resultImageUrl: string | null };

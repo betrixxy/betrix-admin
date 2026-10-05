@@ -1,10 +1,22 @@
 import { format } from "date-fns";
+import { z } from "zod";
 import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { DraftLookup, DraftSummary, DraftView } from "@/types/draft";
+
+/** `AiContent.renderOptions` — market analizi kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const marketAnalysisOptionsSchema = z.object({
+  kind: z.literal("MARKET_ANALYSIS"),
+  homeImageUrl: z.string(),
+  awayImageUrl: z.string(),
+  home: z.object({ teamName: z.string() }),
+  away: z.object({ teamName: z.string() }),
+  marketPick: z.string(),
+  marketRationale: z.string(),
+});
 
 function toStudioFormat(value: string | null): StudioFormat | null {
   return STUDIO_FORMATS.find((format) => format === value) ?? null;
@@ -17,6 +29,28 @@ function toStudioFormat(value: string | null): StudioFormat | null {
 export async function getDraft(id: string): Promise<DraftLookup | null> {
   const record = await prisma.aiContent.findUnique({ where: { id } });
   if (!record) return null;
+
+  if (record.contentType === "AI_MARKET_PREDICTION") {
+    const options = marketAnalysisOptionsSchema.safeParse(record.renderOptions);
+    if (options.success) {
+      const { home, away, homeImageUrl, awayImageUrl, marketPick, marketRationale } = options.data;
+      return {
+        kind: "market-analysis",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          home: { teamName: home.teamName, imageUrl: homeImageUrl },
+          away: { teamName: away.teamName, imageUrl: awayImageUrl },
+          marketPick,
+          marketRationale,
+        },
+      };
+    }
+  }
 
   const stats = parseStatsSnapshot(record.statsSnapshot);
   const format = toStudioFormat(record.format);

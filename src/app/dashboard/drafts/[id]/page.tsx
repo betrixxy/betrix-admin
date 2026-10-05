@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
 import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
+import { DraftPreview as Preview } from "@/components/features/dashboard/draft-preview";
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
 import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
+import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
-import { RenderThumbnail } from "@/components/features/dashboard/render-thumbnail";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDraft, getLinkablePosts } from "@/lib/dashboard/draft-data";
@@ -30,34 +31,25 @@ const backLink = (
   </Link>
 );
 
-/** Eski kayıtlar SVG, yeniler PNG olabilir — indirme adı dosyanın gerçek uzantısını izler. */
-function fileExtension(url: string): string {
-  return /.([a-z0-9]+)$/i.exec(url)?.[1]?.toLowerCase() ?? "png";
-}
-
-function Preview({ url, width, height, downloadName }: { url: string | null; width: number; height: number; downloadName: string }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <div
-        className="mx-auto flex max-h-[640px] w-full items-center justify-center overflow-hidden rounded-lg bg-muted/30 ring-1 ring-border"
-        style={{ aspectRatio: `${width} / ${height}` }}
-      >
-        <RenderThumbnail src={url} alt="Taslak görsel" iconClassName="size-6" />
-      </div>
-      {url ? (
-        <a href={url} download={`${downloadName}.${fileExtension(url)}`} className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
-          <Download />
-          Görseli indir ({fileExtension(url).toUpperCase()})
-        </a>
-      ) : null}
-    </div>
-  );
-}
-
 export default async function DraftPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const lookup = await getDraft(id);
   if (!lookup) notFound();
+
+  if (lookup.kind === "market-analysis") {
+    const { draft } = lookup;
+    const postOptions = draft.status === "DRAFT" ? await getLinkablePosts(draft.fixtureId) : [];
+    return (
+      <>
+        <PageHeader
+          title={`${draft.home.teamName} – ${draft.away.teamName}`}
+          description="AI Market Tahmin & Analiz · iki takımın Derinlemesine Analiz kartı — onayınız olmadan yayına hazır sayılmaz."
+          actions={backLink}
+        />
+        <MarketAnalysisDraftView draft={draft} postOptions={postOptions} />
+      </>
+    );
+  }
 
   if (lookup.kind === "legacy") {
     return (
