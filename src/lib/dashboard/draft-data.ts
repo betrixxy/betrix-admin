@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
@@ -57,7 +58,7 @@ export async function getLinkablePosts(fixtureId: string): Promise<StudioPostOpt
 /** Onay bekleyen taslaklar — en yeni önce. */
 export async function getDraftQueue(limit = 20): Promise<DraftSummary[]> {
   const rows = await prisma.aiContent.findMany({
-    where: { status: "DRAFT" },
+    where: { status: "DRAFT", ...WITHOUT_SCHEDULE_PLACEHOLDERS },
     orderBy: { createdAt: "desc" },
     take: limit,
     select: { id: true, fixtureId: true, status: true, format: true, resultImageUrl: true, createdAt: true },
@@ -75,7 +76,7 @@ export async function getDraftCountsByFixture(fixtureIds: string[]): Promise<Rec
   if (fixtureIds.length === 0) return {};
   const groups = await prisma.aiContent.groupBy({
     by: ["fixtureId", "status"],
-    where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] } },
+    where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] }, ...WITHOUT_SCHEDULE_PLACEHOLDERS },
     _count: { _all: true },
   });
 

@@ -37,16 +37,23 @@ export interface ContentPlan {
 export interface CalendarFixture extends Fixture {
   contentStatus: ContentStatus;
   contentPlan?: ContentPlan;
-  /** İçerik türü bazında üretim durumu (AiContent.contentType) — yalnızca üretilmiş türler bulunur. */
+  /** İçerik türü bazında üretim durumu (AiContent.contentType) — yalnızca üretilmiş veya planlanmış türler bulunur. */
   production: FixtureProduction;
 }
 
-/** Bir maçın bir içerik türü için en ileri kaydı: onaylı varsa o, yoksa en yeni taslak. */
-export interface FixtureContentItem {
-  status: "approved" | "draft";
-  /** Taslak inceleme ekranı: /dashboard/drafts/<draftId> */
-  draftId: string;
-}
+/**
+ * Bir maçın bir içerik türü için en ileri kaydı: onaylı varsa o, yoksa en yeni taslak; içerik
+ * henüz üretilmemiş ama yayın zamanı seçilmişse "planned" (bkz. lib/calendar/content-schedule.ts).
+ * `publishAt`: planlanan yayın zamanı (ISO 8601, UTC), seçilmemişse null.
+ */
+export type FixtureContentItem =
+  | {
+      status: "approved" | "draft";
+      /** Taslak inceleme ekranı: /dashboard/drafts/<draftId> */
+      draftId: string;
+      publishAt: string | null;
+    }
+  | { status: "planned"; publishAt: string };
 
 export type FixtureProduction = Partial<Record<ContentTypeId, FixtureContentItem>>;
 

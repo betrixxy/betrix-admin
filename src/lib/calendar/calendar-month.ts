@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getFixturesForDateRange, type ApiFootballError } from "@/lib/services/api-football";
 import type { Result } from "@/types/result";
+import { isSchedulePlaceholder } from "@/lib/calendar/content-schedule";
 import { isContentTypeId } from "@/lib/dashboard/content-types";
 import type { AdSpend, CalendarFixture, ContentPlan, ContentStatus, FixtureProduction } from "@/types/calendar";
 
@@ -83,7 +84,7 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
     prisma.contentPlan.findMany({ where: { fixtureId: { in: fixtureIds } } }),
     prisma.aiContent.findMany({
       where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] } },
-      select: { id: true, fixtureId: true, status: true, contentType: true },
+      select: { id: true, fixtureId: true, status: true, contentType: true, resultImageUrl: true, publishAt: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -92,16 +93,29 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
   const statusesByFixture = new Map<string, Set<string>>();
   const productionByFixture = new Map<string, FixtureProduction>();
   for (const content of contents) {
-    const set = statusesByFixture.get(content.fixtureId) ?? new Set<string>();
-    set.add(content.status);
-    statusesByFixture.set(content.fixtureId, set);
+    const placeholder = isSchedulePlaceholder(content);
+    if (!placeholder) {
+      const set = statusesByFixture.get(content.fixtureId) ?? new Set<string>();
+      set.add(content.status);
+      statusesByFixture.set(content.fixtureId, set);
+    }
 
-    // Katalog türü olan kayıtlar (en yeniden eskiye): onaylı her zaman kazanır, aksi halde en yeni taslak.
+    // Katalog türü olan kayıtlar (en yeniden eskiye): onaylı her zaman kazanır, aksi halde en yeni
+    // taslak; yalnızca placeholder varsa "planned". Yayın zamanı türün herhangi bir kaydından gelir.
     if (!content.contentType || !isContentTypeId(content.contentType)) continue;
     const production = productionByFixture.get(content.fixtureId) ?? {};
     const current = production[content.contentType];
-    if (!current || (current.status === "draft" && content.status === "APPROVED")) {
-      production[content.contentType] = { status: content.status === "APPROVED" ? "approved" : "draft", draftId: content.id };
+    const publishAt = current?.publishAt ?? content.publishAt?.toISOString() ?? null;
+    if (placeholder) {
+      if (!current && publishAt) production[content.contentType] = { status: "planned", publishAt };
+    } else if (!current || current.status === "planned" || (current.status === "draft" && content.status === "APPROVED")) {
+      production[content.contentType] = {
+        status: content.status === "APPROVED" ? "approved" : "draft",
+        draftId: content.id,
+        publishAt,
+      };
+    } else if (!current.publishAt && publishAt) {
+      production[content.contentType] = { ...current, publishAt };
     }
     productionByFixture.set(content.fixtureId, production);
   }

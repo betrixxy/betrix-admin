@@ -115,7 +115,7 @@ function FixtureDetailContent({ fixture, onSaveAdSpend }: FixtureDetailContentPr
             <LayoutList className="size-3.5" />
             İçerik Kontrol Merkezi
           </h3>
-          <FixtureContentChecklist fixtureId={fixture.id} production={fixture.production} />
+          <FixtureContentChecklist fixtureId={fixture.id} kickoffUtc={fixture.kickoffUtc} production={fixture.production} />
         </section>
 
         <section className="flex flex-col gap-3">

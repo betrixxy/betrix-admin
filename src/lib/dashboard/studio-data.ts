@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import type { AiContentStatus, AiContentView, StudioPostOption } from "@/types/ai-content";
@@ -40,12 +41,12 @@ function toAiContentView(row: {
 }
 
 export async function getRecentAiContent(limit: number): Promise<AiContentView[]> {
-  const rows = await prisma.aiContent.findMany({ orderBy: { createdAt: "desc" }, take: limit });
+  const rows = await prisma.aiContent.findMany({ where: WITHOUT_SCHEDULE_PLACEHOLDERS, orderBy: { createdAt: "desc" }, take: limit });
   return rows.map(toAiContentView);
 }
 
 export async function getAiContentCount(): Promise<number> {
-  return prisma.aiContent.count();
+  return prisma.aiContent.count({ where: WITHOUT_SCHEDULE_PLACEHOLDERS });
 }
 
 export async function getStudioData(): Promise<StudioData> {

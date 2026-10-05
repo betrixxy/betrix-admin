@@ -9,7 +9,7 @@ import { loadMatchDayStats } from "@/lib/dashboard/match-day-stats";
 import { MATCH_DAY_TEMPLATES } from "@/lib/dashboard/match-day-templates";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
-import { prisma } from "@/lib/prisma";
+import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { buildMatchDayBackgroundPrompt, generateMatchDayBackground, harmonizeMatchDayComposite } from "@/lib/services/fal";
 import type { MatchDayPromptInput } from "@/lib/services/fal/match-day-prompts";
 import type {
@@ -205,32 +205,31 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
       saveStoredFile("renders", `${randomUUID()}.png`, final),
     ]);
 
-    const record = await prisma.aiContent.create({
-      data: {
-        fixtureId: input.fixtureId ?? MANUAL_MATCH_DAY_FIXTURE_ID,
-        contentType: "MATCH_DAY" satisfies ContentTypeId,
-        prompt,
-        backgroundImageUrl,
-        resultImageUrl,
-        status: "DRAFT",
-        format: DB_FORMAT[input.format],
-        caption: buildCaption(card),
-        renderOptions: {
-          kind: "MATCH_DAY",
-          template: input.template,
-          format: input.format,
-          quality: input.quality,
-          info: { ...input.info },
-          compositeImageUrl,
-          homeCutoutHash: input.homePlayer.hash,
-          awayCutoutHash: input.awayPlayer.hash,
-          homeColorHex: input.homeColorHex,
-          awayColorHex: input.awayColorHex,
-          derbyIntensity: input.derbyIntensity,
-          strength: input.strength,
-          preservePlayers: input.preservePlayers,
-          paidCalls,
-        },
+    // Takvimde bu maç için planlanmış (placeholder) kayıt varsa üretim onun üzerine yazılır.
+    const record = await createScheduledContent({
+      fixtureId: input.fixtureId ?? MANUAL_MATCH_DAY_FIXTURE_ID,
+      contentType: "MATCH_DAY" satisfies ContentTypeId,
+      prompt,
+      backgroundImageUrl,
+      resultImageUrl,
+      status: "DRAFT",
+      format: DB_FORMAT[input.format],
+      caption: buildCaption(card),
+      renderOptions: {
+        kind: "MATCH_DAY",
+        template: input.template,
+        format: input.format,
+        quality: input.quality,
+        info: { ...input.info },
+        compositeImageUrl,
+        homeCutoutHash: input.homePlayer.hash,
+        awayCutoutHash: input.awayPlayer.hash,
+        homeColorHex: input.homeColorHex,
+        awayColorHex: input.awayColorHex,
+        derbyIntensity: input.derbyIntensity,
+        strength: input.strength,
+        preservePlayers: input.preservePlayers,
+        paidCalls,
       },
     });
 

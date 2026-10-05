@@ -205,7 +205,8 @@ export async function decideDraft(
 ): Promise<Result<null, EngineError>> {
   try {
     const { count } = await prisma.aiContent.updateMany({
-      where: { id, status: "DRAFT" },
+      // Görseli olmayan planlama placeholder'ı (bkz. content-schedule.ts) karara bağlanamaz.
+      where: { id, status: "DRAFT", resultImageUrl: { not: null } },
       data: { status: decision, reviewedAt: new Date(), ...(postId !== undefined ? { postId: postId || null } : {}) },
     });
     return count === 1 ? { ok: true, data: null } : fail("NOT_EDITABLE", "Taslak bulunamadı veya zaten karara bağlanmış.");

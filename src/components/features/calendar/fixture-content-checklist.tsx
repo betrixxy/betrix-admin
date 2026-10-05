@@ -1,15 +1,21 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Eye } from "lucide-react";
+import { ArrowRight, CalendarClock, Eye } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
+import { ContentScheduleEditor } from "@/components/features/calendar/content-schedule-editor";
+import { formatPublishAt } from "@/lib/calendar/format";
 import { buildStudioHref, CONTENT_PHASE_LABELS, CONTENT_TYPES_BY_PHASE } from "@/lib/dashboard/content-types";
 import { cn } from "@/lib/utils";
 import type { FixtureContentItem, FixtureProduction } from "@/types/calendar";
 import type { ContentTypeDef } from "@/types/content-type";
 
 /**
- * Maç kontrol merkezi: katalogdaki her içerik türü için tek satır — ad, durum, aksiyon.
+ * Maç kontrol merkezi: katalogdaki her içerik türü için tek satır — ad, durum, planla, aksiyon.
  * Üretilmişse taslak/inceleme ekranına, üretilmemiş ve stüdyosu hazırsa maç bilgileri dolu
- * stüdyoya gider; stüdyosu olmayan türler "Yakında" olarak pasif durur.
+ * stüdyoya gider; stüdyosu olmayan türler "Yakında" olarak pasif durur. Takvim ikonu satırın
+ * altında yayın zamanı düzenleyicisini açar (bkz. content-schedule-editor.tsx).
  */
 
 const STATUS_META = {
@@ -18,10 +24,12 @@ const STATUS_META = {
   missing: { label: "Bekliyor", className: "bg-white/[0.06] text-muted-foreground" },
 } as const;
 
+const PLANNED_CLASS = "bg-sky-500/15 text-sky-300";
+
 const ACTION_CLASS = cn(buttonVariants({ size: "xs", variant: "outline" }), "w-[6.75rem] justify-center");
 
 function RowAction({ type, item, fixtureId }: { type: ContentTypeDef; item: FixtureContentItem | undefined; fixtureId: string }) {
-  if (item) {
+  if (item && item.status !== "planned") {
     return (
       <Link href={`/dashboard/drafts/${item.draftId}`} className={ACTION_CLASS}>
         <Eye />
@@ -44,20 +52,69 @@ function RowAction({ type, item, fixtureId }: { type: ContentTypeDef; item: Fixt
   );
 }
 
-function ContentRow({ type, item, fixtureId }: { type: ContentTypeDef; item: FixtureContentItem | undefined; fixtureId: string }) {
-  const status = STATUS_META[item?.status ?? "missing"];
+/** Üretilmemiş içerikte plan durumu yerine geçer; üretilmişte üretim durumu gösterilir. */
+function StatusPill({ item }: { item: FixtureContentItem | undefined }) {
+  const planned = item?.status === "planned";
+  const meta = planned ? null : STATUS_META[item?.status ?? "missing"];
   return (
-    <li className="flex items-center gap-2 py-2">
-      <span className={cn("min-w-0 flex-1 truncate text-[13px]", type.status === "active" || item ? "text-foreground" : "text-muted-foreground")} title={type.description}>
-        {type.label}
-      </span>
-      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium", status.className)}>{status.label}</span>
-      <RowAction type={type} item={item} fixtureId={fixtureId} />
+    <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium tabular-nums", meta?.className ?? PLANNED_CLASS)}>
+      {planned ? `Planlandı: ${formatPublishAt(item.publishAt)}` : meta?.label}
+    </span>
+  );
+}
+
+interface ContentRowProps {
+  type: ContentTypeDef;
+  item: FixtureContentItem | undefined;
+  fixtureId: string;
+  kickoffUtc: string;
+}
+
+function ContentRow({ type, item, fixtureId, kickoffUtc }: ContentRowProps) {
+  const [editing, setEditing] = useState(false);
+  const publishAt = item?.publishAt ?? null;
+  const produced = item !== undefined && item.status !== "planned";
+
+  return (
+    <li className="py-2">
+      <div className="flex items-center gap-2">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className={cn("truncate text-[13px]", type.status === "active" || item ? "text-foreground" : "text-muted-foreground")} title={type.description}>
+            {type.label}
+          </span>
+          {produced && publishAt && <span className="text-[11px] tabular-nums text-sky-300/80">Yayın: {formatPublishAt(publishAt)}</span>}
+        </span>
+        <StatusPill item={item} />
+        <button
+          type="button"
+          onClick={() => setEditing((open) => !open)}
+          aria-expanded={editing}
+          aria-label={publishAt ? `Yayın zamanını değiştir (${formatPublishAt(publishAt)})` : "Yayın zamanı planla"}
+          title={publishAt ? `Planlandı: ${formatPublishAt(publishAt)}` : "Planla"}
+          className={cn(
+            buttonVariants({ size: "icon-xs", variant: "ghost" }),
+            publishAt ? "text-sky-300 hover:text-sky-200" : "text-muted-foreground",
+            editing && "bg-white/[0.06]",
+          )}
+        >
+          <CalendarClock />
+        </button>
+        <RowAction type={type} item={item} fixtureId={fixtureId} />
+      </div>
+      {editing && (
+        <ContentScheduleEditor fixtureId={fixtureId} kickoffUtc={kickoffUtc} type={type} publishAt={publishAt} onClose={() => setEditing(false)} />
+      )}
     </li>
   );
 }
 
-export function FixtureContentChecklist({ fixtureId, production }: { fixtureId: string; production: FixtureProduction }) {
+interface FixtureContentChecklistProps {
+  fixtureId: string;
+  kickoffUtc: string;
+  production: FixtureProduction;
+}
+
+export function FixtureContentChecklist({ fixtureId, kickoffUtc, production }: FixtureContentChecklistProps) {
   return (
     <div className="flex flex-col gap-5">
       {CONTENT_TYPES_BY_PHASE.map(({ phase, types }) => {
@@ -72,7 +129,7 @@ export function FixtureContentChecklist({ fixtureId, production }: { fixtureId: 
             </h3>
             <ul className="mt-1 divide-y divide-border/60">
               {types.map((type) => (
-                <ContentRow key={type.id} type={type} item={production[type.id]} fixtureId={fixtureId} />
+                <ContentRow key={type.id} type={type} item={production[type.id]} fixtureId={fixtureId} kickoffUtc={kickoffUtc} />
               ))}
             </ul>
           </section>
