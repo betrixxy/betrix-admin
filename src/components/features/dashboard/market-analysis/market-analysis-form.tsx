@@ -2,24 +2,26 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertCircle, AlertTriangle, CircleCheck, LoaderCircle, RefreshCw, Save, Sparkles, Target } from "lucide-react";
+import { AlertCircle, AlertTriangle, CircleCheck, LoaderCircle, RefreshCw, Save, Sparkles } from "lucide-react";
 import {
   generateExpertAnalysisAction,
   loadDeepAnalysisAction,
   saveMarketAnalysisAction,
   type DeepAnalysisLoadResult,
-  type TeamDataSummary,
 } from "@/app/dashboard/studio/market-analysis/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { emptyTeamDraft } from "@/lib/dashboard/deep-analysis-insights";
 import { cn } from "@/lib/utils";
 import type { MarketAnalysisDraft, TeamSide } from "@/types/deep-analysis";
+import type { MediaAssetOption } from "@/types/media";
 import type { MatchDayFixtureOption } from "@/types/match-day";
+import { AnalysisHeroFields } from "./analysis-hero-fields";
+import { DataSummary } from "./data-summary";
 import { MarketAnalysisPreview } from "./market-analysis-preview";
+import { MarketPickCard } from "./market-pick-card";
 import { TeamAnalysisFields } from "./team-analysis-fields";
 
 interface MarketAnalysisFormProps {
@@ -28,9 +30,18 @@ interface MarketAnalysisFormProps {
   initialFixtureId: string | null;
   /** ANTHROPIC_API_KEY tanımlı mı — değilse "AI Analist" pasiftir, öneriler kural tabanlı kalır. */
   analystAvailable: boolean;
+  /** Medya kütüphanesindeki oyuncu fotoğrafları — kapak için (bkz. CLAUDE.md 1.11). */
+  playerOptions: MediaAssetOption[];
+  falConfigured: boolean;
 }
 
-const FORM_LETTERS = { W: { letter: "G", className: "bg-emerald-600" }, D: { letter: "B", className: "bg-zinc-600" }, L: { letter: "M", className: "bg-red-700" } } as const;
+/** Veriden/analistten gelen yeni taslak, admin'in seçtiği renk ve üretilmiş kapağı ezmez. */
+function keepVisuals(next: MarketAnalysisDraft, current: MarketAnalysisDraft): MarketAnalysisDraft {
+  if (next.fixtureId !== current.fixtureId) return next;
+  const side = (key: TeamSide) => ({ ...next[key], colorHex: current[key].colorHex, heroImageUrl: current[key].heroImageUrl });
+  return { ...next, home: side("home"), away: side("away") };
+}
+
 
 function draftFor(fixture: MatchDayFixtureOption | undefined): MarketAnalysisDraft {
   return {
@@ -42,35 +53,7 @@ function draftFor(fixture: MatchDayFixtureOption | undefined): MarketAnalysisDra
   };
 }
 
-function fmt(value: number | null, digits = 1): string {
-  return value === null ? "—" : value.toFixed(digits);
-}
-
-/** Önerilerin dayandığı ham veri — admin neyi düzenlediğini bilsin. */
-function DataSummary({ summary }: { summary: TeamDataSummary }) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-border/60 bg-white/[0.02] px-3 py-2 text-xs text-muted-foreground">
-      <span className="flex items-center gap-1">
-        {summary.last5.map((letter, index) => {
-          const meta = FORM_LETTERS[letter as keyof typeof FORM_LETTERS];
-          return (
-            <span key={index} className={cn("flex size-5 items-center justify-center rounded text-[10px] font-bold text-white", meta?.className)}>
-              {meta?.letter ?? "?"}
-            </span>
-          );
-        })}
-      </span>
-      <span>Gol {fmt(summary.goalsForAvg)} / {fmt(summary.goalsAgainstAvg)}</span>
-      <span>xG {fmt(summary.xgForAvg, 2)} / {fmt(summary.xgAgainstAvg, 2)}</span>
-      {summary.formation ? <span>Diziliş {summary.formation}</span> : null}
-      <span className="ml-auto tabular-nums">
-        {summary.matchesSampled} maç · {summary.statMatchesSampled} istatistikli
-      </span>
-    </div>
-  );
-}
-
-export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailable }: MarketAnalysisFormProps) {
+export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailable, playerOptions, falConfigured }: MarketAnalysisFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<MarketAnalysisDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<DeepAnalysisLoadResult | null>(null);
@@ -91,12 +74,8 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
         setError(`AI analist: ${result.error.message}`);
         return;
       }
-      // Takım renkleri ve elle girilen alıntı dışındaki her şey analistin taslağıyla değişir.
-      setDraft((current) => ({
-        ...result.data.draft,
-        home: { ...result.data.draft.home, colorHex: current.home.colorHex },
-        away: { ...result.data.draft.away, colorHex: current.away.colorHex },
-      }));
+      // Takım renkleri ve kapaklar dışındaki her şey analistin taslağıyla değişir.
+      setDraft((current) => keepVisuals(result.data.draft, current));
       setAnalystNote({ warnings: result.data.warnings, model: result.data.model });
     });
   }
@@ -125,7 +104,7 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
         return;
       }
       setLoaded(result.data);
-      setDraft(result.data.draft);
+      setDraft((current) => keepVisuals(result.data.draft, current));
     });
   }
 
@@ -181,10 +160,10 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
               type="button"
               disabled={!analystAvailable || !fixtureId || isLoading || isWriting}
               onClick={writeWithAnalyst}
-              title={analystAvailable ? "Claude, maç verisinden iki takımın analizini ve market tahminini yazar (ücretli, ~30-90 sn)" : "ANTHROPIC_API_KEY tanımlı değil"}
+              title={analystAvailable ? "Claude, maç verisinden iki takımın analizini ve market tahminini yazar (ücretli, birkaç saniye)" : "ANTHROPIC_API_KEY tanımlı değil"}
             >
               {isWriting ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-              {isWriting ? "Analist yazıyor… (30-90 sn)" : "AI Analist ile Yaz"}
+              {isWriting ? "Analist yazıyor…" : "AI Analist ile Yaz"}
             </Button>
             {!analystAvailable ? (
               <p className="text-xs text-muted-foreground">AI analist kapalı (ANTHROPIC_API_KEY yok) — alanlar kural tabanlı önerilerle dolar.</p>
@@ -252,59 +231,19 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="size-4 text-amber-400" />
-              Olası Market Tahmini
-            </CardTitle>
-            <CardDescription>Veriden türetilen öneriler başlangıç noktasıdır; son karar sizin.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {loaded && loaded.suggestions.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {loaded.suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion.pick}
-                    type="button"
-                    onClick={() => setDraft((current) => ({ ...current, marketPick: suggestion.pick, marketRationale: suggestion.reason }))}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs transition-colors",
-                      draft.marketPick === suggestion.pick ? "border-amber-400/60 bg-amber-400/15 text-amber-200" : "border-border text-muted-foreground hover:text-foreground",
-                    )}
-                    title={suggestion.reason}
-                  >
-                    {suggestion.pick}
-                  </button>
-                ))}
-              </div>
-            ) : loaded ? (
-              <p className="text-xs text-muted-foreground">Veri belirgin bir market sinyali vermiyor — tahmini elle girin.</p>
-            ) : null}
-            <div className="grid gap-3 sm:grid-cols-[1fr_2fr]">
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="market-pick">Tahmin</Label>
-                <Input
-                  id="market-pick"
-                  value={draft.marketPick}
-                  maxLength={40}
-                  placeholder="Ör. 2.5 Üst, KG Var"
-                  onChange={(event) => setDraft((current) => ({ ...current, marketPick: event.target.value }))}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="market-rationale">Gerekçe</Label>
-                <Input
-                  id="market-rationale"
-                  value={draft.marketRationale}
-                  maxLength={160}
-                  placeholder="Ör. Beklenen toplam gol 3.1"
-                  onChange={(event) => setDraft((current) => ({ ...current, marketRationale: event.target.value }))}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <AnalysisHeroFields
+          draft={draft}
+          playerOptions={playerOptions}
+          falConfigured={falConfigured}
+          onHeroChange={(side, heroImageUrl) => setDraft((current) => ({ ...current, [side]: { ...current[side], heroImageUrl } }))}
+        />
+
+        <MarketPickCard
+          suggestions={loaded?.suggestions ?? null}
+          marketPick={draft.marketPick}
+          marketRationale={draft.marketRationale}
+          onChange={(next) => setDraft((current) => ({ ...current, ...next }))}
+        />
 
         <div className="flex flex-col gap-2">
           <Button type="button" size="lg" disabled={!draft.fixtureId || isLoading || isSaving} onClick={save}>

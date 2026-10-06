@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ANALYST_MODEL, getAnthropicClient, isAnthropicConfigured } from "@/lib/services/anthropic/client";
 import { expertAnalysisSchema, type AnthropicError, type ExpertAnalysisOutput } from "@/lib/services/anthropic/types";
 import type { Result } from "@/types/result";
@@ -26,13 +26,18 @@ Yazım:
 - Market: iki takımın verisinden en savunulabilir tek market ve sayıya dayalı kısa gerekçe. "Kesin", "garanti", "banko" gibi ifadeler kullanma; bu bir olasılık değerlendirmesidir.
 - Uzunluk sınırları şemadaki açıklamalarda; kart alanı sınırlı, aşma.`;
 
-/** Taktik çıkarım ve veriye sadakat kalite için kritik; istek başına bir kez çalışır. */
-const EFFORT = "high";
-const MAX_TOKENS = 16_000;
+/**
+ * Bütçe sınırı: iki takımın alanları + market ≈ 1K token (şemadaki karakter sınırları). Sınıra
+ * takılırsa yanıt TRUNCATED döner — yarım JSON forma yazılmaz.
+ */
+const MAX_TOKENS = 1_500;
 
 /**
- * Olgu paketinden iki takımın analist metinlerini ve market tahminini üretir (Claude, yapılandırılmış
- * çıktı). Güvenlik sınıflandırıcısı reddederse sunucu tarafı yedek model devreye girer ("default").
+ * Olgu paketinden iki takımın analist metinlerini ve market tahminini üretir (Claude Haiku, yapılandırılmış
+ * çıktı). Bütçe ayarları: düşünme kapalı (`thinking` gönderilmez — Haiku 4.5'te varsayılan kapalıdır),
+ * `max_tokens` 1.500, olgu paketi girintisiz JSON. Sistem istemi `cache_control` ile işaretlidir; ancak
+ * Haiku 4.5'te önbelleğe alınabilecek en küçük önek 4096 token'dır ve bu istem daha kısadır — işaret,
+ * istem büyürse (ör. örnek analizler eklenirse) kendiliğinden devreye girer; bugün ücreti değiştirmez.
  */
 export async function generateExpertAnalysis(facts: unknown): Promise<Result<ExpertAnalysisOutput, AnthropicError>> {
   if (!isAnthropicConfigured()) {
@@ -40,18 +45,15 @@ export async function generateExpertAnalysis(facts: unknown): Promise<Result<Exp
   }
 
   try {
-    const response = await getAnthropicClient().beta.messages.parse({
+    const response = await getAnthropicClient().messages.parse({
       model: ANALYST_MODEL,
       max_tokens: MAX_TOKENS,
-      thinking: { type: "adaptive" },
-      output_config: { effort: EFFORT, format: betaZodOutputFormat(expertAnalysisSchema) },
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      system: SYSTEM_PROMPT,
+      output_config: { format: zodOutputFormat(expertAnalysisSchema) },
+      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [
         {
           role: "user",
-          content: `Olgu paketi (JSON):\n${JSON.stringify(facts, null, 2)}\n\nİki takım için analizi ve market tahminini üret.`,
+          content: `Olgu paketi (JSON):\n${JSON.stringify(facts)}\n\nİki takım için analizi ve market tahminini üret.`,
         },
       ],
     });

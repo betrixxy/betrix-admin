@@ -1,11 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { env } from "@/lib/env";
 
-/** Analist metinleri için model — bkz. CLAUDE.md (AI Market Tahmin). */
-export const ANALYST_MODEL = "claude-opus-5-5";
+/**
+ * Analist metinleri için model — bkz. CLAUDE.md (AI Market Tahmin). Bütçe kararı (2026-10-06): en
+ * güncel Haiku. (`claude-3-5-haiku-*` Şubat 2026'da emekli edildi.)
+ */
+export const ANALYST_MODEL = "claude-haiku-4-5";
 
-/** Düşünmeli bir analiz isteği ~30-90 sn sürebilir; SDK yeniden denemeleri bunun üstüne eklenir. */
-const REQUEST_TIMEOUT_MS = 120_000;
+/** Haiku, düşünmesiz ~1.5K token çıktıyı birkaç saniyede üretir; SDK yeniden denemeleri bunun üstüne eklenir. */
+const REQUEST_TIMEOUT_MS = 60_000;
 
 export function isAnthropicConfigured(): boolean {
   return env.ANTHROPIC_API_KEY.length > 0;

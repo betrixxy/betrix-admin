@@ -8,9 +8,14 @@ import { buildMarketAnalysisDraft, suggestMarkets } from "@/lib/dashboard/deep-a
 import { createExpertAnalysisDraft, type ExpertAnalysisResult } from "@/lib/dashboard/expert-analysis";
 import { renderDeepAnalysisCard } from "@/lib/dashboard/deep-analysis-render";
 import { createMarketAnalysisDraft } from "@/lib/dashboard/market-analysis-engine";
+import { createAnalysisHero, type AnalysisHeroResult } from "@/lib/dashboard/analysis-hero";
+import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
+import { isFalConfigured } from "@/lib/services/fal";
 import { getDeepAnalysisStats, getFixtureById, parseFixtureId } from "@/lib/services/api-football";
 import {
   ANALYSIS_POINT_COUNT,
+  HERO_FILE_PATTERN,
+  HERO_QUALITIES,
   KEY_PLAYER_COUNT,
   STAT_TILE_COUNT,
   type MarketAnalysisDraft,
@@ -83,6 +88,7 @@ const teamDraftSchema = z.object({
   teamName: text(60).min(1, "Takım adı boş olamaz."),
   logoUrl: text(500),
   colorHex: z.string().regex(/^(#[0-9a-fA-F]{6})?$/, "Takım rengi #RRGGBB olmalı."),
+  heroImageUrl: z.string().refine((value) => value === "" || HERO_FILE_PATTERN.test(value), "Kapak görseli geçersiz."),
   strengths: z.array(text(120)).length(ANALYSIS_POINT_COUNT),
   cautions: z.array(text(120)).length(ANALYSIS_POINT_COUNT),
   keyPlayers: z.array(z.object({ name: text(40), role: text(60), photoUrl: text(500) })).length(KEY_PLAYER_COUNT),
@@ -163,4 +169,42 @@ export async function generateExpertAnalysisAction(fixtureId: string): Promise<R
   const stats = await getDeepAnalysisStats(apiId);
   if (!stats.ok) return { ok: false, error: { code: stats.error.code, message: stats.error.message } };
   return createExpertAnalysisDraft(fixtureId, stats.data);
+}
+
+const heroSchema = z.object({
+  side: z.enum(["home", "away"]),
+  teamName: text(60).min(1, "Takım adı boş olamaz."),
+  colorHex: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Takım rengi #RRGGBB olmalı."),
+  quality: z.enum(HERO_QUALITIES, "Kapak kalitesini seçin."),
+});
+
+/**
+ * Kapak sahnesi üretimi (ücretli olabilir): kilit oyuncu fotoğrafı (kütüphaneden ya da yeni yükleme —
+ * yeni yükleme kütüphaneye kaydedilir) → AI Upscale + birefnet kesim + sahne → kalıcı kapak PNG'si.
+ * Kartın önizlemesi ve kaydı bu dosyayı kullanır; metin düzenlemeleri Fal.ai'ye tekrar gitmez.
+ */
+export async function generateAnalysisHeroAction(formData: FormData): Promise<Result<AnalysisHeroResult>> {
+  if (!(await getCurrentSession())) {
+    return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
+  }
+  if (!isFalConfigured()) return { ok: false, error: { code: "NOT_CONFIGURED", message: "FAL_KEY tanımlı değil — kapak üretilemez." } };
+
+  const field = (name: string) => {
+    const value = formData.get(name);
+    return typeof value === "string" ? value : "";
+  };
+  const parsed = heroSchema.safeParse({ side: field("side"), teamName: field("teamName"), colorHex: field("colorHex"), quality: field("quality") });
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
+  const { side, teamName, colorHex, quality } = parsed.data;
+
+  let player: Awaited<ReturnType<typeof resolveStudioImage>>;
+  try {
+    player = await resolveStudioImage(formData, `${side}Hero`, "PLAYER", `${teamName} kilit oyuncu fotoğrafı`);
+  } catch {
+    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı medya kütüphanesine kaydedilemedi." } };
+  }
+  if (!player.ok) return player;
+  if (!player.data) return { ok: false, error: { code: "INVALID_INPUT", message: `${teamName} için kilit oyuncu fotoğrafı seçin veya yükleyin.` } };
+
+  return createAnalysisHero({ player: player.data.image, colorHex, quality, label: `${teamName} kilit oyuncu` });
 }

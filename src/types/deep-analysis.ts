@@ -122,6 +122,11 @@ export interface TeamAnalysisDraft {
   logoUrl: string;
   /** Kart arka planındaki takım rengi parıltısı (#RRGGBB); boşsa CheckMatch yeşili. */
   colorHex: string;
+  /**
+   * Kapak görseli: kilit oyuncunun kesimi + sahne (bkz. lib/dashboard/analysis-hero.ts) — boşsa kart
+   * kapaksız, yalnızca programatik çizilir.
+   */
+  heroImageUrl: string;
   strengths: string[];
   cautions: string[];
   keyPlayers: KeyPlayerDraft[];
@@ -148,3 +153,10 @@ export interface MarketAnalysisDraft {
 }
 
 export type TeamSide = "home" | "away";
+
+/** Kapak sahnesi: Premium = Fal.ai flux (ücretli, takım rengi başına önbellekli) · Ekonomik = programatik. */
+export const HERO_QUALITIES = ["PREMIUM", "ECONOMY"] as const;
+export type HeroQuality = (typeof HERO_QUALITIES)[number];
+
+/** Kart şablonu yalnızca bu desendeki (kapak motorunun yazdığı) depolama dosyasını kabul eder. */
+export const HERO_FILE_PATTERN = /^\/api\/files\/generated\/analysis-hero-[a-f0-9]{64}\.png$/;

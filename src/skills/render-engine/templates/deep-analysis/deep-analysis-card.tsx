@@ -1,4 +1,6 @@
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
+import { BangGlyph, CheckGlyph, Eyebrow, GearGlyph, KeyPlayer, PointColumn, StatRow } from "./deep-analysis-parts";
+import { BODY, GRAY, GREEN, GREEN_BR, GREEN_DK, HERO_HEIGHT, MAX_WIDTH, NAVY_800, SCORE, TEAM, YELLOW, filled, rgba, upper } from "./deep-analysis-tokens";
 
 /**
  * DERİNLEMESİNE ANALİZ — tek takımlık analiz kartı (Satori, 1080×1350 / IG 4:5).
@@ -12,25 +14,8 @@ import type { TeamAnalysisDraft } from "@/types/deep-analysis";
  * Boş bölüm çizilmez; her metin stüdyo formundan gelir.
  */
 
+
 export const DEEP_ANALYSIS_SIZE = { width: 1080, height: 1350 } as const;
-
-// ---- tokens.css ----
-const NAVY_800 = "#0a1a2f";
-const NAVY_700 = "#0f2540";
-const GREEN = "#22c24e";
-const GREEN_BR = "#37e06a";
-const GREEN_DK = "#148a37";
-const YELLOW = "#f5c518";
-const GRAY = "#b7c2cf";
-
-// ---- font rolleri ----
-const EYEBROW = "Space Mono";
-const TEAM = "Bricolage Grotesque";
-const BODY = "Manrope";
-const SCORE = "Archivo Black";
-
-const MAX_WIDTH = 940;
-const PANEL = { backgroundColor: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 14 } as const;
 
 export interface DeepAnalysisCardData {
   team: TeamAnalysisDraft;
@@ -42,105 +27,6 @@ export interface DeepAnalysisCardData {
   quoteAttribution?: string;
 }
 
-const upper = (value: string) => value.toLocaleUpperCase("tr-TR");
-const filled = (values: string[]) => values.map((value) => value.trim()).filter(Boolean);
-
-/** `hexToRgba` — geçersiz renkte marka yeşili (kaynak şablonla aynı davranış). */
-function rgba(hex: string, alpha: number): string {
-  const raw = hex.replace("#", "");
-  const full = raw.length === 3 ? [...raw].map((c) => c + c).join("") : raw;
-  const n = Number.parseInt(full, 16);
-  if (!/^[0-9a-f]{6}$/i.test(full) || Number.isNaN(n)) return `rgba(34,194,78,${alpha})`;
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-}
-
-function Eyebrow({ children, color, size = 14, spacing = 1.2, opacity = 1 }: { children: string; color: string; size?: number; spacing?: number; opacity?: number }) {
-  return <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: size, letterSpacing: spacing, color, opacity }}>{upper(children)}</span>;
-}
-
-function CheckGlyph() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" style={{ position: "absolute", left: 0, top: 3 }}>
-      <path d="M2.5 9.5l4 4L15.5 3.5" fill="none" stroke={GREEN_BR} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function BangGlyph() {
-  return (
-    <span style={{ position: "absolute", left: 3, top: 0, fontFamily: BODY, fontWeight: 800, fontSize: 17, color: YELLOW }}>!</span>
-  );
-}
-
-function GearGlyph() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" style={{ marginRight: 9 }}>
-      <circle cx="12" cy="12" r="7.5" fill="none" stroke={YELLOW} strokeWidth="2.6" strokeDasharray="3.2 2.7" />
-      <circle cx="12" cy="12" r="4.6" fill="none" stroke={YELLOW} strokeWidth="2.2" />
-      <circle cx="12" cy="12" r="1.6" fill={YELLOW} />
-    </svg>
-  );
-}
-
-function PointColumn({ title, color, points, glyph }: { title: string; color: string; points: string[]; glyph: React.ReactNode }) {
-  return (
-    <div tw="flex flex-col" style={{ flex: 1, ...PANEL, padding: "20px 22px" }}>
-      <div tw="flex" style={{ marginBottom: 12 }}>
-        <Eyebrow color={color}>{title}</Eyebrow>
-      </div>
-      <div tw="flex flex-col" style={{ gap: 9 }}>
-        {points.map((point, index) => (
-          <div key={index} tw="flex" style={{ position: "relative", paddingLeft: 26 }}>
-            {glyph}
-            <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: 18.5, lineHeight: 1.3, color: "white" }}>{point}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function KeyPlayer({ name, role, photoUrl }: TeamAnalysisDraft["keyPlayers"][number]) {
-  return (
-    <div tw="flex items-start" style={{ flex: 1, ...PANEL, padding: "14px 16px", gap: 12 }}>
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
-        <img
-          src={photoUrl}
-          alt=""
-          width={56}
-          height={56}
-          style={{ width: 56, height: 56, borderRadius: 28, objectFit: "cover", border: `2px solid ${GREEN_BR}`, backgroundColor: NAVY_700, flexShrink: 0 }}
-        />
-      ) : null}
-      <div tw="flex flex-col" style={{ flex: 1 }}>
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5, color: "white", marginBottom: 3 }}>{upper(name)}</span>
-        {role ? <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: 14.5, lineHeight: 1.32, color: GRAY }}>{role}</span> : null}
-      </div>
-    </div>
-  );
-}
-
-function StatRow({ stats }: { stats: TeamAnalysisDraft["stats"] }) {
-  return (
-    <div
-      tw="flex items-center"
-      style={{ width: "100%", maxWidth: MAX_WIDTH, padding: "18px 0", backgroundColor: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 14 }}
-    >
-      {stats.map((stat, index) => (
-        <div key={index} tw="flex items-center" style={{ flex: 1 }}>
-          {index > 0 ? <div style={{ width: 1, height: 58, backgroundColor: "rgba(255,255,255,0.14)" }} /> : null}
-          <div tw="flex flex-col items-center" style={{ flex: 1, padding: "0 10px" }}>
-            <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 12, letterSpacing: 0.8, color: GRAY, opacity: 0.75, marginBottom: 6 }}>
-              {upper(stat.label)}
-            </span>
-            <span style={{ fontFamily: SCORE, fontSize: 27, color: "white" }}>{stat.value}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function DeepAnalysisCard({
   team,
@@ -156,6 +42,24 @@ export function DeepAnalysisCard({
   const approach = team.approach.trim();
   const quote = team.quote.trim();
   const glow = team.colorHex || GREEN;
+  const hero = team.heroImageUrl;
+
+  const header = (
+    <div tw="flex items-center" style={{ gap: 20, justifyContent: hero ? "flex-start" : "center" }}>
+      {team.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
+        <img src={team.logoUrl} alt="" width={76} height={76} style={{ objectFit: "contain" }} />
+      ) : null}
+      <div tw="flex flex-col">
+        <Eyebrow color={GRAY} size={16} spacing={3} opacity={0.8}>
+          {eyebrow}
+        </Eyebrow>
+        <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: hero ? 52 : 44, letterSpacing: 0.3, lineHeight: 1.05, marginTop: 2 }}>
+          {upper(team.teamName)}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: "white", backgroundColor: NAVY_800, overflow: "hidden" }}>
@@ -187,6 +91,30 @@ export function DeepAnalysisCard({
         }}
       />
 
+      {/* Sağ kenar filigranı (.cm-sidetext): üstten (kapaklı kartta kapağın altından) başlayan dikey metin, %16 opak yeşil. Satori'de
+          writing-mode yok — tuval yüksekliğinde yatay bir kutu merkezinden 90° döndürülür. */}
+      <div tw="flex" style={{ position: "absolute", right: -6, top: hero ? HERO_HEIGHT : 0, width: 80, height: 1350 }}>
+        <div
+          tw="flex items-center"
+          style={{ position: "absolute", left: (80 - 1350) / 2, top: (1350 - 80) / 2, width: 1350, height: 80, transform: "rotate(90deg)" }}
+        >
+          <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 62, letterSpacing: 6, color: GREEN, opacity: 0.16, whiteSpace: "nowrap" }}>
+            {`${sideText}  ${sideText}`}
+          </span>
+        </div>
+      </div>
+
+      {/* Kapak (oyuncu kesimi + sahne, 1080×460): filigranın üstünde (oyuncuya binmesin), başlık sol gölgeli alanına biner. */}
+      {hero ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
+        <img src={hero} alt="" width={1080} height={HERO_HEIGHT} style={{ position: "absolute", left: 0, top: 0 }} />
+      ) : null}
+      {hero ? (
+        <div tw="flex" style={{ position: "absolute", left: 64, top: HERO_HEIGHT - 190, width: 560 }}>
+          {header}
+        </div>
+      ) : null}
+
       {/* Sol üst marka köşesi: kalın diyagonal yeşil şerit (.cm-corner). */}
       <div tw="flex" style={{ position: "absolute", left: 0, top: 0, width: 220, height: 220, overflow: "hidden" }}>
         <div
@@ -203,33 +131,15 @@ export function DeepAnalysisCard({
         />
       </div>
 
-      {/* Sağ kenar filigranı (.cm-sidetext): üstten başlayan dikey metin, %16 opak yeşil. Satori'de
-          writing-mode yok — tuval yüksekliğinde yatay bir kutu merkezinden 90° döndürülür. */}
-      <div tw="flex" style={{ position: "absolute", right: -6, top: 0, width: 80, height: 1350 }}>
-        <div
-          tw="flex items-center"
-          style={{ position: "absolute", left: (80 - 1350) / 2, top: (1350 - 80) / 2, width: 1350, height: 80, transform: "rotate(90deg)" }}
-        >
-          <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 62, letterSpacing: 6, color: GREEN, opacity: 0.16, whiteSpace: "nowrap" }}>
-            {`${sideText}  ${sideText}`}
-          </span>
-        </div>
-      </div>
-
-      {/* İçerik: dikeyde ortalanmış, 24px aralıklı, yan boşluk 64px. */}
-      <div tw="flex flex-col items-center justify-center" style={{ position: "absolute", inset: 0, padding: "0 64px", gap: 24 }}>
-        <div tw="flex items-center justify-center" style={{ gap: 20 }}>
-          {team.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
-            <img src={team.logoUrl} alt="" width={76} height={76} style={{ objectFit: "contain" }} />
-          ) : null}
-          <div tw="flex flex-col">
-            <Eyebrow color={GRAY} size={16} spacing={3} opacity={0.8}>
-              {eyebrow}
-            </Eyebrow>
-            <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: 44, letterSpacing: 0.3, lineHeight: 1.05, marginTop: 2 }}>{upper(team.teamName)}</span>
-          </div>
-        </div>
+      {/*
+        İçerik: kapaksız kartta tüm tuvalde dikey ortalı, 24px aralıklı (kaynak şablon); kapaklı kartta
+        kapağın altındaki alanda, sıkışmasın diye 18px aralıklı. Yan boşluk 64px.
+      */}
+      <div
+        tw="flex flex-col items-center justify-center"
+        style={{ position: "absolute", left: 0, right: 0, top: hero ? HERO_HEIGHT - 24 : 0, bottom: 0, padding: hero ? "0 64px 28px" : "0 64px", gap: hero ? 18 : 24 }}
+      >
+        {hero ? null : header}
 
         {strengths.length + cautions.length > 0 ? (
           <div tw="flex" style={{ width: "100%", maxWidth: MAX_WIDTH, gap: 26 }}>

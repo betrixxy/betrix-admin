@@ -52,3 +52,6 @@ next-env.d.ts
 
 # görsel regresyon testlerinin başarısız çıktıları (baseline değil)
 /tests/visual/__output__
+
+# Yerel geçici test çıktıları (ör. Fal.ai kapak denemeleri) — repoya girmez
+/tests/tmp-*/

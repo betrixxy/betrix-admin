@@ -38,18 +38,19 @@ export interface MatchDayBackgroundInput extends MatchDayPromptInput {
   height: number;
 }
 
-/** Takım renklerine bölünmüş Maç Günü stadyum arka planı — Fal.ai `flux/dev` (text-to-image). */
-export async function generateMatchDayBackground(
-  input: MatchDayBackgroundInput,
+/** Hazır prompt ile tek sahne — Fal.ai `flux/dev` (text-to-image). Stüdyoların ortak arka plan çağrısı. */
+export async function generateFluxScene(
+  prompt: string,
+  width: number,
+  height: number,
+  failureMessage: string,
 ): Promise<Result<FalGeneratedImage, FalError>> {
   if (!isFalConfigured()) return NOT_CONFIGURED;
-  const prompt = buildMatchDayBackgroundPrompt(input);
-
   try {
     const result = await getFalClient().subscribe(FAL_MODELS.STADIUM_BACKGROUND, {
       input: {
         prompt,
-        image_size: toFalImageSize(input.width, input.height),
+        image_size: toFalImageSize(width, height),
         num_images: 1,
         enable_safety_checker: true,
       },
@@ -57,8 +58,13 @@ export async function generateMatchDayBackground(
     });
     return firstImage(result.data, FAL_MODELS.STADIUM_BACKGROUND, prompt);
   } catch (cause) {
-    return requestFailed(cause, "Maç Günü arka planı üretilemedi.");
+    return requestFailed(cause, failureMessage);
   }
+}
+
+/** Takım renklerine bölünmüş Maç Günü stadyum arka planı — Fal.ai `flux/dev` (text-to-image). */
+export function generateMatchDayBackground(input: MatchDayBackgroundInput): Promise<Result<FalGeneratedImage, FalError>> {
+  return generateFluxScene(buildMatchDayBackgroundPrompt(input), input.width, input.height, "Maç Günü arka planı üretilemedi.");
 }
 
 export interface HarmonizeInput extends MatchDayPromptInput {
