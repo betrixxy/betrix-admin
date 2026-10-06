@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { AlertCircle, CircleCheck, LoaderCircle, RefreshCw, Save, Target } from "lucide-react";
+import { AlertCircle, AlertTriangle, CircleCheck, LoaderCircle, RefreshCw, Save, Sparkles, Target } from "lucide-react";
 import {
+  generateExpertAnalysisAction,
   loadDeepAnalysisAction,
   saveMarketAnalysisAction,
   type DeepAnalysisLoadResult,
@@ -25,6 +26,8 @@ interface MarketAnalysisFormProps {
   fixtures: MatchDayFixtureOption[];
   /** `?fixtureId=` ile gelen, listede doğrulanmış maç — açılışta verisi otomatik yüklenir. */
   initialFixtureId: string | null;
+  /** ANTHROPIC_API_KEY tanımlı mı — değilse "AI Analist" pasiftir, öneriler kural tabanlı kalır. */
+  analystAvailable: boolean;
 }
 
 const FORM_LETTERS = { W: { letter: "G", className: "bg-emerald-600" }, D: { letter: "B", className: "bg-zinc-600" }, L: { letter: "M", className: "bg-red-700" } } as const;
@@ -67,7 +70,7 @@ function DataSummary({ summary }: { summary: TeamDataSummary }) {
   );
 }
 
-export function MarketAnalysisForm({ fixtures, initialFixtureId }: MarketAnalysisFormProps) {
+export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailable }: MarketAnalysisFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<MarketAnalysisDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<DeepAnalysisLoadResult | null>(null);
@@ -76,6 +79,27 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId }: MarketAnalysi
   const [isLoading, startLoading] = useTransition();
   const autoLoaded = useRef(false);
   const [isSaving, startSaving] = useTransition();
+  const [isWriting, startWriting] = useTransition();
+  const [analystNote, setAnalystNote] = useState<{ warnings: string[]; model: string } | null>(null);
+
+  function writeWithAnalyst() {
+    setError(null);
+    setAnalystNote(null);
+    startWriting(async () => {
+      const result = await generateExpertAnalysisAction(fixtureId);
+      if (!result.ok) {
+        setError(`AI analist: ${result.error.message}`);
+        return;
+      }
+      // Takım renkleri ve elle girilen alıntı dışındaki her şey analistin taslağıyla değişir.
+      setDraft((current) => ({
+        ...result.data.draft,
+        home: { ...result.data.draft.home, colorHex: current.home.colorHex },
+        away: { ...result.data.draft.away, colorHex: current.away.colorHex },
+      }));
+      setAnalystNote({ warnings: result.data.warnings, model: result.data.model });
+    });
+  }
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
 
@@ -108,6 +132,7 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId }: MarketAnalysi
   function selectFixture(id: string) {
     setFixtureId(id);
     setSavedId(null);
+    setAnalystNote(null);
     setLoaded(null);
     setDraft(draftFor(fixtures.find((fixture) => fixture.id === id)));
     if (id) load(id);
@@ -152,6 +177,36 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId }: MarketAnalysi
                 {isLoading ? "Yükleniyor…" : "Veriden doldur"}
               </Button>
             </div>
+            <Button
+              type="button"
+              disabled={!analystAvailable || !fixtureId || isLoading || isWriting}
+              onClick={writeWithAnalyst}
+              title={analystAvailable ? "Claude, maç verisinden iki takımın analizini ve market tahminini yazar (ücretli, ~30-90 sn)" : "ANTHROPIC_API_KEY tanımlı değil"}
+            >
+              {isWriting ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+              {isWriting ? "Analist yazıyor… (30-90 sn)" : "AI Analist ile Yaz"}
+            </Button>
+            {!analystAvailable ? (
+              <p className="text-xs text-muted-foreground">AI analist kapalı (ANTHROPIC_API_KEY yok) — alanlar kural tabanlı önerilerle dolar.</p>
+            ) : null}
+            {analystNote ? (
+              analystNote.warnings.length === 0 ? (
+                <p className="flex items-center gap-1.5 text-xs text-emerald-300" role="status">
+                  <CircleCheck className="size-3.5 shrink-0" />
+                  Analiz yazıldı ({analystNote.model}) — metindeki tüm sayılar veriyle eşleşiyor.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200" role="status">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <AlertTriangle className="size-3.5 shrink-0" />
+                    Analiz yazıldı — yayından önce şu noktaları kontrol edin:
+                  </span>
+                  {analystNote.warnings.map((warning) => (
+                    <span key={warning}>• {warning}</span>
+                  ))}
+                </div>
+              )
+            ) : null}
             {error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                 <AlertCircle className="size-3.5 shrink-0" />

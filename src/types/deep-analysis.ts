@@ -48,6 +48,43 @@ export interface TeamDeepStats {
   formation: string | null;
   /** Ortalama puana göre en iyi oyuncular (en fazla 5). */
   keyPlayers: KeyPlayerStats[];
+
+  // ---- İleri metrikler (API-Football'dan türetilir; veri yoksa null) ----
+  shotsAvg: number | null;
+  /** Rakibe izin verilen maç başı şut. */
+  shotsConcededAvg: number | null;
+  shotsInsideBoxPct: number | null;
+  shotAccuracyPct: number | null;
+  /** Şutların gole dönüşme oranı. */
+  conversionPct: number | null;
+  xgPerShot: number | null;
+  /** Maç başı kilit pas (oyuncu toplamı). */
+  keyPassesAvg: number | null;
+  dribbleSuccessPct: number | null;
+  /**
+   * PPDA — TÜM SAHA YAKLAŞIMI: rakip pas / (müdahale + top kesme + faul). Gerçek PPDA yalnızca
+   * rakibin kendi yarı/%60 alanındaki pasları sayar; iki sağlayıcı da bölge verisi sunmadığından
+   * bu yaklaşım kullanılır. Düşük = yoğun pres.
+   */
+  ppdaFullPitch: number | null;
+
+  /** Sportmonks'tan gelen ek metrikler — maç eşleşmezse veya anahtar yoksa null. */
+  sportmonks: SportmonksAdvancedMetrics | null;
+}
+
+/**
+ * Sportmonks maç istatistiklerinden takımın son maç ortalamaları — API-Football'da olmayan
+ * metrikler. Maçlar iki sağlayıcı arasında tarih + takım adıyla eşlenir (kimlik tablosu yok).
+ */
+export interface SportmonksAdvancedMetrics {
+  matchesSampled: number;
+  bigChancesCreatedAvg: number | null;
+  bigChancesMissedAvg: number | null;
+  /** Rakibin yarattığı büyük şans — savunmanın izin verdiği. */
+  bigChancesConcededAvg: number | null;
+  dangerousAttacksAvg: number | null;
+  crossAccuracyPct: number | null;
+  longPassAccuracyPct: number | null;
 }
 
 export interface DeepAnalysisStats {
@@ -56,6 +93,8 @@ export interface DeepAnalysisStats {
   away: TeamDeepStats;
   headToHead: HeadToHeadSummary;
   source: "api-football";
+  /** Sportmonks zenginleştirmesinin durumu — "matched" değilse `sportmonks` alanları null'dır. */
+  sportmonksStatus: "matched" | "unmatched" | "not-configured";
   fetchedAtUtc: string;
 }
 

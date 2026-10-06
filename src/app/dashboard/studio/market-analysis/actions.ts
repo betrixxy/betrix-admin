@@ -5,6 +5,7 @@ import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { buildMarketAnalysisDraft, suggestMarkets } from "@/lib/dashboard/deep-analysis-insights";
+import { createExpertAnalysisDraft, type ExpertAnalysisResult } from "@/lib/dashboard/expert-analysis";
 import { renderDeepAnalysisCard } from "@/lib/dashboard/deep-analysis-render";
 import { createMarketAnalysisDraft } from "@/lib/dashboard/market-analysis-engine";
 import { getDeepAnalysisStats, getFixtureById, parseFixtureId } from "@/lib/services/api-football";
@@ -144,4 +145,22 @@ export async function saveMarketAnalysisAction(input: unknown): Promise<Result<{
   revalidatePath("/calendar");
   revalidatePath("/dashboard/matches");
   return { ok: true, data: { id: saved.data.id } };
+}
+
+/**
+ * "AI Analist": seçilen maçın gerçek verisinden (API-Football + Sportmonks) Claude'a iki takımın
+ * analist metinlerini ve market tahminini yazdırır. Çıktıdaki her sayı veriyle karşılaştırılır;
+ * dayanaksız sayılar `warnings` olarak döner (yayından önce admin görür). Ücretlidir — yalnızca
+ * admin tıklamasıyla çalışır (bkz. CLAUDE.md 1.10).
+ */
+export async function generateExpertAnalysisAction(fixtureId: string): Promise<Result<ExpertAnalysisResult>> {
+  if (!(await getCurrentSession())) {
+    return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
+  }
+  const apiId = parseFixtureId(fixtureId);
+  if (apiId === null) return { ok: false, error: { code: "INVALID_INPUT", message: "Önce bir maç seçin." } };
+
+  const stats = await getDeepAnalysisStats(apiId);
+  if (!stats.ok) return { ok: false, error: { code: stats.error.code, message: stats.error.message } };
+  return createExpertAnalysisDraft(fixtureId, stats.data);
 }

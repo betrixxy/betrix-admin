@@ -1,9 +1,17 @@
 import { env } from "@/lib/env";
 import { fetchJson, type HttpFailure } from "@/lib/services/shared/http";
+import { TtlCache } from "@/lib/services/shared/ttl-cache";
 import type { SportmonksError } from "@/lib/services/sportmonks/types";
 import type { Result } from "@/types/result";
 
 const BASE_URL = "https://api.sportmonks.com/v3/football";
+
+/** Varsayılan tazelik — form/istatistik için yeterli (bkz. CLAUDE.md 2.3). Çağıran daraltabilir. */
+const DEFAULT_TTL_MS = 30 * 60 * 1000;
+/** İstatistik içeren aralık sorguları büyük olabilir. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
+const responseCache = new TtlCache<unknown>();
 
 export function isSportmonksConfigured(): boolean {
   return env.SPORTMONKS_API_KEY.length > 0;
@@ -31,6 +39,7 @@ function mapHttpFailure(failure: HttpFailure): SportmonksError {
 export async function sportmonksRequest(
   path: string,
   params: Record<string, string> = {},
+  options: { ttlMs?: number } = {},
 ): Promise<Result<unknown, SportmonksError>> {
   if (!isSportmonksConfigured()) {
     return {
@@ -42,16 +51,24 @@ export async function sportmonksRequest(
     };
   }
 
+  // Önbellek anahtarı token içermez; token yalnızca istek URL'ine eklenir, loglanmaz.
+  const cacheKey = `${path}?${new URLSearchParams(params).toString()}`;
+  const cached = responseCache.get(cacheKey);
+  if (cached !== undefined) return { ok: true, data: cached };
+
   const url = `${BASE_URL}${path}?${new URLSearchParams({
     ...params,
     api_token: env.SPORTMONKS_API_KEY,
   }).toString()}`;
 
-  const result = await fetchJson(url);
+  const result = await fetchJson(url, {}, { timeoutMs: REQUEST_TIMEOUT_MS });
 
   if (!result.ok) {
     return { ok: false, error: mapHttpFailure(result.error) };
   }
 
+  // Hatalar asla önbelleğe alınmaz — yalnızca başarılı yanıtlar.
+  const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
+  if (ttlMs > 0) responseCache.set(cacheKey, result.data, ttlMs);
   return { ok: true, data: result.data };
 }

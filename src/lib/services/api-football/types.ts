@@ -67,6 +67,7 @@ export const apiFootballPlayerStatisticsSchema = z.object({
   passes: z.object({ key: nullableNumber }).nullish(),
   tackles: z.object({ total: nullableNumber, interceptions: nullableNumber }).nullish(),
   duels: z.object({ total: nullableNumber, won: nullableNumber }).nullish(),
+  dribbles: z.object({ attempts: nullableNumber, success: nullableNumber }).nullish(),
 });
 
 export const apiFootballTeamPlayersSchema = z.object({

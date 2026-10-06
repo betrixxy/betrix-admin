@@ -1,3 +1,4 @@
+import { computeAdvancedMetrics } from "@/lib/services/api-football/advanced-metrics";
 import { computeRecentForm } from "@/lib/services/api-football/form-mappers";
 import type { ApiFootballFixtureDetailRaw } from "@/lib/services/api-football/types";
 import type { KeyPlayerStats, PlayerPosition, TeamDeepStats } from "@/types/deep-analysis";
@@ -170,5 +171,8 @@ export function computeTeamDeepStats(
     failedToScore,
     formation: mostCommonFormation(fixtures, team.id),
     keyPlayers: accumulatePlayers(fixtures, team.id),
+    ...computeAdvancedMetrics(fixtures, team.id),
+    // Sportmonks ek metrikleri servis katmanında (deep-analysis.ts) maç eşleşirse doldurulur.
+    sportmonks: null,
   };
 }

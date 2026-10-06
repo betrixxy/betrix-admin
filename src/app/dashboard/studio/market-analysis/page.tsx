@@ -3,6 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { MarketAnalysisForm } from "@/components/features/dashboard/market-analysis/market-analysis-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
+import { isAnthropicConfigured } from "@/lib/services/anthropic";
 
 export const metadata: Metadata = {
   title: "AI Market Tahmin & Analiz — betrix.pro",
@@ -37,7 +38,7 @@ export default async function MarketAnalysisPage({ searchParams }: MarketAnalysi
         </div>
       ) : null}
 
-      <MarketAnalysisForm fixtures={fixtureList} initialFixtureId={initialFixtureId} />
+      <MarketAnalysisForm fixtures={fixtureList} initialFixtureId={initialFixtureId} analystAvailable={isAnthropicConfigured()} />
     </>
   );
 }

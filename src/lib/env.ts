@@ -20,6 +20,8 @@ const BUILD_PHASE_PLACEHOLDERS = {
 
 const envSchema = z.object({
   FAL_KEY: z.string().optional().default(""),
+  /** Claude (Anthropic) — AI Market Tahmin stüdyosunun analist metinleri; boşsa kural tabanlı öneriye düşülür. */
+  ANTHROPIC_API_KEY: z.string().optional().default(""),
   SPORTMONKS_API_KEY: z.string().optional().default(""),
   API_FOOTBALL_KEY: z.string().optional().default(""),
   CHECKMATCH_MAC_SERVER_URL: z.string().optional().default(""),
@@ -94,6 +96,7 @@ function read(name: keyof typeof envSchema.shape): string | undefined {
 
 const parsed = envSchema.safeParse({
   FAL_KEY: read("FAL_KEY"),
+  ANTHROPIC_API_KEY: read("ANTHROPIC_API_KEY"),
   SPORTMONKS_API_KEY: read("SPORTMONKS_API_KEY"),
   API_FOOTBALL_KEY: read("API_FOOTBALL_KEY"),
   CHECKMATCH_MAC_SERVER_URL: read("CHECKMATCH_MAC_SERVER_URL"),
