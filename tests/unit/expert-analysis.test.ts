@@ -94,8 +94,16 @@ describe("analist çıktısının uygulanması (Çelik Kasa)", () => {
     assert.ok(!has("dikkat 1"), "'Son 3 maçta 1 galibiyet' — iki sayı da ev sahibi paketinde var");
   });
 
+  it("yanlış takıma atanan oyuncuyu reddeder (oyuncu izolasyonu)", () => {
+    assert.ok(has("Ev sahibi metninde rakip/uydurma oyuncu kullanıldı: Deplasman Golcü (rakip takımın kadrosunda) — karta eklenmedi"));
+    assert.ok(has("Deplasman metninde rakip/uydurma oyuncu kullanıldı: Forvet Bir (rakip takımın kadrosunda) — karta eklenmedi"));
+    assert.ok(!draft.home.keyPlayers.some((p) => p.name === "Deplasman Golcü"), "rakip oyuncu ev sahibi kartına girmez");
+    assert.ok(!draft.away.keyPlayers.some((p) => p.name === "Forvet Bir"), "ev sahibi oyuncusu deplasman kartına girmez");
+    assert.equal(draft.away.keyPlayers[0]?.name, "Deplasman Golcü", "doğru oyuncu yerinde kalır");
+  });
+
   it("uydurma oyuncuyu atar, uzunlukları kırpar, görselleri korur", () => {
-    assert.ok(has('"Uydurma Oyuncu" olgu paketinde yok'));
+    assert.ok(has("Ev sahibi metninde rakip/uydurma oyuncu kullanıldı: Uydurma Oyuncu (olgu paketinde yok) — karta eklenmedi"));
     assert.deepEqual(
       draft.home.keyPlayers.map((p) => p.name),
       ["Forvet Bir", "Orta Saha", "Defans"],

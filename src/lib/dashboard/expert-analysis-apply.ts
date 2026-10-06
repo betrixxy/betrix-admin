@@ -44,12 +44,18 @@ function points(values: string[]): string[] {
 const sameName = (a: string, b: string) => a.toLocaleLowerCase("tr-TR").trim() === b.toLocaleLowerCase("tr-TR").trim();
 
 /**
- * Modelin seçtiği oyuncuları gerçek oyuncu verisine bağlar (fotoğraf oradan gelir). Pakette olmayan
- * bir ad uydurma sayılır ve atlanır; eksik kalan yerler kural tabanlı seçimle tamamlanır.
+ * Oyuncu izolasyonu: modelin seçtiği her oyuncu YALNIZCA kendi takımının oyuncu listesinde aranır
+ * (`stats[side].keyPlayers` — o takımın son maçlarında, o takım formasıyla oynayanlar). Rakibin
+ * listesindeki ya da hiçbir listede olmayan ad karta asla girmez; uyarı olarak raporlanır ve boşluk
+ * kural tabanlı seçimle dolar. Fotoğraf her zaman gerçek oyuncu verisinden gelir.
+ *
+ * Kadro kaynağı oyuncunun TAKIM ADINA son maçlarda sahaya çıkmasıdır, eski kulübü değil: sezon içi
+ * transferler (ör. bir oyuncunun yeni kulübü) böylece doğru takımda kalır.
  */
 function players(
   chosen: ExpertAnalysisOutput["home"]["key_players"],
   team: TeamDeepStats,
+  opponent: TeamDeepStats,
   fallback: KeyPlayerDraft[],
   warn: (message: string) => void,
 ): KeyPlayerDraft[] {
@@ -57,7 +63,8 @@ function players(
   for (const pick of chosen) {
     const player = team.keyPlayers.find((p) => sameName(p.name, pick.name));
     if (!player) {
-      warn(`"${pick.name}" olgu paketinde yok — atlandı`);
+      const reason = opponent.keyPlayers.some((p) => sameName(p.name, pick.name)) ? "rakip takımın kadrosunda" : "olgu paketinde yok";
+      warn(`metninde rakip/uydurma oyuncu kullanıldı: ${pick.name} (${reason}) — karta eklenmedi`);
       continue;
     }
     if (result.some((p) => sameName(p.name, player.name))) continue;
@@ -112,7 +119,7 @@ export function applyExpertAnalysis(
       ...base[side],
       strengths: points(analysis.strengths),
       cautions: points(analysis.cautions),
-      keyPlayers: players(analysis.key_players, stats[side], base[side].keyPlayers, (m) => warnings.push(`${owner} · ${m}`)),
+      keyPlayers: players(analysis.key_players, stats[side], stats[OTHER[side]], base[side].keyPlayers, (m) => warnings.push(`${owner} ${m}`)),
       approach: clip(analysis.approach, LIMITS.approach),
       quote: clip(analysis.quote, LIMITS.quote),
     };

@@ -7,6 +7,7 @@ import type { ExpertAnalysisOutput } from "@/lib/services/anthropic";
  * - Ev sahibi güçlü yön 3: hiçbir pakette olmayan sayı (4.2) — uydurma.
  * - Ev sahibi alıntı: lakap ("Gala").
  * - Olgu paketinde olmayan bir oyuncu.
+ * - Oyuncu izolasyonu: ev sahibi kartına deplasmanın oyuncusu, deplasman kartına ev sahibinin oyuncusu.
  * Doğru kullanımlar (uyarı üretmemeli): ev sahibi yaklaşımında rakibin sayısı (%41), market
  * gerekçesinde market çizgisi (2.5) ve iki takımın sayıları.
  */
@@ -17,6 +18,7 @@ export const EXPERT_ANALYSIS_OUTPUT: ExpertAnalysisOutput = {
     key_players: [
       { name: "Forvet Bir", role: "Ceza sahası içinde bitirici, 3 gol" },
       { name: "Uydurma Oyuncu", role: "Yaratıcı on numara" },
+      { name: "Deplasman Golcü", role: "Ceza sahası içinde bitirici" },
       { name: "Orta Saha", role: "Oyun kurucu" },
     ],
     approach: "Kasımpaşa'nın %41 topla oynamasına karşı sabırlı pas oyunuyla kanatları açmalı. ".repeat(6),
@@ -25,7 +27,10 @@ export const EXPERT_ANALYSIS_OUTPUT: ExpertAnalysisOutput = {
   away: {
     strengths: ["Kompakt blok", "", ""],
     cautions: ["Maç başı 2.4 gol yiyor", "", ""],
-    key_players: [{ name: "deplasman golcü", role: "Hava toplarında güçlü santrfor" }],
+    key_players: [
+      { name: "Forvet Bir", role: "Ev sahibinin golcüsü — yanlış takım" },
+      { name: "deplasman golcü", role: "Hava toplarında güçlü santrfor" },
+    ],
     approach: "Galatasaray'ın %56 topla oynamasına karşı kontra ataklarla sonuç aramalı.",
     quote: "",
   },

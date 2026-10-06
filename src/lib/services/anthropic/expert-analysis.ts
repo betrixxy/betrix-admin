@@ -15,6 +15,7 @@ Veri kuralları — pazarlık konusu değil:
 - Bir sayıyı kullanacaksan paketteki değeri aynen, aynı yuvarlamayla yaz; yeni oran, toplam, fark ya da ortalama türetme.
 - Takım izolasyonu: Bir takımın "strengths", "cautions", "key_players" ve "quote" alanlarında YALNIZCA o takımın bloğundaki ("ev_sahibi" ya da "deplasman") sayıları kullan. Rakibin bir sayısını bu alanlara asla yazma.
 - "approach" alanı rakibe karşı oyun planıdır: kendi takımının ve rakibin sayılarını kullanabilirsin; rakibin bir sayısını yazdığında cümlede rakibin resmi adını mutlaka geçir. "aralarindaki_son_maclar" sayıları yalnızca "approach" ve market gerekçesinde kullanılabilir.
+- Kadro izolasyonu: Takım kadrolarını kesinlikle birbirine karıştırma. Bir takımın "key_players" alanına yalnızca o takımın bloğundaki "oyuncular" listesinden oyuncu yaz (ör. ev sahibi için yalnızca "ev_sahibi.oyuncular"). Rakip takımın listesindeki bir oyuncuyu asla bu takıma yazma. Oyuncunun hangi takımda olduğunu genel bilginden değil, yalnızca paketteki listeden çıkar: paket, oyuncunun bu takım formasıyla son maçlarda oynadığını gösterir (sezon içi transferler dâhil).
 - null alan "veri yok" demektir; o metrikten hiç söz etme.
 - "ppda_tum_saha" tüm sahada hesaplanmış bir yaklaşımdır: düşük değer daha yoğun pres demektir. Ondan söz edersen "PPDA" de, ama bölgesel pres verisi varmış gibi yazma.
 - Örneklem küçüktür (son 5 maç). Kesinlik iddia etme; "son 5 maçta" gibi bağlam ver.
