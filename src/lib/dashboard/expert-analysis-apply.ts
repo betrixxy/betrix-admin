@@ -1,4 +1,9 @@
-import { findUngroundedNumbers } from "@/lib/dashboard/expert-analysis-facts";
+import {
+  findTeamAbbreviations,
+  findUngroundedNumbers,
+  union,
+  type NumberScopes,
+} from "@/lib/dashboard/expert-analysis-facts";
 import type { ExpertAnalysisOutput } from "@/lib/services/anthropic/types";
 import {
   ANALYSIS_POINT_COUNT,
@@ -66,38 +71,56 @@ function players(
   return result.slice(0, KEY_PLAYER_COUNT);
 }
 
+const OTHER: Record<TeamSide, TeamSide> = { home: "away", away: "home" };
+
 /**
  * Kural tabanlı taslağın (logo, renk, istatistik bloğu, oyuncu fotoğrafları) üzerine analistin
- * metinlerini yazar ve dayanaksız sayıları uyarı olarak döndürür. Saf fonksiyon.
+ * metinlerini yazar ve "Çelik Kasa" denetimini uygular. Saf fonksiyon.
+ *
+ * Sayı denetimi takım izolasyonludur (bkz. expert-analysis-facts.ts):
+ * - Güçlü yön, dikkat, oyuncu rolü, alıntı → yalnızca o takımın paketi. Rakibin sayısı da hatadır
+ *   ("takım karışmış"), hiçbir pakette olmayan sayı da ("veride yok").
+ * - Önerilen yaklaşım → tanımı gereği rakibe karşı plan: kendi + rakip + ortak (aralarındaki maçlar).
+ * - Market gerekçesi → iki takım + ortak + market çizgileri ("2.5 Üst").
+ * Ayrıca her metinde takım kısaltması/lakabı aranır ("Gala", "GS"…).
  */
 export function applyExpertAnalysis(
   base: MarketAnalysisDraft,
   output: ExpertAnalysisOutput,
   stats: DeepAnalysisStats,
-  allowed: Set<string>,
+  scopes: NumberScopes,
 ): { draft: MarketAnalysisDraft; warnings: string[] } {
   const warnings: string[] = [];
-  const check = (label: string, text: string) => {
-    const ungrounded = findUngroundedNumbers(text, allowed);
-    if (ungrounded.length > 0) warnings.push(`${label}: ${ungrounded.join(", ")} veride yok — kontrol edin`);
+  const officialNames = [stats.fixture.homeTeam.name, stats.fixture.awayTeam.name];
+
+  const check = (owner: string, field: string, text: string, allowed: Set<string>, opponent?: Set<string>) => {
+    for (const { value, foundIn } of findUngroundedNumbers(text, allowed, opponent)) {
+      const reason = foundIn === "opponent" ? "rakibin verisine ait — takım karışmış" : "veride yok";
+      warnings.push(`${owner} metninde dayanaksız sayı: ${value} (${field}; ${reason})`);
+    }
+    for (const abbreviation of findTeamAbbreviations(text, officialNames)) {
+      warnings.push(`${owner} metninde kısaltma/lakap: "${abbreviation}" (${field}) — resmi takım adını kullanın`);
+    }
   };
 
   const team = (side: TeamSide): TeamAnalysisDraft => {
     const analysis = output[side];
-    const label = SIDE_LABEL[side];
+    const owner = SIDE_LABEL[side];
+    const own = scopes[side];
+    const opponent = scopes[OTHER[side]];
     const draft: TeamAnalysisDraft = {
       ...base[side],
       strengths: points(analysis.strengths),
       cautions: points(analysis.cautions),
-      keyPlayers: players(analysis.key_players, stats[side], base[side].keyPlayers, (m) => warnings.push(`${label} · ${m}`)),
+      keyPlayers: players(analysis.key_players, stats[side], base[side].keyPlayers, (m) => warnings.push(`${owner} · ${m}`)),
       approach: clip(analysis.approach, LIMITS.approach),
       quote: clip(analysis.quote, LIMITS.quote),
     };
-    draft.strengths.forEach((p, i) => check(`${label} · güçlü yön ${i + 1}`, p));
-    draft.cautions.forEach((p, i) => check(`${label} · dikkat ${i + 1}`, p));
-    draft.keyPlayers.forEach((p, i) => check(`${label} · oyuncu ${i + 1} rolü`, p.role));
-    check(`${label} · yaklaşım`, draft.approach);
-    check(`${label} · alıntı`, draft.quote);
+    draft.strengths.forEach((text, i) => check(owner, `güçlü yön ${i + 1}`, text, own, opponent));
+    draft.cautions.forEach((text, i) => check(owner, `dikkat ${i + 1}`, text, own, opponent));
+    draft.keyPlayers.forEach((player, i) => check(owner, `oyuncu ${i + 1} rolü`, player.role, own, opponent));
+    check(owner, "alıntı", draft.quote, own, opponent);
+    check(owner, "önerilen yaklaşım", draft.approach, union(own, opponent, scopes.shared));
     return draft;
   };
 
@@ -108,6 +131,6 @@ export function applyExpertAnalysis(
     marketPick: clip(output.market.pick, LIMITS.pick),
     marketRationale: clip(output.market.rationale, LIMITS.rationale),
   };
-  check("Market gerekçesi", draft.marketRationale);
+  check("Market gerekçesi", "market", draft.marketRationale, union(scopes.home, scopes.away, scopes.shared, new Set(MARKET_LINES)));
   return { draft, warnings };
 }

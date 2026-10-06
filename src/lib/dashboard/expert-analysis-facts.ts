@@ -93,23 +93,84 @@ function canonical(raw: string): string {
   return Number.isFinite(value) ? String(value) : raw;
 }
 
-/** Olgu paketindeki her sayı (ve tam sayı kısmı / tek ondalık yuvarlaması) — izinli sayı kümesi. */
-export function allowedNumbers(facts: unknown): Set<string> {
+/** Bir değerdeki her sayı (ve tam sayı / tek ondalık yuvarlaması) — izinli sayı kümesi. */
+function numbersIn(value: unknown): Set<string> {
   const allowed = new Set<string>();
-  for (const match of JSON.stringify(facts).matchAll(NUMBER_PATTERN)) {
-    const value = Number(match[0]);
-    allowed.add(String(value));
-    allowed.add(String(Math.round(value)));
-    allowed.add(String(Number(value.toFixed(1))));
+  for (const match of JSON.stringify(value).matchAll(NUMBER_PATTERN)) {
+    const n = Number(match[0]);
+    allowed.add(String(n));
+    allowed.add(String(Math.round(n)));
+    allowed.add(String(Number(n.toFixed(1))));
   }
   return allowed;
 }
 
-/** Metindeki, olgu paketinde karşılığı olmayan sayılar (ör. uydurulmuş bir istatistik). */
-export function findUngroundedNumbers(text: string, allowed: Set<string>): string[] {
-  const found = new Set<string>();
+/**
+ * Takım izolasyonu: her takımın sayıları ayrı kümede. Ev sahibinin metni yalnızca `home` ile,
+ * deplasmanınki yalnızca `away` ile denetlenir; `shared` (maç künyesi + aralarındaki son maçlar)
+ * yalnızca iki takımı birlikte ele alan alanlarda (yaklaşım, market gerekçesi) geçerlidir.
+ */
+export interface NumberScopes {
+  home: Set<string>;
+  away: Set<string>;
+  shared: Set<string>;
+}
+
+export function allowedNumbersBySide(facts: AnalysisFacts): NumberScopes {
+  return {
+    home: numbersIn(facts.ev_sahibi),
+    away: numbersIn(facts.deplasman),
+    shared: numbersIn({ mac: facts.mac, aralarindaki_son_maclar: facts.aralarindaki_son_maclar }),
+  };
+}
+
+export function union(...sets: Set<string>[]): Set<string> {
+  return new Set(sets.flatMap((set) => [...set]));
+}
+
+export interface UngroundedNumber {
+  /** Metinde geçtiği hâliyle sayı. */
+  value: string;
+  /** "opponent": izinli kapsamda yok ama rakibin paketinde var → takımlar karışmış. "nowhere": uydurma. */
+  foundIn: "opponent" | "nowhere";
+}
+
+/**
+ * Metindeki, izinli kapsamda karşılığı olmayan sayılar. `opponent` verilirse bulunamayan sayının
+ * rakibin paketinde olup olmadığı da raporlanır (yanlış takıma atfedilmiş istatistik).
+ */
+export function findUngroundedNumbers(text: string, allowed: Set<string>, opponent: Set<string> = new Set()): UngroundedNumber[] {
+  const found = new Map<string, UngroundedNumber>();
   for (const match of text.matchAll(NUMBER_PATTERN)) {
-    if (!allowed.has(canonical(match[0]))) found.add(match[0]);
+    const value = canonical(match[0]);
+    if (allowed.has(value) || found.has(match[0])) continue;
+    found.set(match[0], { value: match[0], foundIn: opponent.has(value) ? "opponent" : "nowhere" });
   }
-  return [...found];
+  return [...found.values()];
+}
+
+/** Yaygın kulüp kısaltma ve lakapları — resmi ad dışında hiçbiri kullanılmaz. */
+const KNOWN_SHORT_FORMS = ["GS", "FB", "BJK", "TS", "İBFK", "Cimbom", "Gala", "Fener", "Kartal", "Kanarya"];
+
+/** Takım adının başıyla örtüşen gerçek Türkçe kelimeler — kısaltma sayılmaz (ör. "Kasım" ayı). */
+const REAL_WORDS = new Set(["kasım", "trabzon"]);
+
+const words = (text: string) => text.match(/\p{L}+/gu) ?? [];
+const lower = (text: string) => text.toLocaleLowerCase("tr-TR");
+
+/**
+ * Metindeki takım kısaltmaları: bilinen kısaltma/lakaplar ve resmi ad kelimelerinin kırpılmış hâli
+ * (ör. "Galatasaray" → "Gala'nın"). Resmi adın tamamı ve ekli hâlleri ("Galatasaray'ın") geçerlidir.
+ */
+export function findTeamAbbreviations(text: string, officialNames: string[]): string[] {
+  const nameWords = officialNames.flatMap((name) => words(name).map(lower)).filter((word) => word.length >= 5);
+  const banned = new Set(KNOWN_SHORT_FORMS.map(lower));
+  const hits = new Set<string>();
+  for (const word of words(text)) {
+    const w = lower(word);
+    if (nameWords.includes(w) || REAL_WORDS.has(w)) continue;
+    const truncated = w.length >= 3 && nameWords.some((name) => name.startsWith(w) && name.length - w.length >= 3);
+    if (banned.has(w) || truncated) hits.add(word);
+  }
+  return [...hits];
 }
