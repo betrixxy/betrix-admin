@@ -31,13 +31,13 @@ function buildCaption(draft: LineupDraft): string {
  * ve formun tamamı `renderOptions`'ta saklanır. Fal.ai yok — ücretsiz.
  */
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
-  const card = (team: TeamLineupDraft, opponentName: string) =>
-    renderLineupCard({ team, opponentName, headline: draft.headline, matchLabel: draft.matchLabel });
+  const card = (team: TeamLineupDraft, opponent: TeamLineupDraft) =>
+    renderLineupCard({ team, opponentName: opponent.teamName, opponentLogoUrl: opponent.logoUrl, headline: draft.headline, matchLabel: draft.matchLabel });
 
   let homePng: Buffer;
   let awayPng: Buffer;
   try {
-    [homePng, awayPng] = await Promise.all([card(draft.home, draft.away.teamName), card(draft.away, draft.home.teamName)]);
+    [homePng, awayPng] = await Promise.all([card(draft.home, draft.away), card(draft.away, draft.home)]);
   } catch (cause) {
     console.error("[lineup] kartlar çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kadro kartları çizilemedi.", cause } };

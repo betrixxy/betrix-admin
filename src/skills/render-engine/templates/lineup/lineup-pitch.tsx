@@ -1,22 +1,25 @@
-import { pitchPositions } from "@/lib/dashboard/lineup-formations";
+import { pitchPositions, type PitchLayoutOptions } from "@/lib/dashboard/lineup-formations";
 import type { LineupSlot } from "@/types/lineup";
-import { BODY, GREEN, GREEN_BR, NAVY_800, SCORE, YELLOW, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { NAVY_800, SCORE, TEAM, YELLOW, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
 
 /**
- * Muhtemel 11 — taktik tahtası: dikey yeşil saha vektörü (neon çizgiler) + forma renginde
- * numaralı noktalar ve isim etiketleri. Oyuncu yüzü YOKTUR: eksik görsel/gri silüet riski ve
- * görsel indirme maliyeti tamamen ortadan kalkar. Koordinatlar `lineup-formations.ts`'ten gelir.
+ * Muhtemel 11 — minimalist taktik tahtası. Saha çizgisi YOK: yalnızca forma renginde numaralı
+ * daireler ve altında temiz tipografiyle isim. Koordinatlar `lineup-formations.ts`'ten gelir
+ * (hücum yukarı, kaleci en altta, satır içinde soldan sağa).
  */
 
-const LINE = rgba(GREEN_BR, 0.32);
-const LINE_WIDTH = 2;
-const MARKER = 80;
-const MAX_LABEL_WIDTH = 210;
-const LABEL_GAP = 10;
+const MARKER = 70;
+const MAX_LABEL_WIDTH = 220;
+const LABEL_GAP = 12;
+const NAME_MAX_FONT = 22;
+/** Tahtadaki tüm isimler tek boyutta (hiyerarşi); bu boyuta sığmayan tek tük ad üç noktayla kısalır. */
+const NAME_MIN_FONT = 17;
+/** Bricolage ExtraBold büyük harfte ortalama karakter genişliği / font boyutu. */
+const CHAR_WIDTH_RATIO = 0.66;
 /** Bu uzunluğu aşan tam adlar soyada kısaltılır ("Fernando Muslera" → "Muslera"); dar satırda daha erken. */
 const MAX_NAME_CHARS = 15;
 const MAX_NAME_CHARS_TIGHT = 11;
-const TIGHT_LABEL_WIDTH = 200;
+const TIGHT_LABEL_WIDTH = 170;
 
 /** Kartta görünen ad: uzun tam addan soyadı; admin formda kısa ad yazarsa olduğu gibi kalır. */
 export function displayName(name: string, maxChars = MAX_NAME_CHARS): string {
@@ -26,46 +29,28 @@ export function displayName(name: string, maxChars = MAX_NAME_CHARS): string {
 }
 
 /** Forma rengi açıksa lacivert, koyuysa beyaz numara (okunabilirlik). */
-function numberColor(hex: string): string {
+export function numberColor(hex: string): string {
   const n = Number.parseInt(hex.replace("#", ""), 16);
   if (Number.isNaN(n)) return "white";
   const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
   return 0.299 * r + 0.587 * g + 0.114 * b > 160 ? NAVY_800 : "white";
 }
 
-function Markings({ width, height }: { width: number; height: number }) {
-  const box = (top: boolean, w: number, h: number) => ({
-    position: "absolute" as const,
-    left: (width - w) / 2,
-    ...(top ? { top: 0 } : { bottom: 0 }),
-    width: w,
-    height: h,
-    border: `${LINE_WIDTH}px solid ${LINE}`,
-    ...(top ? { borderTop: "none" } : { borderBottom: "none" }),
-  });
-  return (
-    <>
-      {/* Çim şeritleri */}
-      {Array.from({ length: 10 }, (_, i) => (
-        <div
-          key={i}
-          style={{ position: "absolute", left: 0, top: (height / 10) * i, width, height: height / 10, backgroundColor: i % 2 === 0 ? "rgba(255,255,255,0.025)" : "rgba(0,0,0,0)" }}
-        />
-      ))}
-      <div style={{ position: "absolute", left: 0, top: height / 2 - LINE_WIDTH / 2, width, height: LINE_WIDTH, backgroundColor: LINE }} />
-      <div style={{ position: "absolute", left: width / 2 - 95, top: height / 2 - 95, width: 190, height: 190, borderRadius: 95, border: `${LINE_WIDTH}px solid ${LINE}` }} />
-      <div style={{ position: "absolute", left: width / 2 - 6, top: height / 2 - 6, width: 12, height: 12, borderRadius: 6, backgroundColor: LINE }} />
-      <div style={box(true, width * 0.6, height * 0.15)} />
-      <div style={box(true, width * 0.3, height * 0.055)} />
-      <div style={box(false, width * 0.6, height * 0.15)} />
-      <div style={box(false, width * 0.3, height * 0.055)} />
-    </>
-  );
+function shownName(name: string, labelWidth: number): string {
+  return upper(displayName(name, labelWidth < TIGHT_LABEL_WIDTH ? MAX_NAME_CHARS_TIGHT : MAX_NAME_CHARS));
 }
 
-function PlayerMarker({ slot, goalkeeper, colorHex, labelWidth }: { slot: LineupSlot; goalkeeper: boolean; colorHex: string; labelWidth: number }) {
+/** Tüm isimler için ortak boyut: en dar sığan isme göre, alt sınırla. */
+function boardFontSize(names: string[], labelWidths: number[]): number {
+  // Önce eşle, sonra süz — süzme indeksleri kaydırıp isimleri yanlış genişlikle eşlemesin.
+  const fits = names
+    .map((name, i) => (name ? Math.floor((labelWidths[i] ?? MAX_LABEL_WIDTH) / (name.length * CHAR_WIDTH_RATIO)) : Infinity))
+    .filter(Number.isFinite);
+  return Math.max(NAME_MIN_FONT, Math.min(NAME_MAX_FONT, ...fits));
+}
+
+function PlayerMarker({ slot, name, fontSize, goalkeeper, colorHex, labelWidth }: { slot: LineupSlot; name: string; fontSize: number; goalkeeper: boolean; colorHex: string; labelWidth: number }) {
   const fill = goalkeeper ? YELLOW : colorHex;
-  const name = displayName(slot.name, labelWidth < TIGHT_LABEL_WIDTH ? MAX_NAME_CHARS_TIGHT : MAX_NAME_CHARS);
   return (
     <div tw="flex flex-col items-center" style={{ width: labelWidth, gap: 10 }}>
       <div
@@ -75,71 +60,66 @@ function PlayerMarker({ slot, goalkeeper, colorHex, labelWidth }: { slot: Lineup
           height: MARKER,
           borderRadius: MARKER / 2,
           backgroundColor: fill,
-          border: "4px solid rgba(255,255,255,0.92)",
-          boxShadow: `0 0 0 6px ${rgba(GREEN_BR, 0.22)}, 0 10px 22px rgba(0,0,0,0.45)`,
+          border: "3px solid rgba(255,255,255,0.95)",
+          boxShadow: `0 0 0 6px ${rgba(fill, 0.22)}, 0 12px 26px rgba(0,0,0,0.55)`,
         }}
       >
-        <span style={{ fontFamily: SCORE, fontSize: slot.number.length > 1 ? 30 : 34, color: numberColor(fill), lineHeight: 1 }}>
+        <span style={{ fontFamily: SCORE, fontSize: slot.number.length > 1 ? 28 : 32, color: numberColor(fill), lineHeight: 1 }}>
           {slot.number || "·"}
         </span>
       </div>
-      <div
-        tw="flex"
+      <span
         style={{
           maxWidth: labelWidth,
-          padding: "5px 12px",
-          borderRadius: 999,
-          backgroundColor: "rgba(10,26,47,0.88)",
-          border: `1px solid ${rgba(GREEN, 0.35)}`,
+          fontFamily: TEAM,
+          fontWeight: 800,
+          fontSize,
+          letterSpacing: 0.6,
+          color: "white",
+          textShadow: "0 2px 10px rgba(0,0,0,0.9)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: name.length > 11 ? 18 : 21, letterSpacing: 0.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-          {upper(name)}
-        </span>
-      </div>
+        {name}
+      </span>
     </div>
   );
 }
 
-export function LineupPitch({
+export function LineupBoard({
   formation,
   slots,
   colorHex,
   width,
   height,
+  layout,
 }: {
   formation: string;
   slots: LineupSlot[];
   colorHex: string;
   width: number;
   height: number;
+  layout?: PitchLayoutOptions;
 }) {
-  const points = pitchPositions(formation);
-  // Etiket genişliği: aynı satırdaki en yakın komşuya uzaklık — 5'li satırda bile etiketler çakışmaz.
+  const points = pitchPositions(formation, layout);
+  // Etiket genişliği: aynı satırdaki en yakın komşuya uzaklık — 5'li satırda bile isimler çakışmaz.
   const labelWidths = points.map((point) => {
     const gaps = points.filter((other) => other !== point && other.y === point.y).map((other) => Math.abs(other.x - point.x) * width);
     return Math.min(MAX_LABEL_WIDTH, ...gaps.map((gap) => gap - LABEL_GAP));
   });
+  const names = slots.map((slot, index) => shownName(slot.name, labelWidths[index] ?? MAX_LABEL_WIDTH));
+  const fontSize = boardFontSize(names, labelWidths);
   return (
-    <div
-      tw="relative flex"
-      style={{
-        width,
-        height,
-        borderRadius: 28,
-        overflow: "hidden",
-        border: `2px solid ${rgba(GREEN_BR, 0.4)}`,
-        backgroundImage: "linear-gradient(180deg, #0f4a2e 0%, #0b3a24 55%, #082c1c 100%)",
-      }}
-    >
-      <Markings width={width} height={height} />
+    <div tw="relative flex" style={{ width, height }}>
       {slots.map((slot, index) => {
         const point = points[index];
         if (!point) return null;
         const labelWidth = labelWidths[index] ?? MAX_LABEL_WIDTH;
         return (
           <div key={index} tw="flex" style={{ position: "absolute", left: point.x * width - labelWidth / 2, top: point.y * height - MARKER / 2 }}>
-            <PlayerMarker slot={slot} goalkeeper={index === 0} colorHex={colorHex} labelWidth={labelWidth} />
+            <PlayerMarker slot={slot} name={names[index] ?? ""} fontSize={fontSize} goalkeeper={index === 0} colorHex={colorHex} labelWidth={labelWidth} />
           </div>
         );
       })}

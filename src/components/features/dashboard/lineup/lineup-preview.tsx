@@ -26,6 +26,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
       const result = await previewLineupAction({
         team: draft[target],
         opponentName: opponent.teamName,
+        opponentLogoUrl: opponent.logoUrl,
         headline: draft.headline,
         matchLabel: draft.matchLabel,
       });
@@ -41,7 +42,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     <Card className="xl:sticky xl:top-6">
       <CardHeader>
         <CardTitle>Önizleme</CardTitle>
-        <CardDescription>Muhtemel 11 kartı · 1080×1350 (IG 4:5) · oyuncu görseli kullanılmaz</CardDescription>
+        <CardDescription>Muhtemel 11 kartı · 1080×1350 (IG 4:5) · kapak oyuncusu isteğe bağlı</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex gap-2">

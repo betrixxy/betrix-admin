@@ -14,6 +14,8 @@ import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
 import type { LineupDraft } from "@/types/lineup";
 import type { MatchDayFixtureOption } from "@/types/match-day";
+import type { MediaAssetOption } from "@/types/media";
+import { LineupHeroFields } from "./lineup-hero-fields";
 import { LineupPreview } from "./lineup-preview";
 import { TeamLineupFields } from "./team-lineup-fields";
 
@@ -21,6 +23,20 @@ interface LineupFormProps {
   fixtures: MatchDayFixtureOption[];
   /** `?fixtureId=` ile gelen, listede doğrulanmış maç — açılışta verisi otomatik yüklenir. */
   initialFixtureId: string | null;
+  /** Medya kütüphanesindeki oyuncu fotoğrafları — kapak oyuncusu için (bkz. CLAUDE.md 1.11). */
+  playerOptions: MediaAssetOption[];
+  falConfigured: boolean;
+}
+
+/** Veriden yeniden doldurma, aynı maçta admin'in ürettiği kapağı ve seçtiği rengi ezmez. */
+function keepVisuals(next: LineupDraft, current: LineupDraft): LineupDraft {
+  if (next.fixtureId !== current.fixtureId) return next;
+  const side = (key: TeamSide) => ({
+    ...next[key],
+    heroImageUrl: current[key].heroImageUrl,
+    colorHex: current[key].colorHex || next[key].colorHex,
+  });
+  return { ...next, home: side("home"), away: side("away") };
 }
 
 function draftFor(fixture: MatchDayFixtureOption | undefined): LineupDraft {
@@ -33,7 +49,7 @@ function draftFor(fixture: MatchDayFixtureOption | undefined): LineupDraft {
   };
 }
 
-export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
+export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfigured }: LineupFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<LineupDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<LineupLoadResult | null>(null);
@@ -54,7 +70,7 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
         return;
       }
       setLoaded(result.data);
-      setDraft(result.data.draft);
+      setDraft((current) => keepVisuals(result.data.draft, current));
     });
   }
 
@@ -179,6 +195,13 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
             />
           </CardContent>
         </Card>
+
+        <LineupHeroFields
+          draft={draft}
+          playerOptions={playerOptions}
+          falConfigured={falConfigured}
+          onHeroChange={(target, heroImageUrl) => setDraft((current) => ({ ...current, [target]: { ...current[target], heroImageUrl } }))}
+        />
 
         <div className="flex flex-col gap-2">
           <Button type="button" size="lg" disabled={!draft.fixtureId || isLoading || isSaving || issues.length > 0} onClick={save}>

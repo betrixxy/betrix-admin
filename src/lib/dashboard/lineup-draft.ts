@@ -21,6 +21,7 @@ export function emptyTeamLineup(teamName = "", logoUrl = ""): TeamLineupDraft {
     teamName,
     logoUrl,
     colorHex: "",
+    heroImageUrl: "",
     formation: DEFAULT_FORMATION,
     slots: Array.from({ length: LINEUP_SIZE }, emptySlot),
     coach: "",

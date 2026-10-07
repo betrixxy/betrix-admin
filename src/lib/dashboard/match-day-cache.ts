@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readStoredFile, saveStoredFile } from "@/lib/dashboard/storage";
+import { readStoredFile, saveStoredFile, storedFileUrl } from "@/lib/dashboard/storage";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
 import { ensurePlayerResolution, upscaleFactorFor } from "@/lib/dashboard/player-upscale";
 import { removePlayerBackground } from "@/lib/services/fal";
@@ -26,6 +26,11 @@ export interface CachedAsset {
 
 function cutoutFileName(image: UploadedImage): string {
   return `cutout-${CACHE_VERSION}-${image.hash}.png`;
+}
+
+/** Kesimin kalıcı adresi (`getPlayerCutout` başarılı olduktan sonra geçerlidir) — ör. Muhtemel 11 kapağı. */
+export function playerCutoutUrl(image: UploadedImage): string {
+  return storedFileUrl("generated", cutoutFileName(image));
 }
 
 /** Küçükse AI Upscale → birefnet; sonuç fotoğraf hash'iyle saklanır ve tekrar kullanılır. */

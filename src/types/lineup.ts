@@ -62,10 +62,18 @@ export interface LineupSlot {
   number: string;
 }
 
+/**
+ * Kart yalnızca kesim motorunun yazdığı şeffaf oyuncu PNG'sini kapak olarak kabul eder
+ * (birefnet çıktısı, `match-day-cache.ts::playerCutoutUrl`) — formdan gelen başka adres çizilmez.
+ */
+export const LINEUP_HERO_PATTERN = /^\/api\/files\/generated\/cutout-v\d+-[a-f0-9]{64}\.png$/;
+
 export interface TeamLineupDraft {
   teamName: string;
   logoUrl: string;
   colorHex: string;
+  /** Kapak oyuncusunun şeffaf kesimi (LINEUP_HERO_PATTERN); boşsa kart kapaksız çizilir. */
+  heroImageUrl: string;
   /** "4-2-3-1" gibi; kaleci hariç satırlar toplamı 10 olmalı. */
   formation: string;
   slots: LineupSlot[];
@@ -86,6 +94,8 @@ export interface LineupDraft {
 export interface LineupCardInput {
   team: TeamLineupDraft;
   opponentName: string;
+  /** Rakip logosu (API-Football medya adresi); boşsa çizilmez. */
+  opponentLogoUrl: string;
   headline: string;
   matchLabel: string;
 }

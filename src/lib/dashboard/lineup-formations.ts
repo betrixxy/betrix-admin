@@ -72,8 +72,17 @@ const FRONT_LINE_Y = 0.13;
 const LINE_SPREAD_STEP = 0.205;
 const MAX_LINE_SPREAD = 0.78;
 
+export interface PitchLayoutOptions {
+  /** Satırdaki iki komşu arası yatay pay (0..1). */
+  spreadStep?: number;
+  /** Bir satırın kaplayabileceği en geniş yatay alan (0..1). */
+  maxSpread?: number;
+}
+
 /** 11 pozisyonun saha koordinatı, `slots` sırasıyla. */
-export function pitchPositions(formation: string): PitchPoint[] {
+export function pitchPositions(formation: string, options: PitchLayoutOptions = {}): PitchPoint[] {
+  const spreadStep = options.spreadStep ?? LINE_SPREAD_STEP;
+  const maxSpread = options.maxSpread ?? MAX_LINE_SPREAD;
   const lines = formationLines(formation);
   const outfieldCount = lines.length - 1;
   const points: PitchPoint[] = [];
@@ -82,7 +91,7 @@ export function pitchPositions(formation: string): PitchPoint[] {
       lineIndex === 0
         ? GOALKEEPER_Y
         : BACK_LINE_Y - ((lineIndex - 1) * (BACK_LINE_Y - FRONT_LINE_Y)) / Math.max(outfieldCount - 1, 1);
-    const spread = Math.min(MAX_LINE_SPREAD, LINE_SPREAD_STEP * (line.size - 1));
+    const spread = Math.min(maxSpread, spreadStep * (line.size - 1));
     for (let i = 0; i < line.size; i += 1) {
       const x = line.size === 1 ? 0.5 : 0.5 - spread / 2 + (i * spread) / (line.size - 1);
       points.push({ x, y });
