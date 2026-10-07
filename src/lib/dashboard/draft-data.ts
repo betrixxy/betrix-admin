@@ -18,6 +18,16 @@ const marketAnalysisOptionsSchema = z.object({
   marketRationale: z.string(),
 });
 
+/** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const lineupOptionsSchema = z.object({
+  kind: z.literal("PROBABLE_LINEUPS"),
+  homeImageUrl: z.string(),
+  awayImageUrl: z.string(),
+  headline: z.string(),
+  home: z.object({ teamName: z.string(), formation: z.string() }),
+  away: z.object({ teamName: z.string(), formation: z.string() }),
+});
+
 function toStudioFormat(value: string | null): StudioFormat | null {
   return STUDIO_FORMATS.find((format) => format === value) ?? null;
 }
@@ -47,6 +57,27 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
           marketPick,
           marketRationale,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "PROBABLE_LINEUPS") {
+    const options = lineupOptionsSchema.safeParse(record.renderOptions);
+    if (options.success) {
+      const { home, away, homeImageUrl, awayImageUrl, headline } = options.data;
+      return {
+        kind: "lineup",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          headline,
+          home: { ...home, imageUrl: homeImageUrl },
+          away: { ...away, imageUrl: awayImageUrl },
         },
       };
     }

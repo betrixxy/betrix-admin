@@ -18,7 +18,14 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     route: "/dashboard/studio/match-day",
   },
   { id: "WEEKLY_FIXTURES", label: "Haftanın Maçları", description: "Haftanın fikstürü tek görselde.", phase: "pre_match", status: "coming_soon", route: null },
-  { id: "PROBABLE_LINEUPS", label: "Muhtemel 11", description: "İki takımın muhtemel ilk 11'i ve dizilişi.", phase: "pre_match", status: "coming_soon", route: null },
+  {
+    id: "PROBABLE_LINEUPS",
+    label: "Muhtemel 11",
+    description: "İki takımın muhtemel ilk 11'i ve dizilişi — fotoğrafsız, forma numarası odaklı taktik tahtası.",
+    phase: "pre_match",
+    status: "active",
+    route: "/dashboard/studio/lineup",
+  },
   {
     id: "AI_MARKET_PREDICTION",
     label: "AI Market Tahmin & Analiz",

@@ -8,6 +8,7 @@ import { DraftPreview as Preview } from "@/components/features/dashboard/draft-p
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
 import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
+import { LineupDraftView } from "@/components/features/dashboard/lineup-draft-view";
 import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -47,6 +48,21 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
           actions={backLink}
         />
         <MarketAnalysisDraftView draft={draft} postOptions={postOptions} />
+      </>
+    );
+  }
+
+  if (lookup.kind === "lineup") {
+    const { draft } = lookup;
+    const postOptions = draft.status === "DRAFT" ? await getLinkablePosts(draft.fixtureId) : [];
+    return (
+      <>
+        <PageHeader
+          title={`${draft.home.teamName} – ${draft.away.teamName}`}
+          description="Muhtemel 11 · iki takımın kadro kartı — onayınız olmadan yayına hazır sayılmaz."
+          actions={backLink}
+        />
+        <LineupDraftView draft={draft} postOptions={postOptions} />
       </>
     );
   }

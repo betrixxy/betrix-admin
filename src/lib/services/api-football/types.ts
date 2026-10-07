@@ -80,10 +80,38 @@ export const apiFootballTeamPlayersSchema = z.object({
   ),
 });
 
+/** Diziliş + ilk 11 — Muhtemel 11 stüdyosu için (bkz. lineups.ts). Eksik alanlar boş sayılır. */
 export const apiFootballLineupSchema = z.object({
-  team: z.object({ id: z.number() }),
+  team: z.object({
+    id: z.number(),
+    colors: z
+      .object({ player: z.object({ primary: z.string().nullish() }).nullish() })
+      .nullish()
+      .catch(null),
+  }),
   formation: z.string().nullish(),
+  coach: z.object({ name: z.string().nullish() }).nullish().catch(null),
+  startXI: z
+    .array(z.object({ player: z.object({ id: z.number().nullish(), name: z.string(), number: z.number().nullish(), grid: z.string().nullish() }) }))
+    .nullish()
+    .catch(null),
 });
+
+export type ApiFootballLineupRaw = z.infer<typeof apiFootballLineupSchema>;
+
+/** `/players/squads?team=` — güncel kadro (pozisyon + forma numarası). */
+export const apiFootballSquadsResponseSchema = z.object({
+  response: z.array(
+    z.object({
+      team: z.object({ id: z.number() }),
+      players: z.array(
+        z.object({ id: z.number(), name: z.string().nullable(), number: z.number().nullish(), position: z.string().nullish() }),
+      ),
+    }),
+  ),
+});
+
+export type ApiFootballSquadRaw = z.infer<typeof apiFootballSquadsResponseSchema>["response"][number];
 
 /**
  * `/fixtures?ids=a-b-c` yanıtındaki ayrıntılı fikstür — temel alanlara ek olarak maç

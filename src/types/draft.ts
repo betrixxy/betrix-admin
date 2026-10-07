@@ -69,7 +69,21 @@ export interface MarketAnalysisDraftView {
  * onay akışı öncesi üretilmiş (maç verisi snapshot'ı olmayan) eski bir kayıt — sonuncusu yalnızca
  * görüntülenir, düzenlenemez.
  */
+/** Muhtemel 11 taslağı — iki takımın kadro kartı (bkz. lineup-engine.ts). */
+export interface LineupDraftView {
+  id: string;
+  fixtureId: string;
+  status: AiContentStatus;
+  caption: string;
+  postId: string | null;
+  reviewedAt: string | null;
+  headline: string;
+  home: { teamName: string; formation: string; imageUrl: string };
+  away: { teamName: string; formation: string; imageUrl: string };
+}
+
 export type DraftLookup =
   | { kind: "draft"; draft: DraftView }
   | { kind: "market-analysis"; draft: MarketAnalysisDraftView }
+  | { kind: "lineup"; draft: LineupDraftView }
   | { kind: "legacy"; id: string; status: AiContentStatus; resultImageUrl: string | null };
