@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "betrix.pro Studio",
-  description: "CheckMatch.net için AI destekli maç içeriği üretim stüdyosu",
+  description: "CheckMatch için AI destekli maç içeriği üretim stüdyosu",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

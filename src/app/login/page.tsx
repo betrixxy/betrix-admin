@@ -6,7 +6,7 @@ import { resolveRedirectTarget } from "@/lib/auth/redirect";
 
 export const metadata: Metadata = {
   title: "Giriş Yap — betrix.pro",
-  description: "CheckMatch.net CRM paneline admin girişi",
+  description: "CheckMatch CRM paneline admin girişi",
 };
 
 interface LoginPageProps {

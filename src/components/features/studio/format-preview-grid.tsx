@@ -144,7 +144,7 @@ function FormatPlaceholderCard({
               {tournament.label}
             </span>
             <span className="text-sm font-bold text-white">{templateLabel}</span>
-            <span className="text-[10px] text-white/40">CheckMatch.net (mock önizleme)</span>
+            <span className="text-[10px] text-white/40">CheckMatch (mock önizleme)</span>
           </div>
         )}
       </div>

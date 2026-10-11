@@ -3,10 +3,10 @@ import { cn } from "@/lib/utils";
 
 /** `public/brand/` altındaki kırpılmış marka logosu (kaynak: masaüstü Logo/logo2.png). */
 export const BRAND_LOGO = {
-  src: "/brand/checkmatch-logo-net.png",
-  width: 1588,
-  height: 258,
-  alt: "CheckMatch.net",
+  src: "/brand/checkmatch-logo.png",
+  width: 1269,
+  height: 248,
+  alt: "CheckMatch",
 } as const;
 
 interface BrandLogoProps {
@@ -14,7 +14,7 @@ interface BrandLogoProps {
   priority?: boolean;
 }
 
-/** CheckMatch.net yatay logosu; yükseklik `className` ile verilir (ör. `h-6`), genişlik orantılı. */
+/** CheckMatch yatay logosu (".net"siz); yükseklik `className` ile verilir (ör. `h-6`), genişlik orantılı. */
 export function BrandLogo({ className, priority = false }: BrandLogoProps) {
   return (
     <Image
@@ -34,7 +34,7 @@ export function StudioBrand() {
   return (
     <div className="flex flex-col gap-1 leading-none">
       <BrandLogo className="h-5" priority />
-      <span className="pl-[13%] text-[10px] text-muted-foreground">betrix.pro Studio</span>
+      <span className="pl-[10%] text-[10px] text-muted-foreground">betrix.pro Studio</span>
     </div>
   );
 }
