@@ -5,6 +5,7 @@ import {
   Images,
   LayoutDashboard,
   Layers,
+  ListOrdered,
   Sparkles,
   Trophy,
   type LucideIcon,
@@ -52,6 +53,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "AI İçerik Stüdyosu",
     description: "Görsel üretimi",
     icon: Sparkles,
+  },
+  {
+    href: "/dashboard/studio/weekly-fixtures",
+    label: "Haftanın Maçları",
+    description: "Lig fikstürü ve skorlar",
+    icon: ListOrdered,
   },
   {
     href: "/dashboard/library",

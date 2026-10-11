@@ -84,8 +84,23 @@ export interface LineupDraftView {
   away: { teamName: string; formation: string; imageUrl: string; templateStyle: LineupTemplateStyle };
 }
 
+/** Haftanın Maçları taslağı — tek kart (bkz. weekly-fixtures-engine.ts). */
+export interface WeeklyFixturesDraftView {
+  id: string;
+  fixtureId: string;
+  status: AiContentStatus;
+  caption: string;
+  postId: string | null;
+  reviewedAt: string | null;
+  leagueName: string;
+  title: string;
+  imageUrl: string;
+  matchCount: number;
+}
+
 export type DraftLookup =
   | { kind: "draft"; draft: DraftView }
   | { kind: "market-analysis"; draft: MarketAnalysisDraftView }
   | { kind: "lineup"; draft: LineupDraftView }
+  | { kind: "weekly-fixtures"; draft: WeeklyFixturesDraftView }
   | { kind: "legacy"; id: string; status: AiContentStatus; resultImageUrl: string | null };

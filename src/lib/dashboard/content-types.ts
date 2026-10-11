@@ -17,7 +17,14 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "active",
     route: "/dashboard/studio/match-day",
   },
-  { id: "WEEKLY_FIXTURES", label: "Haftanın Maçları", description: "Haftanın fikstürü tek görselde.", phase: "pre_match", status: "coming_soon", route: null },
+  {
+    id: "WEEKLY_FIXTURES",
+    label: "Haftanın Maçları",
+    description: "Lig haftasının (kupada grup/tur) fikstürü ve skorları tek görselde — Türkiye saatiyle.",
+    phase: "pre_match",
+    status: "active",
+    route: "/dashboard/studio/weekly-fixtures",
+  },
   {
     id: "PROBABLE_LINEUPS",
     label: "Muhtemel 11",

@@ -33,6 +33,15 @@ const lineupOptionsSchema = z.object({
   away: z.object({ teamName: z.string(), formation: z.string() }),
 });
 
+/** `AiContent.renderOptions` — Haftanın Maçları kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const weeklyOptionsSchema = z.object({
+  kind: z.literal("WEEKLY_FIXTURES"),
+  imageUrl: z.string(),
+  leagueName: z.string(),
+  title: z.string(),
+  matchIds: z.array(z.string()),
+});
+
 function toStudioFormat(value: string | null): StudioFormat | null {
   return STUDIO_FORMATS.find((format) => format === value) ?? null;
 }
@@ -62,6 +71,28 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
           marketPick,
           marketRationale,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "WEEKLY_FIXTURES") {
+    const options = weeklyOptionsSchema.safeParse(record.renderOptions);
+    if (options.success) {
+      const { imageUrl, leagueName, title, matchIds } = options.data;
+      return {
+        kind: "weekly-fixtures",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          leagueName,
+          title,
+          imageUrl,
+          matchCount: matchIds.length,
         },
       };
     }
