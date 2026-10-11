@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
+import { lineupPalette } from "@/lib/dashboard/lineup-palette";
+import { logoSwatches } from "@/lib/dashboard/logo-swatches";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
 import { LINEUP_CARD_SIZE, LineupCard, type LineupHeroImage } from "@/skills/render-engine/templates/lineup/lineup-card";
@@ -40,7 +42,11 @@ async function embedHero(url: string): Promise<LineupHeroImage | null> {
   }
 }
 
-/** Tek takımlık Muhtemel 11 kartını PNG olarak çizer (Fal.ai yok — kapak kesimi önceden üretilmiş olmalı). */
+/**
+ * Tek takımlık Muhtemel 11 kartını PNG olarak çizer (Fal.ai yok — kapak kesimi önceden üretilmiş olmalı).
+ * Renkler takım logosundan okunur (önbellekli); kapak okunamazsa kart taktik tahtasına düşer —
+ * kapaksız liste kartı çizilmez.
+ */
 export async function renderLineupCard(input: LineupCardInput): Promise<Buffer> {
   const [fonts, brandLogo, logoUrl, opponentLogoUrl, hero] = await Promise.all([
     loadDeepAnalysisFonts(),
@@ -50,8 +56,17 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Buffer> 
     // Kapak yalnızca "Kahraman Liste" şablonunda çizilir; taktik tahtasında hiç okunmaz.
     input.templateStyle === "hero_list" ? embedHero(input.team.heroImageUrl) : null,
   ]);
+  const swatches = logoUrl ? await logoSwatches(input.team.logoUrl, logoUrl) : null;
+  const card = hero ? { templateStyle: "hero_list" as const, hero } : { templateStyle: "pitch" as const, hero: null };
   const response = new ImageResponse(
-    <LineupCard {...input} team={{ ...input.team, logoUrl }} opponentLogoUrl={opponentLogoUrl} brandLogo={brandLogo} hero={hero} />,
+    <LineupCard
+      {...input}
+      {...card}
+      team={{ ...input.team, logoUrl }}
+      opponentLogoUrl={opponentLogoUrl}
+      brandLogo={brandLogo}
+      palette={lineupPalette(swatches, input.team.colorHex)}
+    />,
     { ...LINEUP_CARD_SIZE, fonts },
   );
   return Buffer.from(await response.arrayBuffer());

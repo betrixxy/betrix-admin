@@ -5,6 +5,7 @@ import { AlertCircle, ImageIcon, LoaderCircle, RefreshCw } from "lucide-react";
 import { previewLineupAction } from "@/app/dashboard/studio/lineup/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { effectiveTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
 import { LINEUP_TEMPLATE_LABELS, type LineupDraft } from "@/types/lineup";
@@ -24,7 +25,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     const opponent = target === "home" ? draft.away : draft.home;
     startRendering(async () => {
       const result = await previewLineupAction({
-        templateStyle: draft.templateStyle,
+        templateStyle: effectiveTemplateStyle(draft),
         team: draft[target],
         opponentName: opponent.teamName,
         opponentLogoUrl: opponent.logoUrl,
@@ -43,7 +44,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     <Card className="xl:sticky xl:top-6">
       <CardHeader>
         <CardTitle>Önizleme</CardTitle>
-        <CardDescription>Muhtemel 11 kartı · {LINEUP_TEMPLATE_LABELS[draft.templateStyle]} · 1080×1350 (IG 4:5)</CardDescription>
+        <CardDescription>Muhtemel 11 kartı · {LINEUP_TEMPLATE_LABELS[effectiveTemplateStyle(draft)]} · 1080×1350 (IG 4:5)</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex gap-2">

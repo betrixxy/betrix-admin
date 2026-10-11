@@ -6,6 +6,7 @@ import {
   type LineupReference,
   type LineupSlot,
   type LineupSource,
+  type LineupTemplateStyle,
   type TeamLineupDraft,
   type TeamLineupReference,
 } from "@/types/lineup";
@@ -83,4 +84,13 @@ export function lineupIssues(team: TeamLineupDraft): string[] {
     seen.add(key);
   }
   return issues;
+}
+
+/**
+ * Kartın gerçekte çizileceği şablon: "Kahraman Liste" yalnızca iki takımın da kapak kesimi varsa —
+ * kapaksız liste kartı çizilmez, carousel tutarlı kalsın diye iki kart birlikte taktik tahtasına düşer.
+ */
+export function effectiveTemplateStyle(draft: Pick<LineupDraft, "templateStyle" | "home" | "away">): LineupTemplateStyle {
+  if (draft.templateStyle !== "hero_list") return draft.templateStyle;
+  return draft.home.heroImageUrl && draft.away.heroImageUrl ? "hero_list" : "pitch";
 }

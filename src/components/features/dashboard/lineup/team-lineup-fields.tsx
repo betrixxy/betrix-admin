@@ -53,7 +53,9 @@ export function TeamLineupFields({ idPrefix, value, squad, onChange }: TeamLineu
           </NativeSelect>
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`${idPrefix}-color`}>Forma rengi</Label>
+          <Label htmlFor={`${idPrefix}-color`} title="Kart renkleri takım logosundan okunur; bu renk yalnızca logo okunamazsa kullanılır.">
+            Yedek renk (logo okunamazsa)
+          </Label>
           <div className="flex items-center gap-2">
             <input
               id={`${idPrefix}-color`}
@@ -62,7 +64,7 @@ export function TeamLineupFields({ idPrefix, value, squad, onChange }: TeamLineu
               onChange={(event) => onChange({ ...value, colorHex: event.target.value })}
               className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent"
             />
-            <span className="font-mono text-xs text-muted-foreground">{value.colorHex || "marka yeşili"}</span>
+            <span className="font-mono text-xs text-muted-foreground">{value.colorHex || "nötr antrasit"}</span>
           </div>
         </div>
         <div className="flex flex-col gap-1.5">

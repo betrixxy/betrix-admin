@@ -105,6 +105,42 @@ export interface LineupDraft {
   away: TeamLineupDraft;
 }
 
+/** Takım logosundan okunan renkler (Vibrant swatch'ları, #rrggbb) — logoda karşılığı yoksa null. */
+export interface LogoSwatches {
+  vibrant: string | null;
+  darkVibrant: string | null;
+  lightVibrant: string | null;
+  muted: string | null;
+  darkMuted: string | null;
+  lightMuted: string | null;
+  /**
+   * Logonun (şeffaf ve beyaz zemin hariç) renkli piksel oranı, 0..1. Siyah-beyaz armalarda (Beşiktaş,
+   * Juventus) küçük bir renkli detay Vibrant'ı ele geçirir — oran düşükse palet tek renkli kurulur.
+   */
+  chromaticShare: number;
+}
+
+/** Kartın renk paleti — logodan türetilir (`lib/dashboard/lineup-palette.ts`), şablonlar yalnızca bunu okur. */
+export interface LineupPalette {
+  /** Zemin degradesinin üstü/altı: baskın rengin geceye gömülmüş, beyaz metne AAA kontrast veren hali. */
+  backgroundTop: string;
+  backgroundBottom: string;
+  /** Kapak/saha arkasındaki parıltı. */
+  glow: string;
+  /** Saha çizgileri, "11", vurgu çizgileri — koyu zeminde yüksek kontrastlı açık renk. */
+  accent: string;
+  /** Oyuncu numara dairesi/kutusu ve içindeki numaranın rengi. */
+  kit: string;
+  kitText: string;
+  /** Kaleci: kadrodan ayrışan ikinci renk. */
+  keeper: string;
+  keeperText: string;
+  /** İsimler ve başlıklar. */
+  text: string;
+  /** İkincil metin (rakip, künye, teknik direktör). */
+  muted: string;
+}
+
 /** Kart çizimi için tek takımın verisi. */
 export interface LineupCardInput {
   templateStyle: LineupTemplateStyle;

@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { LINEUP_TEMPLATE_LABELS, LINEUP_TEMPLATE_STYLES, type LineupTemplateStyle } from "@/types/lineup";
 
 const DESCRIPTIONS: Record<LineupTemplateStyle, string> = {
-  pitch: "Lacivert-yeşil saha üzerinde diziliş — kapak fotoğrafı gerekmez.",
-  hero_list: "Solda kapak oyuncusu (Fal.ai kesimi), sağda numara + isim listesi.",
+  pitch: "Saha çizgileri üzerinde diziliş — kapak fotoğrafı gerekmez.",
+  hero_list: "Solda kapak oyuncusu (zorunlu, Fal.ai kesimi), sağda numara + isim listesi.",
 };
 
 const ICONS = { pitch: LayoutGrid, hero_list: UserRound } as const satisfies Record<LineupTemplateStyle, unknown>;
@@ -18,7 +18,7 @@ export function LineupTemplatePicker({ value, onChange }: { value: LineupTemplat
     <Card>
       <CardHeader>
         <CardTitle>Kart Şablonu</CardTitle>
-        <CardDescription>İki takımın kartı da seçilen şablonla çizilir.</CardDescription>
+        <CardDescription>İki takımın kartı da seçilen şablonla çizilir; renkler takım logosundan otomatik okunur.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Kart şablonu">

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
+import { effectiveTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import { renderLineupCard } from "@/lib/dashboard/lineup-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { ContentTypeId } from "@/types/content-type";
@@ -30,7 +31,9 @@ function buildCaption(draft: LineupDraft): string {
  * onun üzerine yazılır (bkz. content-schedule.ts). Ana görsel ev sahibi kartıdır; iki kartın adresi
  * ve formun tamamı `renderOptions`'ta saklanır. Fal.ai yok — ücretsiz.
  */
-export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
+export async function createLineupDraft(input: LineupDraft): Promise<Result<LineupSaved>> {
+  // Kapaksız "Kahraman Liste" çizilmez; kayıt da gerçekte çizilen şablonu taşır.
+  const draft: LineupDraft = { ...input, templateStyle: effectiveTemplateStyle(input) };
   const card = (team: TeamLineupDraft, opponent: TeamLineupDraft) =>
     renderLineupCard({ templateStyle: draft.templateStyle, team, opponentName: opponent.teamName, opponentLogoUrl: opponent.logoUrl, headline: draft.headline, matchLabel: draft.matchLabel });
 
