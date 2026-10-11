@@ -1,5 +1,6 @@
 import { DEFAULT_FORMATION, isValidFormation } from "@/lib/dashboard/lineup-formations";
 import {
+  DEFAULT_LINEUP_TEMPLATE_STYLE,
   LINEUP_SIZE,
   type LineupDraft,
   type LineupReference,
@@ -47,6 +48,7 @@ export function lineupDraftFromReference(ref: LineupReference, matchLabel: strin
   const announced = ref.home.source.kind === "announced" && ref.away.source.kind === "announced";
   return {
     fixtureId: ref.fixtureId,
+    templateStyle: DEFAULT_LINEUP_TEMPLATE_STYLE,
     headline: announced ? HEADLINE_ANNOUNCED : HEADLINE_PREDICTED,
     matchLabel,
     home: teamDraftFromReference(ref.home),

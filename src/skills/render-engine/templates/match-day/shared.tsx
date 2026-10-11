@@ -1,4 +1,5 @@
 import type { MatchDayCard } from "@/types/match-day";
+import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 
 /**
  * Maç Günü şablonlarının ortak yapı taşları (Satori). Satori yalnızca flexbox ve CSS alt
@@ -69,12 +70,11 @@ export function LeagueLogo({ card, size }: { card: MatchDayCard; size: number })
   );
 }
 
-const BRAND_RATIO = 1588 / 258;
 
 export function BrandLogo({ card, height }: { card: MatchDayCard; height: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
-    <img src={card.brandLogo} alt="CheckMatch.net" width={Math.round(height * BRAND_RATIO)} height={height} />
+    <img src={card.brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(height)} height={height} />
   );
 }
 

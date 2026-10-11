@@ -12,7 +12,7 @@ import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/servic
 import { getPlayerCutout, playerCutoutUrl } from "@/lib/dashboard/match-day-cache";
 import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
 import { isFalConfigured } from "@/lib/services/fal";
-import { LINEUP_HERO_PATTERN, LINEUP_SIZE, type LineupDraft, type TeamLineupReference } from "@/types/lineup";
+import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
 import type { Fixture } from "@/types/sports";
 
@@ -70,8 +70,9 @@ const teamSchema = z.object({
     .length(LINEUP_SIZE),
   coach: text(60),
 });
-const previewSchema = z.object({ team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80) });
-const saveSchema = z.object({ fixtureId: z.string(), headline: text(30), matchLabel: text(80), home: teamSchema, away: teamSchema });
+const templateStyle = z.enum(LINEUP_TEMPLATE_STYLES);
+const previewSchema = z.object({ templateStyle, team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80) });
+const saveSchema = z.object({ fixtureId: z.string(), templateStyle, headline: text(30), matchLabel: text(80), home: teamSchema, away: teamSchema });
 
 function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Form alanları geçersiz.";

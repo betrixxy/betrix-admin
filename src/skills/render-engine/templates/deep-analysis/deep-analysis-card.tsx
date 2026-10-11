@@ -1,4 +1,5 @@
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
+import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { BangGlyph, CheckGlyph, Eyebrow, GearGlyph, KeyPlayer, PointColumn, StatRow } from "./deep-analysis-parts";
 import { BODY, GRAY, GREEN, GREEN_BR, GREEN_DK, HERO_HEIGHT, MAX_WIDTH, NAVY_800, SCORE, TEAM, YELLOW, filled, rgba, upper } from "./deep-analysis-tokens";
 
@@ -20,7 +21,7 @@ export const DEEP_ANALYSIS_SIZE = { width: 1080, height: 1350 } as const;
 export interface DeepAnalysisCardData {
   team: TeamAnalysisDraft;
   opponentName: string;
-  /** CheckMatch.net logosu (data URL). */
+  /** CheckMatch logosu (".net"siz, data URL). */
   brandLogo: string;
   eyebrow?: string;
   sideText?: string;
@@ -200,7 +201,7 @@ export function DeepAnalysisCard({
         {/* Marka imzası: logo + altın çizgi (.cm-brandmark). */}
         <div tw="flex flex-col items-center" style={{ gap: 9 }}>
           {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-          <img src={brandLogo} alt="CheckMatch.net" width={246} height={40} />
+          <img src={brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(40)} height={40} />
           <div style={{ width: 420, height: 2, backgroundImage: `linear-gradient(90deg, rgba(245,197,24,0), ${YELLOW} 15%, ${YELLOW} 85%, rgba(245,197,24,0))` }} />
         </div>
       </div>

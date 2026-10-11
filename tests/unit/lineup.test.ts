@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { emptyTeamLineup, lineupIssues, teamDraftFromReference } from "@/lib/dashboard/lineup-draft";
+import { emptyTeamLineup, lineupDraftFromReference, lineupIssues, teamDraftFromReference } from "@/lib/dashboard/lineup-draft";
 import { formationGroups, formationLines, isValidFormation, pitchPositions } from "@/lib/dashboard/lineup-formations";
 import { findTeamLineup, isCompleteLineup, lineupColorHex, lineupStarters, mapSquad } from "@/lib/services/api-football/lineup-mappers";
 import type { TeamLineupReference } from "@/types/lineup";
@@ -83,6 +83,14 @@ describe("taslak", () => {
     const draft = teamDraftFromReference({ ...reference, formation: "4-4-3", starters: [] });
     assert.equal(draft.formation, "4-2-3-1");
     assert.ok(draft.slots.every((slot) => slot.name === ""));
+  });
+
+  it("taslak taktik tahtası şablonuyla başlar; iki takım açıklanmışsa başlık İLK 11 olur", () => {
+    const predicted = lineupDraftFromReference({ fixtureId: "af-1", home: reference, away: reference }, "Süper Lig");
+    assert.equal(predicted.templateStyle, "pitch");
+    assert.equal(predicted.headline, "MUHTEMEL 11");
+    const announced = { ...reference, source: { kind: "announced" } as const };
+    assert.equal(lineupDraftFromReference({ fixtureId: "af-1", home: announced, away: announced }, "").headline, "İLK 11");
   });
 
   it("boş pozisyonu ve aynı oyuncunun iki kez seçilmesini yakalar", () => {

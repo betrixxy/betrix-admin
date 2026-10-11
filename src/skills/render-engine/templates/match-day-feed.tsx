@@ -1,5 +1,6 @@
 import type { MatchDayCard, MatchDayTemplateId } from "@/types/match-day";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
+import { BRAND_LOGO_ALT, brandLogoWidth } from "./brand";
 import { DataDrivenTemplate } from "./match-day/data-driven";
 import { EditorialPortraitTemplate } from "./match-day/editorial-portrait";
 import { matchDayGeometry, type TemplateGeometry } from "./match-day/geometry";
@@ -22,7 +23,7 @@ const H = MATCH_DAY_FEED_SIZE.height;
 const YELLOW = "#FACC15";
 const LOGO_SIZE = 150;
 const BRAND_LOGO_HEIGHT = 58;
-const BRAND_LOGO_WIDTH = Math.round((BRAND_LOGO_HEIGHT * 1588) / 258);
+const BRAND_LOGO_WIDTH = brandLogoWidth(BRAND_LOGO_HEIGHT);
 
 /** Sağ kenardaki dikey filigranın kalınlığı (döndürülmeden önceki yüksekliği). */
 const WATERMARK_THICKNESS = 120;
@@ -203,7 +204,7 @@ export function MatchDayFeedCard({ card, variant = "full" }: { card: MatchDayCar
 
         <div tw="flex flex-1" />
         {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-        <img src={card.brandLogo} alt="CheckMatch.net" width={BRAND_LOGO_WIDTH} height={BRAND_LOGO_HEIGHT} />
+        <img src={card.brandLogo} alt={BRAND_LOGO_ALT} width={BRAND_LOGO_WIDTH} height={BRAND_LOGO_HEIGHT} />
       </div>
     </div>
   );

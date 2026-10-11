@@ -1,4 +1,5 @@
 import type { AiContentStatus, StudioFormat } from "@/types/ai-content";
+import type { LineupTemplateStyle } from "@/types/lineup";
 import type { DerbyIntensity, MatchStats } from "@/types/sports";
 
 /** Bkz. CLAUDE.md 1.10 — insan onaylı (human-in-the-loop) içerik taslağı tipleri. */
@@ -78,6 +79,7 @@ export interface LineupDraftView {
   postId: string | null;
   reviewedAt: string | null;
   headline: string;
+  templateStyle: LineupTemplateStyle;
   home: { teamName: string; formation: string; imageUrl: string };
   away: { teamName: string; formation: string; imageUrl: string };
 }

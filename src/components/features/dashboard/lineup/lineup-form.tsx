@@ -12,11 +12,12 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { HEADLINE_ANNOUNCED, HEADLINE_PREDICTED, describeSource, emptyTeamLineup, lineupIssues } from "@/lib/dashboard/lineup-draft";
 import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
-import type { LineupDraft } from "@/types/lineup";
+import { DEFAULT_LINEUP_TEMPLATE_STYLE, type LineupDraft, type LineupTemplateStyle } from "@/types/lineup";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import type { MediaAssetOption } from "@/types/media";
 import { LineupHeroFields } from "./lineup-hero-fields";
 import { LineupPreview } from "./lineup-preview";
+import { LineupTemplatePicker } from "./lineup-template-picker";
 import { TeamLineupFields } from "./team-lineup-fields";
 
 interface LineupFormProps {
@@ -28,20 +29,22 @@ interface LineupFormProps {
   falConfigured: boolean;
 }
 
-/** Veriden yeniden doldurma, aynı maçta admin'in ürettiği kapağı ve seçtiği rengi ezmez. */
+/** Veriden yeniden doldurma admin'in şablon seçimini, aynı maçta da ürettiği kapağı ve seçtiği rengi ezmez. */
 function keepVisuals(next: LineupDraft, current: LineupDraft): LineupDraft {
-  if (next.fixtureId !== current.fixtureId) return next;
+  const withStyle = { ...next, templateStyle: current.templateStyle };
+  if (next.fixtureId !== current.fixtureId) return withStyle;
   const side = (key: TeamSide) => ({
     ...next[key],
     heroImageUrl: current[key].heroImageUrl,
     colorHex: current[key].colorHex || next[key].colorHex,
   });
-  return { ...next, home: side("home"), away: side("away") };
+  return { ...withStyle, home: side("home"), away: side("away") };
 }
 
-function draftFor(fixture: MatchDayFixtureOption | undefined): LineupDraft {
+function draftFor(fixture: MatchDayFixtureOption | undefined, templateStyle: LineupTemplateStyle = DEFAULT_LINEUP_TEMPLATE_STYLE): LineupDraft {
   return {
     fixtureId: fixture?.id ?? "",
+    templateStyle,
     headline: HEADLINE_PREDICTED,
     matchLabel: fixture ? `${fixture.league} · ${fixture.date.split("-").reverse().slice(0, 2).join(".")} · ${fixture.time}` : "",
     home: emptyTeamLineup(fixture?.homeTeam, fixture?.homeLogoUrl),
@@ -78,7 +81,7 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
     setFixtureId(id);
     setSavedId(null);
     setLoaded(null);
-    setDraft(draftFor(fixtures.find((fixture) => fixture.id === id)));
+    setDraft((current) => draftFor(fixtures.find((fixture) => fixture.id === id), current.templateStyle));
     if (id) load(id);
   }
 
@@ -196,12 +199,16 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
           </CardContent>
         </Card>
 
-        <LineupHeroFields
-          draft={draft}
-          playerOptions={playerOptions}
-          falConfigured={falConfigured}
-          onHeroChange={(target, heroImageUrl) => setDraft((current) => ({ ...current, [target]: { ...current[target], heroImageUrl } }))}
-        />
+        <LineupTemplatePicker value={draft.templateStyle} onChange={(templateStyle) => setDraft((current) => ({ ...current, templateStyle }))} />
+
+        {draft.templateStyle === "hero_list" ? (
+          <LineupHeroFields
+            draft={draft}
+            playerOptions={playerOptions}
+            falConfigured={falConfigured}
+            onHeroChange={(target, heroImageUrl) => setDraft((current) => ({ ...current, [target]: { ...current[target], heroImageUrl } }))}
+          />
+        ) : null}
 
         <div className="flex flex-col gap-2">
           <Button type="button" size="lg" disabled={!draft.fixtureId || isLoading || isSaving || issues.length > 0} onClick={save}>

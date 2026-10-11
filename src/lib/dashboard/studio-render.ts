@@ -97,7 +97,7 @@ function portraitLayout({ format, fixture, statRows, playerDataUri, logoDataUri 
     text("VS", W / 2, titleY + 130, 40, { weight: 600, opacity: 0.6 }),
     text(away, W / 2, titleY + 220, fitFontSize(away, W * 0.86, 96)),
     statPanel(statRows, W * 0.07, panelY, W * 0.86, rowHeight),
-    text("CheckMatch.net", 64, safeTop + 30, 34, { anchor: "start", weight: 800 }),
+    text("CheckMatch", 64, safeTop + 30, 34, { anchor: "start", weight: 800 }),
     logoDataUri ? image(logoDataUri, W - 64 - 110, safeTop - 10, 110, 110, "xMaxYMin") : "",
   ].join("");
 }
@@ -113,7 +113,7 @@ function landscapeLayout({ format, fixture, statRows, playerDataUri, logoDataUri
 
   return [
     playerDataUri ? image(playerDataUri, W * 0.56, H * 0.06, W * 0.4, H * 0.88, "xMidYMax") : "",
-    text("CheckMatch.net", margin, H * 0.12, 26, { anchor: "start", weight: 800 }),
+    text("CheckMatch", margin, H * 0.12, 26, { anchor: "start", weight: 800 }),
     text(fixture.competition.name.toLocaleUpperCase("tr-TR"), margin, H * 0.2, 20, { anchor: "start", weight: 600, opacity: 0.7 }),
     text(home, margin, H * 0.36, fitFontSize(home, leftWidth, 58), { anchor: "start" }),
     text("VS", margin, H * 0.44, 24, { anchor: "start", weight: 600, opacity: 0.6 }),
@@ -127,7 +127,7 @@ function landscapeLayout({ format, fixture, statRows, playerDataUri, logoDataUri
  * Stüdyo önizleme görselini SVG olarak üretir (bkz. CLAUDE.md 3.4 katman sırası:
  * arka plan → ışık süzmesi → oyuncu → veri katmanı → marka). Arka plan ve oyuncu katmanları
  * Fal.ai (`flux` + `birefnet`, bkz. `lib/services/fal`) çıktılarıdır; veri/marka katmanı
- * (istatistikler, logo, CheckMatch.net başlığı) her zaman burada, programatik olarak çizilir.
+ * (istatistikler, logo, CheckMatch başlığı) her zaman burada, programatik olarak çizilir.
  */
 export function buildRenderSvg(input: RenderInput): string {
   const { format, fixture, backgroundDataUri } = input;

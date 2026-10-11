@@ -47,7 +47,8 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Buffer> 
     loadBrandLogo(),
     embedLogo(input.team.logoUrl),
     embedLogo(input.opponentLogoUrl),
-    embedHero(input.team.heroImageUrl),
+    // Kapak yalnızca "Kahraman Liste" şablonunda çizilir; taktik tahtasında hiç okunmaz.
+    input.templateStyle === "hero_list" ? embedHero(input.team.heroImageUrl) : null,
   ]);
   const response = new ImageResponse(
     <LineupCard {...input} team={{ ...input.team, logoUrl }} opponentLogoUrl={opponentLogoUrl} brandLogo={brandLogo} hero={hero} />,

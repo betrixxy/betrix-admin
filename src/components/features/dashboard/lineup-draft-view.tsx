@@ -5,6 +5,7 @@ import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-b
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { LineupDraftView as LineupDraft } from "@/types/draft";
+import { LINEUP_TEMPLATE_LABELS } from "@/types/lineup";
 
 const CARD_SIZE = { width: 1080, height: 1350 } as const;
 
@@ -21,7 +22,9 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
             <CardTitle>{draft.headline} Kartları</CardTitle>
             <DraftStatusBadge status={draft.status} />
           </div>
-          <CardDescription>Her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.</CardDescription>
+          <CardDescription>
+            {LINEUP_TEMPLATE_LABELS[draft.templateStyle]} şablonu · her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           {(["home", "away"] as const).map((side) => (

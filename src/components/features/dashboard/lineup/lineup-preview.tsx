@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
-import type { LineupDraft } from "@/types/lineup";
+import { LINEUP_TEMPLATE_LABELS, type LineupDraft } from "@/types/lineup";
 
 const SIDE_LABELS: Record<TeamSide, string> = { home: "Ev sahibi", away: "Deplasman" };
 
@@ -24,6 +24,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     const opponent = target === "home" ? draft.away : draft.home;
     startRendering(async () => {
       const result = await previewLineupAction({
+        templateStyle: draft.templateStyle,
         team: draft[target],
         opponentName: opponent.teamName,
         opponentLogoUrl: opponent.logoUrl,
@@ -42,7 +43,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     <Card className="xl:sticky xl:top-6">
       <CardHeader>
         <CardTitle>Önizleme</CardTitle>
-        <CardDescription>Muhtemel 11 kartı · 1080×1350 (IG 4:5) · kapak oyuncusu isteğe bağlı</CardDescription>
+        <CardDescription>Muhtemel 11 kartı · {LINEUP_TEMPLATE_LABELS[draft.templateStyle]} · 1080×1350 (IG 4:5)</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex gap-2">

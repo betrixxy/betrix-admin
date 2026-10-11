@@ -5,10 +5,10 @@ import { tr } from "date-fns/locale";
 import { MAX_UPLOAD_BYTES } from "@/lib/dashboard/image-limits";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
 import { embedImageBytes } from "@/lib/dashboard/studio-images";
+import { BRAND_LOGO_FILE } from "@/skills/render-engine/templates/brand";
 import type { MatchDayCard, MatchDayParams } from "@/types/match-day";
 
 const PUBLIC_ROOT = path.join(process.cwd(), "public");
-const BRAND_LOGO_FILE = "brand/checkmatch-logo-net.png";
 const REMOTE_TIMEOUT_MS = 8000;
 const PLACEHOLDER = "—";
 
@@ -55,7 +55,7 @@ export function loadMatchDayFonts(): Promise<MatchDayFont[]> {
   return fontsPromise;
 }
 
-/** CheckMatch.net logosu (data URL) — süreç başına bir kez okunur; diğer şablonlar da kullanır. */
+/** CheckMatch logosu (".net"siz, data URL) — süreç başına bir kez okunur; diğer şablonlar da kullanır. */
 export function loadBrandLogo(): Promise<string> {
   brandLogoPromise ??= readFile(path.join(PUBLIC_ROOT, BRAND_LOGO_FILE))
     .then((bytes) => `data:image/png;base64,${bytes.toString("base64")}`)

@@ -60,11 +60,11 @@ export function LineupHeroFields({ draft, playerOptions, falConfigured, onHeroCh
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Kapak Oyuncusu (Fal.ai)</CardTitle>
+        <CardTitle>Hero Fotoğrafı · Kapak Oyuncusu (Fal.ai)</CardTitle>
         <CardDescription>
           Her takım için öne çıkacak oyuncunun fotoğrafını seçin ya da yükleyin (kısa kenar ≥ 1024px önerilir; küçükse AI ile büyütülür).
           Arka planı birefnet ile temizlenir ve kartın sol yarısına yerleşir. Aynı fotoğraf ikinci kez ücret çıkarmaz. Kapak isteğe bağlıdır —
-          yoksa kadro tüm genişliğe yayılır.
+          yoksa liste ortalanıp genişler.
         </CardDescription>
       </CardHeader>
       <CardContent>

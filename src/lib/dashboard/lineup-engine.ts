@@ -32,7 +32,7 @@ function buildCaption(draft: LineupDraft): string {
  */
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
   const card = (team: TeamLineupDraft, opponent: TeamLineupDraft) =>
-    renderLineupCard({ team, opponentName: opponent.teamName, opponentLogoUrl: opponent.logoUrl, headline: draft.headline, matchLabel: draft.matchLabel });
+    renderLineupCard({ templateStyle: draft.templateStyle, team, opponentName: opponent.teamName, opponentLogoUrl: opponent.logoUrl, headline: draft.headline, matchLabel: draft.matchLabel });
 
   let homePng: Buffer;
   let awayPng: Buffer;

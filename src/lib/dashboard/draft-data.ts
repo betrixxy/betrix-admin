@@ -6,6 +6,7 @@ import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { DraftLookup, DraftSummary, DraftView } from "@/types/draft";
+import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
 
 /** `AiContent.renderOptions` — market analizi kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const marketAnalysisOptionsSchema = z.object({
@@ -21,6 +22,8 @@ const marketAnalysisOptionsSchema = z.object({
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const lineupOptionsSchema = z.object({
   kind: z.literal("PROBABLE_LINEUPS"),
+  /** Şablon seçiminden önceki kayıtlarda yok — o kartlar taktik tahtasıyla çizilmişti. */
+  templateStyle: z.enum(LINEUP_TEMPLATE_STYLES).catch(DEFAULT_LINEUP_TEMPLATE_STYLE),
   homeImageUrl: z.string(),
   awayImageUrl: z.string(),
   headline: z.string(),
@@ -65,7 +68,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "PROBABLE_LINEUPS") {
     const options = lineupOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { home, away, homeImageUrl, awayImageUrl, headline } = options.data;
+      const { home, away, homeImageUrl, awayImageUrl, headline, templateStyle } = options.data;
       return {
         kind: "lineup",
         draft: {
@@ -76,6 +79,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
           headline,
+          templateStyle,
           home: { ...home, imageUrl: homeImageUrl },
           away: { ...away, imageUrl: awayImageUrl },
         },

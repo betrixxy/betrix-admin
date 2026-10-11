@@ -72,7 +72,7 @@ export interface TeamLineupDraft {
   teamName: string;
   logoUrl: string;
   colorHex: string;
-  /** Kapak oyuncusunun şeffaf kesimi (LINEUP_HERO_PATTERN); boşsa kart kapaksız çizilir. */
+  /** Kapak oyuncusunun şeffaf kesimi (LINEUP_HERO_PATTERN) — yalnızca `hero_list` şablonu çizer; boşsa kapaksız. */
   heroImageUrl: string;
   /** "4-2-3-1" gibi; kaleci hariç satırlar toplamı 10 olmalı. */
   formation: string;
@@ -80,8 +80,23 @@ export interface TeamLineupDraft {
   coach: string;
 }
 
+/**
+ * Kart şablonu: `pitch` = taktik tahtası (saha çizgili diziliş), `hero_list` = solda kapak
+ * oyuncusunun kesimi, sağda saha çizgisiz numara + isim listesi.
+ */
+export const LINEUP_TEMPLATE_STYLES = ["pitch", "hero_list"] as const;
+export type LineupTemplateStyle = (typeof LINEUP_TEMPLATE_STYLES)[number];
+export const DEFAULT_LINEUP_TEMPLATE_STYLE: LineupTemplateStyle = "pitch";
+
+export const LINEUP_TEMPLATE_LABELS: Record<LineupTemplateStyle, string> = {
+  pitch: "Taktik Tahtası",
+  hero_list: "Kahraman Liste",
+};
+
 export interface LineupDraft {
   fixtureId: string;
+  /** İki takımın kartı aynı şablonla çizilir. */
+  templateStyle: LineupTemplateStyle;
   /** Kartın üst etiketi, ör. "MUHTEMEL 11" / "İLK 11". */
   headline: string;
   /** "Süper Lig · 12.10 · 20:00" gibi maç künyesi. */
@@ -92,6 +107,7 @@ export interface LineupDraft {
 
 /** Kart çizimi için tek takımın verisi. */
 export interface LineupCardInput {
+  templateStyle: LineupTemplateStyle;
   team: TeamLineupDraft;
   opponentName: string;
   /** Rakip logosu (API-Football medya adresi); boşsa çizilmez. */

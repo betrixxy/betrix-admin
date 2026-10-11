@@ -12,7 +12,7 @@ function embed(file: string): string {
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
-const BRAND = embed("checkmatch-logo-net.png");
+const BRAND = embed("checkmatch-logo.png");
 const MARK = embed("checkmatch-mark.png");
 
 const STATS: MatchDayStats = {
