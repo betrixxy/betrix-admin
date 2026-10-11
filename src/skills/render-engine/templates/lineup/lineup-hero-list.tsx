@@ -1,7 +1,7 @@
 import { formationGroups } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
 import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
-import { CONTENT_BOTTOM, CONTENT_TOP, H, LineupBackground, TYPE, W, displayName, labelStyle } from "./lineup-chrome";
+import { CONTENT_BOTTOM, CONTENT_TOP, H, LineupBackground, TYPE, W, displayName, labelStyle, nameStyle } from "./lineup-chrome";
 
 /**
  * ŞABLON 2 — Kahraman Liste (`hero_list`). Kapak ZORUNLUDUR: kapaksız liste kartı çizilmez (render
@@ -58,8 +58,8 @@ function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider }:
       </div>
       {/* Dergi düzeni: ad ince ve soluk, soyadı kalın ve parlak — aynı satırda. */}
       <div tw="flex flex-1 items-baseline" style={{ gap: Math.round(fontSize * 0.3), overflow: "hidden" }}>
-        {first ? <span style={{ fontFamily: TYPE.NAME, fontWeight: 500, fontSize, letterSpacing: 0.3, color: rgba(palette.text, 0.72), lineHeight: 1, whiteSpace: "nowrap" }}>{first}</span> : null}
-        <span style={{ fontFamily: TYPE.NAME, fontWeight: 800, fontSize, letterSpacing: 0.3, color: palette.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{last}</span>
+        {first ? <span style={{ ...nameStyle(fontSize, rgba(palette.text, 0.7), 500), whiteSpace: "nowrap" }}>{first}</span> : null}
+        <span style={{ ...nameStyle(fontSize, palette.text), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{last}</span>
       </div>
       <span style={{ ...labelStyle(13, palette.muted), width: ROLE_WIDTH, textAlign: "right" }}>{role}</span>
     </div>

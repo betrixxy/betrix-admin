@@ -1,6 +1,6 @@
 import type { LineupPalette } from "@/types/lineup";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
-import { BODY, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
 
 /**
  * Muhtemel 11 kartlarının ortak çerçevesi (iki şablon da kullanır): logodan türetilen derin zemin,
@@ -19,20 +19,25 @@ export const CONTENT_BOTTOM = 1120;
 
 /**
  * Tipografi rolleri (spor dergisi kapağı hiyerarşisi). KURAL: insan adları (oyuncu, teknik direktör)
- * yalnızca `NAME` ile yazılır; başlık, numara, takım adı, diziliş ve etiketler display fontlardır —
- * isimler hiçbir zaman çevresindeki metinle aynı fontu paylaşmaz.
+ * yalnızca `NAME` ile ve ince (500/600) yazılır; başlık, numara ve diziliş kalın display (`DISPLAY`), takım adı
+ * `TEAM`, künye/etiketler geniş aralıklı mono (`INFO`) — isimler hiçbir zaman çevresindeki metinle aynı fontu paylaşmaz.
  */
 export const TYPE = {
   /** Archivo Black — dev başlık, forma numaraları, diziliş: kalın, sıkı, karakterli. */
   DISPLAY: SCORE,
-  /** Bricolage Grotesque ExtraBold — takım adı ve tüm etiketler (geniş harf aralıklı küçük büyük harf). */
-  LABEL: TEAM,
-  /** Manrope — oyuncu/teknik direktör adları: temiz, modern, yüksek okunurluk. */
+  /** Bricolage Grotesque ExtraBold — yalnızca takım adı. */
+  TEAM,
+  /** Space Mono — üst/alt künye ve etiketler (VS, DİZİLİŞ, maç bilgisi, mevki): küçük, geniş aralıklı. */
+  INFO: EYEBROW,
+  /** Manrope Medium/SemiBold — oyuncu/teknik direktör adları: temiz, zarif, yüksek okunurluk (asla ExtraBold). */
   NAME: BODY,
 } as const;
 
-/** Etiket stili: küçük, geniş aralıklı büyük harf (dergi künyesi). */
-export const labelStyle = (fontSize: number, color: string) => ({ fontFamily: TYPE.LABEL, fontWeight: 800, fontSize, letterSpacing: fontSize * 0.26, color, lineHeight: 1 });
+/** Künye/etiket stili: küçük punto, 2-4px harf aralığı, mono (dergi künyesi). */
+export const labelStyle = (fontSize: number, color: string) => ({ fontFamily: TYPE.INFO, fontWeight: 700, fontSize, letterSpacing: Math.min(4, Math.max(2, Math.round(fontSize * 0.2))), color, lineHeight: 1 });
+
+/** İsim stili: Manrope, ince ağırlık, hafif açık harf aralığı. */
+export const nameStyle = (fontSize: number, color: string, weight: 500 | 600 = 600) => ({ fontFamily: TYPE.NAME, fontWeight: weight, fontSize, letterSpacing: 0.5, color, lineHeight: 1.1 });
 
 const BRAND_LOGO_HEIGHT = 54;
 const FOOTER_HEIGHT = 230;
@@ -92,7 +97,7 @@ export function LineupHeader({
         </div>
         <div tw="flex items-center" style={{ gap: 16, marginTop: 26 }}>
           <div style={{ width: 5, height: 38, backgroundColor: palette.accent }} />
-          <span style={{ fontFamily: TYPE.LABEL, fontWeight: 800, fontSize: teamName.length > 18 ? 34 : 42, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{upper(teamName)}</span>
+          <span style={{ fontFamily: TYPE.TEAM, fontWeight: 800, fontSize: teamName.length > 18 ? 34 : 42, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{upper(teamName)}</span>
         </div>
         {opponentName ? (
           <div tw="flex items-center" style={{ gap: 12, marginTop: 14, marginLeft: 21 }}>
@@ -149,7 +154,7 @@ export function LineupFooter({ brandLogo, formation, matchLabel, coach, palette 
         {coach.trim() ? (
           <div tw="flex items-center" style={{ gap: 10 }}>
             <span style={labelStyle(12, palette.muted)}>TEKNİK DİREKTÖR</span>
-            <span style={{ fontFamily: TYPE.NAME, fontWeight: 800, fontSize: 18, color: palette.text, letterSpacing: 0.2, lineHeight: 1 }}>{coach.trim()}</span>
+            <span style={nameStyle(19, palette.text)}>{coach.trim()}</span>
           </div>
         ) : null}
       </div>
