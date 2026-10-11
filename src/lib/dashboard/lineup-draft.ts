@@ -87,10 +87,9 @@ export function lineupIssues(team: TeamLineupDraft): string[] {
 }
 
 /**
- * Kartın gerçekte çizileceği şablon: "Kahraman Liste" yalnızca iki takımın da kapak kesimi varsa —
- * kapaksız liste kartı çizilmez, carousel tutarlı kalsın diye iki kart birlikte taktik tahtasına düşer.
+ * Tek kartın gerçekte çizileceği şablon — her takım bağımsız: "Kahraman Liste" seçiliyse kapak kesimi
+ * olan takım liste, olmayan takım taktik tahtası olarak çizilir (kapaksız liste kartı çizilmez).
  */
-export function effectiveTemplateStyle(draft: Pick<LineupDraft, "templateStyle" | "home" | "away">): LineupTemplateStyle {
-  if (draft.templateStyle !== "hero_list") return draft.templateStyle;
-  return draft.home.heroImageUrl && draft.away.heroImageUrl ? "hero_list" : "pitch";
+export function cardTemplateStyle(selected: LineupTemplateStyle, team: Pick<TeamLineupDraft, "heroImageUrl">): LineupTemplateStyle {
+  return selected === "hero_list" && team.heroImageUrl ? "hero_list" : "pitch";
 }

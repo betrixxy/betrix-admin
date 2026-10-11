@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { effectiveTemplateStyle, emptyTeamLineup } from "@/lib/dashboard/lineup-draft";
+import { cardTemplateStyle, emptyTeamLineup } from "@/lib/dashboard/lineup-draft";
 import { contrastRatio, lineupPalette } from "@/lib/dashboard/lineup-palette";
-import type { LineupDraft, LogoSwatches } from "@/types/lineup";
+import type { LogoSwatches } from "@/types/lineup";
 
 const NONE: LogoSwatches = { vibrant: null, darkVibrant: null, lightVibrant: null, muted: null, darkMuted: null, lightMuted: null, chromaticShare: 0 };
 /** Kurgu: kırmızı-sarı arma (canlı), lacivert-sarı arma, siyah-beyaz arma (yalnızca gri tonlar). */
@@ -48,25 +48,21 @@ describe("logo paleti", () => {
   });
 });
 
-describe("Kahraman Liste kapak kuralı", () => {
-  const draft = (home: string, away: string): Pick<LineupDraft, "templateStyle" | "home" | "away"> => ({
-    templateStyle: "hero_list",
-    home: { ...emptyTeamLineup("Ev"), heroImageUrl: home },
-    away: { ...emptyTeamLineup("Dep"), heroImageUrl: away },
-  });
+describe("Kahraman Liste kapak kuralı (takım başına bağımsız)", () => {
+  const team = (heroImageUrl: string) => ({ ...emptyTeamLineup("Takım"), heroImageUrl });
   const cutout = "/api/files/generated/cutout-v1-" + "a".repeat(64) + ".png";
 
-  it("iki kapak varsa liste çizilir", () => {
-    assert.equal(effectiveTemplateStyle(draft(cutout, cutout)), "hero_list");
+  it("kapağı olan takım liste çizilir", () => {
+    assert.equal(cardTemplateStyle("hero_list", team(cutout)), "hero_list");
   });
 
-  it("bir kapak bile eksikse iki kart da taktik tahtasına düşer", () => {
-    assert.equal(effectiveTemplateStyle(draft(cutout, "")), "pitch");
-    assert.equal(effectiveTemplateStyle(draft("", "")), "pitch");
+  it("yalnızca kapağı eksik takım taktik tahtasına düşer — diğer takımı etkilemez", () => {
+    const [home, away] = [team(cutout), team("")];
+    assert.deepEqual([cardTemplateStyle("hero_list", home), cardTemplateStyle("hero_list", away)], ["hero_list", "pitch"]);
   });
 
   it("taktik tahtası seçimi kapaktan bağımsızdır", () => {
-    assert.equal(effectiveTemplateStyle({ ...draft(cutout, cutout), templateStyle: "pitch" }), "pitch");
+    assert.equal(cardTemplateStyle("pitch", team(cutout)), "pitch");
   });
 });
 

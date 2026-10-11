@@ -206,8 +206,8 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
         {missingHeroes.length > 0 ? (
           <p className="-mt-3 flex items-start gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200" role="status">
             <AlertCircle className="mt-px size-3.5 shrink-0" />
-            Kahraman Liste için iki takımın da kapak kesimi zorunlu — eksik: {missingHeroes.join(", ")}. Kesim üretilmezse kartlar Taktik Tahtası olarak
-            çizilir.
+            Kapak kesimi olmayan takım ({missingHeroes.join(", ")}) Taktik Tahtası olarak çizilir; kapağı olan takım Kahraman Liste olur. Her iki
+            kartın da liste olması için eksik kesimi üretin.
           </p>
         ) : null}
 

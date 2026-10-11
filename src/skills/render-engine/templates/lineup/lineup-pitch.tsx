@@ -1,7 +1,7 @@
 import { pitchPositions } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot } from "@/types/lineup";
-import { SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
-import { CONTENT_BOTTOM, CONTENT_TOP, LineupBackground, W, displayName } from "./lineup-chrome";
+import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { CONTENT_BOTTOM, CONTENT_TOP, LineupBackground, TYPE, W, displayName } from "./lineup-chrome";
 
 /**
  * ŞABLON 1 — Taktik Tahtası (`pitch`). Yeşil çim YOK: saha, logodan türetilen gece zemininin hafifçe
@@ -19,8 +19,8 @@ const LABEL_GAP = 12;
 const NAME_MAX_FONT = 21;
 /** Tahtadaki tüm isimler tek boyutta (hiyerarşi); bu boyuta sığmayan tek tük ad üç noktayla kısalır. */
 const NAME_MIN_FONT = 16;
-/** Bricolage ExtraBold büyük harfte ortalama karakter genişliği / font boyutu. */
-const CHAR_WIDTH_RATIO = 0.7;
+/** Manrope ExtraBold büyük harfte ortalama karakter genişliği / font boyutu (+ harf aralığı payı). */
+const CHAR_WIDTH_RATIO = 0.74;
 const LABEL_PADDING_X = 12;
 const MAX_NAME_CHARS = 15;
 const MAX_NAME_CHARS_TIGHT = 11;
@@ -81,10 +81,10 @@ function PlayerMarker({ slot, name, fontSize, goalkeeper, palette, labelWidth }:
           boxShadow: `0 0 0 6px ${rgba(palette.accent, 0.16)}, 0 12px 24px rgba(0,0,0,0.55)`,
         }}
       >
-        <span style={{ fontFamily: SCORE, fontSize: slot.number.length > 1 ? 28 : 32, color: ink, lineHeight: 1 }}>{slot.number || "·"}</span>
+        <span style={{ fontFamily: TYPE.DISPLAY, fontSize: slot.number.length > 1 ? 28 : 33, color: ink, lineHeight: 1, letterSpacing: -0.5 }}>{slot.number || "·"}</span>
       </div>
       <div tw="flex" style={{ maxWidth: labelWidth, padding: `5px ${LABEL_PADDING_X}px`, borderRadius: 8, backgroundColor: rgba(palette.backgroundBottom, 0.88), border: `1px solid ${rgba(palette.accent, 0.28)}` }}>
-        <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize, letterSpacing: 0.8, color: palette.text, lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <span style={{ fontFamily: TYPE.NAME, fontWeight: 800, fontSize, letterSpacing: 0.5, color: palette.text, lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
           {name}
         </span>
       </div>

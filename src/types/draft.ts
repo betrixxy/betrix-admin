@@ -79,9 +79,9 @@ export interface LineupDraftView {
   postId: string | null;
   reviewedAt: string | null;
   headline: string;
-  templateStyle: LineupTemplateStyle;
-  home: { teamName: string; formation: string; imageUrl: string };
-  away: { teamName: string; formation: string; imageUrl: string };
+  /** `templateStyle` = kartın gerçekte çizildiği şablon (takım başına bağımsız). */
+  home: { teamName: string; formation: string; imageUrl: string; templateStyle: LineupTemplateStyle };
+  away: { teamName: string; formation: string; imageUrl: string; templateStyle: LineupTemplateStyle };
 }
 
 export type DraftLookup =

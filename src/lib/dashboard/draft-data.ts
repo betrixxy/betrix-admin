@@ -24,6 +24,8 @@ const lineupOptionsSchema = z.object({
   kind: z.literal("PROBABLE_LINEUPS"),
   /** Şablon seçiminden önceki kayıtlarda yok — o kartlar taktik tahtasıyla çizilmişti. */
   templateStyle: z.enum(LINEUP_TEMPLATE_STYLES).catch(DEFAULT_LINEUP_TEMPLATE_STYLE),
+  /** Kartların gerçekte çizildiği şablon (takım başına bağımsız) — yoksa iki kart da `templateStyle`. */
+  cardStyles: z.object({ home: z.enum(LINEUP_TEMPLATE_STYLES), away: z.enum(LINEUP_TEMPLATE_STYLES) }).optional().catch(undefined),
   homeImageUrl: z.string(),
   awayImageUrl: z.string(),
   headline: z.string(),
@@ -68,7 +70,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "PROBABLE_LINEUPS") {
     const options = lineupOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { home, away, homeImageUrl, awayImageUrl, headline, templateStyle } = options.data;
+      const { home, away, homeImageUrl, awayImageUrl, headline, templateStyle, cardStyles } = options.data;
       return {
         kind: "lineup",
         draft: {
@@ -79,9 +81,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
           headline,
-          templateStyle,
-          home: { ...home, imageUrl: homeImageUrl },
-          away: { ...away, imageUrl: awayImageUrl },
+          home: { ...home, imageUrl: homeImageUrl, templateStyle: cardStyles?.home ?? templateStyle },
+          away: { ...away, imageUrl: awayImageUrl, templateStyle: cardStyles?.away ?? templateStyle },
         },
       };
     }

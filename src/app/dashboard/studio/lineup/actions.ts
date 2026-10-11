@@ -12,7 +12,7 @@ import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/servic
 import { getPlayerCutout, playerCutoutUrl } from "@/lib/dashboard/match-day-cache";
 import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
 import { isFalConfigured } from "@/lib/services/fal";
-import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type TeamLineupReference } from "@/types/lineup";
+import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
 import type { Fixture } from "@/types/sports";
 
@@ -79,14 +79,14 @@ function firstIssue(error: z.ZodError): string {
 }
 
 /** Tek takımın kartını çizer — kaydetmez (yalnızca önizleme). */
-export async function previewLineupAction(input: unknown): Promise<Result<{ dataUrl: string }>> {
+export async function previewLineupAction(input: unknown): Promise<Result<{ dataUrl: string; templateStyle: LineupTemplateStyle }>> {
   if (!(await getCurrentSession())) return unauthorized();
   const parsed = previewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
 
   try {
-    const png = await renderLineupCard(parsed.data);
-    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}` } };
+    const { png, templateStyle } = await renderLineupCard(parsed.data);
+    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle } };
   } catch (cause) {
     console.error("[lineup] önizleme çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Önizleme çizilemedi.", cause } };

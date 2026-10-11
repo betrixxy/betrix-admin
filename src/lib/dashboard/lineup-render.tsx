@@ -6,7 +6,7 @@ import { logoSwatches } from "@/lib/dashboard/logo-swatches";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
 import { LINEUP_CARD_SIZE, LineupCard, type LineupHeroImage } from "@/skills/render-engine/templates/lineup/lineup-card";
-import { LINEUP_HERO_PATTERN, type LineupCardInput } from "@/types/lineup";
+import { LINEUP_HERO_PATTERN, type LineupCardInput, type LineupTemplateStyle } from "@/types/lineup";
 
 /** Takım logoları yalnızca API-Football medya sunucusundan gömülür — formdan gelen başka adres çizilmez (SSRF). */
 const ALLOWED_IMAGE_ORIGIN = "https://media.api-sports.io/";
@@ -47,7 +47,13 @@ async function embedHero(url: string): Promise<LineupHeroImage | null> {
  * Renkler takım logosundan okunur (önbellekli); kapak okunamazsa kart taktik tahtasına düşer —
  * kapaksız liste kartı çizilmez.
  */
-export async function renderLineupCard(input: LineupCardInput): Promise<Buffer> {
+export interface RenderedLineupCard {
+  png: Buffer;
+  /** Gerçekte çizilen şablon — kapak okunamazsa liste istense de "pitch". */
+  templateStyle: LineupTemplateStyle;
+}
+
+export async function renderLineupCard(input: LineupCardInput): Promise<RenderedLineupCard> {
   const [fonts, brandLogo, logoUrl, opponentLogoUrl, hero] = await Promise.all([
     loadDeepAnalysisFonts(),
     loadBrandLogo(),
@@ -69,5 +75,5 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Buffer> 
     />,
     { ...LINEUP_CARD_SIZE, fonts },
   );
-  return Buffer.from(await response.arrayBuffer());
+  return { png: Buffer.from(await response.arrayBuffer()), templateStyle: card.templateStyle };
 }

@@ -23,7 +23,7 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
             <DraftStatusBadge status={draft.status} />
           </div>
           <CardDescription>
-            {LINEUP_TEMPLATE_LABELS[draft.templateStyle]} şablonu · her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.
+            Her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
@@ -32,7 +32,7 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
               <p className="text-sm font-medium">
                 {draft[side].teamName}{" "}
                 <span className="text-muted-foreground">
-                  · {draft[side].formation} · {side === "home" ? "Ev sahibi" : "Deplasman"}
+                  · {draft[side].formation} · {LINEUP_TEMPLATE_LABELS[draft[side].templateStyle]} · {side === "home" ? "Ev sahibi" : "Deplasman"}
                 </span>
               </p>
               <DraftPreview

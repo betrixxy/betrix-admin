@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
-import { effectiveTemplateStyle } from "@/lib/dashboard/lineup-draft";
-import { renderLineupCard } from "@/lib/dashboard/lineup-render";
+import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
+import { renderLineupCard, type RenderedLineupCard } from "@/lib/dashboard/lineup-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { ContentTypeId } from "@/types/content-type";
 import type { LineupDraft, TeamLineupDraft } from "@/types/lineup";
@@ -31,16 +31,22 @@ function buildCaption(draft: LineupDraft): string {
  * onun üzerine yazılır (bkz. content-schedule.ts). Ana görsel ev sahibi kartıdır; iki kartın adresi
  * ve formun tamamı `renderOptions`'ta saklanır. Fal.ai yok — ücretsiz.
  */
-export async function createLineupDraft(input: LineupDraft): Promise<Result<LineupSaved>> {
-  // Kapaksız "Kahraman Liste" çizilmez; kayıt da gerçekte çizilen şablonu taşır.
-  const draft: LineupDraft = { ...input, templateStyle: effectiveTemplateStyle(input) };
+export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
+  // Her kart kendi şablonuyla: kapağı olan takım liste, olmayan taktik tahtası (bkz. cardTemplateStyle).
   const card = (team: TeamLineupDraft, opponent: TeamLineupDraft) =>
-    renderLineupCard({ templateStyle: draft.templateStyle, team, opponentName: opponent.teamName, opponentLogoUrl: opponent.logoUrl, headline: draft.headline, matchLabel: draft.matchLabel });
+    renderLineupCard({
+      templateStyle: cardTemplateStyle(draft.templateStyle, team),
+      team,
+      opponentName: opponent.teamName,
+      opponentLogoUrl: opponent.logoUrl,
+      headline: draft.headline,
+      matchLabel: draft.matchLabel,
+    });
 
-  let homePng: Buffer;
-  let awayPng: Buffer;
+  let home: RenderedLineupCard;
+  let away: RenderedLineupCard;
   try {
-    [homePng, awayPng] = await Promise.all([card(draft.home, draft.away), card(draft.away, draft.home)]);
+    [home, away] = await Promise.all([card(draft.home, draft.away), card(draft.away, draft.home)]);
   } catch (cause) {
     console.error("[lineup] kartlar çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kadro kartları çizilemedi.", cause } };
@@ -48,9 +54,9 @@ export async function createLineupDraft(input: LineupDraft): Promise<Result<Line
 
   const saved: string[] = [];
   try {
-    const homeImageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, homePng);
+    const homeImageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, home.png);
     saved.push(homeImageUrl);
-    const awayImageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, awayPng);
+    const awayImageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, away.png);
     saved.push(awayImageUrl);
 
     const record = await createScheduledContent({
@@ -61,7 +67,8 @@ export async function createLineupDraft(input: LineupDraft): Promise<Result<Line
       status: "DRAFT",
       format: "IG_FEED",
       caption: buildCaption(draft),
-      renderOptions: toJsonValue({ kind: "PROBABLE_LINEUPS", homeImageUrl, awayImageUrl, ...draft }),
+      // `templateStyle` admin'in seçimi; kartların gerçekte çizildiği şablon ayrıca saklanır.
+      renderOptions: toJsonValue({ kind: "PROBABLE_LINEUPS", homeImageUrl, awayImageUrl, cardStyles: { home: home.templateStyle, away: away.templateStyle }, ...draft }),
     });
     return { ok: true, data: { id: record.id } };
   } catch (cause) {

@@ -1,7 +1,7 @@
 import { formationGroups } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
-import { EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
-import { CONTENT_BOTTOM, CONTENT_TOP, H, LineupBackground, W, displayName } from "./lineup-chrome";
+import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { CONTENT_BOTTOM, CONTENT_TOP, H, LineupBackground, TYPE, W, displayName, labelStyle } from "./lineup-chrome";
 
 /**
  * ŞABLON 2 — Kahraman Liste (`hero_list`). Kapak ZORUNLUDUR: kapaksız liste kartı çizilmez (render
@@ -27,10 +27,10 @@ const GROUP_GAP = 19;
 const NUMBER_BOX = 50;
 const ROLE_WIDTH = 52;
 const ROW_GAP = 18;
-const NAME_MAX_FONT = 31;
+const NAME_MAX_FONT = 29;
 const NAME_MIN_FONT = 22;
-/** Bricolage ExtraBold büyük harfte ortalama karakter genişliği / font boyutu. */
-const CHAR_WIDTH_RATIO = 0.68;
+/** Manrope büyük harfte ortalama karakter genişliği / font boyutu (+ ad-soyad boşluğu payı). */
+const CHAR_WIDTH_RATIO = 0.72;
 const MAX_NAME_CHARS = 16;
 /** Kapak sol yarıda bu merkeze oturur. */
 const HERO_CENTER_X = 280;
@@ -44,6 +44,9 @@ function listFontSize(names: string[], nameWidth: number): number {
 }
 
 function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider }: { slot: LineupSlot; name: string; role: string; fontSize: number; goalkeeper: boolean; palette: LineupPalette; divider: boolean }) {
+  const words = name.split(" ");
+  const last = words.pop() ?? "";
+  const first = words.join(" ");
   const [fill, ink] = goalkeeper ? [palette.keeper, palette.keeperText] : [palette.kit, palette.kitText];
   return (
     <div tw="flex items-center" style={{ height: ROW_HEIGHT, gap: ROW_GAP, borderTop: divider ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0)" }}>
@@ -51,12 +54,14 @@ function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider }:
         tw="flex items-center justify-center"
         style={{ width: NUMBER_BOX, height: NUMBER_BOX, borderRadius: 12, backgroundColor: fill, border: `2px solid ${rgba(palette.text, 0.85)}`, boxShadow: "0 6px 16px rgba(0,0,0,0.45)" }}
       >
-        <span style={{ fontFamily: SCORE, fontSize: slot.number.length > 1 ? 22 : 25, color: ink, lineHeight: 1 }}>{slot.number || "·"}</span>
+        <span style={{ fontFamily: TYPE.DISPLAY, fontSize: slot.number.length > 1 ? 22 : 25, color: ink, lineHeight: 1, letterSpacing: -0.5 }}>{slot.number || "·"}</span>
       </div>
-      <span tw="flex-1" style={{ fontFamily: TEAM, fontWeight: 800, fontSize, letterSpacing: 0.6, color: palette.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-        {name}
-      </span>
-      <span style={{ width: ROLE_WIDTH, fontFamily: EYEBROW, fontWeight: 700, fontSize: 14, letterSpacing: 2, color: palette.muted, textAlign: "right" }}>{role}</span>
+      {/* Dergi düzeni: ad ince ve soluk, soyadı kalın ve parlak — aynı satırda. */}
+      <div tw="flex flex-1 items-baseline" style={{ gap: Math.round(fontSize * 0.3), overflow: "hidden" }}>
+        {first ? <span style={{ fontFamily: TYPE.NAME, fontWeight: 500, fontSize, letterSpacing: 0.3, color: rgba(palette.text, 0.72), lineHeight: 1, whiteSpace: "nowrap" }}>{first}</span> : null}
+        <span style={{ fontFamily: TYPE.NAME, fontWeight: 800, fontSize, letterSpacing: 0.3, color: palette.text, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{last}</span>
+      </div>
+      <span style={{ ...labelStyle(13, palette.muted), width: ROLE_WIDTH, textAlign: "right" }}>{role}</span>
     </div>
   );
 }

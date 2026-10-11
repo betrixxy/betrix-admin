@@ -1,6 +1,6 @@
 import type { LineupPalette } from "@/types/lineup";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
-import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { BODY, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
 
 /**
  * Muhtemel 11 kartlarının ortak çerçevesi (iki şablon da kullanır): logodan türetilen derin zemin,
@@ -16,6 +16,23 @@ export const PAD = 56;
 export const CONTENT_TOP = 330;
 /** Alt imza perdesinin üstü — içerik alanı burada biter. */
 export const CONTENT_BOTTOM = 1120;
+
+/**
+ * Tipografi rolleri (spor dergisi kapağı hiyerarşisi). KURAL: insan adları (oyuncu, teknik direktör)
+ * yalnızca `NAME` ile yazılır; başlık, numara, takım adı, diziliş ve etiketler display fontlardır —
+ * isimler hiçbir zaman çevresindeki metinle aynı fontu paylaşmaz.
+ */
+export const TYPE = {
+  /** Archivo Black — dev başlık, forma numaraları, diziliş: kalın, sıkı, karakterli. */
+  DISPLAY: SCORE,
+  /** Bricolage Grotesque ExtraBold — takım adı ve tüm etiketler (geniş harf aralıklı küçük büyük harf). */
+  LABEL: TEAM,
+  /** Manrope — oyuncu/teknik direktör adları: temiz, modern, yüksek okunurluk. */
+  NAME: BODY,
+} as const;
+
+/** Etiket stili: küçük, geniş aralıklı büyük harf (dergi künyesi). */
+export const labelStyle = (fontSize: number, color: string) => ({ fontFamily: TYPE.LABEL, fontWeight: 800, fontSize, letterSpacing: fontSize * 0.26, color, lineHeight: 1 });
 
 const BRAND_LOGO_HEIGHT = 54;
 const FOOTER_HEIGHT = 230;
@@ -63,22 +80,25 @@ export function LineupHeader({
   palette: LineupPalette;
 }) {
   const [lead, accent] = splitHeadline(headline);
-  const headlineSize = lead.length > 5 ? 88 : 108;
+  const headlineSize = lead.length > 5 ? 96 : 120;
+  // Dev başlık sıkı (negatif aralık), takım adı ve künye geniş aralıklı — dergi kapağı kontrastı.
+  const headlineStyle = { fontFamily: TYPE.DISPLAY, fontSize: headlineSize, lineHeight: 0.84, letterSpacing: -headlineSize * 0.025 };
   return (
-    <div tw="flex items-start justify-between" style={{ position: "absolute", left: PAD, top: PAD - 8, width: W - PAD * 2 }}>
-      <div tw="flex flex-col" style={{ maxWidth: 760 }}>
-        <div tw="flex items-end" style={{ gap: 18 }}>
-          {lead ? <span style={{ fontFamily: SCORE, fontSize: headlineSize, lineHeight: 0.95, color: palette.text, letterSpacing: 1, textShadow: "0 4px 24px rgba(0,0,0,0.55)" }}>{lead}</span> : null}
-          {accent ? (
-            <span style={{ fontFamily: SCORE, fontSize: headlineSize, lineHeight: 0.95, color: palette.accent, textShadow: `0 0 34px ${rgba(palette.accent, 0.35)}` }}>{accent}</span>
-          ) : null}
+    <div tw="flex items-start justify-between" style={{ position: "absolute", left: PAD, top: PAD - 4, width: W - PAD * 2 }}>
+      <div tw="flex flex-col" style={{ maxWidth: 780 }}>
+        <div tw="flex items-end" style={{ gap: headlineSize * 0.22 }}>
+          {lead ? <span style={{ ...headlineStyle, color: palette.text, textShadow: "0 6px 28px rgba(0,0,0,0.5)" }}>{lead}</span> : null}
+          {accent ? <span style={{ ...headlineStyle, color: palette.accent, textShadow: `0 0 36px ${rgba(palette.accent, 0.32)}` }}>{accent}</span> : null}
         </div>
-        <div tw="flex items-center" style={{ gap: 14, marginTop: 20 }}>
-          <div style={{ width: 6, height: 40, borderRadius: 3, backgroundColor: palette.accent }} />
-          <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: teamName.length > 18 ? 36 : 44, color: palette.text, lineHeight: 1, letterSpacing: 0.4 }}>{upper(teamName)}</span>
+        <div tw="flex items-center" style={{ gap: 16, marginTop: 26 }}>
+          <div style={{ width: 5, height: 38, backgroundColor: palette.accent }} />
+          <span style={{ fontFamily: TYPE.LABEL, fontWeight: 800, fontSize: teamName.length > 18 ? 34 : 42, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{upper(teamName)}</span>
         </div>
         {opponentName ? (
-          <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 20, color: palette.muted, marginTop: 12, marginLeft: 20, letterSpacing: 2 }}>{`VS ${upper(opponentName)}`}</span>
+          <div tw="flex items-center" style={{ gap: 12, marginTop: 14, marginLeft: 21 }}>
+            <span style={labelStyle(14, palette.accent)}>VS</span>
+            <span style={labelStyle(17, palette.muted)}>{upper(opponentName)}</span>
+          </div>
         ) : null}
       </div>
       <div tw="flex flex-col items-center" style={{ gap: 12 }}>
@@ -88,7 +108,7 @@ export function LineupHeader({
         ) : null}
         {opponentLogoUrl ? (
           <div tw="flex items-center" style={{ gap: 10 }}>
-            <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 16, letterSpacing: 3, color: palette.muted }}>VS</span>
+            <span style={labelStyle(13, palette.muted)}>VS</span>
             {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
             <img src={opponentLogoUrl} alt="" width={52} height={52} style={{ objectFit: "contain", opacity: 0.9 }} />
           </div>
@@ -120,15 +140,18 @@ export function LineupFooter({ brandLogo, formation, matchLabel, coach, palette 
         <img src={brandLogo} alt={BRAND_LOGO_ALT} width={logoWidth} height={BRAND_LOGO_HEIGHT} />
         <div style={{ width: logoWidth, height: 3, backgroundImage: `linear-gradient(90deg, ${palette.accent} 0%, ${rgba(palette.accent, 0)} 100%)` }} />
       </div>
-      <div tw="flex flex-col items-end" style={{ gap: 10 }}>
-        <div tw="flex items-center" style={{ gap: 12 }}>
-          <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 15, letterSpacing: 4, color: palette.muted }}>DİZİLİŞ</span>
-          <div tw="flex" style={{ padding: "3px 14px", borderRadius: 10, backgroundColor: rgba(palette.accent, 0.12), border: `1px solid ${rgba(palette.accent, 0.6)}` }}>
-            <span style={{ fontFamily: SCORE, fontSize: 28, color: palette.accent, letterSpacing: 1 }}>{formation}</span>
-          </div>
+      <div tw="flex flex-col items-end" style={{ gap: 12 }}>
+        <div tw="flex items-center" style={{ gap: 14 }}>
+          <span style={labelStyle(13, palette.muted)}>DİZİLİŞ</span>
+          <span style={{ fontFamily: TYPE.DISPLAY, fontSize: 34, color: palette.accent, letterSpacing: 0.5, lineHeight: 1 }}>{formation}</span>
         </div>
-        {matchLabel ? <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 17, letterSpacing: 1.5, color: palette.text, opacity: 0.88 }}>{upper(matchLabel)}</span> : null}
-        {coach.trim() ? <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: 18, color: palette.muted }}>{`Teknik Direktör: ${coach.trim()}`}</span> : null}
+        {matchLabel ? <span style={labelStyle(15, palette.text)}>{upper(matchLabel)}</span> : null}
+        {coach.trim() ? (
+          <div tw="flex items-center" style={{ gap: 10 }}>
+            <span style={labelStyle(12, palette.muted)}>TEKNİK DİREKTÖR</span>
+            <span style={{ fontFamily: TYPE.NAME, fontWeight: 800, fontSize: 18, color: palette.text, letterSpacing: 0.2, lineHeight: 1 }}>{coach.trim()}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );
