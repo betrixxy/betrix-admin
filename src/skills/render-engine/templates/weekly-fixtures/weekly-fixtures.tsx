@@ -1,7 +1,7 @@
 import { WEEKLY_LAYOUT, matchCenter, splitTitle, weeklyKindLabel, weeklyRowHeight, weeklySections } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
-import { BODY, EYEBROW, SCORE, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
 import { WeeklyRow } from "./weekly-row";
 import { weeklyTheme } from "./weekly-theme";
 
@@ -10,8 +10,8 @@ import { weeklyTheme } from "./weekly-theme";
  *
  * Üstte lig logosu + lig adı + büyük tur başlığı ("7. HAFTA") + tür ("FİKSTÜR" / "MAÇ SONUÇLARI"),
  * ortada günlere (kupa grup aşamasında gruplara) bölünmüş maç satırları, altta CheckMatch imzası
- * (".net"siz) ve saat dilimi notu. Tipografi Muhtemel 11 ile aynı: başlık/saat/skor Archivo Black,
- * takım adları Manrope, künye Space Mono.
+ * (".net"siz) ve saat dilimi notu. Tipografi: başlık/saat/skor Archivo Black (sıkı harf aralığı), takım
+ * adları ve gün/grup ayraçları Bricolage Grotesque ExtraBold, künye Space Mono.
  */
 
 export const WEEKLY_FIXTURES_CARD_SIZE = { width: 1080, height: 1350 } as const;
@@ -71,7 +71,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
           <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 19, letterSpacing: 4, color: theme.muted, lineHeight: 1 }}>
             {kicker ? `${upper(leagueName)} · ${kicker}` : upper(leagueName)}
           </span>
-          <span style={{ fontFamily: SCORE, fontSize: size, lineHeight: 1, letterSpacing: -size * 0.02, color: theme.text, whiteSpace: "nowrap" }}>{main}</span>
+          <span style={{ fontFamily: SCORE, fontSize: size, lineHeight: 1, letterSpacing: Math.min(-2, -size * 0.035), color: theme.text, whiteSpace: "nowrap" }}>{main}</span>
           <div tw="flex items-center" style={{ gap: 12 }}>
             <div style={{ width: 34, height: 4, backgroundColor: theme.accent }} />
             <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 17, letterSpacing: 4, color: theme.accent, lineHeight: 1 }}>{weeklyKindLabel(matches)}</span>
@@ -84,7 +84,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
         {sections.map((section) => (
           <div key={section.key} tw="flex flex-col" style={{ gap: WEEKLY_LAYOUT.rowGap }}>
             <div tw="flex items-center" style={{ height: WEEKLY_LAYOUT.sectionHeader - WEEKLY_LAYOUT.rowGap, gap: 14 }}>
-              <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 17, letterSpacing: 4, color: theme.accent, lineHeight: 1 }}>{section.label}</span>
+              <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: 15, letterSpacing: 5, color: theme.accent, lineHeight: 1 }}>{section.label}</span>
               <div style={{ flex: 1, height: 1, backgroundColor: theme.rowBorder }} />
             </div>
             {section.matches.map((match) => (

@@ -1,17 +1,17 @@
 import type { MatchCenter } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyMatch, WeeklyTeam } from "@/types/weekly-fixtures";
-import { BODY, EYEBROW, SCORE, upper } from "../deep-analysis/deep-analysis-tokens";
+import { EYEBROW, SCORE, TEAM, upper } from "../deep-analysis/deep-analysis-tokens";
 import type { WeeklyTheme } from "./weekly-theme";
 
 /**
- * Tek maç satırı: [Ev sahibi adı · logo] [saat / skor] [logo · Deplasman adı]. Takım adları Manrope
- * (isim rolü), saat ve skor Archivo Black, küçük notlar Space Mono — Muhtemel 11 ile aynı hiyerarşi.
+ * Tek maç satırı: [Ev sahibi adı · logo] [saat / skor] [logo · Deplasman adı]. Takım adları Bricolage
+ * Grotesque ExtraBold (sıkı harf aralığı), saat ve skor Archivo Black, küçük notlar Space Mono.
  */
 
 export const CENTER_WIDTH = 156;
 const SIDE_GAP = 16;
 const ROW_PAD_X = 18;
-/** Manrope SemiBold büyük harfte ortalama karakter genişliği / font boyutu (+ harf aralığı payı). */
+/** Bricolage ExtraBold büyük harfte ortalama karakter genişliği / font boyutu (+ harf aralığı payı). */
 const CHAR_WIDTH_RATIO = 0.7;
 const NAME_MIN_FONT = 16;
 
@@ -27,15 +27,15 @@ function lost(team: WeeklyTeam, other: WeeklyTeam, match: WeeklyMatch): boolean 
 function Side({ team, logo, align, rowHeight, sideWidth, theme, faded }: { team: WeeklyTeam; logo: string; align: "home" | "away"; rowHeight: number; sideWidth: number; theme: WeeklyTheme; faded: boolean }) {
   const logoSize = Math.round(rowHeight * 0.6);
   const name = upper(team.name);
-  const fontSize = nameFont(name, sideWidth - logoSize - 14, Math.max(19, Math.min(28, Math.round(rowHeight * 0.31))));
+  const fontSize = nameFont(name, sideWidth - logoSize - 14, Math.max(20, Math.min(30, Math.round(rowHeight * 0.33))));
   const label = (
     <span
       style={{
-        fontFamily: BODY,
-        fontWeight: 600,
+        fontFamily: TEAM,
+        fontWeight: 800,
         fontSize,
-        letterSpacing: 0.5,
-        lineHeight: 1.1,
+        letterSpacing: -0.4,
+        lineHeight: 1.05,
         color: faded ? theme.muted : theme.text,
         maxWidth: sideWidth - logoSize - 14,
         whiteSpace: "nowrap",
@@ -62,7 +62,7 @@ function Side({ team, logo, align, rowHeight, sideWidth, theme, faded }: { team:
 
 function Center({ center, rowHeight, theme }: { center: MatchCenter; rowHeight: number; theme: WeeklyTheme }) {
   const height = Math.min(64, rowHeight - 14);
-  const primarySize = center.kind === "status" ? 17 : Math.max(20, Math.min(32, Math.round(rowHeight * 0.34)));
+  const primarySize = center.kind === "status" ? 17 : Math.max(24, Math.min(38, Math.round(rowHeight * 0.4)));
   const box =
     center.kind === "score"
       ? { backgroundColor: theme.scoreBg, border: `2px solid ${theme.scoreBg}`, color: theme.scoreText }
@@ -71,7 +71,7 @@ function Center({ center, rowHeight, theme }: { center: MatchCenter; rowHeight: 
         : { backgroundColor: "rgba(0,0,0,0)", border: `2px solid ${theme.rowBorder}`, color: theme.muted };
   return (
     <div tw="flex flex-col items-center justify-center" style={{ width: CENTER_WIDTH, height, borderRadius: 12, gap: 3, ...box }}>
-      <span style={{ fontFamily: center.kind === "status" ? EYEBROW : SCORE, fontWeight: center.kind === "status" ? 700 : 400, fontSize: primarySize, letterSpacing: center.kind === "status" ? 2 : 0.5, lineHeight: 1 }}>
+      <span tw="flex items-center justify-center" style={{ fontFamily: center.kind === "status" ? EYEBROW : SCORE, fontWeight: center.kind === "status" ? 700 : 400, fontSize: primarySize, letterSpacing: center.kind === "status" ? 2 : 0, lineHeight: 1 }}>
         {center.primary}
       </span>
       {center.note && height >= 50 ? (
