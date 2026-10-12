@@ -10,6 +10,7 @@ import {
   type TeamLineupDraft,
   type TeamLineupReference,
 } from "@/types/lineup";
+import { DEFAULT_SOCIAL_FORMAT } from "@/types/studio-formats";
 
 /** Muhtemel 11 taslağı — referans veriden form durumu (saf; istemci de içe aktarır). */
 
@@ -52,6 +53,7 @@ export function lineupDraftFromReference(ref: LineupReference, matchLabel: strin
     templateStyle: DEFAULT_LINEUP_TEMPLATE_STYLE,
     headline: announced ? HEADLINE_ANNOUNCED : HEADLINE_PREDICTED,
     matchLabel,
+    format: DEFAULT_SOCIAL_FORMAT,
     home: teamDraftFromReference(ref.home),
     away: teamDraftFromReference(ref.away),
   };

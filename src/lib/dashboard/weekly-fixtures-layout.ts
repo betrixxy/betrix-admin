@@ -1,3 +1,4 @@
+import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import type { WeeklyGrouping, WeeklyMatch } from "@/types/weekly-fixtures";
 
 /** "Haftanın Maçları" kartının saf yerleşim kuralları (istemci ve şablon da içe aktarır). */
@@ -99,24 +100,107 @@ export function weeklyCaption(leagueName: string, title: string, matches: Weekly
   return lines.join("\n");
 }
 
-/** Kart dikey yerleşimi (1080×1350): başlığın altı ile alt imza bandının üstü arası maç alanıdır. */
-export const WEEKLY_LAYOUT = {
-  bodyTop: 300,
-  bodyBottom: 1196,
-  sectionHeader: 40,
-  sectionGap: 14,
-  rowGap: 8,
-  minRow: 54,
-  maxRow: 96,
-} as const;
+/**
+ * Kart yerleşimi, formata göre (bkz. types/studio-formats.ts). Başlığın altı ile alt imza bandının üstü
+ * arası maç alanıdır; Story'de üst/alt platform bantları boş kalır, yatayda maçlar iki sütuna yayılır.
+ * 4:5 değerleri ilk tasarımın birebir aynısıdır.
+ */
+export interface WeeklyLayout {
+  width: number;
+  height: number;
+  pad: number;
+  /** Başlık bloğunun üstü. */
+  headerTop: number;
+  /** Büyük başlığın en büyük punto değeri. */
+  titleMax: number;
+  bodyTop: number;
+  bodyBottom: number;
+  /** Alt imza bandının üstü; bant kanvasın altına kadar uzar (Story'de alt güvenli alanı da örter). */
+  footerTop: number;
+  footerHeight: number;
+  columns: number;
+  columnGap: number;
+  sectionHeader: number;
+  sectionGap: number;
+  rowGap: number;
+  minRow: number;
+  maxRow: number;
+}
 
-/** Maç satırı yüksekliği; maçlar karta sığmıyorsa null (form uyarır, kayıt reddedilir). */
-export function weeklyRowHeight(sectionCount: number, matchCount: number): number | null {
+const BASE = { sectionHeader: 40, sectionGap: 14, rowGap: 8, minRow: 54 } as const;
+
+export function weeklyLayout(formatId: SocialFormatId): WeeklyLayout {
+  const { width, height, safeTop, safeBottom } = SOCIAL_FORMATS[formatId];
+  switch (formatId) {
+    case "landscape": {
+      const footerHeight = 112;
+      const footerTop = height - footerHeight;
+      return { ...BASE, width, height, pad: 72, headerTop: 52, titleMax: 96, bodyTop: 272, bodyBottom: footerTop - 24, footerTop, footerHeight, columns: 2, columnGap: 48, maxRow: 92 };
+    }
+    case "square": {
+      const footerHeight = 104;
+      const footerTop = height - footerHeight;
+      return { ...BASE, width, height, pad: 56, headerTop: 44, titleMax: 84, bodyTop: 252, bodyBottom: footerTop - 20, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: 88 };
+    }
+    case "story":
+    case "post": {
+      const footerHeight = 128;
+      const footerTop = height - safeBottom - footerHeight;
+      const headerTop = safeTop + 64;
+      return { ...BASE, width, height, pad: 56, headerTop, titleMax: 104, bodyTop: headerTop + 236, bodyBottom: footerTop - 26, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: formatId === "story" ? 112 : 96 };
+    }
+  }
+}
+
+/** Sütun başına tek satır yüksekliği; maçlar sığmıyorsa null. */
+export function weeklyRowHeight(sectionCount: number, matchCount: number, layout: WeeklyLayout = weeklyLayout("post")): number | null {
   if (matchCount === 0) return null;
-  const { bodyTop, bodyBottom, sectionHeader, sectionGap, rowGap, minRow, maxRow } = WEEKLY_LAYOUT;
+  const { bodyTop, bodyBottom, sectionHeader, sectionGap, rowGap, minRow, maxRow } = layout;
   const fixed = sectionCount * sectionHeader + Math.max(0, sectionCount - 1) * sectionGap + (matchCount - 1) * rowGap;
   const row = Math.floor((bodyBottom - bodyTop - fixed) / matchCount);
   return row < minRow ? null : Math.min(maxRow, row);
+}
+
+/**
+ * Bölümleri sütunlara dağıtır: her sütun ~eşit sayıda maç alır, sütun sınırına denk gelen bölüm bölünür
+ * (devamı yeni sütunda aynı başlıkla sürer). Tek sütunda bölümler olduğu gibi kalır.
+ */
+export function weeklyColumns(sections: WeeklySection[], columns: number): WeeklySection[][] {
+  const total = sections.reduce((sum, section) => sum + section.matches.length, 0);
+  if (columns <= 1 || total === 0) return [sections];
+  const target = Math.ceil(total / columns);
+  const result: WeeklySection[][] = [[]];
+  let filled = 0;
+  for (const section of sections) {
+    let rest = section.matches;
+    let part = 0;
+    while (rest.length > 0) {
+      if (filled >= target && result.length < columns) {
+        result.push([]);
+        filled = 0;
+      }
+      const take = result.length >= columns ? rest.length : Math.min(rest.length, target - filled);
+      result.at(-1)?.push({ key: part === 0 ? section.key : `${section.key}:${part}`, label: section.label, matches: rest.slice(0, take) });
+      rest = rest.slice(take);
+      filled += take;
+      part += 1;
+    }
+  }
+  return result;
+}
+
+export interface WeeklyPlan {
+  columns: WeeklySection[][];
+  rowHeight: number;
+}
+
+/** Kartın yerleşim planı (sütunlar + ortak satır yüksekliği); maçlar bu formata sığmıyorsa null. */
+export function weeklyPlan(matches: WeeklyMatch[], grouping: WeeklyGrouping, layout: WeeklyLayout): WeeklyPlan | null {
+  const columns = weeklyColumns(weeklySections(matches, grouping), layout.columns).filter((column) => column.length > 0);
+  if (columns.length === 0) return null;
+  const heights = columns.map((column) => weeklyRowHeight(column.length, column.reduce((sum, section) => sum + section.matches.length, 0), layout));
+  if (heights.some((height) => height === null)) return null;
+  return { columns, rowHeight: Math.min(...heights.filter((height) => height !== null)) };
 }
 
 /** Kartın alt başlığı: hepsi bitmişse "MAÇ SONUÇLARI", hiçbiri oynanmamışsa "FİKSTÜR", karışıksa ikisi. */

@@ -1,3 +1,4 @@
+import type { SocialFormatId } from "@/types/studio-formats";
 import type { AiContentStatus, StudioFormat } from "@/types/ai-content";
 import type { LineupTemplateStyle } from "@/types/lineup";
 import type { DerbyIntensity, MatchStats } from "@/types/sports";
@@ -59,6 +60,8 @@ export interface MarketAnalysisDraftView {
   caption: string;
   postId: string | null;
   reviewedAt: string | null;
+  /** Kartların çizildiği format — format seçiminden önceki kayıtlarda "post". */
+  format: SocialFormatId;
   home: { teamName: string; imageUrl: string };
   away: { teamName: string; imageUrl: string };
   marketPick: string;
@@ -79,6 +82,7 @@ export interface LineupDraftView {
   postId: string | null;
   reviewedAt: string | null;
   headline: string;
+  format: SocialFormatId;
   /** `templateStyle` = kartın gerçekte çizildiği şablon (takım başına bağımsız). */
   home: { teamName: string; formation: string; imageUrl: string; templateStyle: LineupTemplateStyle };
   away: { teamName: string; formation: string; imageUrl: string; templateStyle: LineupTemplateStyle };
@@ -96,6 +100,7 @@ export interface WeeklyFixturesDraftView {
   title: string;
   imageUrl: string;
   matchCount: number;
+  format: SocialFormatId;
 }
 
 export type DraftLookup =

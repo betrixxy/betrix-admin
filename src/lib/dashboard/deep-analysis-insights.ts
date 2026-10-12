@@ -10,6 +10,7 @@ import {
   type TeamAnalysisDraft,
   type TeamDeepStats,
 } from "@/types/deep-analysis";
+import { DEFAULT_SOCIAL_FORMAT } from "@/types/studio-formats";
 
 /**
  * Derin analiz verisinden stüdyo formunun ilk taslağı — KURAL TABANLI, LLM yok (bkz. CLAUDE.md
@@ -164,6 +165,7 @@ export function buildMarketAnalysisDraft(fixtureId: string, stats: DeepAnalysisS
   const [first] = suggestMarkets(stats);
   return {
     fixtureId,
+    format: DEFAULT_SOCIAL_FORMAT,
     home: teamDraft(stats.home, stats.away),
     away: teamDraft(stats.away, stats.home),
     marketPick: first?.pick ?? "",

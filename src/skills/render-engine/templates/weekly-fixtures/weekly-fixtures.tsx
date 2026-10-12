@@ -1,4 +1,4 @@
-import { WEEKLY_LAYOUT, matchCenter, splitTitle, weeklyKindLabel, weeklyRowHeight, weeklySections } from "@/lib/dashboard/weekly-fixtures-layout";
+import { matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
@@ -6,20 +6,15 @@ import { WeeklyRow } from "./weekly-row";
 import { weeklyTheme } from "./weekly-theme";
 
 /**
- * HAFTANIN MAÇLARI — lig/tur fikstürü ve skorları (Satori, 1080×1350 / IG 4:5).
+ * HAFTANIN MAÇLARI — lig/tur fikstürü ve skorları (Satori; boyut seçilen formattan, bkz. types/studio-formats.ts).
  *
  * Üstte lig logosu + lig adı + büyük tur başlığı ("7. HAFTA") + tür ("FİKSTÜR" / "MAÇ SONUÇLARI"),
  * ortada günlere (kupa grup aşamasında gruplara) bölünmüş maç satırları, altta CheckMatch imzası
- * (".net"siz) ve saat dilimi notu. Tipografi: başlık/saat/skor Archivo Black (sıkı harf aralığı), takım
+ * (".net"siz) ve saat dilimi notu. Yerleşim `weeklyLayout`ten gelir: Story'de platform bantları boş kalır,
+ * yatay formatta maçlar iki sütuna yayılır. Tipografi: başlık/saat/skor Archivo Black (sıkı harf aralığı), takım
  * adları ve gün/grup ayraçları Bricolage Grotesque ExtraBold, künye Space Mono.
  */
 
-export const WEEKLY_FIXTURES_CARD_SIZE = { width: 1080, height: 1350 } as const;
-
-const W = WEEKLY_FIXTURES_CARD_SIZE.width;
-const H = WEEKLY_FIXTURES_CARD_SIZE.height;
-const PAD = 56;
-const FOOTER_HEIGHT = 128;
 const BRAND_LOGO_HEIGHT = 46;
 const LEAGUE_LOGO = 116;
 
@@ -31,27 +26,30 @@ export interface WeeklyFixturesCardData extends WeeklyFixturesCardInput {
 }
 
 /** Büyük başlık tek satıra sığacak boyutta (Archivo Black büyük harf ≈ 0.78 em/karakter). */
-function titleSize(title: string, available: number): number {
-  return Math.max(48, Math.min(104, Math.floor(available / (Math.max(1, title.length) * 0.78))));
+function titleSize(title: string, available: number, max: number): number {
+  return Math.max(48, Math.min(max, Math.floor(available / (Math.max(1, title.length) * 0.78))));
 }
 
-export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title, grouping, matches, brandLogo, teamLogos }: WeeklyFixturesCardData) {
+export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title, grouping, matches, format, brandLogo, teamLogos }: WeeklyFixturesCardData) {
   const theme = weeklyTheme(leagueId);
-  const sections = weeklySections(matches, grouping);
-  const rowHeight = weeklyRowHeight(sections.length, matches.length) ?? WEEKLY_LAYOUT.minRow;
+  const layout = weeklyLayout(format);
+  const { width: W, height: H, pad: PAD } = layout;
+  // Sığmayan kart motor tarafından reddedilir; yine de çizilirse tek sütun + en küçük satır.
+  const plan = weeklyPlan(matches, grouping, layout) ?? { columns: [[{ key: "all", label: "", matches }]], rowHeight: layout.minRow };
   const contentWidth = W - PAD * 2;
+  const columnWidth = Math.floor((contentWidth - layout.columnGap * (plan.columns.length - 1)) / plan.columns.length);
   const { kicker, main } = splitTitle(title);
   const textWidth = contentWidth - (leagueLogoUrl ? LEAGUE_LOGO + (theme.leagueBadge ? 28 : 0) + 32 : 0);
-  const size = titleSize(main, textWidth);
+  const size = titleSize(main, textWidth, layout.titleMax);
 
   return (
     <div tw="relative flex h-full w-full flex-col" style={{ fontFamily: BODY, color: theme.text, backgroundImage: theme.background, overflow: "hidden" }}>
       {theme.glow ? (
-        <div style={{ position: "absolute", left: 80, top: -520, width: 1000, height: 1000, backgroundImage: `radial-gradient(${rgba(theme.glow, 0.28)} 0%, ${rgba(theme.glow, 0)} 70.7%)` }} />
+        <div style={{ position: "absolute", left: Math.round(W / 2 - 460), top: -520, width: 1000, height: 1000, backgroundImage: `radial-gradient(${rgba(theme.glow, 0.28)} 0%, ${rgba(theme.glow, 0)} 70.7%)` }} />
       ) : null}
 
       {/* Başlık */}
-      <div tw="flex items-center" style={{ position: "absolute", left: PAD, top: 64, width: contentWidth, gap: 32 }}>
+      <div tw="flex items-center" style={{ position: "absolute", left: PAD, top: layout.headerTop, width: contentWidth, gap: 32 }}>
         {leagueLogoUrl ? (
           <div
             tw="flex items-center justify-center"
@@ -79,24 +77,28 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
         </div>
       </div>
 
-      {/* Maçlar */}
-      <div tw="flex flex-col" style={{ position: "absolute", left: PAD, top: WEEKLY_LAYOUT.bodyTop, width: contentWidth, gap: WEEKLY_LAYOUT.sectionGap }}>
-        {sections.map((section) => (
-          <div key={section.key} tw="flex flex-col" style={{ gap: WEEKLY_LAYOUT.rowGap }}>
-            <div tw="flex items-center" style={{ height: WEEKLY_LAYOUT.sectionHeader - WEEKLY_LAYOUT.rowGap, gap: 14 }}>
-              <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: 15, letterSpacing: 5, color: theme.accent, lineHeight: 1 }}>{section.label}</span>
-              <div style={{ flex: 1, height: 1, backgroundColor: theme.rowBorder }} />
-            </div>
-            {section.matches.map((match) => (
-              <WeeklyRow
-                key={match.id}
-                match={match}
-                center={matchCenter(match, grouping)}
-                logos={teamLogos[match.id] ?? { home: "", away: "" }}
-                rowHeight={rowHeight}
-                width={contentWidth}
-                theme={theme}
-              />
+      {/* Maçlar: tek sütun (dikey formatlar) ya da yan yana sütunlar (yatay) — satır yüksekliği tüm sütunlarda ortak. */}
+      <div tw="flex" style={{ position: "absolute", left: PAD, top: layout.bodyTop, width: contentWidth, gap: layout.columnGap }}>
+        {plan.columns.map((column, columnIndex) => (
+          <div key={columnIndex} tw="flex flex-col" style={{ width: columnWidth, gap: layout.sectionGap }}>
+            {column.map((section) => (
+              <div key={section.key} tw="flex flex-col" style={{ gap: layout.rowGap }}>
+                <div tw="flex items-center" style={{ height: layout.sectionHeader - layout.rowGap, gap: 14 }}>
+                  <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: 15, letterSpacing: 5, color: theme.accent, lineHeight: 1 }}>{section.label}</span>
+                  <div style={{ flex: 1, height: 1, backgroundColor: theme.rowBorder }} />
+                </div>
+                {section.matches.map((match) => (
+                  <WeeklyRow
+                    key={match.id}
+                    match={match}
+                    center={matchCenter(match, grouping)}
+                    logos={teamLogos[match.id] ?? { home: "", away: "" }}
+                    rowHeight={plan.rowHeight}
+                    width={columnWidth}
+                    theme={theme}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         ))}
@@ -108,10 +110,11 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
         style={{
           position: "absolute",
           left: 0,
-          top: H - FOOTER_HEIGHT,
+          top: layout.footerTop,
           width: W,
-          height: FOOTER_HEIGHT,
-          padding: `0 ${PAD}px`,
+          // Bant kanvasın altına kadar iner; içerik üstteki `footerHeight` şeridinde ortalanır (Story alt bandı boş kalır).
+          height: H - layout.footerTop,
+          padding: `0 ${PAD}px ${H - layout.footerTop - layout.footerHeight}px`,
           backgroundColor: theme.footerBg,
           borderTop: `2px solid ${theme.mode === "night" ? rgba(theme.accent, 0.35) : theme.accent}`,
         }}

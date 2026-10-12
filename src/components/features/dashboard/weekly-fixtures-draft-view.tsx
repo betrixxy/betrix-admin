@@ -5,6 +5,7 @@ import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-b
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { WeeklyFixturesDraftView as WeeklyDraft } from "@/types/draft";
+import { SOCIAL_FORMATS, socialFormatCaption } from "@/types/studio-formats";
 
 /**
  * Haftanın Maçları taslağının incelemesi: kart, gönderi metni ve onay/ret. Kart programatiktir —
@@ -20,11 +21,11 @@ export function WeeklyFixturesDraftView({ draft, postOptions }: { draft: WeeklyD
             <DraftStatusBadge status={draft.status} />
           </div>
           <CardDescription>
-            {draft.leagueName} · {draft.matchCount} maç · 1080×1350 (IG 4:5) — skorlar/saatler kaydedildiği andaki haliyle.
+            {draft.leagueName} · {draft.matchCount} maç · {socialFormatCaption(draft.format)} — skorlar/saatler kaydedildiği andaki haliyle.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <DraftPreview url={draft.imageUrl} width={1080} height={1350} alt={`${draft.leagueName} ${draft.title} kartı`} downloadName={`checkmatch-hafta-${draft.id}`} />
+          <DraftPreview url={draft.imageUrl} width={SOCIAL_FORMATS[draft.format].width} height={SOCIAL_FORMATS[draft.format].height} alt={`${draft.leagueName} ${draft.title} kartı`} downloadName={`checkmatch-hafta-${draft.id}`} />
         </CardContent>
       </Card>
 

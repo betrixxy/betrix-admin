@@ -6,14 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import type { StudioPostOption } from "@/types/ai-content";
 import type { LineupDraftView as LineupDraft } from "@/types/draft";
 import { LINEUP_TEMPLATE_LABELS } from "@/types/lineup";
-
-const CARD_SIZE = { width: 1080, height: 1350 } as const;
+import { SOCIAL_FORMATS, socialFormatCaption } from "@/types/studio-formats";
 
 /**
  * Muhtemel 11 taslağının incelemesi: iki takımın kadro kartı yan yana, gönderi metni ve onay/ret.
  * Kartlar programatiktir — düzenleme stüdyoda yapılır (yeniden kaydetmek yeni taslak üretir).
  */
 export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; postOptions: StudioPostOption[] }) {
+  const { width, height } = SOCIAL_FORMATS[draft.format];
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -23,7 +23,7 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
             <DraftStatusBadge status={draft.status} />
           </div>
           <CardDescription>
-            Her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.
+            Her takım için ayrı kart · {socialFormatCaption(draft.format)} — carousel olarak birlikte paylaşılır.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
@@ -37,7 +37,8 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
               </p>
               <DraftPreview
                 url={draft[side].imageUrl}
-                {...CARD_SIZE}
+                width={width}
+                height={height}
                 alt={`${draft[side].teamName} muhtemel 11 kartı`}
                 downloadName={`checkmatch-11-${side}-${draft.id}`}
               />

@@ -3,12 +3,13 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
-import { weeklyCaption, weeklyGrouping, weeklyRowHeight, weeklySections } from "@/lib/dashboard/weekly-fixtures-layout";
+import { weeklyCaption, weeklyGrouping, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import { renderWeeklyFixturesCard } from "@/lib/dashboard/weekly-fixtures-render";
 import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { getWeeklyRoundMatches, getWeeklyRounds } from "@/lib/services/api-football/weekly-fixtures";
 import type { ContentTypeId } from "@/types/content-type";
 import type { Result } from "@/types/result";
+import { SOCIAL_FORMATS } from "@/types/studio-formats";
 import { WEEKLY_MAX_MATCHES, type WeeklyFixturesCardInput, type WeeklyFixturesDraft } from "@/types/weekly-fixtures";
 
 /**
@@ -32,10 +33,10 @@ export async function resolveWeeklyCard(draft: WeeklyFixturesDraft): Promise<Res
   if (matches.length > WEEKLY_MAX_MATCHES) return { ok: false, error: { code: "INVALID_INPUT", message: `Bir kart en fazla ${WEEKLY_MAX_MATCHES} maç taşır — kalanlar için ikinci kart üretin.` } };
 
   const grouping = weeklyGrouping(matches);
-  if (weeklyRowHeight(weeklySections(matches, grouping).length, matches.length) === null) {
-    return { ok: false, error: { code: "INVALID_INPUT", message: "Maçlar karta sığmıyor — birkaç maçı çıkarıp ikinci kart üretin." } };
+  if (weeklyPlan(matches, grouping, weeklyLayout(draft.format)) === null) {
+    return { ok: false, error: { code: "INVALID_INPUT", message: `Maçlar ${SOCIAL_FORMATS[draft.format].label} formatına sığmıyor — birkaç maçı çıkarıp ikinci kart üretin.` } };
   }
-  return { ok: true, data: { leagueId: draft.leagueId, leagueName: league.name, leagueLogoUrl: round.data.leagueLogoUrl, title: draft.title, grouping, matches } };
+  return { ok: true, data: { leagueId: draft.leagueId, leagueName: league.name, leagueLogoUrl: round.data.leagueLogoUrl, title: draft.title, grouping, matches, format: draft.format } };
 }
 
 function toJsonValue(value: object): Prisma.InputJsonObject {
@@ -69,7 +70,7 @@ export async function createWeeklyFixturesDraft(draft: WeeklyFixturesDraft, anch
       prompt: "",
       resultImageUrl: imageUrl,
       status: "DRAFT",
-      format: "IG_FEED",
+      format: SOCIAL_FORMATS[draft.format].dbFormat,
       caption: weeklyCaption(card.data.leagueName, draft.title, card.data.matches, card.data.grouping),
       renderOptions: toJsonValue({ kind: "WEEKLY_FIXTURES", imageUrl, leagueName: card.data.leagueName, ...draft, matches: card.data.matches }),
     });

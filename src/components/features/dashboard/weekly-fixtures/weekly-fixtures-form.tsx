@@ -9,8 +9,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { weeklyGrouping, weeklyRowHeight, weeklySections } from "@/lib/dashboard/weekly-fixtures-layout";
+import { GlobalFormatSelector } from "@/components/features/dashboard/studio/global-format-selector";
+import { weeklyGrouping, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import { SUPPORTED_LEAGUES, type SupportedLeagueId } from "@/lib/services/api-football/leagues";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import { WEEKLY_MAX_MATCHES, type WeeklyFixturesDraft, type WeeklyMatch, type WeeklyRoundsResult } from "@/types/weekly-fixtures";
 import { WeeklyMatchEditor } from "./weekly-match-editor";
 import { WeeklyPreview } from "./weekly-preview";
@@ -30,6 +32,7 @@ export function WeeklyFixturesForm({ initialLeagueId, initialRoundKey, anchorFix
   const [matches, setMatches] = useState<WeeklyMatch[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [title, setTitle] = useState("");
+  const [format, setFormat] = useState<SocialFormatId>(DEFAULT_SOCIAL_FORMAT);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
@@ -81,9 +84,9 @@ export function WeeklyFixturesForm({ initialLeagueId, initialRoundKey, anchorFix
 
   const chosen = selected.map((id) => matches.find((match) => match.id === id)).filter((match) => match !== undefined);
   const grouping = weeklyGrouping(chosen);
-  const fits = chosen.length <= WEEKLY_MAX_MATCHES && weeklyRowHeight(weeklySections(chosen, grouping).length, chosen.length) !== null;
+  const fits = chosen.length <= WEEKLY_MAX_MATCHES && weeklyPlan(chosen, grouping, weeklyLayout(format)) !== null;
   const draft: WeeklyFixturesDraft | null =
-    rounds && roundKey && chosen.length > 0 && title.trim() ? { leagueId, season: rounds.season, roundKey, title: title.trim(), matchIds: selected } : null;
+    rounds && roundKey && chosen.length > 0 && title.trim() ? { leagueId, season: rounds.season, roundKey, title: title.trim(), matchIds: selected, format } : null;
 
   function save() {
     if (!draft) return;
@@ -189,11 +192,13 @@ export function WeeklyFixturesForm({ initialLeagueId, initialRoundKey, anchorFix
             {chosen.length > 0 && !fits ? (
               <p className="flex items-center gap-1.5 text-xs text-amber-300" role="status">
                 <AlertCircle className="size-3.5 shrink-0" />
-                {chosen.length} maç karta sığmıyor (en fazla {WEEKLY_MAX_MATCHES}, gün/grup başlıkları da yer kaplar) — birkaç maçı çıkarın ya da kartı bölün.
+                {chosen.length} maç {SOCIAL_FORMATS[format].label} ({SOCIAL_FORMATS[format].ratioLabel}) kartına sığmıyor (en fazla {WEEKLY_MAX_MATCHES}, gün/grup başlıkları da yer kaplar) — birkaç maçı çıkarın, kartı bölün ya da daha uzun bir format seçin.
               </p>
             ) : null}
           </CardContent>
         </Card>
+
+        <GlobalFormatSelector value={format} onChange={setFormat} disabled={isSaving} />
 
         <div className="flex flex-col gap-2">
           <Button type="button" size="lg" disabled={!draft || !fits || isLoading || isSaving} onClick={save}>
@@ -220,7 +225,7 @@ export function WeeklyFixturesForm({ initialLeagueId, initialRoundKey, anchorFix
       </div>
 
       <div className="xl:col-span-2">
-        <WeeklyPreview draft={draft} disabled={!fits || isLoading} />
+        <WeeklyPreview draft={draft} format={format} disabled={!fits || isLoading} />
       </div>
     </div>
   );

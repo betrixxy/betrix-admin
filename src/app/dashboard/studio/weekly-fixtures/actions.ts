@@ -9,6 +9,7 @@ import { renderWeeklyFixturesCard } from "@/lib/dashboard/weekly-fixtures-render
 import { SUPPORTED_LEAGUES, getSupportedLeague, type SupportedLeagueId } from "@/lib/services/api-football/leagues";
 import { getWeeklyRoundMatches, getWeeklyRounds } from "@/lib/services/api-football/weekly-fixtures";
 import type { Result } from "@/types/result";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import { WEEKLY_MAX_MATCHES, type WeeklyRoundMatches, type WeeklyRoundsResult } from "@/types/weekly-fixtures";
 
 function unauthorized<T>(): Result<T> {
@@ -23,6 +24,7 @@ const draftSchema = z.object({
   season: seasonSchema,
   roundKey: z.string().trim().min(1).max(80),
   title: z.string().trim().min(1, "Kart başlığı boş olamaz.").max(60),
+  format: z.enum(SOCIAL_FORMAT_IDS).default(DEFAULT_SOCIAL_FORMAT),
   matchIds: z.array(fixtureIdSchema).min(1, "Karta en az bir maç ekleyin.").max(WEEKLY_MAX_MATCHES, `Bir kart en fazla ${WEEKLY_MAX_MATCHES} maç taşır.`),
 });
 

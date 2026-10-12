@@ -8,6 +8,7 @@ import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { ContentTypeId } from "@/types/content-type";
 import type { LineupDraft, TeamLineupDraft } from "@/types/lineup";
 import type { Result } from "@/types/result";
+import { SOCIAL_FORMATS } from "@/types/studio-formats";
 
 export interface LineupSaved {
   id: string;
@@ -41,6 +42,7 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
       opponentLogoUrl: opponent.logoUrl,
       headline: draft.headline,
       matchLabel: draft.matchLabel,
+      format: draft.format,
     });
 
   let home: RenderedLineupCard;
@@ -65,7 +67,7 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
       prompt: "",
       resultImageUrl: homeImageUrl,
       status: "DRAFT",
-      format: "IG_FEED",
+      format: SOCIAL_FORMATS[draft.format].dbFormat,
       caption: buildCaption(draft),
       // `templateStyle` admin'in seçimi; kartların gerçekte çizildiği şablon ayrıca saklanır.
       renderOptions: toJsonValue({ kind: "PROBABLE_LINEUPS", homeImageUrl, awayImageUrl, cardStyles: { home: home.templateStyle, away: away.templateStyle }, ...draft }),

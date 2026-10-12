@@ -1,3 +1,4 @@
+import type { SocialFormatId } from "@/types/studio-formats";
 import type { Fixture, HeadToHeadSummary, TeamRecentForm } from "@/types/sports";
 
 /**
@@ -145,6 +146,8 @@ export interface MarketSuggestion {
 
 export interface MarketAnalysisDraft {
   fixtureId: string;
+  /** Platform/format (küresel kayıt) — iki kart da bu boyutta çizilir. */
+  format: SocialFormatId;
   home: TeamAnalysisDraft;
   away: TeamAnalysisDraft;
   /** Olası market tahmini — admin'in son kararı. */

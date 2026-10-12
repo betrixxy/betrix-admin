@@ -5,14 +5,13 @@ import { lineupPalette } from "@/lib/dashboard/lineup-palette";
 import { logoSwatches } from "@/lib/dashboard/logo-swatches";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
-import { LINEUP_CARD_SIZE, LineupCard, type LineupHeroImage } from "@/skills/render-engine/templates/lineup/lineup-card";
+import { LineupCard, lineupGeometry, type LineupHeroImage } from "@/skills/render-engine/templates/lineup/lineup-card";
 import { LINEUP_HERO_PATTERN, type LineupCardInput, type LineupTemplateStyle } from "@/types/lineup";
+import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 
 /** Takım logoları yalnızca API-Football medya sunucusundan gömülür — formdan gelen başka adres çizilmez (SSRF). */
 const ALLOWED_IMAGE_ORIGIN = "https://media.api-sports.io/";
 const LOGO_SIDE = 272;
-/** Kapak kesiminin kartta kapladığı en büyük alan (sol yarı, alttan taşar). */
-const HERO_MAX = { width: 640, height: 1040 } as const;
 
 async function embedLogo(url: string): Promise<string> {
   if (!url.startsWith(ALLOWED_IMAGE_ORIGIN)) return "";
@@ -22,9 +21,10 @@ async function embedLogo(url: string): Promise<string> {
 
 /**
  * Kapak: yalnızca kesim motorunun yazdığı şeffaf PNG. Boş (şeffaf) kenarlar atılır ki oyuncu
- * çerçeveye otursun; sonra sol yarıya sığacak şekilde küçültülür. Okunamazsa kart kapaksız çizilir.
+ * çerçeveye otursun; sonra formatın kapak alanına sığacak şekilde küçültülür. Okunamazsa kart kapaksız çizilir.
  */
-async function embedHero(url: string): Promise<LineupHeroImage | null> {
+async function embedHero(url: string, format: SocialFormatId): Promise<LineupHeroImage | null> {
+  const { maxWidth, maxHeight } = lineupGeometry(format).hero;
   if (!LINEUP_HERO_PATTERN.test(url)) return null;
   const stored = parseStoredFileUrl(url);
   const bytes = stored ? await readStoredFile(stored.bucket, stored.fileName) : null;
@@ -32,7 +32,7 @@ async function embedHero(url: string): Promise<LineupHeroImage | null> {
   try {
     const { data, info } = await sharp(bytes)
       .trim({ threshold: 1 })
-      .resize({ ...HERO_MAX, fit: "inside", withoutEnlargement: false })
+      .resize({ width: maxWidth, height: maxHeight, fit: "inside", withoutEnlargement: false })
       .png()
       .toBuffer({ resolveWithObject: true });
     return { src: `data:image/png;base64,${data.toString("base64")}`, width: info.width, height: info.height };
@@ -60,7 +60,7 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Rendered
     embedLogo(input.team.logoUrl),
     embedLogo(input.opponentLogoUrl),
     // Kapak yalnızca "Kahraman Liste" şablonunda çizilir; taktik tahtasında hiç okunmaz.
-    input.templateStyle === "hero_list" ? embedHero(input.team.heroImageUrl) : null,
+    input.templateStyle === "hero_list" ? embedHero(input.team.heroImageUrl, input.format) : null,
   ]);
   const swatches = logoUrl ? await logoSwatches(input.team.logoUrl, logoUrl) : null;
   const card = hero ? { templateStyle: "hero_list" as const, hero } : { templateStyle: "pitch" as const, hero: null };
@@ -73,7 +73,7 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Rendered
       brandLogo={brandLogo}
       palette={lineupPalette(swatches, input.team.colorHex)}
     />,
-    { ...LINEUP_CARD_SIZE, fonts },
+    { width: SOCIAL_FORMATS[input.format].width, height: SOCIAL_FORMATS[input.format].height, fonts },
   );
   return { png: Buffer.from(await response.arrayBuffer()), templateStyle: card.templateStyle };
 }

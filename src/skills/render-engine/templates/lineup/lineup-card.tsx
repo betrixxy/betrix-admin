@@ -1,11 +1,13 @@
 import type { LineupCardInput, LineupPalette } from "@/types/lineup";
 import { BODY } from "../deep-analysis/deep-analysis-tokens";
 import { LineupFooter, LineupHeader } from "./lineup-chrome";
+import { lineupGeometry } from "./lineup-geometry";
 import { LineupHeroList, type LineupHeroImage } from "./lineup-hero-list";
 import { LineupPitch } from "./lineup-pitch";
 
 /**
- * MUHTEMEL 11 / İLK 11 — tek takımlık kadro kartı (Satori, 1080×1350 / IG 4:5), iki şablon:
+ * MUHTEMEL 11 / İLK 11 — tek takımlık kadro kartı (Satori; boyut ve yerleşim seçilen formattan, bkz.
+ * lineup-geometry.ts), iki şablon:
  *
  * - `pitch` (Taktik Tahtası): logodan türetilen gece zemininde, vurgu rengi çizgili saha üzerinde diziliş.
  * - `hero_list` (Kahraman Liste): solda kapak oyuncusunun kesimi (zorunlu), sağda numara + isim listesi.
@@ -15,7 +17,7 @@ import { LineupPitch } from "./lineup-pitch";
  * kadro (veri katmanı) → üstte başlık + logolar, altta CheckMatch imzası (marka katmanı, en üstte).
  */
 
-export { LINEUP_CARD_SIZE } from "./lineup-chrome";
+export { lineupGeometry } from "./lineup-geometry";
 export type { LineupHeroImage } from "./lineup-hero-list";
 
 /** Kapak yalnızca liste şablonunda vardır ve orada zorunludur — tip, kapaksız listeyi imkânsız kılar. */
@@ -29,16 +31,17 @@ export type LineupCardData = Omit<LineupCardInput, "templateStyle"> &
   };
 
 export function LineupCard(props: LineupCardData) {
-  const { team, opponentName, opponentLogoUrl, headline, matchLabel, brandLogo, palette } = props;
+  const { team, opponentName, opponentLogoUrl, headline, matchLabel, format, brandLogo, palette } = props;
+  const g = lineupGeometry(format);
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: palette.backgroundBottom, overflow: "hidden" }}>
       {props.templateStyle === "hero_list" ? (
-        <LineupHeroList formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} />
+        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} />
       ) : (
-        <LineupPitch formation={team.formation} slots={team.slots} palette={palette} />
+        <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} />
       )}
-      <LineupHeader headline={headline} teamName={team.teamName} opponentName={opponentName} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} />
-      <LineupFooter brandLogo={brandLogo} formation={team.formation} matchLabel={matchLabel} coach={team.coach} palette={palette} />
+      <LineupHeader g={g} headline={headline} teamName={team.teamName} opponentName={opponentName} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} />
+      <LineupFooter g={g} brandLogo={brandLogo} formation={team.formation} matchLabel={matchLabel} coach={team.coach} palette={palette} />
     </div>
   );
 }

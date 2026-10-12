@@ -3,19 +3,22 @@
 import { useState, useTransition } from "react";
 import { AlertCircle, ImageIcon, LoaderCircle, RefreshCw } from "lucide-react";
 import { previewLineupAction } from "@/app/dashboard/studio/lineup/actions";
+import { FormatPreviewFrame } from "@/components/features/dashboard/studio/format-preview-frame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
-import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
 import { LINEUP_TEMPLATE_LABELS, type LineupDraft, type LineupTemplateStyle } from "@/types/lineup";
+import { socialFormatCaption, type SocialFormatId } from "@/types/studio-formats";
 
 const SIDE_LABELS: Record<TeamSide, string> = { home: "Ev sahibi", away: "Deplasman" };
 
 /** Seçili takımın Muhtemel 11 kartını sunucuda Satori ile çizer — kaydetmez. */
 export function LineupPreview({ draft }: { draft: LineupDraft }) {
   const [side, setSide] = useState<TeamSide>("home");
-  const [image, setImage] = useState<string | null>(null);
+  const [drawn, setDrawn] = useState<{ dataUrl: string; format: SocialFormatId } | null>(null);
+  // Format değiştiyse eski çizim gösterilmez — yeni oranda yeniden çizilmeli.
+  const image = drawn && drawn.format === draft.format ? drawn.dataUrl : null;
   /** Son çizilen kartın gerçek şablonu — her takım bağımsız (kapağı olmayan takım taktik tahtası). */
   const [drawnStyle, setDrawnStyle] = useState<LineupTemplateStyle | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,12 +36,13 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
         opponentLogoUrl: opponent.logoUrl,
         headline: draft.headline,
         matchLabel: draft.matchLabel,
+        format: draft.format,
       });
       if (!result.ok) {
         setError(result.error.message);
         return;
       }
-      setImage(result.data.dataUrl);
+      setDrawn({ dataUrl: result.data.dataUrl, format: draft.format });
       setDrawnStyle(result.data.templateStyle);
     });
   }
@@ -48,7 +52,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
       <CardHeader>
         <CardTitle>Önizleme</CardTitle>
         <CardDescription>
-          Muhtemel 11 kartı{image && drawnStyle ? ` · ${draft[side].teamName}: ${LINEUP_TEMPLATE_LABELS[drawnStyle]}` : ""} · 1080×1350 (IG 4:5)
+          Muhtemel 11 kartı{image && drawnStyle ? ` · ${draft[side].teamName}: ${LINEUP_TEMPLATE_LABELS[drawnStyle]}` : ""} · {socialFormatCaption(draft.format)}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -69,14 +73,14 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
           ))}
         </div>
 
-        <div className={cn("relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-black/30", isRendering && "opacity-60")}>
+        <FormatPreviewFrame format={draft.format} busy={isRendering}>
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element -- sunucuda çizilmiş data URL önizlemesi.
             <img src={image} alt={`${draft[side].teamName} muhtemel 11 kartı önizlemesi`} className="size-full object-contain" />
           ) : (
             <p className="px-6 text-center text-sm text-muted-foreground">Bir takım seçerek kartı çizin. Formu değiştirdikten sonra aynı butona tekrar basın.</p>
           )}
-        </div>
+        </FormatPreviewFrame>
 
         {error ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

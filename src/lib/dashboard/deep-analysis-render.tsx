@@ -1,8 +1,9 @@
 import { ImageResponse } from "next/og";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
-import { DEEP_ANALYSIS_SIZE, DeepAnalysisCard } from "@/skills/render-engine/templates/deep-analysis/deep-analysis-card";
+import { DeepAnalysisCard } from "@/skills/render-engine/templates/deep-analysis/deep-analysis-card";
 import { HERO_FILE_PATTERN, type TeamAnalysisDraft } from "@/types/deep-analysis";
+import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 
 /**
  * Satori'nin sunucuda indireceği uzak görseller yalnızca API-Football medya sunucusundan olabilir
@@ -48,10 +49,12 @@ async function sanitize(team: TeamAnalysisDraft): Promise<TeamAnalysisDraft> {
 }
 
 /** Tek takımlık Derinlemesine Analiz kartını PNG olarak çizer (Fal.ai yok, ücretsiz). */
-export async function renderDeepAnalysisCard(input: { team: TeamAnalysisDraft; opponentName: string }): Promise<Buffer> {
+export async function renderDeepAnalysisCard(input: { team: TeamAnalysisDraft; opponentName: string; format: SocialFormatId }): Promise<Buffer> {
   const [fonts, brandLogo, team] = await Promise.all([loadDeepAnalysisFonts(), loadBrandLogo(), sanitize(input.team)]);
-  const response = new ImageResponse(<DeepAnalysisCard team={team} opponentName={input.opponentName} brandLogo={brandLogo} />, {
-    ...DEEP_ANALYSIS_SIZE,
+  const { width, height } = SOCIAL_FORMATS[input.format];
+  const response = new ImageResponse(<DeepAnalysisCard team={team} opponentName={input.opponentName} format={input.format} brandLogo={brandLogo} />, {
+    width,
+    height,
     fonts,
   });
   return Buffer.from(await response.arrayBuffer());

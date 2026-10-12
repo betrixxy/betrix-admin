@@ -7,10 +7,15 @@ import { prisma } from "@/lib/prisma";
 import { STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { DraftLookup, DraftSummary, DraftView } from "@/types/draft";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
+
+/** Format seçiminden önceki kayıtlarda alan yok — o kartlar 4:5 (post) çizilmişti. */
+const formatField = z.enum(SOCIAL_FORMAT_IDS).catch(DEFAULT_SOCIAL_FORMAT);
 
 /** `AiContent.renderOptions` — market analizi kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const marketAnalysisOptionsSchema = z.object({
   kind: z.literal("MARKET_ANALYSIS"),
+  format: formatField,
   homeImageUrl: z.string(),
   awayImageUrl: z.string(),
   home: z.object({ teamName: z.string() }),
@@ -22,6 +27,7 @@ const marketAnalysisOptionsSchema = z.object({
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const lineupOptionsSchema = z.object({
   kind: z.literal("PROBABLE_LINEUPS"),
+  format: formatField,
   /** Şablon seçiminden önceki kayıtlarda yok — o kartlar taktik tahtasıyla çizilmişti. */
   templateStyle: z.enum(LINEUP_TEMPLATE_STYLES).catch(DEFAULT_LINEUP_TEMPLATE_STYLE),
   /** Kartların gerçekte çizildiği şablon (takım başına bağımsız) — yoksa iki kart da `templateStyle`. */
@@ -36,6 +42,7 @@ const lineupOptionsSchema = z.object({
 /** `AiContent.renderOptions` — Haftanın Maçları kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const weeklyOptionsSchema = z.object({
   kind: z.literal("WEEKLY_FIXTURES"),
+  format: formatField,
   imageUrl: z.string(),
   leagueName: z.string(),
   title: z.string(),
@@ -57,7 +64,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "AI_MARKET_PREDICTION") {
     const options = marketAnalysisOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { home, away, homeImageUrl, awayImageUrl, marketPick, marketRationale } = options.data;
+      const { home, away, homeImageUrl, awayImageUrl, marketPick, marketRationale, format } = options.data;
       return {
         kind: "market-analysis",
         draft: {
@@ -67,6 +74,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           caption: record.caption ?? "",
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          format,
           home: { teamName: home.teamName, imageUrl: homeImageUrl },
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
           marketPick,
@@ -79,7 +87,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "WEEKLY_FIXTURES") {
     const options = weeklyOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { imageUrl, leagueName, title, matchIds } = options.data;
+      const { imageUrl, leagueName, title, matchIds, format } = options.data;
       return {
         kind: "weekly-fixtures",
         draft: {
@@ -93,6 +101,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           title,
           imageUrl,
           matchCount: matchIds.length,
+          format,
         },
       };
     }
@@ -101,7 +110,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "PROBABLE_LINEUPS") {
     const options = lineupOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { home, away, homeImageUrl, awayImageUrl, headline, templateStyle, cardStyles } = options.data;
+      const { home, away, homeImageUrl, awayImageUrl, headline, templateStyle, cardStyles, format } = options.data;
       return {
         kind: "lineup",
         draft: {
@@ -112,6 +121,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
           headline,
+          format,
           home: { ...home, imageUrl: homeImageUrl, templateStyle: cardStyles?.home ?? templateStyle },
           away: { ...away, imageUrl: awayImageUrl, templateStyle: cardStyles?.away ?? templateStyle },
         },

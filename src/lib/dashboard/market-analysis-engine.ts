@@ -7,6 +7,7 @@ import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { ContentTypeId } from "@/types/content-type";
 import type { MarketAnalysisDraft } from "@/types/deep-analysis";
 import type { Result } from "@/types/result";
+import { SOCIAL_FORMATS } from "@/types/studio-formats";
 
 export interface MarketAnalysisSaved {
   id: string;
@@ -37,8 +38,8 @@ export async function createMarketAnalysisDraft(draft: MarketAnalysisDraft): Pro
   let awayPng: Buffer;
   try {
     [homePng, awayPng] = await Promise.all([
-      renderDeepAnalysisCard({ team: draft.home, opponentName: draft.away.teamName }),
-      renderDeepAnalysisCard({ team: draft.away, opponentName: draft.home.teamName }),
+      renderDeepAnalysisCard({ team: draft.home, opponentName: draft.away.teamName, format: draft.format }),
+      renderDeepAnalysisCard({ team: draft.away, opponentName: draft.home.teamName, format: draft.format }),
     ]);
   } catch (cause) {
     console.error("[market-analysis] kartlar çizilemedi:", cause);
@@ -58,10 +59,11 @@ export async function createMarketAnalysisDraft(draft: MarketAnalysisDraft): Pro
       prompt: "",
       resultImageUrl: homeImageUrl,
       status: "DRAFT",
-      format: "IG_FEED",
+      format: SOCIAL_FORMATS[draft.format].dbFormat,
       caption: buildCaption(draft),
       renderOptions: toJsonValue({
         kind: "MARKET_ANALYSIS",
+        format: draft.format,
         homeImageUrl,
         awayImageUrl,
         home: draft.home,

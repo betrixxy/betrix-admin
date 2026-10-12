@@ -9,6 +9,7 @@ import {
   saveMarketAnalysisAction,
   type DeepAnalysisLoadResult,
 } from "@/app/dashboard/studio/market-analysis/actions";
+import { GlobalFormatSelector } from "@/components/features/dashboard/studio/global-format-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 import type { MarketAnalysisDraft, TeamSide } from "@/types/deep-analysis";
 import type { MediaAssetOption } from "@/types/media";
 import type { MatchDayFixtureOption } from "@/types/match-day";
+import { DEFAULT_SOCIAL_FORMAT, type SocialFormatId } from "@/types/studio-formats";
 import { AnalysisHeroFields } from "./analysis-hero-fields";
 import { DataSummary } from "./data-summary";
 import { MarketAnalysisPreview } from "./market-analysis-preview";
@@ -35,17 +37,19 @@ interface MarketAnalysisFormProps {
   falConfigured: boolean;
 }
 
-/** Veriden/analistten gelen yeni taslak, admin'in seçtiği renk ve üretilmiş kapağı ezmez. */
+/** Veriden/analistten gelen yeni taslak, admin'in seçtiği format, renk ve üretilmiş kapağı ezmez. */
 function keepVisuals(next: MarketAnalysisDraft, current: MarketAnalysisDraft): MarketAnalysisDraft {
-  if (next.fixtureId !== current.fixtureId) return next;
+  const withFormat = { ...next, format: current.format };
+  if (next.fixtureId !== current.fixtureId) return withFormat;
   const side = (key: TeamSide) => ({ ...next[key], colorHex: current[key].colorHex, heroImageUrl: current[key].heroImageUrl });
-  return { ...next, home: side("home"), away: side("away") };
+  return { ...withFormat, home: side("home"), away: side("away") };
 }
 
 
-function draftFor(fixture: MatchDayFixtureOption | undefined): MarketAnalysisDraft {
+function draftFor(fixture: MatchDayFixtureOption | undefined, format: SocialFormatId = DEFAULT_SOCIAL_FORMAT): MarketAnalysisDraft {
   return {
     fixtureId: fixture?.id ?? "",
+    format,
     home: emptyTeamDraft(fixture?.homeTeam, fixture?.homeLogoUrl),
     away: emptyTeamDraft(fixture?.awayTeam, fixture?.awayLogoUrl),
     marketPick: "",
@@ -113,7 +117,7 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
     setSavedId(null);
     setAnalystNote(null);
     setLoaded(null);
-    setDraft(draftFor(fixtures.find((fixture) => fixture.id === id)));
+    setDraft((current) => draftFor(fixtures.find((fixture) => fixture.id === id), current.format));
     if (id) load(id);
   }
 
@@ -244,6 +248,8 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
           marketRationale={draft.marketRationale}
           onChange={(next) => setDraft((current) => ({ ...current, ...next }))}
         />
+
+        <GlobalFormatSelector value={draft.format} onChange={(format) => setDraft((current) => ({ ...current, format }))} disabled={isSaving} />
 
         <div className="flex flex-col gap-2">
           <Button type="button" size="lg" disabled={!draft.fixtureId || isLoading || isSaving} onClick={save}>

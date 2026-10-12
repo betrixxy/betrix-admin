@@ -23,6 +23,7 @@ import {
   type TeamDeepStats,
 } from "@/types/deep-analysis";
 import type { Result } from "@/types/result";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 
 /** Formun yanında gösterilen ham veri özeti — admin önerilerin neye dayandığını görür. */
 export interface TeamDataSummary {
@@ -96,9 +97,11 @@ const teamDraftSchema = z.object({
   approach: text(400),
   quote: text(240),
 });
-const previewSchema = z.object({ team: teamDraftSchema, opponentName: text(60) });
+const formatSchema = z.enum(SOCIAL_FORMAT_IDS).default(DEFAULT_SOCIAL_FORMAT);
+const previewSchema = z.object({ team: teamDraftSchema, opponentName: text(60), format: formatSchema });
 const saveSchema = z.object({
   fixtureId: z.string(),
+  format: formatSchema,
   home: teamDraftSchema,
   away: teamDraftSchema,
   marketPick: text(40),

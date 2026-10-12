@@ -1,7 +1,8 @@
 import { formationGroups } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
 import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
-import { CONTENT_BOTTOM, CONTENT_TOP, H, LineupBackground, TYPE, W, displayName, labelStyle, nameStyle } from "./lineup-chrome";
+import { LineupBackground, TYPE, displayName, labelStyle, nameStyle } from "./lineup-chrome";
+import type { LineupGeometry } from "./lineup-geometry";
 
 /**
  * ŞABLON 2 — Kahraman Liste (`hero_list`). Kapak ZORUNLUDUR: kapaksız liste kartı çizilmez (render
@@ -17,9 +18,7 @@ export interface LineupHeroImage {
   height: number;
 }
 
-const PANEL_TOP = CONTENT_TOP - 10;
-const PANEL_HEIGHT = CONTENT_BOTTOM - PANEL_TOP;
-const PANEL = { left: 540, width: 490 } as const;
+/** 4:5 ölçüleri; diğer formatlarda `LineupGeometry.k` ile ölçeklenir, panel ve kapak konumu geometriden gelir. */
 const PANEL_PAD_X = 28;
 const PANEL_PAD_Y = 22;
 const ROW_HEIGHT = 58;
@@ -32,68 +31,74 @@ const NAME_MIN_FONT = 22;
 /** Manrope büyük harfte ortalama karakter genişliği / font boyutu (+ ad-soyad boşluğu payı). */
 const CHAR_WIDTH_RATIO = 0.72;
 const MAX_NAME_CHARS = 16;
-/** Kapak sol yarıda bu merkeze oturur. */
-const HERO_CENTER_X = 280;
 
 const ROLE_TAGS: Record<SquadPosition, string> = { G: "KL", D: "DEF", M: "OS", F: "FV" };
 
 /** Liste için tek ortak isim boyutu: en uzun isme göre, alt sınırla (uzun tek ad üç noktayla kısalır). */
-function listFontSize(names: string[], nameWidth: number): number {
+function listFontSize(names: string[], nameWidth: number, k: number): number {
   const fits = names.filter(Boolean).map((name) => Math.floor(nameWidth / (name.length * CHAR_WIDTH_RATIO)));
-  return Math.max(NAME_MIN_FONT, Math.min(NAME_MAX_FONT, ...fits));
+  return Math.max(Math.round(NAME_MIN_FONT * k), Math.min(Math.round(NAME_MAX_FONT * k), ...fits));
 }
 
-function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider }: { slot: LineupSlot; name: string; role: string; fontSize: number; goalkeeper: boolean; palette: LineupPalette; divider: boolean }) {
+function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider, k }: { slot: LineupSlot; name: string; role: string; fontSize: number; goalkeeper: boolean; palette: LineupPalette; divider: boolean; k: number }) {
+  const box = Math.round(NUMBER_BOX * k);
   const words = name.split(" ");
   const last = words.pop() ?? "";
   const first = words.join(" ");
   const [fill, ink] = goalkeeper ? [palette.keeper, palette.keeperText] : [palette.kit, palette.kitText];
   return (
-    <div tw="flex items-center" style={{ height: ROW_HEIGHT, gap: ROW_GAP, borderTop: divider ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0)" }}>
+    <div tw="flex items-center" style={{ height: Math.round(ROW_HEIGHT * k), gap: Math.round(ROW_GAP * k), borderTop: divider ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0)" }}>
       <div
         tw="flex items-center justify-center"
-        style={{ width: NUMBER_BOX, height: NUMBER_BOX, borderRadius: 12, backgroundColor: fill, border: `2px solid ${rgba(palette.text, 0.85)}`, boxShadow: "0 6px 16px rgba(0,0,0,0.45)" }}
+        style={{ width: box, height: box, borderRadius: Math.round(12 * k), backgroundColor: fill, border: `2px solid ${rgba(palette.text, 0.85)}`, boxShadow: "0 6px 16px rgba(0,0,0,0.45)" }}
       >
-        <span style={{ fontFamily: TYPE.DISPLAY, fontSize: slot.number.length > 1 ? 22 : 25, color: ink, lineHeight: 1, letterSpacing: -0.5 }}>{slot.number || "·"}</span>
+        <span style={{ fontFamily: TYPE.DISPLAY, fontSize: Math.round((slot.number.length > 1 ? 22 : 25) * k), color: ink, lineHeight: 1, letterSpacing: -0.5 }}>{slot.number || "·"}</span>
       </div>
       {/* Dergi düzeni: ad ince ve soluk, soyadı kalın ve parlak — aynı satırda. */}
       <div tw="flex flex-1 items-baseline" style={{ gap: Math.round(fontSize * 0.3), overflow: "hidden" }}>
         {first ? <span style={{ ...nameStyle(fontSize, rgba(palette.text, 0.7), 500), whiteSpace: "nowrap" }}>{first}</span> : null}
         <span style={{ ...nameStyle(fontSize, palette.text), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{last}</span>
       </div>
-      <span style={{ ...labelStyle(13, palette.muted), width: ROLE_WIDTH, textAlign: "right" }}>{role}</span>
+      <span style={{ ...labelStyle(Math.round(13 * k), palette.muted), width: Math.round(ROLE_WIDTH * k), textAlign: "right" }}>{role}</span>
     </div>
   );
 }
 
-export function LineupHeroList({ formation, slots, palette, hero }: { formation: string; slots: LineupSlot[]; palette: LineupPalette; hero: LineupHeroImage }) {
+export function LineupHeroList({ g, formation, slots, palette, hero }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; hero: LineupHeroImage }) {
+  const { k, panel } = g;
   const night = palette.backgroundBottom;
-  const nameWidth = PANEL.width - PANEL_PAD_X * 2 - NUMBER_BOX - ROLE_WIDTH - ROW_GAP * 2;
+  const padX = Math.round(PANEL_PAD_X * k);
+  const rowHeight = Math.round(ROW_HEIGHT * k);
+  const groupGap = Math.round(GROUP_GAP * k);
+  const nameWidth = panel.width - padX * 2 - Math.round(NUMBER_BOX * k) - Math.round(ROLE_WIDTH * k) - Math.round(ROW_GAP * k) * 2;
   const names = slots.map((slot) => upper(displayName(slot.name, MAX_NAME_CHARS)));
-  const fontSize = listFontSize(names, nameWidth);
+  const fontSize = listFontSize(names, nameWidth, k);
   const groups = formationGroups(formation);
   // Satırlar ve mevki ayraçları dikeyde ortalanır.
-  const listHeight = slots.length * ROW_HEIGHT + (groups.length - 1) * GROUP_GAP;
-  const listTop = Math.max(PANEL_PAD_Y, Math.round((PANEL_HEIGHT - listHeight) / 2));
-  const heroLeft = Math.round(Math.max(-60, HERO_CENTER_X - hero.width / 2));
+  const listHeight = slots.length * rowHeight + (groups.length - 1) * groupGap;
+  const listTop = Math.max(Math.round(PANEL_PAD_Y * k), Math.round((panel.height - listHeight) / 2));
+  const heroLeft = Math.round(Math.max(-60, g.hero.centerX - hero.width / 2));
+  // Okunabilirlik perdesi panelin solundan başlar (4:5'te %38 → %52).
+  const veilStart = Math.round(((panel.left - 130) / g.width) * 100);
+  const veilMid = Math.round(((panel.left + 22) / g.width) * 100);
 
   return (
     <>
-      <LineupBackground palette={palette} glow={{ left: 0, top: 300, size: 760 }} />
+      <LineupBackground g={g} palette={palette} glow={{ left: Math.max(0, g.hero.centerX - 380), top: g.header.top + 248, size: 760 }} />
       {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
       <img src={hero.src} alt="" width={hero.width} height={hero.height} style={{ position: "absolute", left: heroLeft, bottom: 0 }} />
       {/* Okunabilirlik perdesi: kapağın sağ kenarı listenin arkasında yumuşar. */}
-      <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, backgroundImage: `linear-gradient(90deg, ${rgba(night, 0)} 38%, ${rgba(night, 0.5)} 52%, ${rgba(night, 0.7)} 100%)` }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: g.width, height: g.height, backgroundImage: `linear-gradient(90deg, ${rgba(night, 0)} ${veilStart}%, ${rgba(night, 0.5)} ${veilMid}%, ${rgba(night, 0.7)} 100%)` }} />
 
       <div
         tw="flex flex-col"
         style={{
           position: "absolute",
-          left: PANEL.left,
-          top: PANEL_TOP,
-          width: PANEL.width,
-          height: PANEL_HEIGHT,
-          padding: `${listTop}px ${PANEL_PAD_X}px 0`,
+          left: panel.left,
+          top: panel.top,
+          width: panel.width,
+          height: panel.height,
+          padding: `${listTop}px ${padX}px 0`,
           borderRadius: 28,
           backgroundImage: `linear-gradient(180deg, ${rgba(night, 0.74)} 0%, ${rgba(night, 0.6)} 100%)`,
           border: `1px solid ${rgba(palette.accent, 0.18)}`,
@@ -105,8 +110,8 @@ export function LineupHeroList({ formation, slots, palette, hero }: { formation:
             key={group.role}
             tw="flex flex-col"
             style={{
-              marginTop: groupIndex === 0 ? 0 : Math.floor(GROUP_GAP / 2),
-              paddingTop: groupIndex === 0 ? 0 : Math.ceil(GROUP_GAP / 2) - 2,
+              marginTop: groupIndex === 0 ? 0 : Math.floor(groupGap / 2),
+              paddingTop: groupIndex === 0 ? 0 : Math.ceil(groupGap / 2) - 2,
               borderTop: groupIndex === 0 ? "none" : `2px solid ${rgba(palette.accent, 0.5)}`,
             }}
           >
@@ -123,6 +128,7 @@ export function LineupHeroList({ formation, slots, palette, hero }: { formation:
                   goalkeeper={slotIndex === 0}
                   palette={palette}
                   divider={rowIndex > 0}
+                  k={k}
                 />
               );
             })}

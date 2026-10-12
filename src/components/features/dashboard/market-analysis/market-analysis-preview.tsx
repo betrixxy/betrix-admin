@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import { AlertCircle, ImageIcon, LoaderCircle, RefreshCw } from "lucide-react";
 import { previewDeepAnalysisAction } from "@/app/dashboard/studio/market-analysis/actions";
+import { FormatPreviewFrame } from "@/components/features/dashboard/studio/format-preview-frame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
 import type { MarketAnalysisDraft, TeamSide } from "@/types/deep-analysis";
+import { socialFormatCaption, type SocialFormatId } from "@/types/studio-formats";
 
 interface MarketAnalysisPreviewProps {
   draft: MarketAnalysisDraft;
@@ -20,7 +21,9 @@ const SIDE_LABELS: Record<TeamSide, string> = { home: "Ev sahibi", away: "Deplas
  */
 export function MarketAnalysisPreview({ draft }: MarketAnalysisPreviewProps) {
   const [side, setSide] = useState<TeamSide>("home");
-  const [image, setImage] = useState<string | null>(null);
+  const [drawn, setDrawn] = useState<{ dataUrl: string; format: SocialFormatId } | null>(null);
+  // Format değiştiyse eski çizim gösterilmez — yeni oranda yeniden çizilmeli.
+  const image = drawn && drawn.format === draft.format ? drawn.dataUrl : null;
   const [error, setError] = useState<string | null>(null);
   const [isRendering, startRendering] = useTransition();
 
@@ -29,12 +32,12 @@ export function MarketAnalysisPreview({ draft }: MarketAnalysisPreviewProps) {
     setError(null);
     const opponent = target === "home" ? draft.away : draft.home;
     startRendering(async () => {
-      const result = await previewDeepAnalysisAction({ team: draft[target], opponentName: opponent.teamName });
+      const result = await previewDeepAnalysisAction({ team: draft[target], opponentName: opponent.teamName, format: draft.format });
       if (!result.ok) {
         setError(result.error.message);
         return;
       }
-      setImage(result.data.dataUrl);
+      setDrawn({ dataUrl: result.data.dataUrl, format: draft.format });
     });
   }
 
@@ -42,7 +45,7 @@ export function MarketAnalysisPreview({ draft }: MarketAnalysisPreviewProps) {
     <Card className="xl:sticky xl:top-6">
       <CardHeader>
         <CardTitle>Önizleme</CardTitle>
-        <CardDescription>Derinlemesine Analiz kartı · 1080×1350 (IG 4:5) · kaydetmeden önce kontrol edin</CardDescription>
+        <CardDescription>Derinlemesine Analiz kartı · {socialFormatCaption(draft.format)} · kaydetmeden önce kontrol edin</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <div className="flex gap-2">
@@ -62,14 +65,14 @@ export function MarketAnalysisPreview({ draft }: MarketAnalysisPreviewProps) {
           ))}
         </div>
 
-        <div className={cn("relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-lg border border-border/60 bg-black/30", isRendering && "opacity-60")}>
+        <FormatPreviewFrame format={draft.format} busy={isRendering}>
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element -- sunucuda çizilmiş data URL önizlemesi.
             <img src={image} alt={`${draft[side].teamName} derinlemesine analiz kartı önizlemesi`} className="size-full object-contain" />
           ) : (
             <p className="px-6 text-center text-sm text-muted-foreground">Bir takım seçerek kartı çizin. Formu değiştirdikten sonra aynı butona tekrar basın.</p>
           )}
-        </div>
+        </FormatPreviewFrame>
 
         {error ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

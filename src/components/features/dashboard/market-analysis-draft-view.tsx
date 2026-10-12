@@ -6,13 +6,12 @@ import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-b
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { MarketAnalysisDraftView } from "@/types/draft";
+import { SOCIAL_FORMATS, socialFormatCaption } from "@/types/studio-formats";
 
 interface MarketAnalysisDraftViewProps {
   draft: MarketAnalysisDraftView;
   postOptions: StudioPostOption[];
 }
-
-const CARD_SIZE = { width: 1080, height: 1350 } as const;
 
 /**
  * AI Market Tahmin & Analiz taslağının incelemesi: iki takımın Derinlemesine Analiz kartı yan yana,
@@ -21,6 +20,7 @@ const CARD_SIZE = { width: 1080, height: 1350 } as const;
  */
 export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDraftViewProps) {
   const isDraft = draft.status === "DRAFT";
+  const { width, height } = SOCIAL_FORMATS[draft.format];
   return (
     <div className="flex flex-col gap-6">
       <Card>
@@ -29,7 +29,7 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
             <CardTitle>Derinlemesine Analiz Kartları</CardTitle>
             <DraftStatusBadge status={draft.status} />
           </div>
-          <CardDescription>Her takım için ayrı kart · 1080×1350 (IG 4:5) — carousel olarak birlikte paylaşılır.</CardDescription>
+          <CardDescription>Her takım için ayrı kart · {socialFormatCaption(draft.format)} — carousel olarak birlikte paylaşılır.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-6 md:grid-cols-2">
           {(["home", "away"] as const).map((side) => (
@@ -39,7 +39,8 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
               </p>
               <DraftPreview
                 url={draft[side].imageUrl}
-                {...CARD_SIZE}
+                width={width}
+                height={height}
                 alt={`${draft[side].teamName} derinlemesine analiz kartı`}
                 downloadName={`checkmatch-analiz-${side}-${draft.id}`}
               />

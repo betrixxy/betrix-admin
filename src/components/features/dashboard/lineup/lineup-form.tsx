@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { AlertCircle, CircleCheck, Info, LoaderCircle, RefreshCw, Save } from "lucide-react";
 import { loadLineupAction, saveLineupAction, type LineupLoadResult } from "@/app/dashboard/studio/lineup/actions";
+import { GlobalFormatSelector } from "@/components/features/dashboard/studio/global-format-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import type { TeamSide } from "@/types/deep-analysis";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, type LineupDraft, type LineupTemplateStyle } from "@/types/lineup";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import type { MediaAssetOption } from "@/types/media";
+import { DEFAULT_SOCIAL_FORMAT, type SocialFormatId } from "@/types/studio-formats";
 import { LineupHeroFields } from "./lineup-hero-fields";
 import { LineupPreview } from "./lineup-preview";
 import { LineupTemplatePicker } from "./lineup-template-picker";
@@ -29,9 +31,9 @@ interface LineupFormProps {
   falConfigured: boolean;
 }
 
-/** Veriden yeniden doldurma admin'in şablon seçimini, aynı maçta da ürettiği kapağı ve seçtiği rengi ezmez. */
+/** Veriden yeniden doldurma admin'in şablon ve format seçimini, aynı maçta da ürettiği kapağı ve seçtiği rengi ezmez. */
 function keepVisuals(next: LineupDraft, current: LineupDraft): LineupDraft {
-  const withStyle = { ...next, templateStyle: current.templateStyle };
+  const withStyle = { ...next, templateStyle: current.templateStyle, format: current.format };
   if (next.fixtureId !== current.fixtureId) return withStyle;
   const side = (key: TeamSide) => ({
     ...next[key],
@@ -41,10 +43,15 @@ function keepVisuals(next: LineupDraft, current: LineupDraft): LineupDraft {
   return { ...withStyle, home: side("home"), away: side("away") };
 }
 
-function draftFor(fixture: MatchDayFixtureOption | undefined, templateStyle: LineupTemplateStyle = DEFAULT_LINEUP_TEMPLATE_STYLE): LineupDraft {
+function draftFor(
+  fixture: MatchDayFixtureOption | undefined,
+  templateStyle: LineupTemplateStyle = DEFAULT_LINEUP_TEMPLATE_STYLE,
+  format: SocialFormatId = DEFAULT_SOCIAL_FORMAT,
+): LineupDraft {
   return {
     fixtureId: fixture?.id ?? "",
     templateStyle,
+    format,
     headline: HEADLINE_PREDICTED,
     matchLabel: fixture ? `${fixture.league} · ${fixture.date.split("-").reverse().slice(0, 2).join(".")} · ${fixture.time}` : "",
     home: emptyTeamLineup(fixture?.homeTeam, fixture?.homeLogoUrl),
@@ -81,7 +88,7 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
     setFixtureId(id);
     setSavedId(null);
     setLoaded(null);
-    setDraft((current) => draftFor(fixtures.find((fixture) => fixture.id === id), current.templateStyle));
+    setDraft((current) => draftFor(fixtures.find((fixture) => fixture.id === id), current.templateStyle, current.format));
     if (id) load(id);
   }
 
@@ -202,6 +209,8 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
         </Card>
 
         <LineupTemplatePicker value={draft.templateStyle} onChange={(templateStyle) => setDraft((current) => ({ ...current, templateStyle }))} />
+
+        <GlobalFormatSelector value={draft.format} onChange={(format) => setDraft((current) => ({ ...current, format }))} disabled={isSaving} />
 
         {missingHeroes.length > 0 ? (
           <p className="-mt-3 flex items-start gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200" role="status">

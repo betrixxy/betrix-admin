@@ -1,4 +1,5 @@
 import type { SupportedLeagueId } from "@/lib/services/api-football/leagues";
+import type { SocialFormatId } from "@/types/studio-formats";
 
 /**
  * "Haftanın Maçları" stüdyosu kanonik tipleri — bkz. app/dashboard/studio/weekly-fixtures,
@@ -71,6 +72,8 @@ export interface WeeklyFixturesDraft {
   title: string;
   /** Kartta gösterilecek maçlar, admin'in sırasıyla (çıkarılanlar listede yok). */
   matchIds: string[];
+  /** Platform/format (küresel kayıt, bkz. types/studio-formats.ts). */
+  format: SocialFormatId;
 }
 
 /** Bir kartın taşıyabileceği en fazla maç — fazlası için ikinci kart üretilir. */
@@ -84,4 +87,5 @@ export interface WeeklyFixturesCardInput {
   title: string;
   grouping: WeeklyGrouping;
   matches: WeeklyMatch[];
+  format: SocialFormatId;
 }

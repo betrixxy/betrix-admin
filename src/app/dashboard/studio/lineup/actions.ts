@@ -14,6 +14,7 @@ import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
 import { isFalConfigured } from "@/lib/services/fal";
 import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import type { Fixture } from "@/types/sports";
 
 export interface LineupLoadResult {
@@ -71,8 +72,9 @@ const teamSchema = z.object({
   coach: text(60),
 });
 const templateStyle = z.enum(LINEUP_TEMPLATE_STYLES);
-const previewSchema = z.object({ templateStyle, team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80) });
-const saveSchema = z.object({ fixtureId: z.string(), templateStyle, headline: text(30), matchLabel: text(80), home: teamSchema, away: teamSchema });
+const format = z.enum(SOCIAL_FORMAT_IDS).default(DEFAULT_SOCIAL_FORMAT);
+const previewSchema = z.object({ templateStyle, team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80), format });
+const saveSchema = z.object({ fixtureId: z.string(), templateStyle, headline: text(30), matchLabel: text(80), format, home: teamSchema, away: teamSchema });
 
 function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Form alanları geçersiz.";

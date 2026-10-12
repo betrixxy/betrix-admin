@@ -1,3 +1,5 @@
+import type { SocialFormatId } from "@/types/studio-formats";
+
 /**
  * "Muhtemel 11" stüdyosu kanonik tipleri — bkz. app/dashboard/studio/lineup,
  * lib/services/api-football/lineups.ts ve templates/lineup/lineup-card.tsx.
@@ -101,6 +103,8 @@ export interface LineupDraft {
   headline: string;
   /** "Süper Lig · 12.10 · 20:00" gibi maç künyesi. */
   matchLabel: string;
+  /** Platform/format (küresel kayıt) — iki kart da bu boyutta çizilir. */
+  format: SocialFormatId;
   home: TeamLineupDraft;
   away: TeamLineupDraft;
 }
@@ -150,4 +154,5 @@ export interface LineupCardInput {
   opponentLogoUrl: string;
   headline: string;
   matchLabel: string;
+  format: SocialFormatId;
 }

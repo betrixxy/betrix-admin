@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
-import { WEEKLY_FIXTURES_CARD_SIZE, WeeklyFixturesCard } from "@/skills/render-engine/templates/weekly-fixtures/weekly-fixtures";
+import { WeeklyFixturesCard } from "@/skills/render-engine/templates/weekly-fixtures/weekly-fixtures";
+import { SOCIAL_FORMATS } from "@/types/studio-formats";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 
 /** Logolar yalnızca API-Football medya sunucusundan gömülür — başka adres çizilmez (SSRF). */
@@ -43,7 +44,7 @@ export async function renderWeeklyFixturesCard(input: WeeklyFixturesCardInput): 
   ]);
   const response = new ImageResponse(
     <WeeklyFixturesCard {...input} leagueLogoUrl={leagueLogoUrl} brandLogo={brandLogo} teamLogos={Object.fromEntries(teamLogoEntries)} />,
-    { ...WEEKLY_FIXTURES_CARD_SIZE, fonts },
+    { width: SOCIAL_FORMATS[input.format].width, height: SOCIAL_FORMATS[input.format].height, fonts },
   );
   return Buffer.from(await response.arrayBuffer());
 }
