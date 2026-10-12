@@ -49,6 +49,17 @@ const weeklyOptionsSchema = z.object({
   matchIds: z.array(z.string()),
 });
 
+/** `AiContent.renderOptions` — Puan Durumu kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const standingsOptionsSchema = z.object({
+  kind: z.literal("STANDINGS"),
+  format: formatField,
+  imageUrl: z.string(),
+  leagueName: z.string(),
+  title: z.string(),
+  kindLabel: z.string(),
+  sections: z.array(z.object({ rows: z.array(z.unknown()) })),
+});
+
 function toStudioFormat(value: string | null): StudioFormat | null {
   return STUDIO_FORMATS.find((format) => format === value) ?? null;
 }
@@ -101,6 +112,30 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           title,
           imageUrl,
           matchCount: matchIds.length,
+          format,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "STANDINGS") {
+    const options = standingsOptionsSchema.safeParse(record.renderOptions);
+    if (options.success) {
+      const { imageUrl, leagueName, title, kindLabel, sections, format } = options.data;
+      return {
+        kind: "standings",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          leagueName,
+          title,
+          kindLabel,
+          imageUrl,
+          teamCount: sections.reduce((sum, section) => sum + section.rows.length, 0),
           format,
         },
       };

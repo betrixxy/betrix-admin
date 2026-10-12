@@ -7,6 +7,7 @@ import {
   Layers,
   ListOrdered,
   Sparkles,
+  Table2,
   Trophy,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +60,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "Haftanın Maçları",
     description: "Lig fikstürü ve skorlar",
     icon: ListOrdered,
+  },
+  {
+    href: "/dashboard/studio/standings",
+    label: "Puan Durumu",
+    description: "Lig ve grup tabloları",
+    icon: Table2,
   },
   {
     href: "/dashboard/library",

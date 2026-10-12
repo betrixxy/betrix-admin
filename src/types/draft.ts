@@ -103,9 +103,26 @@ export interface WeeklyFixturesDraftView {
   format: SocialFormatId;
 }
 
+/** Puan Durumu taslağı — tek kart (bkz. standings-engine.ts). */
+export interface StandingsDraftView {
+  id: string;
+  fixtureId: string;
+  status: AiContentStatus;
+  caption: string;
+  postId: string | null;
+  reviewedAt: string | null;
+  leagueName: string;
+  title: string;
+  kindLabel: string;
+  imageUrl: string;
+  teamCount: number;
+  format: SocialFormatId;
+}
+
 export type DraftLookup =
   | { kind: "draft"; draft: DraftView }
   | { kind: "market-analysis"; draft: MarketAnalysisDraftView }
   | { kind: "lineup"; draft: LineupDraftView }
   | { kind: "weekly-fixtures"; draft: WeeklyFixturesDraftView }
+  | { kind: "standings"; draft: StandingsDraftView }
   | { kind: "legacy"; id: string; status: AiContentStatus; resultImageUrl: string | null };

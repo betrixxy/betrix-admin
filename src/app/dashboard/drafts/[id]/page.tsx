@@ -11,6 +11,7 @@ import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-b
 import { LineupDraftView } from "@/components/features/dashboard/lineup-draft-view";
 import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
+import { StandingsDraftView } from "@/components/features/dashboard/standings-draft-view";
 import { WeeklyFixturesDraftView } from "@/components/features/dashboard/weekly-fixtures-draft-view";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,6 +76,17 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
       <>
         <PageHeader title={`${draft.leagueName} · ${draft.title}`} description="Haftanın Maçları · fikstür ve skor kartı — onayınız olmadan yayına hazır sayılmaz." actions={backLink} />
         <WeeklyFixturesDraftView draft={draft} postOptions={postOptions} />
+      </>
+    );
+  }
+
+  if (lookup.kind === "standings") {
+    const { draft } = lookup;
+    const postOptions = draft.status === "DRAFT" ? await getLinkablePosts(draft.fixtureId) : [];
+    return (
+      <>
+        <PageHeader title={`${draft.leagueName} · ${draft.title}`} description="Puan Durumu · lig/grup tablosu kartı — onayınız olmadan yayına hazır sayılmaz." actions={backLink} />
+        <StandingsDraftView draft={draft} postOptions={postOptions} />
       </>
     );
   }

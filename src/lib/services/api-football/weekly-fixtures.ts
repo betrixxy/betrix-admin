@@ -41,7 +41,7 @@ async function parsed<T extends z.ZodTypeAny>(path: string, params: Record<strin
 }
 
 /** Ligin sezonları (yeniden eskiye) ve güncel sezon. */
-async function leagueSeasons(leagueId: number): Promise<Result<{ current: number; seasons: number[] }, ApiFootballError>> {
+export async function getLeagueSeasons(leagueId: number): Promise<Result<{ current: number; seasons: number[] }, ApiFootballError>> {
   const result = await parsed("/leagues", { id: String(leagueId) }, leaguesResponseSchema, SEASONS_TTL_MS);
   if (!result.ok) return result;
   const seasons = (result.data.response[0]?.seasons ?? []).toSorted((a, b) => b.year - a.year);
@@ -55,7 +55,7 @@ async function leagueSeasons(leagueId: number): Promise<Result<{ current: number
  * sorulur (geçmiş sezonda form ilk turla açılır).
  */
 export async function getWeeklyRounds(leagueId: number, season?: number): Promise<Result<WeeklyRoundsResult, ApiFootballError>> {
-  const seasons = await leagueSeasons(leagueId);
+  const seasons = await getLeagueSeasons(leagueId);
   if (!seasons.ok) return seasons;
   const chosen = season ?? seasons.data.current;
   const base = { league: String(leagueId), season: String(chosen) };

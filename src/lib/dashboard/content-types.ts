@@ -63,7 +63,14 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "coming_soon",
     route: null,
   },
-  { id: "STANDINGS", label: "Puan Durumu", description: "Ligin güncel puan tablosu.", phase: "post_match", status: "coming_soon", route: null },
+  {
+    id: "STANDINGS",
+    label: "Puan Durumu",
+    description: "Ligin (kupada grupların) güncel puan tablosu — dar formatlarda O · AV · P, yatayda tam tablo.",
+    phase: "post_match",
+    status: "active",
+    route: "/dashboard/studio/standings",
+  },
 ];
 
 export const CONTENT_PHASE_LABELS: Record<ContentPhase, string> = {

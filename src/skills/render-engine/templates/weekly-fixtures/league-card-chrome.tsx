@@ -1,0 +1,119 @@
+import type { WeeklyLayout } from "@/lib/dashboard/weekly-fixtures-layout";
+import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
+import { EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import type { WeeklyTheme } from "./weekly-theme";
+
+/**
+ * Lig kartlarının ortak çerçevesi (Haftanın Maçları, Puan Durumu): gece temasında neon parıltı, üstte lig
+ * logosu + künye + büyük başlık + tür etiketi, altta CheckMatch imzalı bant. Konumlar `WeeklyLayout`ten
+ * gelir (Story güvenli alanları, yatay format dahil).
+ */
+
+const BRAND_LOGO_HEIGHT = 46;
+const LEAGUE_LOGO = 116;
+
+/** Büyük başlık tek satıra sığacak boyutta (Archivo Black büyük harf ≈ 0.78 em/karakter). */
+function titleSize(title: string, available: number, max: number): number {
+  return Math.max(48, Math.min(max, Math.floor(available / (Math.max(1, title.length) * 0.78))));
+}
+
+export function LeagueCardGlow({ layout, theme }: { layout: WeeklyLayout; theme: WeeklyTheme }) {
+  if (!theme.glow) return null;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: Math.round(layout.width / 2 - 460),
+        top: -520,
+        width: 1000,
+        height: 1000,
+        backgroundImage: `radial-gradient(${rgba(theme.glow, 0.28)} 0%, ${rgba(theme.glow, 0)} 70.7%)`,
+      }}
+    />
+  );
+}
+
+export function LeagueCardHeader({
+  layout,
+  theme,
+  leagueLogoUrl,
+  kicker,
+  title,
+  kindLabel,
+}: {
+  layout: WeeklyLayout;
+  theme: WeeklyTheme;
+  leagueLogoUrl: string;
+  /** Üst künye satırı (Space Mono), ör. "SÜPER LİG · 2025/26". */
+  kicker: string;
+  /** Büyük başlık (Archivo Black). */
+  title: string;
+  /** Vurgu renginde tür etiketi, ör. "FİKSTÜR" / "8. HAFTA SONU". */
+  kindLabel: string;
+}) {
+  const contentWidth = layout.width - layout.pad * 2;
+  const badge = theme.leagueBadge ? 28 : 0;
+  const textWidth = contentWidth - (leagueLogoUrl ? LEAGUE_LOGO + badge + 32 : 0);
+  const size = titleSize(title, textWidth, layout.titleMax);
+  return (
+    <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 32 }}>
+      {leagueLogoUrl ? (
+        <div
+          tw="flex items-center justify-center"
+          style={{
+            width: LEAGUE_LOGO + badge,
+            height: LEAGUE_LOGO + badge,
+            borderRadius: 28,
+            backgroundColor: theme.leagueBadge ?? "rgba(0,0,0,0)",
+            boxShadow: theme.leagueBadge ? `0 0 40px ${rgba(theme.accent, 0.35)}` : "none",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+          <img src={leagueLogoUrl} alt="" width={LEAGUE_LOGO} height={LEAGUE_LOGO} style={{ objectFit: "contain" }} />
+        </div>
+      ) : null}
+      <div tw="flex flex-col" style={{ gap: 14, flex: 1 }}>
+        <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 19, letterSpacing: 4, color: theme.muted, lineHeight: 1 }}>{kicker}</span>
+        <span style={{ fontFamily: SCORE, fontSize: size, lineHeight: 1, letterSpacing: Math.min(-2, -size * 0.035), color: theme.text, whiteSpace: "nowrap" }}>{title}</span>
+        <div tw="flex items-center" style={{ gap: 12 }}>
+          <div style={{ width: 34, height: 4, backgroundColor: theme.accent }} />
+          <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 17, letterSpacing: 4, color: theme.accent, lineHeight: 1 }}>{kindLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Bölüm ayracı (gün / grup): Bricolage ExtraBold, küçük punto, çok geniş harf aralığı + ince çizgi. */
+export function LeagueCardDivider({ label, height, theme }: { label: string; height: number; theme: WeeklyTheme }) {
+  return (
+    <div tw="flex items-center" style={{ height, gap: 14 }}>
+      <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: 15, letterSpacing: 5, color: theme.accent, lineHeight: 1 }}>{upper(label)}</span>
+      <div style={{ flex: 1, height: 1, backgroundColor: theme.rowBorder }} />
+    </div>
+  );
+}
+
+/** Alt imza bandı: kanvasın altına kadar iner; içerik üstteki `footerHeight` şeridinde ortalanır (Story alt bandı boş kalır). */
+export function LeagueCardFooter({ layout, theme, brandLogo, note }: { layout: WeeklyLayout; theme: WeeklyTheme; brandLogo: string; note: string }) {
+  const { width: W, height: H, pad: PAD } = layout;
+  return (
+    <div
+      tw="flex items-center justify-between"
+      style={{
+        position: "absolute",
+        left: 0,
+        top: layout.footerTop,
+        width: W,
+        height: H - layout.footerTop,
+        padding: `0 ${PAD}px ${H - layout.footerTop - layout.footerHeight}px`,
+        backgroundColor: theme.footerBg,
+        borderTop: `2px solid ${theme.mode === "night" ? rgba(theme.accent, 0.35) : theme.accent}`,
+      }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+      <img src={brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(BRAND_LOGO_HEIGHT)} height={BRAND_LOGO_HEIGHT} />
+      <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 14, letterSpacing: 3, color: theme.footerText, lineHeight: 1 }}>{note}</span>
+    </div>
+  );
+}

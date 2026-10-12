@@ -14,7 +14,8 @@ const MAX_CACHE = 400;
 /** Takım/lig logoları değişmez — süreç içinde bir kez indirilir (kartta 20'ye kadar logo var). */
 const logoCache = new Map<string, Promise<string>>();
 
-function embedLogo(url: string, side: number): Promise<string> {
+/** API-Football logosunu data URL olarak gömer (önbellekli) — lig kartları (Haftanın Maçları, Puan Durumu) ortak kullanır. */
+export function embedLogo(url: string, side: number): Promise<string> {
   if (!url.startsWith(ALLOWED_IMAGE_ORIGIN)) return Promise.resolve("");
   const key = `${side}:${url}`;
   const cached = logoCache.get(key);
