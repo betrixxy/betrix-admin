@@ -1,16 +1,15 @@
-import type { WeeklyLayout } from "@/lib/dashboard/weekly-fixtures-layout";
+import { LEAGUE_BADGE_PAD, type WeeklyLayout } from "@/lib/dashboard/weekly-fixtures-layout";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
 import type { WeeklyTheme } from "./weekly-theme";
 
 /**
  * Lig kartlarının ortak çerçevesi (Haftanın Maçları, Puan Durumu): gece temasında neon parıltı, üstte lig
- * logosu + künye + büyük başlık + tür etiketi, altta CheckMatch imzalı bant. Konumlar `WeeklyLayout`ten
+ * logosu (yayıncı grafiklerindeki gibi büyük bir mühür, kenarı formata göre `layout.leagueLogo`) + künye + büyük başlık + tür etiketi, altta CheckMatch imzalı bant. Konumlar `WeeklyLayout`ten
  * gelir (Story güvenli alanları, yatay format dahil).
  */
 
 const BRAND_LOGO_HEIGHT = 46;
-const LEAGUE_LOGO = 116;
 
 /** Büyük başlık tek satıra sığacak boyutta (Archivo Black büyük harf ≈ 0.78 em/karakter). */
 function titleSize(title: string, available: number, max: number): number {
@@ -52,24 +51,25 @@ export function LeagueCardHeader({
   kindLabel: string;
 }) {
   const contentWidth = layout.width - layout.pad * 2;
-  const badge = theme.leagueBadge ? 28 : 0;
-  const textWidth = contentWidth - (leagueLogoUrl ? LEAGUE_LOGO + badge + 32 : 0);
+  const logo = layout.leagueLogo;
+  const badge = theme.leagueBadge ? LEAGUE_BADGE_PAD : 0;
+  const textWidth = contentWidth - (leagueLogoUrl ? logo + badge + 36 : 0);
   const size = titleSize(title, textWidth, layout.titleMax);
   return (
-    <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 32 }}>
+    <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 36 }}>
       {leagueLogoUrl ? (
         <div
           tw="flex items-center justify-center"
           style={{
-            width: LEAGUE_LOGO + badge,
-            height: LEAGUE_LOGO + badge,
-            borderRadius: 28,
+            width: logo + badge,
+            height: logo + badge,
+            borderRadius: Math.round((logo + badge) * 0.22),
             backgroundColor: theme.leagueBadge ?? "rgba(0,0,0,0)",
-            boxShadow: theme.leagueBadge ? `0 0 40px ${rgba(theme.accent, 0.35)}` : "none",
+            boxShadow: theme.leagueBadge ? `0 0 56px ${rgba(theme.accent, 0.4)}, 0 18px 40px rgba(0,0,0,0.35)` : "none",
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-          <img src={leagueLogoUrl} alt="" width={LEAGUE_LOGO} height={LEAGUE_LOGO} style={{ objectFit: "contain" }} />
+          <img src={leagueLogoUrl} alt="" width={logo} height={logo} style={{ objectFit: "contain" }} />
         </div>
       ) : null}
       <div tw="flex flex-col" style={{ gap: 14, flex: 1 }}>

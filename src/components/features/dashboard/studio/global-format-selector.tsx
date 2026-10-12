@@ -49,9 +49,7 @@ export function GlobalFormatSelector({ value, onChange, disabled }: { value: Soc
               >
                 <RatioGlyph id={id} selected={selected} />
                 <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-sm font-medium">
-                    {format.label} <span className="text-muted-foreground">· {format.ratioLabel}</span>
-                  </span>
+                  <span className="text-sm font-medium">{format.label}</span>
                   <span className="text-xs text-muted-foreground">{format.platforms}</span>
                   <span className="text-[11px] tabular-nums text-muted-foreground/80">
                     {format.width}×{format.height}

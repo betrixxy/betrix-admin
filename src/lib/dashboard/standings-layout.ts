@@ -43,9 +43,11 @@ export interface StandingsLayout extends WeeklyLayout {
 }
 
 const ROWS = { tableHeader: 34, sectionHeader: 40, sectionGap: 14, rowGap: 6, minRow: 34, maxRow: 76 } as const;
+/** Story: güvenli alan içindeki yükseklik satırlara ve aralıklara yayılır — kısa tabloda satırlar büyür, blok ortalanır. */
+const STORY_ROWS = { tableHeader: 40, sectionHeader: 44, sectionGap: 20, rowGap: 8, minRow: 34, maxRow: 100 } as const;
 
 export function standingsLayout(format: SocialFormatId): StandingsLayout {
-  return { ...weeklyLayout(format), ...ROWS };
+  return { ...weeklyLayout(format), ...(format === "story" ? STORY_ROWS : ROWS) };
 }
 
 const rowCount = (sections: StandingsGroup[]) => sections.reduce((sum, section) => sum + section.rows.length, 0);
@@ -91,6 +93,14 @@ function columnRowHeight(column: StandingsGroup[], layout: StandingsLayout): num
 export interface StandingsPlan {
   columns: StandingsGroup[][];
   rowHeight: number;
+  /** En uzun sütunun çizilen yüksekliği (başlık satırı dahil) — Story'de gövde buna göre ortalanır. */
+  height: number;
+}
+
+function columnHeight(column: StandingsGroup[], rowHeight: number, layout: StandingsLayout): number {
+  const rows = rowCount(column);
+  const labeled = column.filter((section) => section.label).length;
+  return layout.tableHeader + labeled * layout.sectionHeader + Math.max(0, column.length - 1) * layout.sectionGap + rows * rowHeight + Math.max(0, rows - 1) * layout.rowGap;
 }
 
 /** Kartın yerleşim planı (sütunlar + ortak satır yüksekliği); tablo bu formata sığmıyorsa null. */
@@ -99,7 +109,8 @@ export function standingsPlan(sections: StandingsGroup[], layout: StandingsLayou
   if (columns.length === 0) return null;
   const heights = columns.map((column) => columnRowHeight(column, layout));
   if (heights.some((height) => height === null)) return null;
-  return { columns, rowHeight: Math.min(...heights.filter((height) => height !== null)) };
+  const rowHeight = Math.min(...heights.filter((height) => height !== null));
+  return { columns, rowHeight, height: Math.max(...columns.map((column) => columnHeight(column, rowHeight, layout))) };
 }
 
 /** Bu formatta tek tablodan sığan en fazla takım (form "sıra aralığı" önerisi için). */

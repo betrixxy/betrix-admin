@@ -27,6 +27,21 @@ export function statWidth(key: StandingsStatKey, wide: boolean): number {
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, Math.round(value)));
 
+function nameWidthFor(columns: StandingsStatColumn[], wide: boolean, height: number, width: number): number {
+  const statsWidth = columns.reduce((sum, column) => sum + statWidth(column.key, wide) + GAP, 0);
+  return width - ZONE_BAR - ROW_PAD_X * 2 - RANK_WIDTH - Math.round(height * 0.6) - GAP * 3 - statsWidth;
+}
+
+/**
+ * Tablonun tamamı için tek isim puntosu: en uzun ada göre (satırdan satıra değişen punto amatör durur);
+ * alt sınırın altına düşen tek tük uzun ad üç noktayla kısalır.
+ */
+export function standingsNameSize(names: string[], columns: StandingsStatColumn[], wide: boolean, height: number, width: number): number {
+  const nameWidth = nameWidthFor(columns, wide, height, width);
+  const fits = names.map((name) => Math.floor(nameWidth / (Math.max(1, upper(name).length) * CHAR_WIDTH_RATIO)));
+  return Math.max(16, Math.min(clamp(height * 0.46, 16, 30), ...fits));
+}
+
 /** Sütun başlıkları (her sütunun üstünde bir kez). */
 export function StandingsHeaderRow({ columns, wide, height, theme }: { columns: StandingsStatColumn[]; wide: boolean; height: number; theme: WeeklyTheme }) {
   const label = { fontFamily: EYEBROW, fontWeight: 700, fontSize: 14, letterSpacing: 2, color: theme.muted, lineHeight: 1 } as const;
@@ -52,6 +67,7 @@ export function StandingsRow({
   wide,
   height,
   width,
+  nameSize,
   theme,
 }: {
   row: StandingRow;
@@ -61,13 +77,12 @@ export function StandingsRow({
   wide: boolean;
   height: number;
   width: number;
+  /** Tablo genelinde ortak isim puntosu (`standingsNameSize`). */
+  nameSize: number;
   theme: WeeklyTheme;
 }) {
   const logoSize = Math.round(height * 0.6);
-  const statsWidth = columns.reduce((sum, column) => sum + statWidth(column.key, wide) + GAP, 0);
-  const nameWidth = width - ZONE_BAR - ROW_PAD_X * 2 - RANK_WIDTH - logoSize - GAP * 3 - statsWidth;
   const name = upper(row.teamName);
-  const nameSize = Math.max(15, Math.min(clamp(height * 0.46, 16, 30), Math.floor(nameWidth / (Math.max(1, name.length) * CHAR_WIDTH_RATIO))));
   const statSize = clamp(height * 0.42, 15, 26);
   const pillHeight = Math.round(height * 0.72);
 

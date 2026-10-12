@@ -212,7 +212,7 @@ export function StandingsForm({ initialLeagueId, anchorFixtureId }: StandingsFor
             ) : sections?.ok && !fits ? (
               <p className="flex items-center gap-1.5 text-xs text-amber-300" role="status">
                 <AlertCircle className="size-3.5 shrink-0" />
-                Seçim {SOCIAL_FORMATS[format].label} ({SOCIAL_FORMATS[format].ratioLabel}) kartına sığmıyor — tek tabloda en fazla {capacity} takım. Sıra aralığını
+                Seçim {SOCIAL_FORMATS[format].label} kartına sığmıyor — tek tabloda en fazla {capacity} takım. Sıra aralığını
                 daraltın, kartı bölün ya da yatay formatı seçin.
               </p>
             ) : null}

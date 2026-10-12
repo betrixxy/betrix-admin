@@ -192,7 +192,7 @@ export function WeeklyFixturesForm({ initialLeagueId, initialRoundKey, anchorFix
             {chosen.length > 0 && !fits ? (
               <p className="flex items-center gap-1.5 text-xs text-amber-300" role="status">
                 <AlertCircle className="size-3.5 shrink-0" />
-                {chosen.length} maç {SOCIAL_FORMATS[format].label} ({SOCIAL_FORMATS[format].ratioLabel}) kartına sığmıyor (en fazla {WEEKLY_MAX_MATCHES}, gün/grup başlıkları da yer kaplar) — birkaç maçı çıkarın, kartı bölün ya da daha uzun bir format seçin.
+                {chosen.length} maç {SOCIAL_FORMATS[format].label} kartına sığmıyor (en fazla {WEEKLY_MAX_MATCHES}, gün/grup başlıkları da yer kaplar) — birkaç maçı çıkarın, kartı bölün ya da daha uzun bir format seçin.
               </p>
             ) : null}
           </CardContent>

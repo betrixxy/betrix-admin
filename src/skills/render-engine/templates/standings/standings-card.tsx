@@ -1,9 +1,10 @@
 import { seasonLabel, standingsLayout, standingsPlan, standingsStatColumns } from "@/lib/dashboard/standings-layout";
+import { bodyOffsetTop } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { StandingsCardInput } from "@/types/standings";
 import { BODY, upper } from "../deep-analysis/deep-analysis-tokens";
 import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader } from "../weekly-fixtures/league-card-chrome";
 import { weeklyTheme } from "../weekly-fixtures/weekly-theme";
-import { StandingsHeaderRow, StandingsRow } from "./standings-row";
+import { StandingsHeaderRow, StandingsRow, standingsNameSize } from "./standings-row";
 
 /**
  * PUAN DURUMU — ligin (kupada grubun) puan tablosu (Satori; boyut seçilen formattan, bkz. types/studio-formats.ts).
@@ -26,9 +27,16 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
   const wide = format === "landscape";
   const columns = standingsStatColumns(format);
   // Sığmayan kart motor tarafından reddedilir; yine de çizilirse tek sütun + en küçük satır.
-  const plan = standingsPlan(sections, layout) ?? { columns: [sections], rowHeight: layout.minRow };
+  const plan = standingsPlan(sections, layout) ?? { columns: [sections], rowHeight: layout.minRow, height: 0 };
   const contentWidth = layout.width - layout.pad * 2;
   const columnWidth = Math.floor((contentWidth - layout.columnGap * (plan.columns.length - 1)) / plan.columns.length);
+  const nameSize = standingsNameSize(
+    sections.flatMap((section) => section.rows.map((row) => row.teamName)),
+    columns,
+    wide,
+    plan.rowHeight,
+    columnWidth,
+  );
   const legend = columns.map((column) => `${column.label} ${upper(column.name)}`).join(" · ");
 
   return (
@@ -44,7 +52,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
       />
 
       {/* Tablo: tek sütun (dikey formatlar) ya da yan yana iki sütun (yatay) — her sütunun üstünde başlık satırı. */}
-      <div tw="flex" style={{ position: "absolute", left: layout.pad, top: layout.bodyTop, width: contentWidth, gap: layout.columnGap }}>
+      <div tw="flex" style={{ position: "absolute", left: layout.pad, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap }}>
         {plan.columns.map((column, columnIndex) => (
           <div key={columnIndex} tw="flex flex-col" style={{ width: columnWidth }}>
             <StandingsHeaderRow columns={columns} wide={wide} height={layout.tableHeader - layout.rowGap} theme={theme} />
@@ -61,6 +69,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
                       wide={wide}
                       height={plan.rowHeight}
                       width={columnWidth}
+                      nameSize={nameSize}
                       theme={theme}
                     />
                   ))}

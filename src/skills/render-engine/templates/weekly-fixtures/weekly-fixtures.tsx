@@ -1,4 +1,4 @@
-import { matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
+import { bodyOffsetTop, matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 import { BODY, upper } from "../deep-analysis/deep-analysis-tokens";
 import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader } from "./league-card-chrome";
@@ -28,7 +28,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
   const layout = weeklyLayout(format);
   const { width: W, pad: PAD } = layout;
   // Sığmayan kart motor tarafından reddedilir; yine de çizilirse tek sütun + en küçük satır.
-  const plan = weeklyPlan(matches, grouping, layout) ?? { columns: [[{ key: "all", label: "", matches }]], rowHeight: layout.minRow };
+  const plan = weeklyPlan(matches, grouping, layout) ?? { columns: [[{ key: "all", label: "", matches }]], rowHeight: layout.minRow, height: 0 };
   const contentWidth = W - PAD * 2;
   const columnWidth = Math.floor((contentWidth - layout.columnGap * (plan.columns.length - 1)) / plan.columns.length);
   const { kicker, main } = splitTitle(title);
@@ -46,7 +46,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
       />
 
       {/* Maçlar: tek sütun (dikey formatlar) ya da yan yana sütunlar (yatay) — satır yüksekliği tüm sütunlarda ortak. */}
-      <div tw="flex" style={{ position: "absolute", left: PAD, top: layout.bodyTop, width: contentWidth, gap: layout.columnGap }}>
+      <div tw="flex" style={{ position: "absolute", left: PAD, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap }}>
         {plan.columns.map((column, columnIndex) => (
           <div key={columnIndex} tw="flex flex-col" style={{ width: columnWidth, gap: layout.sectionGap }}>
             {column.map((section) => (

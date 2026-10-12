@@ -113,6 +113,10 @@ export interface WeeklyLayout {
   headerTop: number;
   /** Büyük başlığın en büyük punto değeri. */
   titleMax: number;
+  /** Sol üstteki lig logosunun kenarı (gece temasında beyaz rozetle +28). */
+  leagueLogo: number;
+  /** Gövde bloğu kendi yüksekliğinden büyük alana dikeyde ortalansın mı (Story: kısa tablo ortada, ferah). */
+  centerBody: boolean;
   bodyTop: number;
   bodyBottom: number;
   /** Alt imza bandının üstü; bant kanvasın altına kadar uzar (Story'de alt güvenli alanı da örter). */
@@ -128,6 +132,8 @@ export interface WeeklyLayout {
 }
 
 const BASE = { sectionHeader: 40, sectionGap: 14, rowGap: 8, minRow: 54 } as const;
+/** Lig logosu rozetinin (gece teması) logoya eklediği pay. */
+export const LEAGUE_BADGE_PAD = 28;
 
 export function weeklyLayout(formatId: SocialFormatId): WeeklyLayout {
   const { width, height, safeTop, safeBottom } = SOCIAL_FORMATS[formatId];
@@ -135,19 +141,42 @@ export function weeklyLayout(formatId: SocialFormatId): WeeklyLayout {
     case "landscape": {
       const footerHeight = 112;
       const footerTop = height - footerHeight;
-      return { ...BASE, width, height, pad: 72, headerTop: 52, titleMax: 96, bodyTop: 272, bodyBottom: footerTop - 24, footerTop, footerHeight, columns: 2, columnGap: 48, maxRow: 92 };
+      return { ...BASE, width, height, pad: 72, headerTop: 40, titleMax: 96, leagueLogo: 200, centerBody: false, bodyTop: 296, bodyBottom: footerTop - 24, footerTop, footerHeight, columns: 2, columnGap: 48, maxRow: 92 };
     }
     case "square": {
       const footerHeight = 104;
       const footerTop = height - footerHeight;
-      return { ...BASE, width, height, pad: 56, headerTop: 44, titleMax: 84, bodyTop: 252, bodyBottom: footerTop - 20, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: 88 };
+      return { ...BASE, width, height, pad: 56, headerTop: 40, titleMax: 84, leagueLogo: 174, centerBody: false, bodyTop: 268, bodyBottom: footerTop - 20, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: 88 };
     }
-    case "story":
     case "post": {
       const footerHeight = 128;
+      const footerTop = height - footerHeight;
+      return { ...BASE, width, height, pad: 56, headerTop: 64, titleMax: 104, leagueLogo: 174, centerBody: false, bodyTop: 300, bodyBottom: footerTop - 26, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: 96 };
+    }
+    case "story": {
+      // Güvenli alan (250..1600) 4:5 ile aynı yükseklikte: başlık bandın hemen altından başlar, imza bandı
+      // inceltilip alt bandın hemen üstüne oturur — kazanılan yükseklik gövdeye gider.
+      const footerHeight = 96;
       const footerTop = height - safeBottom - footerHeight;
-      const headerTop = safeTop + 64;
-      return { ...BASE, width, height, pad: 56, headerTop, titleMax: 104, bodyTop: headerTop + 236, bodyBottom: footerTop - 26, footerTop, footerHeight, columns: 1, columnGap: 0, maxRow: formatId === "story" ? 112 : 96 };
+      const headerTop = safeTop + 24;
+      const leagueLogo = 196;
+      return {
+        ...BASE,
+        width,
+        height,
+        pad: 56,
+        headerTop,
+        titleMax: 104,
+        leagueLogo,
+        centerBody: true,
+        bodyTop: headerTop + leagueLogo + LEAGUE_BADGE_PAD + 28,
+        bodyBottom: footerTop - 20,
+        footerTop,
+        footerHeight,
+        columns: 1,
+        columnGap: 0,
+        maxRow: 120,
+      };
     }
   }
 }
@@ -192,6 +221,14 @@ export function weeklyColumns(sections: WeeklySection[], columns: number): Weekl
 export interface WeeklyPlan {
   columns: WeeklySection[][];
   rowHeight: number;
+  /** En uzun sütunun çizilen yüksekliği — `centerBody` yerleşiminde gövde bu yüksekliğe göre ortalanır. */
+  height: number;
+}
+
+/** Bir sütunun verilen satır yüksekliğiyle kapladığı yükseklik. */
+function weeklyColumnHeight(column: WeeklySection[], rowHeight: number, layout: WeeklyLayout): number {
+  const rows = column.reduce((sum, section) => sum + section.matches.length, 0);
+  return column.length * layout.sectionHeader + Math.max(0, column.length - 1) * layout.sectionGap + rows * rowHeight + Math.max(0, rows - 1) * layout.rowGap;
 }
 
 /** Kartın yerleşim planı (sütunlar + ortak satır yüksekliği); maçlar bu formata sığmıyorsa null. */
@@ -200,7 +237,13 @@ export function weeklyPlan(matches: WeeklyMatch[], grouping: WeeklyGrouping, lay
   if (columns.length === 0) return null;
   const heights = columns.map((column) => weeklyRowHeight(column.length, column.reduce((sum, section) => sum + section.matches.length, 0), layout));
   if (heights.some((height) => height === null)) return null;
-  return { columns, rowHeight: Math.min(...heights.filter((height) => height !== null)) };
+  const rowHeight = Math.min(...heights.filter((height) => height !== null));
+  return { columns, rowHeight, height: Math.max(...columns.map((column) => weeklyColumnHeight(column, rowHeight, layout))) };
+}
+
+/** Gövdenin üstü: `centerBody` yerleşiminde blok, başlık ile imza bandı arasındaki alana dikeyde ortalanır. */
+export function bodyOffsetTop(layout: Pick<WeeklyLayout, "bodyTop" | "bodyBottom" | "centerBody">, blockHeight: number): number {
+  return layout.centerBody ? layout.bodyTop + Math.max(0, Math.round((layout.bodyBottom - layout.bodyTop - blockHeight) / 2)) : layout.bodyTop;
 }
 
 /** Kartın alt başlığı: hepsi bitmişse "MAÇ SONUÇLARI", hiçbiri oynanmamışsa "FİKSTÜR", karışıksa ikisi. */

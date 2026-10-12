@@ -14,9 +14,9 @@ export const DEFAULT_SOCIAL_FORMAT: SocialFormatId = "post";
 
 export interface SocialFormat {
   id: SocialFormatId;
-  /** Seçicide görünen kısa ad. */
+  /** Seçicide ve başlıklarda görünen ad — platform + oran, ör. "Instagram Gönderi (4:5)". */
   label: string;
-  /** Hangi platform yüzeyleri için. */
+  /** Seçicide adın altındaki açıklama: hangi platform yüzeyleri için. */
   platforms: string;
   ratioLabel: string;
   width: number;
@@ -32,8 +32,8 @@ export interface SocialFormat {
 export const SOCIAL_FORMATS: Record<SocialFormatId, SocialFormat> = {
   post: {
     id: "post",
-    label: "Post",
-    platforms: "Instagram / Facebook Post",
+    label: "Instagram Gönderi (4:5)",
+    platforms: "Instagram ve Facebook akış gönderisi",
     ratioLabel: "4:5",
     width: 1080,
     height: 1350,
@@ -44,8 +44,8 @@ export const SOCIAL_FORMATS: Record<SocialFormatId, SocialFormat> = {
   },
   story: {
     id: "story",
-    label: "Story",
-    platforms: "IG Story / Reels / TikTok",
+    label: "IG Story / Reels / TikTok (9:16)",
+    platforms: "Instagram Story, Reels ve TikTok — üst/alt platform bantları boş bırakılır",
     ratioLabel: "9:16",
     width: 1080,
     height: 1920,
@@ -57,8 +57,8 @@ export const SOCIAL_FORMATS: Record<SocialFormatId, SocialFormat> = {
   },
   landscape: {
     id: "landscape",
-    label: "Yatay",
-    platforms: "X / YouTube / Web",
+    label: "X (Twitter) / YouTube (16:9)",
+    platforms: "X gönderisi, YouTube topluluk/kapak ve web",
     ratioLabel: "16:9",
     width: 1920,
     height: 1080,
@@ -69,8 +69,8 @@ export const SOCIAL_FORMATS: Record<SocialFormatId, SocialFormat> = {
   },
   square: {
     id: "square",
-    label: "Kare",
-    platforms: "Kare Post",
+    label: "Kare Post (1:1)",
+    platforms: "Instagram ve Facebook kare gönderi",
     ratioLabel: "1:1",
     width: 1080,
     height: 1080,
@@ -85,8 +85,8 @@ export function isSocialFormatId(value: unknown): value is SocialFormatId {
   return SOCIAL_FORMAT_IDS.some((id) => id === value);
 }
 
-/** Önizleme/inceleme başlığı: "1080×1920 · IG Story / Reels / TikTok · 9:16". */
+/** Önizleme/inceleme başlığı: "1080×1920 · IG Story / Reels / TikTok (9:16)". */
 export function socialFormatCaption(id: SocialFormatId): string {
   const format = SOCIAL_FORMATS[id];
-  return `${format.width}×${format.height} · ${format.platforms} · ${format.ratioLabel}`;
+  return `${format.width}×${format.height} · ${format.label}`;
 }

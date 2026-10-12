@@ -32,7 +32,7 @@ describe("küresel format kaydı", () => {
       ],
     );
     assert.deepEqual([SOCIAL_FORMATS.story.safeTop, SOCIAL_FORMATS.story.safeBottom], [250, 320]);
-    assert.equal(socialFormatCaption("story"), "1080×1920 · IG Story / Reels / TikTok · 9:16");
+    assert.equal(socialFormatCaption("story"), "1080×1920 · IG Story / Reels / TikTok (9:16)");
     assert.ok(isSocialFormatId("square"));
     assert.ok(!isSocialFormatId("IG_FEED"));
   });
@@ -44,8 +44,11 @@ describe("Haftanın Maçları yerleşimi", () => {
     assert.deepEqual([post.headerTop, post.bodyTop, post.bodyBottom, post.footerTop, post.columns], [64, 300, 1196, 1222, 1]);
   });
 
-  it("Story'de içerik platform bantlarının içinde kalır", () => {
+  it("Story'de içerik platform bantlarının içinde kalır, gövde 4:5'ten uzun ve ortalanır", () => {
     const story = weeklyLayout("story");
+    const post = weeklyLayout("post");
+    assert.ok(story.bodyBottom - story.bodyTop > post.bodyBottom - post.bodyTop);
+    assert.ok(story.centerBody && !post.centerBody);
     assert.ok(story.headerTop >= SOCIAL_FORMATS.story.safeTop);
     assert.ok(story.footerTop + story.footerHeight <= story.height - SOCIAL_FORMATS.story.safeBottom);
   });
@@ -70,12 +73,13 @@ describe("Haftanın Maçları yerleşimi", () => {
     );
   });
 
-  it("4 güne yayılmış 12 maç iki sütunlu yatay karta sığar; tek sütunlu 4:5, Story ve kareye sığmaz", () => {
+  it("4 güne yayılmış 12 maç yatay (iki sütun) ve Story'ye sığar; 4:5 ve kareye sığmaz", () => {
     const landscape = weeklyPlan(twelve, "date", weeklyLayout("landscape"));
     assert.ok(landscape && landscape.columns.length === 2 && landscape.rowHeight >= 54);
-    for (const id of ["post", "story", "square"] as const) assert.equal(weeklyPlan(twelve, "date", weeklyLayout(id)), null, id);
-    // Story'nin güvenli alanı 4:5 ile aynı yükseklikte (1350px) — ikisi de 9 maç / 4 günü taşır.
-    for (const id of ["post", "story"] as const) assert.ok(weeklyPlan(twelve.slice(0, 9), "date", weeklyLayout(id)), id);
+    // Story: sıkılaştırılmış başlık/imza bandıyla güvenli alanın gövdesi 4:5'ten uzun.
+    assert.ok(weeklyPlan(twelve, "date", weeklyLayout("story")));
+    for (const id of ["post", "square"] as const) assert.equal(weeklyPlan(twelve, "date", weeklyLayout(id)), null, id);
+    assert.ok(weeklyPlan(twelve.slice(0, 9), "date", weeklyLayout("post")));
   });
 });
 

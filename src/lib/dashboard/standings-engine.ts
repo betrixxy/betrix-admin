@@ -30,7 +30,7 @@ export async function resolveStandingsCard(draft: StandingsDraft): Promise<Resul
     const format = SOCIAL_FORMATS[draft.format];
     return {
       ok: false,
-      error: { code: "INVALID_INPUT", message: `Tablo ${format.label} (${format.ratioLabel}) formatına sığmıyor — en fazla ${standingsCapacity(draft.format)} takım; sıra aralığını daraltın, kartı bölün ya da yatay formatı seçin.` },
+      error: { code: "INVALID_INPUT", message: `Tablo ${format.label} formatına sığmıyor — en fazla ${standingsCapacity(draft.format)} takım; sıra aralığını daraltın, kartı bölün ya da yatay formatı seçin.` },
     };
   }
   return {
