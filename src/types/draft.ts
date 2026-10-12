@@ -1,9 +1,18 @@
+import type { PublishMedia, PublishSettings } from "@/types/publishing";
 import type { SocialFormatId } from "@/types/studio-formats";
 import type { AiContentStatus, StudioFormat } from "@/types/ai-content";
 import type { LineupTemplateStyle } from "@/types/lineup";
 import type { DerbyIntensity, MatchStats } from "@/types/sports";
 
 /** Bkz. CLAUDE.md 1.10 — insan onaylı (human-in-the-loop) içerik taslağı tipleri. */
+
+/** Yayın Merkezi'nin her taslak türünde ihtiyaç duyduğu alanlar (bkz. lib/dashboard/publish-caption.ts). */
+export interface PublishableDraft {
+  /** Yayınlanabilir görseller (iki takımlı kartlarda ev + deplasman). */
+  media: PublishMedia[];
+  /** Onayda kaydedilen platform + dizilim; karar verilmemişse null. */
+  publish: PublishSettings | null;
+}
 
 export interface DraftStatSelection {
   includeForm: boolean;
@@ -20,7 +29,7 @@ export interface DraftRenderOptions {
 }
 
 /** İnceleme ekranının ihtiyaç duyduğu, serileştirilebilir taslak görünümü. */
-export interface DraftView {
+export interface DraftView extends PublishableDraft {
   id: string;
   status: AiContentStatus;
   format: StudioFormat;
@@ -53,7 +62,7 @@ export interface DraftActionState {
 }
 
 /** AI Market Tahmin & Analiz taslağı — iki takımın kartı + market tahmini (bkz. market-analysis-engine.ts). */
-export interface MarketAnalysisDraftView {
+export interface MarketAnalysisDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;
   status: AiContentStatus;
@@ -74,7 +83,7 @@ export interface MarketAnalysisDraftView {
  * görüntülenir, düzenlenemez.
  */
 /** Muhtemel 11 taslağı — iki takımın kadro kartı (bkz. lineup-engine.ts). */
-export interface LineupDraftView {
+export interface LineupDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;
   status: AiContentStatus;
@@ -89,7 +98,7 @@ export interface LineupDraftView {
 }
 
 /** Haftanın Maçları taslağı — tek kart (bkz. weekly-fixtures-engine.ts). */
-export interface WeeklyFixturesDraftView {
+export interface WeeklyFixturesDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;
   status: AiContentStatus;
@@ -104,7 +113,7 @@ export interface WeeklyFixturesDraftView {
 }
 
 /** Puan Durumu taslağı — tek kart (bkz. standings-engine.ts). */
-export interface StandingsDraftView {
+export interface StandingsDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;
   status: AiContentStatus;

@@ -1,5 +1,4 @@
-import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
-import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
+import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
 import { DraftPreview } from "@/components/features/dashboard/draft-preview";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,31 +28,7 @@ export function WeeklyFixturesDraftView({ draft, postOptions }: { draft: WeeklyD
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gönderi Metni</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <pre className="whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 font-mono text-xs leading-relaxed text-white">{draft.caption}</pre>
-            <CopyTextButton text={draft.caption} />
-          </CardContent>
-        </Card>
-
-        {draft.status === "DRAFT" ? (
-          <DraftDecisionForm id={draft.id} postOptions={postOptions} currentPostId={draft.postId} />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Karar</CardTitle>
-              <CardDescription>
-                Bu taslak karara bağlandı
-                {draft.reviewedAt ? ` (${new Date(draft.reviewedAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })})` : ""} — artık değiştirilemez.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-      </div>
+      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-hafta-${draft.id}`} />
     </div>
   );
 }

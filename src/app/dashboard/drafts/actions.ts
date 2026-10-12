@@ -3,11 +3,15 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { decideDraft, regenerateDraftBackground, updateDraft } from "@/lib/dashboard/draft-engine";
+import { decideDraft, regenerateDraftBackground, updateDraft, type PublishDecision } from "@/lib/dashboard/draft-engine";
 import { derbyIntensitySchema } from "@/lib/dashboard/draft-snapshot";
 import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { isFalConfigured } from "@/lib/services/fal";
+import { captionLength } from "@/lib/dashboard/publish-caption";
+import { generateDraftCaption } from "@/lib/dashboard/publish-engine";
 import type { DraftActionState, DraftRenderOptions } from "@/types/draft";
+import { PUBLISH_LAYOUTS, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type CaptionDraft } from "@/types/publishing";
+import type { Result } from "@/types/result";
 
 /**
  * Taslak inceleme ekranının aksiyonları (bkz. CLAUDE.md 1.10). Hepsi oturumu kendisi
@@ -71,7 +75,41 @@ export async function regenerateBackgroundAction(_prev: DraftActionState, formDa
 
 const decisionSchema = z.enum(["APPROVED", "REJECTED"]);
 
-/** Onayla / Reddet — onayda isteğe bağlı olarak bir gönderiye bağlanır. */
+const platformSchema = z.enum(PUBLISH_PLATFORMS);
+const publishSchema = z.object({
+  platform: platformSchema,
+  layout: z.enum(PUBLISH_LAYOUTS),
+  mediaOrder: z.array(z.string().max(500)).min(1).max(10),
+  caption: captionSchema,
+});
+
+/** Yayın Merkezi alanları (varsa): platform, düzen, görsel dizilimi (JSON) ve son metin. */
+function readPublish(formData: FormData): { ok: true; data: PublishDecision | undefined } | { ok: false; error: string } {
+  if (!formData.get("platform")) return { ok: true, data: undefined };
+  let mediaOrder: unknown;
+  try {
+    mediaOrder = JSON.parse(String(formData.get("mediaOrder") ?? "[]"));
+  } catch {
+    return { ok: false, error: "Görsel dizilimi okunamadı." };
+  }
+  const parsed = publishSchema.safeParse({ platform: formData.get("platform"), layout: formData.get("layout"), mediaOrder, caption: formData.get("caption") });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Yayın ayarları geçersiz." };
+  const { caption, ...settings } = parsed.data;
+  const limit = PUBLISH_PLATFORM_DEFS[settings.platform].captionLimit;
+  if (captionLength(caption, settings.platform) > limit) return { ok: false, error: `${PUBLISH_PLATFORM_DEFS[settings.platform].label} metni en fazla ${limit} karakter olabilir.` };
+  return { ok: true, data: { settings, caption } };
+}
+
+/** Yayın Merkezi: seçilen platform için metni Claude ile yazar (ücretli — yalnızca admin tıklamasıyla). */
+export async function generateCaptionAction(id: unknown, platform: unknown): Promise<Result<CaptionDraft>> {
+  if (!(await getCurrentSession())) return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
+  const parsedId = idSchema.safeParse(id);
+  const parsedPlatform = platformSchema.safeParse(platform);
+  if (!parsedId.success || !parsedPlatform.success) return { ok: false, error: { code: "INVALID_INPUT", message: "Geçersiz taslak ya da platform." } };
+  return generateDraftCaption(parsedId.data, parsedPlatform.data);
+}
+
+/** Onayla / Reddet — onayda isteğe bağlı olarak bir gönderiye bağlanır; Yayın Merkezi seçimleri kayda işlenir. */
 export async function decideDraftAction(_prev: DraftActionState, formData: FormData): Promise<DraftActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
 
@@ -79,8 +117,10 @@ export async function decideDraftAction(_prev: DraftActionState, formData: FormD
   const decision = decisionSchema.safeParse(formData.get("decision"));
   if (!id || !decision.success) return { error: "Geçersiz karar." };
 
+  const publish = decision.data === "APPROVED" ? readPublish(formData) : ({ ok: true, data: undefined } as const);
+  if (!publish.ok) return { error: publish.error };
   const postId = decision.data === "APPROVED" ? String(formData.get("postId") ?? "") : undefined;
-  const result = await decideDraft(id, decision.data, postId);
+  const result = await decideDraft(id, decision.data, postId, publish.data);
   if (!result.ok) return { error: result.error.message };
 
   refreshDashboard();

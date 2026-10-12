@@ -1,6 +1,5 @@
 import { Target } from "lucide-react";
-import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
-import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
+import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
 import { DraftPreview } from "@/components/features/dashboard/draft-preview";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +18,6 @@ interface MarketAnalysisDraftViewProps {
  * (yeniden kaydetmek yeni taslak üretir).
  */
 export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDraftViewProps) {
-  const isDraft = draft.status === "DRAFT";
   const { width, height } = SOCIAL_FORMATS[draft.format];
   return (
     <div className="flex flex-col gap-6">
@@ -49,15 +47,15 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
+      <div className="grid gap-6 xl:grid-cols-5">
+        <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="size-4 text-amber-400" />
               Olası Market Tahmini
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-3">
+          <CardContent>
             {draft.marketPick ? (
               <p>
                 <span className="text-lg font-semibold text-amber-200">{draft.marketPick}</span>
@@ -66,24 +64,11 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
             ) : (
               <p className="text-sm text-muted-foreground">Market tahmini girilmedi.</p>
             )}
-            <pre className="whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 font-mono text-xs leading-relaxed text-white">{draft.caption}</pre>
-            <CopyTextButton text={draft.caption} />
           </CardContent>
         </Card>
-
-        {isDraft ? (
-          <DraftDecisionForm id={draft.id} postOptions={postOptions} currentPostId={draft.postId} />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Karar</CardTitle>
-              <CardDescription>
-                Bu taslak karara bağlandı
-                {draft.reviewedAt ? ` (${new Date(draft.reviewedAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })})` : ""} — artık değiştirilemez.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
+        <div className="xl:col-span-3">
+          <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-analiz-${draft.id}`} />
+        </div>
       </div>
     </div>
   );

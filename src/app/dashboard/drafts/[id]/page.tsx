@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
-import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
 import { DraftPreview as Preview } from "@/components/features/dashboard/draft-preview";
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
 import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card";
@@ -11,6 +10,7 @@ import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-b
 import { LineupDraftView } from "@/components/features/dashboard/lineup-draft-view";
 import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
+import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
 import { StandingsDraftView } from "@/components/features/dashboard/standings-draft-view";
 import { WeeklyFixturesDraftView } from "@/components/features/dashboard/weekly-fixtures-draft-view";
 import { buttonVariants } from "@/components/ui/button";
@@ -146,29 +146,9 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="flex flex-col gap-6 xl:col-span-3">
-          {isDraft ? (
-            <>
-              <DraftDecisionForm id={draft.id} postOptions={postOptions} currentPostId={draft.postId} />
-              <DraftReviewForm
-                id={draft.id}
-                caption={draft.caption}
-                renderOptions={draft.renderOptions}
-                falConfigured={isFalConfigured()}
-              />
-            </>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Gönderi metni</CardTitle>
-                <CardDescription>
-                  Bu taslak karara bağlandı{draft.reviewedAt ? ` (${new Date(draft.reviewedAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })})` : ""} — artık düzenlenemez.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-white">{draft.caption}</pre>
-              </CardContent>
-            </Card>
-          )}
+          {/* Şablon metni/görsel ayarları kaydedilince (updatedAt değişir) Yayın Merkezi yeni metinle açılır. */}
+          <DraftPublishPanel key={draft.updatedAt} draft={draft} format={null} postOptions={postOptions} downloadName={`checkmatch-${draft.format.toLowerCase()}-${draft.id}`} />
+          {isDraft ? <DraftReviewForm id={draft.id} caption={draft.caption} renderOptions={draft.renderOptions} falConfigured={isFalConfigured()} /> : null}
           <DraftStatsCard stats={draft.stats} />
         </div>
       </div>

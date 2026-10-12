@@ -1,5 +1,4 @@
-import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
-import { DraftDecisionForm } from "@/components/features/dashboard/draft-decision-form";
+import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
 import { DraftPreview } from "@/components/features/dashboard/draft-preview";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +8,7 @@ import { LINEUP_TEMPLATE_LABELS } from "@/types/lineup";
 import { SOCIAL_FORMATS, socialFormatCaption } from "@/types/studio-formats";
 
 /**
- * Muhtemel 11 taslağının incelemesi: iki takımın kadro kartı yan yana, gönderi metni ve onay/ret.
+ * Muhtemel 11 taslağının incelemesi: iki takımın kadro kartı yan yana ve Yayın Merkezi (platform, metin, dizilim, onay/ret).
  * Kartlar programatiktir — düzenleme stüdyoda yapılır (yeniden kaydetmek yeni taslak üretir).
  */
 export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; postOptions: StudioPostOption[] }) {
@@ -47,31 +46,7 @@ export function LineupDraftView({ draft, postOptions }: { draft: LineupDraft; po
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gönderi Metni</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <pre className="whitespace-pre-wrap rounded-lg bg-white/[0.03] p-3 font-mono text-xs leading-relaxed text-white">{draft.caption}</pre>
-            <CopyTextButton text={draft.caption} />
-          </CardContent>
-        </Card>
-
-        {draft.status === "DRAFT" ? (
-          <DraftDecisionForm id={draft.id} postOptions={postOptions} currentPostId={draft.postId} />
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Karar</CardTitle>
-              <CardDescription>
-                Bu taslak karara bağlandı
-                {draft.reviewedAt ? ` (${new Date(draft.reviewedAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })})` : ""} — artık değiştirilemez.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-      </div>
+      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-11-${draft.id}`} />
     </div>
   );
 }

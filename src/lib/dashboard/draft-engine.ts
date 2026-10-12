@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@/generated/prisma/client";
 import { buildDraftCaption } from "@/lib/dashboard/draft-caption";
 import { deleteStoredUrl, persistBackground, renderDraftImage } from "@/lib/dashboard/draft-render";
 import { parseStatsSnapshot, toJsonValue } from "@/lib/dashboard/draft-snapshot";
+import { publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
 import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
@@ -12,6 +14,7 @@ import { generateStadiumBackground, removePlayerBackground } from "@/lib/service
 import type { Result } from "@/types/result";
 import { STUDIO_FORMATS, type StudioFormat } from "@/types/ai-content";
 import type { DraftRenderOptions } from "@/types/draft";
+import type { PublishSettings } from "@/types/publishing";
 import type { MatchStats } from "@/types/sports";
 
 /**
@@ -197,17 +200,39 @@ export async function regenerateDraftBackground(
   }
 }
 
-/** Onay/ret kararı — yalnızca DRAFT durumundaki kayıtlara uygulanır. */
+/** Onayda Yayın Merkezi'nden gelen platform seçimi ve son metin. */
+export interface PublishDecision {
+  settings: PublishSettings;
+  caption: string;
+}
+
+/**
+ * Onay/ret kararı — yalnızca DRAFT durumundaki kayıtlara uygulanır. Onayda yayın ayarları verildiyse
+ * son metin `caption`'a, platform + görsel dizilimi `renderOptions.publish`'e yazılır; dizilim yalnızca
+ * taslağın kendi görsellerinden oluşabilir.
+ */
 export async function decideDraft(
   id: string,
   decision: "APPROVED" | "REJECTED",
   postId?: string | null,
+  publish?: PublishDecision,
 ): Promise<Result<null, EngineError>> {
+  let publishData: { caption: string; renderOptions: Prisma.InputJsonObject } | null = null;
+  if (decision === "APPROVED" && publish) {
+    const record = await prisma.aiContent.findUnique({ where: { id }, select: { renderOptions: true, resultImageUrl: true } });
+    if (!record) return fail("NOT_EDITABLE", "Taslak bulunamadı.");
+    const { settings } = publish;
+    if (!validMediaOrder(settings.mediaOrder, publishMediaOf(record.renderOptions, record.resultImageUrl), settings.layout, settings.platform)) {
+      return fail("INVALID_INPUT", "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin.");
+    }
+    const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
+    publishData = { caption: publish.caption, renderOptions: JSON.parse(JSON.stringify({ ...current, publish: settings })) as Prisma.InputJsonObject };
+  }
   try {
     const { count } = await prisma.aiContent.updateMany({
       // Görseli olmayan planlama placeholder'ı (bkz. content-schedule.ts) karara bağlanamaz.
       where: { id, status: "DRAFT", resultImageUrl: { not: null } },
-      data: { status: decision, reviewedAt: new Date(), ...(postId !== undefined ? { postId: postId || null } : {}) },
+      data: { status: decision, reviewedAt: new Date(), ...(postId !== undefined ? { postId: postId || null } : {}), ...(publishData ?? {}) },
     });
     return count === 1 ? { ok: true, data: null } : fail("NOT_EDITABLE", "Taslak bulunamadı veya zaten karara bağlanmış.");
   } catch {

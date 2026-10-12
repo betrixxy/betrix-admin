@@ -5,7 +5,8 @@ import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-sn
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
-import type { DraftLookup, DraftSummary, DraftView } from "@/types/draft";
+import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-caption";
+import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 
@@ -60,6 +61,11 @@ const standingsOptionsSchema = z.object({
   sections: z.array(z.object({ rows: z.array(z.unknown()) })),
 });
 
+/** Yayın Merkezi alanları — görseller ve kayıtlı yayın ayarları doğrudan kayıttan okunur. */
+function publishable(record: { renderOptions: unknown; resultImageUrl: string | null }): PublishableDraft {
+  return { media: publishMediaOf(record.renderOptions, record.resultImageUrl), publish: parsePublishSettings(record.renderOptions) };
+}
+
 function toStudioFormat(value: string | null): StudioFormat | null {
   return STUDIO_FORMATS.find((format) => format === value) ?? null;
 }
@@ -85,6 +91,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           caption: record.caption ?? "",
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
+    ...publishable(record),
           format,
           home: { teamName: home.teamName, imageUrl: homeImageUrl },
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
@@ -108,6 +115,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           caption: record.caption ?? "",
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
+    ...publishable(record),
           leagueName,
           title,
           imageUrl,
@@ -131,6 +139,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           caption: record.caption ?? "",
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
+    ...publishable(record),
           leagueName,
           title,
           kindLabel,
@@ -155,6 +164,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           caption: record.caption ?? "",
           postId: record.postId,
           reviewedAt: record.reviewedAt?.toISOString() ?? null,
+    ...publishable(record),
           headline,
           format,
           home: { ...home, imageUrl: homeImageUrl, templateStyle: cardStyles?.home ?? templateStyle },
@@ -183,6 +193,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     reviewedAt: record.reviewedAt?.toISOString() ?? null,
+    ...publishable(record),
   };
   return { kind: "draft", draft };
 }
