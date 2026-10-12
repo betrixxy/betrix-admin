@@ -11,11 +11,13 @@ import { captionWarnings } from "@/lib/dashboard/publish-caption";
 import { cn } from "@/lib/utils";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { DraftActionState } from "@/types/draft";
-import { PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type PublishLayout, type PublishMedia, type PublishPlatform } from "@/types/publishing";
+import { GALLERY_MAX_PICK, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type PublishLayout, type PublishMedia, type PublishPlatform, type PublishTarget } from "@/types/publishing";
 import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import { CaptionEditor } from "./caption-editor";
 import { downloadSequence } from "./download-sequence";
+import { GalleryPicker } from "./gallery-picker";
 import { MediaSequence } from "./media-sequence";
+import { PublishNow } from "./publish-now";
 
 const INITIAL_STATE: DraftActionState = {};
 
@@ -31,7 +33,12 @@ interface PublishingHubProps {
   /** ANTHROPIC_API_KEY tanımlı mı — değilse metin şablonda kalır. */
   aiAvailable: boolean;
   downloadName: string;
+  /** Platform başına "Hemen Paylaş" durumu (bağlantı, izin, mock modu) — sunucuda hesaplanır. */
+  targets: Record<PublishPlatform, PublishTarget>;
 }
+
+/** Dizilimin toplam sınırı: taslağın kartı + galeriden en fazla 9 (Instagram carousel = 10). */
+const MAX_SEQUENCE = GALLERY_MAX_PICK + 1;
 
 interface CaptionState {
   text: string;
@@ -40,11 +47,12 @@ interface CaptionState {
 
 /**
  * Yayın Merkezi (bkz. CLAUDE.md 1.10): platform seçimi, platforma özel AI metni, çoklu görsel dizilimi,
- * sıralı indirme ve onay/ret. Onayda platform + düzen + dizilim + son metin kayda işlenir. Platform
+ * galeriden görsel ekleme, sıralı indirme, onay/ret ve "Hemen Paylaş" (API ile doğrudan paylaşım). Onayda ya da
+ * paylaşımda platform + düzen + dizilim + son metin kayda işlenir. Platform
  * değiştirildiğinde o platformun metni bir kez Claude ile yazılır (admin tıklaması — ücretli); ilk açılışta
  * çağrı yapılmaz, kayıttaki şablon metni gösterilir.
  */
-export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName }: PublishingHubProps) {
+export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets }: PublishingHubProps) {
   const [platform, setPlatform] = useState<PublishPlatform>("IG_POST");
   const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: caption, source: "template" } });
   const [layout, setLayout] = useState<PublishLayout>(media.length > 1 ? "multi" : "single");
@@ -142,10 +150,21 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
           </p>
         ) : null}
 
-        {media.length > 1 ? (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>Medya dizilimi</Label>
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>Medya dizilimi</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <GalleryPicker
+                draftId={id}
+                existing={order.map((item) => item.url)}
+                remaining={MAX_SEQUENCE - order.length}
+                disabled={isPending}
+                onAdd={(items) => {
+                  setOrder((current) => [...current, ...items.map((item) => ({ url: item.url, label: item.label, fromGallery: true }))]);
+                  setLayout("multi");
+                }}
+              />
+              {order.length > 1 ? (
               <div className="grid grid-cols-2 gap-1 rounded-lg bg-white/[0.04] p-1 text-xs" role="radiogroup" aria-label="Düzen">
                 {(["single", "multi"] as const).map((candidate) => (
                   <button
@@ -160,13 +179,18 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
                   </button>
                 ))}
               </div>
+              ) : null}
             </div>
-            <MediaSequence items={order} onChange={setOrder} disabled={isPending} />
-            <p className="text-[11px] text-muted-foreground">
-              Sürükleyip bırakın ya da oklarla sıralayın — ilk görsel kapak / ilk kare olur.{layout === "single" ? " Tekli düzende yalnız ilk görsel yayınlanır." : ""}
-            </p>
           </div>
-        ) : null}
+          <MediaSequence items={order} onChange={setOrder} disabled={isPending} />
+          {order.length > 1 ? (
+            <p className="text-[11px] text-muted-foreground">
+              Sürükleyip bırakın ya da oklarla sıralayın — ilk görsel kapak / ilk kare olur.
+              {layout === "single" ? " Tekli düzende yalnız ilk görsel yayınlanır." : ""}
+              {multi && order.length > def.maxMedia ? ` ${def.label} en fazla ${def.maxMedia} görsel alır — ilk ${def.maxMedia} görsel paylaşılır.` : ""}
+            </p>
+          ) : null}
+        </div>
 
         <CaptionEditor
           platform={platform}
@@ -215,6 +239,16 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
             {state.notice}
           </p>
         ) : null}
+
+        <PublishNow
+          id={id}
+          platform={platform}
+          layout={multi ? "multi" : "single"}
+          mediaOrder={selected}
+          caption={current.text}
+          target={targets[platform]}
+          blocked={isPending || isGenerating}
+        />
 
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" disabled={isPending || isGenerating || !current.text.trim()} onClick={() => decide("APPROVED")} className="bg-emerald-600 text-white hover:bg-emerald-500">

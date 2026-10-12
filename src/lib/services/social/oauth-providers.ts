@@ -23,7 +23,7 @@ export interface OAuthProviderConfig {
   extraAuthorizeParams: Readonly<Record<string, string>>;
 }
 
-const META_GRAPH_VERSION = "v21.0";
+export const META_GRAPH_VERSION = "v21.0";
 
 const META_BASE = {
   authorizeUrl: `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`,
@@ -42,7 +42,8 @@ function providerConfig(slug: PlatformSlug): OAuthProviderConfig {
         ...META_BASE,
         clientId: env.META_APP_ID,
         clientSecret: env.META_APP_SECRET,
-        scopes: ["instagram_basic", "instagram_manage_insights", "pages_show_list", "pages_read_engagement"],
+        // instagram_content_publish: Yayın Merkezi'nden doğrudan paylaşım (tekli, carousel, story).
+        scopes: ["instagram_basic", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement"],
       };
     case "facebook":
       return {
@@ -85,7 +86,8 @@ function providerConfig(slug: PlatformSlug): OAuthProviderConfig {
       return {
         authorizeUrl: "https://x.com/i/oauth2/authorize",
         tokenUrl: "https://api.x.com/2/oauth2/token",
-        scopes: ["tweet.read", "users.read", "offline.access"],
+        // tweet.write + media.write: Yayın Merkezi'nden doğrudan paylaşım (çoklu görselli tweet).
+        scopes: ["tweet.read", "tweet.write", "users.read", "media.write", "offline.access"],
         scopeSeparator: " ",
         clientIdParam: "client_id",
         clientId: env.X_CLIENT_ID,

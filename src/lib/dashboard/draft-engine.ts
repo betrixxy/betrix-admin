@@ -3,7 +3,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import { buildDraftCaption } from "@/lib/dashboard/draft-caption";
 import { deleteStoredUrl, persistBackground, renderDraftImage } from "@/lib/dashboard/draft-render";
 import { parseStatsSnapshot, toJsonValue } from "@/lib/dashboard/draft-snapshot";
-import { publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
@@ -14,7 +15,7 @@ import { generateStadiumBackground, removePlayerBackground } from "@/lib/service
 import type { Result } from "@/types/result";
 import { STUDIO_FORMATS, type StudioFormat } from "@/types/ai-content";
 import type { DraftRenderOptions } from "@/types/draft";
-import type { PublishSettings } from "@/types/publishing";
+import type { PublishedInfo, PublishSettings } from "@/types/publishing";
 import type { MatchStats } from "@/types/sports";
 
 /**
@@ -219,10 +220,10 @@ export async function decideDraft(
 ): Promise<Result<null, EngineError>> {
   let publishData: { caption: string; renderOptions: Prisma.InputJsonObject } | null = null;
   if (decision === "APPROVED" && publish) {
-    const record = await prisma.aiContent.findUnique({ where: { id }, select: { renderOptions: true, resultImageUrl: true } });
+    const record = await prisma.aiContent.findUnique({ where: { id }, select: { id: true, renderOptions: true, resultImageUrl: true } });
     if (!record) return fail("NOT_EDITABLE", "Taslak bulunamadı.");
     const { settings } = publish;
-    if (!validMediaOrder(settings.mediaOrder, publishMediaOf(record.renderOptions, record.resultImageUrl), settings.layout, settings.platform)) {
+    if (!validMediaOrder(settings.mediaOrder, await allowedMediaUrls(record, settings.mediaOrder), settings.layout, settings.platform)) {
       return fail("INVALID_INPUT", "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin.");
     }
     const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
@@ -241,3 +242,33 @@ export async function decideDraft(
   }
 }
 
+
+/**
+ * Yayın Merkezi'nden API ile paylaşıldı: statü PUBLISHED, gönderi bağlantısı/kimliği, son metin ve yayın
+ * ayarları kayda yazılır. Yalnızca DRAFT/APPROVED kayıt yayınlanmış sayılabilir. Taslak takvimdeki bir
+ * gönderiye bağlıysa o gönderi de "Paylaşıldı" olur ve platform kimliği yazılır (metrik senkronizasyonu için).
+ */
+export async function markDraftPublished(id: string, published: PublishedInfo, publish: PublishDecision): Promise<Result<null, EngineError>> {
+  const record = await prisma.aiContent.findUnique({ where: { id }, select: { renderOptions: true, postId: true } });
+  if (!record) return fail("NOT_FOUND", "Taslak bulunamadı.");
+  const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
+  const publishedAt = new Date(published.at);
+  const { count } = await prisma.aiContent.updateMany({
+    where: { id, status: { in: ["DRAFT", "APPROVED"] } },
+    data: {
+      status: "PUBLISHED",
+      reviewedAt: publishedAt,
+      caption: publish.caption,
+      renderOptions: JSON.parse(JSON.stringify({ ...current, publish: publish.settings })) as Prisma.InputJsonObject,
+      publishedPlatform: published.platform,
+      publishedPostId: published.postId,
+      publishedUrl: published.url,
+      publishedAt,
+    },
+  });
+  if (count !== 1) return fail("NOT_EDITABLE", "Gönderi paylaşıldı ama taslak bu arada değişti — kaydı kontrol edin.");
+  if (record.postId) {
+    await prisma.socialPost.update({ where: { id: record.postId }, data: { status: "PUBLISHED", publishedAt, providerPostId: published.postId } }).catch(() => undefined);
+  }
+  return { ok: true, data: null };
+}

@@ -77,9 +77,9 @@ export function parsePublishSettings(renderOptions: unknown): PublishSettings | 
   return parsed.success ? parsed.data.publish : null;
 }
 
-/** Dizilim yalnızca taslağın kendi görsellerinden, tekrarsız oluşabilir; tekli düzende tek öğe. */
-export function validMediaOrder(order: string[], media: PublishMedia[], layout: PublishSettings["layout"], platform: PublishPlatform): boolean {
-  const allowed = new Set(media.map((item) => item.url));
+/** Dizilim yalnızca izinli adreslerden (taslağın görselleri + doğrulanmış galeri), tekrarsız; tekli düzende tek öğe. */
+export function validMediaOrder(order: string[], allowedUrls: string[], layout: PublishSettings["layout"], platform: PublishPlatform): boolean {
+  const allowed = new Set(allowedUrls);
   if (order.length === 0 || new Set(order).size !== order.length || order.some((url) => !allowed.has(url))) return false;
   return layout === "single" ? order.length === 1 : order.length <= PUBLISH_PLATFORM_DEFS[platform].maxMedia;
 }

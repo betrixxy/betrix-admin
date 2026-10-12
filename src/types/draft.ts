@@ -1,4 +1,4 @@
-import type { PublishMedia, PublishSettings } from "@/types/publishing";
+import type { PublishedInfo, PublishMedia, PublishSettings } from "@/types/publishing";
 import type { SocialFormatId } from "@/types/studio-formats";
 import type { AiContentStatus, StudioFormat } from "@/types/ai-content";
 import type { LineupTemplateStyle } from "@/types/lineup";
@@ -12,6 +12,8 @@ export interface PublishableDraft {
   media: PublishMedia[];
   /** Onayda kaydedilen platform + dizilim; karar verilmemişse null. */
   publish: PublishSettings | null;
+  /** API ile paylaşıldıysa gönderi bağlantısı ve zamanı. */
+  published: PublishedInfo | null;
 }
 
 export interface DraftStatSelection {

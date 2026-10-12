@@ -8,6 +8,7 @@ import { computeContentInsights, statKeysOf } from "@/lib/dashboard/content-insi
 import { parseRenderOptions } from "@/lib/dashboard/draft-snapshot";
 import { postInclude, toPostView } from "@/lib/dashboard/post-view";
 import type { AnalyticsData, AnalyticsSort, ContentStatKey, SocialPlatformType } from "@/types/social";
+import { isApprovedStatus } from "@/types/ai-content";
 
 /**
  * Yayınlanmış gönderilerin performans verisi. `PostAnalytics` elle girişle veya
@@ -48,12 +49,12 @@ async function getStatsByPost(postIds: string[]): Promise<Map<string, Set<Conten
     select: { postId: true, status: true, renderOptions: true },
   });
 
-  const hasApproved = new Set(contents.filter((c) => c.status === "APPROVED").map((c) => c.postId));
+  const hasApproved = new Set(contents.filter((c) => isApprovedStatus(c.status)).map((c) => c.postId));
   const statsByPost = new Map<string, Set<ContentStatKey>>();
 
   for (const content of contents) {
     if (!content.postId || content.renderOptions === null) continue;
-    if (hasApproved.has(content.postId) && content.status !== "APPROVED") continue;
+    if (hasApproved.has(content.postId) && !isApprovedStatus(content.status)) continue;
 
     const keys = statKeysOf(parseRenderOptions(content.renderOptions).selection);
     const existing = statsByPost.get(content.postId) ?? new Set<ContentStatKey>();

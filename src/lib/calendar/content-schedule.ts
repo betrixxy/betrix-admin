@@ -1,6 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { ContentTypeId } from "@/types/content-type";
+import { APPROVED_STATUSES } from "@/types/ai-content";
 
 /**
  * İçerik planlama (yayın zamanı) — `AiContent.publishAt`. İçerik henüz üretilmemişse plan, görseli
@@ -26,7 +27,7 @@ export function isSchedulePlaceholder(row: { status: string; resultImageUrl: str
  * placeholder oluşturulur. Plan kaldırılınca, artık hiçbir şey taşımayan placeholder silinir.
  */
 export async function setContentSchedule(fixtureId: string, contentType: ContentTypeId, publishAt: Date | null): Promise<void> {
-  const scope = { fixtureId, contentType, status: { in: ["DRAFT", "APPROVED"] } } satisfies Prisma.AiContentWhereInput;
+  const scope = { fixtureId, contentType, status: { in: ["DRAFT", ...APPROVED_STATUSES] } } satisfies Prisma.AiContentWhereInput;
 
   await prisma.$transaction(async (tx) => {
     const { count } = await tx.aiContent.updateMany({ where: scope, data: { publishAt } });
@@ -63,7 +64,7 @@ async function findContentSchedule(
       select: { id: true },
     }),
     prisma.aiContent.findFirst({
-      where: { fixtureId, contentType, status: { in: ["DRAFT", "APPROVED"] }, publishAt: { not: null } },
+      where: { fixtureId, contentType, status: { in: ["DRAFT", ...APPROVED_STATUSES] }, publishAt: { not: null } },
       orderBy: { updatedAt: "desc" },
       select: { publishAt: true },
     }),

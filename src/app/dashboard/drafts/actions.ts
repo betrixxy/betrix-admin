@@ -10,7 +10,7 @@ import { isFalConfigured } from "@/lib/services/fal";
 import { captionLength } from "@/lib/dashboard/publish-caption";
 import { generateDraftCaption } from "@/lib/dashboard/publish-engine";
 import type { DraftActionState, DraftRenderOptions } from "@/types/draft";
-import { PUBLISH_LAYOUTS, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type CaptionDraft } from "@/types/publishing";
+import { GALLERY_MAX_PICK, PUBLISH_LAYOUTS, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type CaptionDraft } from "@/types/publishing";
 import type { Result } from "@/types/result";
 
 /**
@@ -79,7 +79,7 @@ const platformSchema = z.enum(PUBLISH_PLATFORMS);
 const publishSchema = z.object({
   platform: platformSchema,
   layout: z.enum(PUBLISH_LAYOUTS),
-  mediaOrder: z.array(z.string().max(500)).min(1).max(10),
+  mediaOrder: z.array(z.string().max(500)).min(1).max(GALLERY_MAX_PICK + 1),
   caption: captionSchema,
 });
 

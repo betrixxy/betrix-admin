@@ -6,6 +6,7 @@ import type { Result } from "@/types/result";
 import { isSchedulePlaceholder } from "@/lib/calendar/content-schedule";
 import { isContentTypeId } from "@/lib/dashboard/content-types";
 import type { AdSpend, CalendarFixture, ContentPlan, ContentStatus, FixtureProduction } from "@/types/calendar";
+import { APPROVED_STATUSES, isApprovedStatus } from "@/types/ai-content";
 
 /** URL'deki `?month=2026-09` parametresi; geçersiz/eksikse içinde bulunulan ay. */
 export function parseMonthParam(value: string | string[] | undefined): Date {
@@ -60,7 +61,7 @@ function toContentPlan(row: {
  * onaylı içerik varsa "Üretildi", onay bekleyen taslak varsa "Bekliyor", yoksa "Fikir".
  */
 function deriveContentStatus(statuses: Set<string> | undefined): ContentStatus {
-  if (statuses?.has("APPROVED")) return "produced";
+  if (statuses?.has("APPROVED") || statuses?.has("PUBLISHED")) return "produced";
   if (statuses?.has("DRAFT")) return "pending";
   return "idea";
 }
@@ -83,7 +84,7 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
   const [plans, contents] = await Promise.all([
     prisma.contentPlan.findMany({ where: { fixtureId: { in: fixtureIds } } }),
     prisma.aiContent.findMany({
-      where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] } },
+      where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", ...APPROVED_STATUSES] } },
       select: { id: true, fixtureId: true, status: true, contentType: true, resultImageUrl: true, publishAt: true },
       orderBy: { createdAt: "desc" },
     }),
@@ -108,9 +109,9 @@ export async function getCalendarMonth(month: Date): Promise<Result<CalendarFixt
     const publishAt = current?.publishAt ?? content.publishAt?.toISOString() ?? null;
     if (placeholder) {
       if (!current && publishAt) production[content.contentType] = { status: "planned", publishAt };
-    } else if (!current || current.status === "planned" || (current.status === "draft" && content.status === "APPROVED")) {
+    } else if (!current || current.status === "planned" || (current.status === "draft" && isApprovedStatus(content.status))) {
       production[content.contentType] = {
-        status: content.status === "APPROVED" ? "approved" : "draft",
+        status: isApprovedStatus(content.status) ? "approved" : "draft",
         draftId: content.id,
         publishAt,
       };

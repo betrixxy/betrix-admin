@@ -10,7 +10,7 @@ import type { OAuthTokenSet, PlatformSlug } from "@/types/social-connection";
  */
 
 export interface SocialApiError {
-  code: "HTTP" | "INVALID_RESPONSE" | "NOT_IMPLEMENTED";
+  code: "HTTP" | "INVALID_RESPONSE" | "NOT_IMPLEMENTED" | "NOT_CONNECTED";
   message: string;
 }
 
@@ -80,6 +80,26 @@ export async function exchangeCodeLive(
   const result = await postTokenRequest(config, params);
   if (!result.ok) return result;
   return { ok: true, data: { tokens: toTokenSet(result.data, config, null), raw: result.data } };
+}
+
+/**
+ * Meta kısa ömürlü kullanıcı token'ını (~1-2 sa) uzun ömürlüye (~60 gün) çevirir — Meta yenileme token'ı
+ * vermez; süre dolunca hesap yeniden bağlanır.
+ */
+export async function exchangeMetaLongLivedLive(shortLived: OAuthTokenSet): Promise<Result<OAuthTokenSet, SocialApiError>> {
+  const config = getProviderConfig("instagram");
+  const url = new URL(config.tokenUrl);
+  url.search = new URLSearchParams({
+    grant_type: "fb_exchange_token",
+    client_id: config.clientId,
+    client_secret: config.clientSecret,
+    fb_exchange_token: shortLived.accessToken,
+  }).toString();
+  const response = await fetchJson(url.toString(), { headers: { Accept: "application/json" } }, { retries: 0 });
+  if (!response.ok) return { ok: false, error: { code: "HTTP", message: response.error.message } };
+  const parsed = tokenResponseSchema.safeParse(response.data);
+  if (!parsed.success) return { ok: false, error: { code: "INVALID_RESPONSE", message: "Uzun ömürlü token yanıtı beklenen biçimde değil." } };
+  return { ok: true, data: { ...toTokenSet(parsed.data, config, null), scopes: shortLived.scopes } };
 }
 
 export async function refreshTokenLive(

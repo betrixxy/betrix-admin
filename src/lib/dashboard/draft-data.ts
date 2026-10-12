@@ -4,9 +4,10 @@ import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
-import { STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
+import { APPROVED_STATUSES, STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-caption";
 import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
+import { PUBLISH_PLATFORMS } from "@/types/publishing";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 
@@ -62,8 +63,20 @@ const standingsOptionsSchema = z.object({
 });
 
 /** Yayın Merkezi alanları — görseller ve kayıtlı yayın ayarları doğrudan kayıttan okunur. */
-function publishable(record: { renderOptions: unknown; resultImageUrl: string | null }): PublishableDraft {
-  return { media: publishMediaOf(record.renderOptions, record.resultImageUrl), publish: parsePublishSettings(record.renderOptions) };
+function publishable(record: {
+  renderOptions: unknown;
+  resultImageUrl: string | null;
+  publishedPlatform: string | null;
+  publishedPostId: string | null;
+  publishedUrl: string | null;
+  publishedAt: Date | null;
+}): PublishableDraft {
+  const platform = PUBLISH_PLATFORMS.find((candidate) => candidate === record.publishedPlatform);
+  const published =
+    platform && record.publishedUrl && record.publishedAt
+      ? { platform, url: record.publishedUrl, postId: record.publishedPostId ?? "", at: record.publishedAt.toISOString() }
+      : null;
+  return { media: publishMediaOf(record.renderOptions, record.resultImageUrl), publish: parsePublishSettings(record.renderOptions), published };
 }
 
 function toStudioFormat(value: string | null): StudioFormat | null {
@@ -233,7 +246,7 @@ export async function getDraftCountsByFixture(fixtureIds: string[]): Promise<Rec
   if (fixtureIds.length === 0) return {};
   const groups = await prisma.aiContent.groupBy({
     by: ["fixtureId", "status"],
-    where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", "APPROVED"] }, ...WITHOUT_SCHEDULE_PLACEHOLDERS },
+    where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", ...APPROVED_STATUSES] }, ...WITHOUT_SCHEDULE_PLACEHOLDERS },
     _count: { _all: true },
   });
 
@@ -241,7 +254,7 @@ export async function getDraftCountsByFixture(fixtureIds: string[]): Promise<Rec
   for (const group of groups) {
     const entry = (counts[group.fixtureId] ??= { drafts: 0, approved: 0 });
     if (group.status === "DRAFT") entry.drafts = group._count._all;
-    else entry.approved = group._count._all;
+    else entry.approved += group._count._all;
   }
   return counts;
 }

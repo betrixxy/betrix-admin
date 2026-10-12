@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
+import { Download, ExternalLink } from "lucide-react";
 import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
 import { RenderThumbnail } from "@/components/features/dashboard/render-thumbnail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AiContentStatus } from "@/types/ai-content";
-import { PUBLISH_PLATFORM_DEFS, type PublishMedia, type PublishSettings } from "@/types/publishing";
+import { PUBLISH_PLATFORM_DEFS, type PublishedInfo, type PublishMedia, type PublishSettings } from "@/types/publishing";
 import { downloadSequence } from "./download-sequence";
 
 interface PublishedSummaryProps {
@@ -16,11 +16,15 @@ interface PublishedSummaryProps {
   caption: string;
   media: PublishMedia[];
   publish: PublishSettings | null;
+  /** API ile paylaşıldıysa gönderi bağlantısı. */
+  published: PublishedInfo | null;
   downloadName: string;
 }
 
+const TITLES = { APPROVED: "Yayına Hazır", REJECTED: "Reddedildi", PUBLISHED: "Yayınlandı", DRAFT: "Onay bekliyor" } as const;
+
 /** Karara bağlanmış taslak: kaydedilen platform, görsel sırası (sırayla indirilebilir) ve son metin — değiştirilemez. */
-export function PublishedSummary({ status, reviewedAt, caption, media, publish, downloadName }: PublishedSummaryProps) {
+export function PublishedSummary({ status, reviewedAt, caption, media, publish, published, downloadName }: PublishedSummaryProps) {
   const [isDownloading, setDownloading] = useState(false);
   const labels = new Map(media.map((item) => [item.url, item.label]));
   const ordered = publish ? publish.mediaOrder : media.slice(0, 1).map((item) => item.url);
@@ -38,14 +42,26 @@ export function PublishedSummary({ status, reviewedAt, caption, media, publish, 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{status === "APPROVED" ? "Yayına Hazır" : "Reddedildi"}</CardTitle>
+        <CardTitle>{TITLES[status]}</CardTitle>
         <CardDescription>
           Bu taslak karara bağlandı{decidedAt} — artık değiştirilemez.
           {publish ? ` Platform: ${PUBLISH_PLATFORM_DEFS[publish.platform].label}${publish.layout === "multi" && ordered.length > 1 ? ` · ${PUBLISH_PLATFORM_DEFS[publish.platform].multiLabel}` : ""}.` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        {status === "APPROVED" && ordered.length > 0 ? (
+        {published ? (
+          <a
+            href={published.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-center gap-1.5 rounded-lg border border-sky-400/40 bg-sky-400/10 px-3 py-2 text-sm text-sky-200"
+          >
+            <ExternalLink className="size-4" />
+            {PUBLISH_PLATFORM_DEFS[published.platform].label} gönderisini aç ·{" "}
+            {new Date(published.at).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul" })}
+          </a>
+        ) : null}
+        {status !== "REJECTED" && ordered.length > 0 ? (
           <>
             <ol className="flex flex-wrap gap-2">
               {ordered.map((url, index) => (

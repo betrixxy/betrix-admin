@@ -22,8 +22,8 @@ describe("yayın merkezi — görseller", () => {
   });
 
   it("dizilim yalnız taslağın kendi görsellerinden, tekrarsız; tekli düzende tek öğe; X en fazla 4", () => {
-    const media = publishMediaOf(pair, null);
-    const [home, away] = media.map((item) => item.url) as [string, string];
+    const media = publishMediaOf(pair, null).map((item) => item.url);
+    const [home, away] = media as [string, string];
     assert.ok(validMediaOrder([away, home], media, "multi", "IG_POST"));
     assert.ok(validMediaOrder([away], media, "single", "X"));
     assert.equal(validMediaOrder([home, away], media, "single", "IG_POST"), false);

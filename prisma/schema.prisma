@@ -172,7 +172,7 @@ model AiContent {
   resultImageUrl String?
 
   /// İnsan onaylı akış (human-in-the-loop): her üretim DRAFT doğar, admin önizleyip
-  /// düzenledikten sonra APPROVED/REJECTED olur — bkz. CLAUDE.md 1.10.
+  /// düzenledikten sonra APPROVED/REJECTED olur; Yayın Merkezi'nden paylaşılınca PUBLISHED — bkz. CLAUDE.md 1.10.
   status             AiContentStatus @default(DRAFT)
   /// StudioFormat (IG_FEED | STORY | X_CARD) — yeniden render için gerekli.
   format             String?
@@ -191,6 +191,11 @@ model AiContent {
   contentType        String?
   /// Planlanan yayın zamanı (UTC) — ileriye dönük içerik planlaması için; null = planlanmadı.
   publishAt          DateTime?
+  /// Yayın Merkezi'nden API ile paylaşıldıysa: platform (PublishPlatform), gönderi kimliği, bağlantısı ve zamanı.
+  publishedPlatform  String?
+  publishedPostId    String?
+  publishedUrl       String?
+  publishedAt        DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,6 +214,8 @@ enum AiContentStatus {
   APPROVED
   /// Admin reddetti
   REJECTED
+  /// Yayın Merkezi'nden platforma API ile paylaşıldı (bkz. publishedUrl)
+  PUBLISHED
 }
 
 /// checkmatch.net'e giden sosyal medya trafiğinin izlenmesi (bkz. CLAUDE.md §4.3 UTM

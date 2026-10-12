@@ -61,6 +61,38 @@ export interface PublishMedia {
   url: string;
   /** "Galatasaray · Ev sahibi" gibi kısa ad. */
   label: string;
+  /** Galeriden eklendiyse dizilimden çıkarılabilir; taslağın kendi kartı çıkarılamaz. */
+  fromGallery?: boolean;
+}
+
+/** "Galeriden Görsel Ekle" listesinin öğesi — daha önce üretilmiş bir kart/AI görseli. */
+export interface GalleryItem {
+  id: string;
+  url: string;
+  label: string;
+  /** Fal.ai ile üretildi mi (Maç Günü / AI İçerik Stüdyosu). */
+  ai: boolean;
+}
+
+/** Galeriden en fazla bu kadar görsel eklenebilir (taslağın kartıyla birlikte Instagram carousel sınırı 10). */
+export const GALLERY_MAX_PICK = 9;
+
+/** Hemen Paylaş'ın platform başına durumu — sunucuda hesaplanır (bağlantı, izin, mock modu). */
+export interface PublishTarget {
+  available: boolean;
+  /** Kullanılamıyorsa neden (admin'e gösterilir). */
+  reason: string | null;
+  /** Bağlı hesabın adı (ör. "@checkmatch"). */
+  accountName: string | null;
+}
+
+/** API ile paylaşımın sonucu — kayda işlenir. */
+export interface PublishedInfo {
+  platform: PublishPlatform;
+  url: string;
+  postId: string;
+  /** ISO 8601, UTC */
+  at: string;
 }
 
 /** Onayda kaydedilen yayın ayarları. */

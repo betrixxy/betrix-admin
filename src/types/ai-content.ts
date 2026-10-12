@@ -44,6 +44,13 @@ export interface StudioActionState {
   result?: StudioGenerationResult;
 }
 
-/** Bkz. prisma AiContentStatus — insan onaylı akış (CLAUDE.md 1.10). */
-export const AI_CONTENT_STATUSES = ["DRAFT", "APPROVED", "REJECTED"] as const;
+/** Bkz. prisma AiContentStatus — insan onaylı akış (CLAUDE.md 1.10); PUBLISHED = Yayın Merkezi'nden API ile paylaşıldı. */
+export const AI_CONTENT_STATUSES = ["DRAFT", "APPROVED", "REJECTED", "PUBLISHED"] as const;
 export type AiContentStatus = (typeof AI_CONTENT_STATUSES)[number];
+
+/** Onaylı sayılan (yayına hazır ya da yayınlanmış) statüler — sayaçlar, takvim ve planlama bunları birlikte sayar. */
+export const APPROVED_STATUSES = ["APPROVED", "PUBLISHED"] as const satisfies readonly AiContentStatus[];
+
+export function isApprovedStatus(status: string): boolean {
+  return APPROVED_STATUSES.some((approved) => approved === status);
+}
