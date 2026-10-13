@@ -28,6 +28,11 @@ export async function GET(
   if (!isTokenEncryptionAvailable()) return redirectToAnalytics(slug, { error: "encryption_unavailable" });
 
   const flow = startOAuthFlow(slug);
+  // Tanı: aynı akışın iki kez başlatılması önceki state'i ezer (bkz. callback invalid_state logu).
+  console.info(
+    `[oauth:${slug}] akış başlatıldı: fetchSite=${_request.headers.get("sec-fetch-site") ?? "-"} ` +
+      `fetchDest=${_request.headers.get("sec-fetch-dest") ?? "-"} purpose=${_request.headers.get("sec-purpose") ?? _request.headers.get("purpose") ?? "-"}`,
+  );
   const response = NextResponse.redirect(flow.authorizeUrl);
   response.cookies.set(flow.cookie.name, flow.cookie.value, flow.cookie.options);
   return response;

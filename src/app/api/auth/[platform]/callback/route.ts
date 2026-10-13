@@ -23,6 +23,15 @@ export async function GET(
 
   const flowCookie = request.cookies.get(flowCookieName(slug))?.value;
   const outcome = await handleCallback(slug, request.nextUrl.searchParams, flowCookie);
+  if (outcome !== "login" && "error" in outcome && outcome.error === "invalid_state") {
+    // Tanı: yalnızca var/yok bilgisi ve tarayıcının sabit başlıkları — state/kod/cookie değeri asla loglanmaz.
+    const query = request.nextUrl.searchParams;
+    console.warn(
+      `[oauth:${slug}] invalid_state: flowCookie=${flowCookie ? "var" : "yok"} state=${query.has("state") ? "var" : "yok"} ` +
+        `code=${query.has("code") ? "var" : "yok"} error=${query.get("error") ?? "-"} ` +
+        `fetchSite=${request.headers.get("sec-fetch-site") ?? "-"} fetchDest=${request.headers.get("sec-fetch-dest") ?? "-"}`,
+    );
+  }
 
   const response = outcome === "login" ? redirectToLogin() : redirectToAnalytics(slug, outcome);
   const expired = expiredFlowCookie(slug);
