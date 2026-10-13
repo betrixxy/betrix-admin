@@ -31,7 +31,7 @@ Bu dosya, bu repository içinde çalışan her yapay zeka ajanı (Claude Code da
 | Veritabanı / Auth | Yerel PostgreSQL (Docker) + Prisma ORM · Kendi Auth sistemimiz (bcryptjs + jose JWT) | **Kalıcı mimari karar, bkz. 1.6.** Üçüncü parti bir BaaS (Supabase vb.) kullanılmaz ve kullanılması planlanmamaktadır. |
 | Görsel üretim motoru | Fal.ai (birefnet, flux ailesi) | Bkz. Bölüm 3. |
 | Spor verisi | Sportmonks (birincil), API-Football (ikincil/doğrulama) | Bkz. Bölüm 2. |
-| Görsel doğrulama | Playwright | Bkz. Bölüm 5.3. |
+| Görsel doğrulama | Satori render + PNG piksel farkı (`tests/visual/image-diff.ts`) | Playwright kullanılmaz. Bkz. Bölüm 5.3. |
 | Grafikler | Recharts | Yalnızca istemci bileşenlerinde (`"use client"`); veri sunucuda hazırlanıp serileştirilebilir dizi olarak geçirilir. |
 | Sunucu tarafı görsel işleme | sharp | Yüklenen görselin gerçek biçim/boyut doğrulaması ve render şablonuna gömülecek küçültme. |
 
@@ -55,7 +55,7 @@ betrix-studio/
 │  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
 │  │  ├─ calendar/                 # Fikstür tabanlı içerik takvimi (bkz. Bölüm 4.2)
 │  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6)
-│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: files/ — yerel depolama servisi, track/ — checkmatch.net trafik ingest'i, auth/[platform]/{connect,callback} — sosyal hesap OAuth'u, bkz. 4.4, og/match-day — DEVRE DIŞI (410); Maç Günü kartı artık `/dashboard/studio/match-day` → `lib/dashboard/match-day-engine.ts` (Fal.ai birefnet + flux + image-to-image harmanlama, şablonlar `templates/match-day/{premium-broadcast,data-driven,editorial-portrait}.tsx` × formatlar `lib/dashboard/match-day-formats.ts` (4:5, 1:1, 9:16 güvenli alanlı, 16:9); yazı konumu ve oyuncu yerleşimi TEK kaynaktan: `templates/match-day/geometry.ts`; AI sanat yönetimi `lib/services/fal/match-day-prompts.ts` (gerçekçi spor fotoğrafçılığı, hex yerine renk adı, istenmeyen kavram anılmaz); maliyet: kesim/arka plan önbelleği `lib/dashboard/match-day-cache.ts`, düşük çözünürlüklü arka plan, Ekonomik mod (harmanlamasız), Data Driven programatik zemin; fontlar `public/fonts/` (Geist + Anton + DM Serif Display, OFL), marka logoları `public/brand/`))
+│  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: storage-file/ — yerel depolama servisi (`/api/files/*` rewrite'ı), public-media/ — Instagram'ın indirdiği imzalı kısa ömürlü görsel adresi, track/ — checkmatch.net trafik ingest'i, auth/[platform]/{connect,callback} — sosyal hesap OAuth'u, bkz. 4.4, og/match-day — DEVRE DIŞI (410); Maç Günü kartı artık `/dashboard/studio/match-day` → `lib/dashboard/match-day-engine.ts` (Fal.ai birefnet + flux + image-to-image harmanlama, şablonlar `templates/match-day/{premium-broadcast,data-driven,editorial-portrait}.tsx` × formatlar `lib/dashboard/match-day-formats.ts` (4:5, 1:1, 9:16 güvenli alanlı, 16:9); yazı konumu ve oyuncu yerleşimi TEK kaynaktan: `templates/match-day/geometry.ts`; AI sanat yönetimi `lib/services/fal/match-day-prompts.ts` (gerçekçi spor fotoğrafçılığı, hex yerine renk adı, istenmeyen kavram anılmaz); maliyet: kesim/arka plan önbelleği `lib/dashboard/match-day-cache.ts`, düşük çözünürlüklü arka plan, Ekonomik mod (harmanlamasız), Data Driven programatik zemin; fontlar `public/fonts/` (Geist + Anton + DM Serif Display, OFL), marka logoları `public/brand/`))
 │  ├─ components/
 │  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
 │  │  └─ features/                 # Özellik bazlı bileşenler
@@ -69,10 +69,13 @@ betrix-studio/
 │  │  │  ├─ api-football/
 │  │  │  ├─ checkmatch-core/       # Mac sunucusu köprüsü (VIP token'lı service-to-service)
 │  │  │  ├─ fal/
-│  │  │  ├─ meta/
-│  │  │  ├─ tiktok/
-│  │  │  ├─ youtube/
-│  │  │  └─ x/
+│  │  │  ├─ anthropic/            # Claude: platforma özel gönderi metni + uzman analiz metni
+│  │  │  ├─ shared/               # fetchJson (timeout/retry), TTL önbellek
+│  │  │  ├─ social/               # Tüm sosyal platformlar (Meta/Instagram, Facebook, TikTok, YouTube, X):
+│  │  │  │                        #   oauth-flow/-providers/-fragment, token-crypto, connections, adapter (mock | gerçek),
+│  │  │  │                        #   instagram.ts + twitter.ts (paylaşım), publish.ts, metrics/ (ham şema + mapper + takvim)
+│  │  │  └─ social-metrics.ts     # Metrik senkronizasyon motoru (bkz. 4.4)
+│  │  ├─ media-server/             # FM26 medya havuzu eşleme kütüphanesi (scripts/build-media-server.ts kullanır)
 │  │  ├─ dashboard/                # Dashboard modüllerinin sorguları, saf istatistik fonksiyonları, depolama ve render yardımcıları (bkz. 1.8)
 │  │  ├─ auth/                     # password.ts, session.ts, credentials.ts, require-session.ts (bkz. 1.6)
 │  │  ├─ prisma.ts                 # PrismaClient tekil (singleton) — bkz. 1.6
@@ -86,18 +89,22 @@ betrix-studio/
 │     └─ render-engine/
 │        └─ templates/             # Format bazlı render şablonları (bkz. 3.3)
 ├─ docker-compose.yml              # Yerel PostgreSQL servisi (bkz. 1.6)
-├─ docker-compose.prod.yml         # Üretim yığını: postgres + migrate + app + caddy (bkz. 1.9)
+├─ docker-compose.prod.yml         # Üretim yığını: postgres + migrate + app + caddy + cloudflared (bkz. 1.9)
 ├─ Dockerfile                      # Çok aşamalı standalone imaj — runner/migrator hedefleri (bkz. 1.9)
-├─ Caddyfile                       # Ters vekil + otomatik HTTPS + güvenlik başlıkları (bkz. 1.9)
+├─ Caddyfile                       # İç ters vekil (yalnızca HTTP, `auto_https off`) + güvenlik başlıkları + gerçek IP aktarımı (bkz. 1.9)
 ├─ .env.production.example         # Üretim env şablonu (gerçek `.env.production` gitignore'da)
 ├─ storage/                        # uploads/ generated/ renders/ library/ — gitignore'da, yalnızca /api/files ile servis edilir (bkz. 1.6, 1.11)
 ├─ prisma/
-│  ├─ schema.prisma                # Veritabanı modelleri (ContentPlan, AdminUser) — bkz. 1.6
+│  ├─ schema.prisma                # Veritabanı modelleri (ContentPlan, AdminUser, SocialPlatform, SocialPost, PostAnalytics, SocialConnection, AiContent, TrafficLog, MediaAsset) — bkz. 1.6
 │  ├─ migrations/                  # Sıralı, geri dönüşü belgelenmiş Prisma migration'ları
 │  └─ seed.ts                      # Tek admin hesabını oluşturur (`npx prisma db seed`)
+├─ scripts/
+│  ├─ build-media-server.ts        # FM26 logo/yüz → API-Football kimlikli medya havuzu CLI'ı (elle çalıştırılır)
+│  └─ media-server/                # CLI yardımcıları (API havuzu, çıktı yazımı)
 ├─ tests/
-│  ├─ fixtures/                    # Mock Sportmonks/API-Football/Fal.ai/Meta/TikTok/YouTube/X yanıtları
-│  └─ visual/                      # Playwright görsel regresyon testleri
+│  ├─ unit/                        # node:test + tsx birim testleri (`npm run test:unit`)
+│  ├─ fixtures/                    # Mock yanıtlar (TS): api-football/, anthropic/, match-day/
+│  └─ visual/                      # Satori + PNG diff görsel regresyon testleri (`__baseline__/`, `npm run test:visual`)
 └─ CLAUDE.md
 ```
 
@@ -169,7 +176,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 ### 1.7 Ortam Değişkenleri
 
 - Tüm `process.env` erişimi `lib/env.ts` üzerinden, zod ile doğrulanmış tipli bir nesne aracılığıyla yapılır. Kod içinde çıplak `process.env.X` yasaktır. (Tek istisna: `prisma7.config.ts`, Prisma CLI'ın kendi env yükleme mekanizması gereği `dotenv` kullanır — uygulama kodu değildir. `prisma/seed.ts` dahil tüm uygulama/araç kodu `lib/env.ts` üzerinden okur.)
-- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_API_KEY`, `X_API_SECRET`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
+- Gizli anahtarlar (`FAL_KEY`, `SPORTMONKS_API_KEY`, `META_APP_SECRET`, `TIKTOK_CLIENT_SECRET`, `YOUTUBE_CLIENT_SECRET`, `X_CLIENT_SECRET`, `ANTHROPIC_API_KEY`, `SOCIAL_TOKEN_ENCRYPTION_KEY`, `API_FOOTBALL_KEY`, `CHECKMATCH_MAC_SERVER_URL`, `CHECKMATCH_API_SECRET`, `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `DATABASE_URL`) yalnızca sunucu tarafında okunur, `NEXT_PUBLIC_` öneki ile asla dışa açılmaz.
 - **Fail-fast:** `JWT_SECRET` (üretimde en az 32 karakter) ve `DATABASE_URL` (`postgresql://`) zorunludur, varsayılan değerleri yoktur; boş string "tanımsız" sayılır. Geçersizse `lib/env.ts` hata fırlatır, `src/instrumentation.ts` bunu sunucu açılışında tetikleyip süreci `exit 1` ile durdurur. Yalnızca `next build` aşamasında (`NEXT_PHASE`) derlemenin geçmesi için yer tutucu kullanılır.
 - `TRACK_ALLOWED_ORIGINS` (virgülle ayrılmış origin listesi) ve `TRACK_SITE_KEY` (isteğe bağlı, GA ölçüm ID'si gibi gizli olmayan bir "site anahtarı") gizli değildir — `/api/track` uç noktasının CORS/istemci doğrulaması için kullanılır, bkz. 1.8 ve `app/api/track/route.ts`.
 - **Sosyal OAuth (bkz. 4.4):** `APP_BASE_URL` (OAuth `redirect_uri` kökü, gizli değil), `SOCIAL_TOKEN_ENCRYPTION_KEY` (64 hex; üretimde bağlantı için zorunlu, geliştirmede boşsa `JWT_SECRET`'tan türetilir), `SOCIAL_USE_MOCKS` (tanımsızsa üretim dışında `true`), `META_APP_ID`/`META_APP_SECRET`, `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET`, `YOUTUBE_CLIENT_ID`/`YOUTUBE_CLIENT_SECRET`, `X_CLIENT_ID`/`X_CLIENT_SECRET`. Sırlar yalnızca sunucuda okunur.
@@ -189,9 +196,12 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 
 Kurallar: (1) sayfalar `force-dynamic` Server Component'tir; durum (görünüm, tarih, sıralama, açık düzenleme paneli) URL parametrelerinde tutulur. (2) Dahili CRUD Server Action'dır; `app/api` yalnızca dış tüketiciler (ör. `track/`) ve dosya servisi (`files/`) içindir. (3) Sorgular `lib/dashboard/*-data.ts`, saf hesaplamalar `*-stats.ts` dosyalarındadır (birim test edilebilir). (4) `app/api/track/route.ts`, checkmatch.net'ten gelen trafiği `TrafficLog`'a yazan, oturumsuz ama dışa açık bir uç noktadır — kimlik doğrulaması yerine üç katman kullanılır: `TRACK_ALLOWED_ORIGINS` ile sunucu tarafında zorunlu kılınan CORS, isteğe bağlı gizli olmayan `TRACK_SITE_KEY`, ve `lib/dashboard/rate-limit.ts`'teki IP başına bellek-içi rate limit (tek instance için yeterli; yatay ölçeklenirse paylaşılan bir depoya taşınmalı).
 
-### 1.9 Üretim Dağıtımı (Docker — Mac Mini)
+### 1.9 Üretim Dağıtımı (Docker)
 
-Üretim, Mac Mini üzerinde `docker-compose.prod.yml` ile çalışır. `docker-compose.yml` yalnızca yerel geliştirme veritabanıdır.
+- **Mevcut durum:** Üretim yığını (`www.betrix.pro`) geliştirme makinesiyle aynı **Windows PC** üzerinde, Docker Desktop'ta `docker-compose.prod.yml` ile çalışır.
+- **Hedef:** Yığının ileride **Mac M4 sunucusuna** taşınması. Yığın platformdan bağımsızdır (aynı compose + `.env.production` + volume'lar); taşıma sırasında volume'lar yedekten geri yüklenir.
+
+`docker-compose.yml` yalnızca yerel geliştirme veritabanıdır.
 
 ```
 internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ──[frontend]──► caddy:80 ──► app:3000 ──[backend, internal]──► postgres:5432
@@ -202,7 +212,7 @@ internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ─�
 - **İmaj:** `Dockerfile` çok aşamalıdır (`deps → builder → runner`), `next.config.ts` içinde `output: "standalone"`. `runner` non-root (`nextjs`, uid 1001) çalışır; uygulama dosyaları root'a aittir, yalnızca `storage/` ve `.next/cache` yazılabilir. `migrator` hedefi tam `node_modules` içerir ve `prisma migrate deploy` / `db seed` için kullanılır.
 - **Ağ:** `backend` ağı `internal: true`'dur (internete çıkış yok); postgres ve app dışarıya port açmaz. App, dış API'ler (Fal.ai vb.) için ayrıca `frontend` ağındadır. Hiçbir servis host'a port açmaz; dış dünyaya tek yol Cloudflare Tunnel'dır.
 - **Sertleştirme:** app `read_only` kök dosya sistemi, `cap_drop: ALL`, tüm servislerde `no-new-privileges`, log rotasyonu. Postgres `scram-sha-256` ile şifreli.
-- **Volume'lar:** `pgdata` (veritabanı), `storage` (yüklemeler/render çıktıları, bkz. 1.6), `next_cache`, `caddy_data` (TLS sertifikaları — silinirse Let's Encrypt limitine takılabilir), `caddy_config`.
+- **Volume'lar:** `pgdata` (veritabanı), `storage` (yüklemeler/render çıktıları, bkz. 1.6), `next_cache`, `caddy_data`, `caddy_config` (Caddy'nin iç durumu; Caddyfile `auto_https off` olduğu için sertifika tutulmaz — TLS Cloudflare Tunnel kenarında sonlanır).
 - **Sırlar:** `.env.production` (gitignore'da, `chmod 600`) — şablon `.env.production.example`. `DATABASE_URL` compose tarafından `POSTGRES_*`'tan üretilir; şifre URL'e girdiği için hex olmalıdır (`openssl rand -hex 32`). Sır asla imaja girmez (`.dockerignore`).
 - **Akış:** `migrate` servisi bekleyen migration'ları uygulayıp çıkar; app yalnızca o başarıyla bitince kalkar, Caddy app sağlıklı olunca kalkar.
 
@@ -255,7 +265,7 @@ prisma: FinanceEntry { kind: INCOME|EXPENSE, category, amount (Decimal, TRY), oc
 ```
 
 - **Para birimi:** tutarlar `Decimal` (asla `Float`) ve TRY; `lib/calendar/ad-spend.ts::formatAdSpend` biçimi.
-- **Otomatik gider kaynakları (bağlanacak):** Fal.ai (her `AiContent` üretimi / arka plan yenileme — `draft-engine.ts` tek çağrı noktasıdır), API-Football/Sportmonks abonelikleri, sunucu (Mac Mini elektrik/internet, alan adı). Reklam bütçesi (`ContentPlan.adSpend`) **planlanan** harcamadır; gerçekleşen harcama ayrı `FinanceEntry` olarak girilir.
+- **Otomatik gider kaynakları (bağlanacak):** Fal.ai (her `AiContent` üretimi / arka plan yenileme — `draft-engine.ts` tek çağrı noktasıdır), API-Football/Sportmonks abonelikleri, sunucu (prod makinesi elektrik/internet — bkz. 1.9 mevcut durum/hedef —, alan adı). Reklam bütçesi (`ContentPlan.adSpend`) **planlanan** harcamadır; gerçekleşen harcama ayrı `FinanceEntry` olarak girilir.
 - Gelir/gider kaydı yalnızca Server Action ile, oturum kontrollü; silme yerine düzeltme kaydı tercih edilir (denetim izi).
 
 ---
@@ -510,7 +520,7 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 2. **Tiple:** Önce tip/interface tanımlanır (`types/` veya ilgili servisin `types.ts`'i), sonra implementasyon yazılır.
 3. **Mock ile geliştir:** Dış API'ye (Sportmonks, API-Football, Fal.ai, Meta/TikTok/YouTube/X) canlı istek atmadan önce `tests/fixtures/` altındaki mock yanıtlarla akış uçtan uca çalıştırılır (bkz. 5.2).
 4. **Servis katmanından geç:** Doğrudan `fetch`/SDK çağrısı yerine `lib/services/*` fonksiyonu kullanılır ya da eksikse önce o fonksiyon eklenir.
-5. **Görsel doğrulama (render işleri için):** Playwright ile üç format da render edilip incelenir (bkz. 5.3).
+5. **Görsel doğrulama (render işleri için):** üç format da Satori ile render edilip PNG diff ile incelenir (bkz. 5.3).
 6. **Küçük tut:** Tek sorumluluk ilkesine uyulur (bkz. 5.4).
 7. **Gerçek çağrıyla doğrula:** Mock ile akış onaylandıktan sonra, kullanıcı onayıyla, gerçek API anahtarlarıyla tek bir örnek üzerinde doğrulama yapılır — kota tüketimi kontrollü tutulur.
 
@@ -521,9 +531,9 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 - **Kural:** Geliştirme ve CI ortamında gerçek dış API anahtarları asla varsayılan olarak kullanılmaz; `NODE_ENV=test` veya `USE_MOCKS=true` iken tüm servis katmanı fixture'lardan okuyacak şekilde tasarlanır (servis katmanının `client.ts`'i bu modda mock adaptörüne yönlendirilir).
 - Fal.ai render çağrıları özellikle mock'lanır — her geliştirme döngüsünde gerçek görsel üretim tetiklemek hem maliyetli hem yavaştır; render mantığı (prompt builder, katmanlama, format şablonları) mock görsellerle doğrulanır, gerçek Fal.ai çağrısı yalnızca son doğrulama adımında yapılır.
 
-### 5.3 Playwright ile Render Görsel Doğrulaması
+### 5.3 Render Görsel Doğrulaması (Satori + PNG diff)
 
-- Her render şablonu değişikliğinde, üç format (IG Feed, Story/Reels, X) için Playwright ile ekran görüntüsü alınır ve `tests/visual/` altındaki referans (golden) görsellerle piksel-fark eşiği içinde karşılaştırılır.
+- Her render şablonu değişikliğinde, üç format (IG Feed, Story/Reels, X) Satori ile PNG'ye çizilir ve `tests/visual/__baseline__/` altındaki referans (golden) görsellerle `tests/visual/image-diff.ts` ile piksel-fark eşiği içinde karşılaştırılır (tarayıcı/Playwright kullanılmaz; şu an kapsanan: Maç Günü, `npm run test:visual`).
 - Yeni bir şablon veya katmanlama değişikliği, golden görseller güncellenmeden "tamamlandı" sayılmaz; golden güncellemesi kullanıcı onayı ile yapılır (görsel bir tasarım kararı olduğu için sessizce ezilmez).
 - Doğrulanacak asgari kontrol listesi her render için:
   - [ ] 5 katman doğru z-sırasında (bkz. 3.4)
