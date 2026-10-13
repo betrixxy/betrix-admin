@@ -73,7 +73,22 @@ export async function completeConnection(
 const instagramAccountsSchema = z.object({
   data: z.array(z.object({ instagram_business_account: z.object({ id: z.string(), username: z.string().optional() }).optional() })),
 });
-const xMeSchema = z.object({ data: z.object({ id: z.string(), username: z.string() }) });
+const metaPermissionsSchema = z.object({ data: z.array(z.object({ permission: z.string(), status: z.string() })) });
+
+/**
+ * Tanı (yalnızca log): Meta'nın döndürdüğü Sayfa sayısı ve token'a gerçekte verilen/reddedilen izin adları.
+ * "Sayfa seçilmedi" (0 Sayfa) ile "Sayfada Instagram bağlı değil" ayrımını yapar; değer/token içermez.
+ */
+async function describeMetaGrant(accessToken: string, pageCount: number): Promise<string> {
+  const url = new URL(`https://graph.facebook.com/${META_GRAPH_VERSION}/me/permissions`);
+  url.search = new URLSearchParams({ access_token: accessToken }).toString();
+  const permissions = await getJson(url.toString(), {}, metaPermissionsSchema, "Meta izinleri");
+  if (!permissions.ok) return `sayfa=${pageCount}, izinler okunamadı`;
+  const byStatus = (status: string) => permissions.data.data.filter((row) => row.status === status).map((row) => row.permission).join(",") || "-";
+  return `sayfa=${pageCount}, verilen=[${byStatus("granted")}], reddedilen=[${byStatus("declined")}]`;
+}
+
+const xMeSchema =z.object({ data: z.object({ id: z.string(), username: z.string() }) });
 
 async function getJson<T extends z.ZodTypeAny>(url: string, init: RequestInit, schema: T, what: string): Promise<Result<z.infer<T>, SocialApiError>> {
   const response = await fetchJson(url, init);
@@ -93,7 +108,10 @@ async function fetchAccountLive(platform: SocialPlatformType, accessToken: strin
     const result = await getJson(url.toString(), {}, instagramAccountsSchema, "Instagram hesap bilgisi");
     if (!result.ok) return result;
     const account = result.data.data.map((page) => page.instagram_business_account).find((candidate) => candidate !== undefined);
-    if (!account) return { ok: false, error: { code: "INVALID_RESPONSE", message: "Bu Facebook hesabına bağlı bir Instagram iş/içerik üreticisi hesabı bulunamadı." } };
+    if (!account) {
+      const diagnosis = await describeMetaGrant(accessToken, result.data.data.length);
+      return { ok: false, error: { code: "INVALID_RESPONSE", message: `Bu Facebook hesabına bağlı bir Instagram iş/içerik üreticisi hesabı bulunamadı (${diagnosis}).` } };
+    }
     return { ok: true, data: { accountId: account.id, accountName: account.username ?? null } };
   }
   if (platform === "X") {
