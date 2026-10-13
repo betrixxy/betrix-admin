@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# betrix-studio — CheckMatch.net AI İçerik Stüdyosu
 
-## Getting Started
+CheckMatch.net için betrix.pro tarafından geliştirilen, **yarı otomatik** sosyal medya içerik stüdyosu.
 
-First, run the development server:
+- Gerçek fikstür ve istatistik verisinden (API-Football, Sportmonks, CheckMatch Mac sunucusu) marka tutarlı maç kartları üretir: Maç Günü, Muhtemel 11, Market Analizi, Puan Durumu, Haftanın Fikstürü.
+- Görseller Fal.ai (oyuncu kesimi, stadyum arka planı, upscale) ve programatik Satori/SVG tipografi katmanıyla oluşur. Gönderi metni şablondan ya da Claude ile üretilir.
+- Her içerik **taslak** olarak doğar. Admin panelde inceler, onaylar ve Yayın Merkezi'nden Instagram veya X'e paylaşır. Zamanlayıcı ya da otomatik yayın yoktur (bkz. `CLAUDE.md` §1.10).
+- Ayrıca içerik takvimi, medya kütüphanesi, sosyal hesap bağlama (OAuth), etkileşim paneli ve checkmatch.net trafik izleme (`POST /api/track`) içerir.
+
+Teknoloji: Next.js 16 (App Router) · React 19 · TypeScript (strict) · PostgreSQL 16 + Prisma 7 · Tailwind 4 + Shadcn · sharp · Fal.ai · Anthropic SDK.
+Mimari kurallar ve kurucu kararları için bağlayıcı belge: **[`CLAUDE.md`](./CLAUDE.md)**.
+
+## Yerel kurulum
+
+Gereksinimler: Node.js 24, Docker.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+docker compose up -d                      # yerel PostgreSQL (127.0.0.1:5432, betrix/betrix)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`.env` / `.env.local` dosyalarını oluşturun. Zorunlu değişkenler `DATABASE_URL` (`postgresql://…`) ve `JWT_SECRET`. Admin seed'i için `ADMIN_EMAIL` ve `ADMIN_PASSWORD` gerekir. API anahtarları (`API_FOOTBALL_KEY`, `FAL_KEY`, `ANTHROPIC_API_KEY`, …) isteğe bağlıdır; eksik olan özellik kilitlenir. Tüm liste `src/lib/env.ts` ve `.env.production.example` içinde.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npx prisma generate --config prisma7.config.ts
+npx prisma migrate deploy --config prisma7.config.ts
+npm run db:seed                           # tek admin hesabı
+npm run dev                               # http://localhost:3000 → /login
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Geliştirmede `SOCIAL_USE_MOCKS` tanımsızsa `true` kabul edilir. Bu modda OAuth ve metrikler sahte veriyle çalışır, paylaşım simüle edilir.
 
-## Learn More
+## Üretim
 
-To learn more about Next.js, take a look at the following resources:
+Mevcut durumda prod yığını bu Windows PC'de çalışıyor; hedef ileride Mac M4 sunucusuna taşımak. Yığın şu servislerden oluşur: `postgres` + `migrate` + `app` + `caddy` + `cloudflared`. Dışarıya tek giriş Cloudflare Tunnel'dır; hiçbir port host'a açılmaz. Sırlar `.env.production` dosyasında tutulur (şablon: `.env.production.example`).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Deploy: önce build, sonra up -d (çalışan yığını `down` ile durdurmayın)
+docker compose -f docker-compose.prod.yml --env-file .env.production build
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# İlk kurulumda bir kez — admin hesabı
+docker compose -f docker-compose.prod.yml --env-file .env.production run --rm migrate npx prisma db seed --config prisma7.config.ts
 
-## Deploy on Vercel
+# Loglar
+docker compose -f docker-compose.prod.yml --env-file .env.production logs -f app
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`migrate` servisi bekleyen migration'ları uygular. `app` ancak bu adım başarıyla bitince kalkar, `caddy` de `app` sağlıklı olunca.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Testler
+
+| Komut | Ne yapar |
+|---|---|
+| `npm run test:unit` | `tests/unit/*.test.ts`: node:test + tsx ile saf hesap/eşleme fonksiyonlarının birim testleri |
+| `npm run test:visual` | Maç Günü kartı: 3 şablon × 4 format × 3 senaryo, Satori ile çizilip `tests/visual/__baseline__/` ile PNG piksel farkı karşılaştırılır (Fal.ai'ye gidilmez) |
+| `npm run test:visual:update` | Baseline'ı yeniden yazar. Yalnızca tasarım değişikliği onaylandığında kullanılır |
+| `npx tsc --noEmit` | Tip kontrolü |
+| `npm run lint` | ESLint |
+
+Veritabanı katmanı, Server Action'lar ve dış API istemcileri (OAuth, Instagram/X yayını) için otomatik test yoktur.
+
+## Araçlar
+
+- `scripts/build-media-server.ts`: FM26 logo/yüz paketlerini API-Football kimlikleriyle eşleyen tek seferlik CLI.
+  ```bash
+  npx tsx --env-file=.env --env-file=.env.local scripts/build-media-server.ts \
+    --source <FM grafik klasörü> --target <medya havuzu klasörü> \
+    --fm-people <fm_oyuncular.html> --fm-clubs <fm_kulupler.html> [--dry-run] [--fresh]
+  ```
