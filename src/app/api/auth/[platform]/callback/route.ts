@@ -4,6 +4,7 @@ import { redirectToAnalytics, redirectToLogin } from "@/lib/dashboard/social-con
 import { completeConnection } from "@/lib/services/social/adapter";
 import { saveConnection } from "@/lib/services/social/connections";
 import { expiredFlowCookie, flowCookieName, verifyOAuthState } from "@/lib/services/social/oauth-flow";
+import { FRAGMENT_MARKER, fragmentBounceResponse, needsFragmentBounce } from "@/lib/services/social/oauth-fragment";
 import { parsePlatformSlug } from "@/lib/services/social/platforms";
 import type { ConnectErrorCode, PlatformSlug } from "@/types/social-connection";
 
@@ -21,15 +22,18 @@ export async function GET(
   const slug = parsePlatformSlug((await params).platform);
   if (!slug) return new Response("Bulunamadı", { status: 404 });
 
+  const query = request.nextUrl.searchParams;
+  // Yanıt fragment'ta geldiyse sorguya taşınır; akış cookie'si bu adımda silinmez (bkz. oauth-fragment.ts).
+  if (needsFragmentBounce(query)) return fragmentBounceResponse();
+
   const flowCookie = request.cookies.get(flowCookieName(slug))?.value;
-  const outcome = await handleCallback(slug, request.nextUrl.searchParams, flowCookie);
+  const outcome = await handleCallback(slug, query, flowCookie);
   if (outcome !== "login" && "error" in outcome && outcome.error === "invalid_state") {
-    // Tanı: yalnızca var/yok bilgisi ve tarayıcının sabit başlıkları — state/kod/cookie değeri asla loglanmaz.
-    const query = request.nextUrl.searchParams;
+    // Tanı: yalnızca var/yok bilgisi, parametre adları ve tarayıcının sabit başlıkları — değerler asla loglanmaz.
     console.warn(
       `[oauth:${slug}] invalid_state: flowCookie=${flowCookie ? "var" : "yok"} state=${query.has("state") ? "var" : "yok"} ` +
-        `code=${query.has("code") ? "var" : "yok"} error=${query.get("error") ?? "-"} ` +
-        `fetchSite=${request.headers.get("sec-fetch-site") ?? "-"} fetchDest=${request.headers.get("sec-fetch-dest") ?? "-"}`,
+        `code=${query.has("code") ? "var" : "yok"} error=${query.get("error") ?? "-"} fragment=${query.has(FRAGMENT_MARKER) ? "evet" : "hayır"} ` +
+        `params=[${[...new Set(query.keys())].join(",")}] fetchSite=${request.headers.get("sec-fetch-site") ?? "-"}`,
     );
   }
 
