@@ -22,3 +22,11 @@ export type {
   SupportedLeague,
   SupportedLeagueId,
 } from "@/lib/services/api-football/leagues";
+export {
+  getLeagueCurrentSeason,
+  getLeagueTeams,
+  getPlayerProfile,
+  getTeamSeasonPlayers,
+  getTeamSquad,
+} from "@/lib/services/api-football/squads";
+export type { LeagueSeason, LeagueTeam, SquadEntry } from "@/lib/services/api-football/squads";

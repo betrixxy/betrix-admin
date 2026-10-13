@@ -140,6 +140,42 @@ export const apiFootballFixtureDetailsResponseSchema = responseSchema(apiFootbal
 
 export type ApiFootballFixturesResponse = z.infer<typeof apiFootballFixturesResponseSchema>;
 
+/* ---------- Lig / takım / kadro (bkz. squads.ts — medya havuzu) ---------- */
+
+export const apiFootballLeagueSeasonsRawSchema = z.object({
+  league: z.object({ id: z.number(), name: z.string() }),
+  country: z.object({ name: z.string().nullable() }),
+  seasons: z.array(z.object({ year: z.number(), current: z.boolean() })),
+});
+
+export const apiFootballTeamInfoRawSchema = z.object({
+  team: z.object({
+    id: z.number(),
+    name: z.string(),
+    country: z.string().nullable(),
+    national: z.boolean().nullable().optional(),
+  }),
+});
+
+export const apiFootballPlayerProfileRawSchema = z.object({
+  id: z.number(),
+  name: z.string().nullable(),
+  firstname: z.string().nullable(),
+  lastname: z.string().nullable(),
+  birth: z.object({ date: z.string().nullable() }).nullable().optional(),
+});
+
+export const apiFootballSeasonPlayerRawSchema = z.object({ player: apiFootballPlayerProfileRawSchema });
+
+export type ApiFootballPlayerProfileRaw = z.infer<typeof apiFootballPlayerProfileRawSchema>;
+
+export const apiFootballLeagueSeasonsResponseSchema = responseSchema(apiFootballLeagueSeasonsRawSchema);
+export const apiFootballTeamsResponseSchema = responseSchema(apiFootballTeamInfoRawSchema);
+export const apiFootballProfilesResponseSchema = responseSchema(apiFootballSeasonPlayerRawSchema);
+export const apiFootballSeasonPlayersResponseSchema = responseSchema(apiFootballSeasonPlayerRawSchema).extend({
+  paging: z.object({ current: z.number(), total: z.number() }),
+});
+
 /**
  * API-Football hataları HTTP 200 ile, gövdedeki `errors` alanında döndürür (ör. kota aşımı,
  * eksik parametre). Boşken `[]`, doluyken `{ alan: mesaj }` nesnesidir.
