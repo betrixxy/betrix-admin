@@ -1,7 +1,7 @@
 import { socialUseMocks } from "@/lib/env";
 import { z } from "zod";
 import { exchangeCodeLive, exchangeMetaLongLivedLive, getJson, refreshTokenLive, type SocialApiError } from "@/lib/services/social/client";
-import { findInstagramAccount } from "@/lib/services/social/meta-accounts";
+import { fetchMetaPermissions, findInstagramAccount, type MetaPermissions } from "@/lib/services/social/meta-accounts";
 import { mapPostMetrics } from "@/lib/services/social/metrics/mappers";
 import { mockAccount, mockMetricsPayload, mockTokenSet } from "@/lib/services/social/mock";
 import { getProviderConfig } from "@/lib/services/social/oauth-providers";
@@ -59,13 +59,19 @@ export async function completeConnection(
 
   // Meta: kısa ömürlü token uzun ömürlüye (~60 gün) çevrilir; paylaşım ve senkronizasyon bununla yapılır.
   let tokens = exchanged.data.tokens;
+  let metaPermissions: Result<MetaPermissions, SocialApiError> | null = null;
   if (platform === "META_INSTAGRAM" || platform === "META_FACEBOOK") {
     const longLived = await exchangeMetaLongLivedLive(tokens);
     if (!longLived.ok) return { ok: false, error: { ...longLived.error, stage: "token" } };
     tokens = longLived.data;
+
+    // Meta token yanıtı `scope` taşımaz: istenen değil, kullanıcının gerçekten verdiği izinler kaydedilir.
+    metaPermissions = await fetchMetaPermissions(tokens.accessToken);
+    if (metaPermissions.ok) tokens = { ...tokens, scopes: metaPermissions.data.granted };
+    else console.warn(`[oauth:${slug}] verilen izinler okunamadı, istenen izinler kaydedilecek: ${metaPermissions.error.message}`);
   }
 
-  const account = await fetchAccountLive(platform, tokens.accessToken);
+  const account = await fetchAccountLive(platform, tokens.accessToken, metaPermissions);
   if (!account.ok) return { ok: false, error: { ...account.error, stage: "account" } };
   return { ok: true, data: { tokens, account: account.data } };
 }
@@ -76,8 +82,12 @@ const xMeSchema = z.object({ data: z.object({ id: z.string(), username: z.string
  * Hesap kimliği. Gerçek: Instagram (Sayfaya bağlı Instagram iş hesabı — `meta-accounts.ts`) ve X (`/2/users/me`).
  * YER TUTUCU: Facebook (`GET /me/accounts?fields=id,name`), YouTube (`GET youtube/v3/channels?part=snippet&mine=true`).
  */
-async function fetchAccountLive(platform: SocialPlatformType, accessToken: string): Promise<Result<OAuthAccount, SocialApiError>> {
-  if (platform === "META_INSTAGRAM") return findInstagramAccount(accessToken);
+async function fetchAccountLive(
+  platform: SocialPlatformType,
+  accessToken: string,
+  metaPermissions: Result<MetaPermissions, SocialApiError> | null,
+): Promise<Result<OAuthAccount, SocialApiError>> {
+  if (platform === "META_INSTAGRAM") return findInstagramAccount(accessToken, metaPermissions);
   if (platform === "X") {
     const result = await getJson("https://api.x.com/2/users/me", { headers: { Authorization: `Bearer ${accessToken}` } }, xMeSchema, "X hesap bilgisi");
     return result.ok ? { ok: true, data: { accountId: result.data.data.id, accountName: result.data.data.username } } : result;

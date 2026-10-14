@@ -86,7 +86,11 @@ function describeGrant(permissions: Result<MetaPermissions, SocialApiError>): st
   return `verilen=[${list(permissions.data.granted)}], reddedilen=[${list(permissions.data.declined)}]`;
 }
 
-export async function findInstagramAccount(accessToken: string): Promise<Result<OAuthAccount, SocialApiError>> {
+/** `permissions`: hesap aşamasında zaten okunmuşsa tekrar istenmez (hata mesajındaki tanı için). */
+export async function findInstagramAccount(
+  accessToken: string,
+  permissions: Result<MetaPermissions, SocialApiError> | null,
+): Promise<Result<OAuthAccount, SocialApiError>> {
   const own = await fetchAll(pageListUrl("/me/accounts", accessToken), metaPageSchema, "Instagram hesap bilgisi");
   if (!own.ok) return own;
 
@@ -105,7 +109,7 @@ export async function findInstagramAccount(accessToken: string): Promise<Result<
   const accounts = instagramAccountsOf(pages);
   const [first] = accounts;
   if (!first) {
-    const grant = describeGrant(await fetchMetaPermissions(accessToken));
+    const grant = describeGrant(permissions ?? (await fetchMetaPermissions(accessToken)));
     return {
       ok: false,
       error: {
