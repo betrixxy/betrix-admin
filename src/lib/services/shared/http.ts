@@ -36,6 +36,40 @@ function describeNetworkError(cause: unknown): string {
   return cause.message;
 }
 
+const ERROR_MESSAGE_MAX = 300;
+
+async function readJsonOrNull(response: Response): Promise<unknown> {
+  try {
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 2xx dışı yanıt gövdesinden yalnızca sağlayıcının hata nesnesindeki tanı alanlarını çıkarır
+ * (Meta Graph: `{ error: { type, code, error_subcode, fbtrace_id, message } }`). Gövdenin tamamı
+ * asla mesaja girmez; `message` ilk 300 karakterle sınırlanır. Tanınan alan yoksa `null`.
+ */
+export function describeErrorBody(body: unknown): string | null {
+  if (typeof body !== "object" || body === null || !("error" in body)) return null;
+  const error: unknown = body.error;
+  if (typeof error !== "object" || error === null) return null;
+
+  const scalar = (key: string): string | null => {
+    const value: unknown = key in error ? (error as Record<string, unknown>)[key] : undefined;
+    return typeof value === "string" || typeof value === "number" ? String(value) : null;
+  };
+  const parts: string[] = [];
+  for (const key of ["type", "code", "error_subcode", "fbtrace_id"]) {
+    const value = scalar(key);
+    if (value !== null) parts.push(`${key}=${value}`);
+  }
+  const message = scalar("message");
+  if (message !== null) parts.push(`message=${JSON.stringify(message.replace(/\s+/g, " ").slice(0, ERROR_MESSAGE_MAX))}`);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 async function fetchOnce(
   url: string,
   init: RequestInit,
@@ -48,11 +82,12 @@ async function fetchOnce(
     const response = await fetch(url, { ...init, signal: controller.signal });
 
     if (!response.ok) {
+      const detail = describeErrorBody(await readJsonOrNull(response));
       return {
         ok: false,
         error: {
           kind: "HTTP_STATUS",
-          message: `HTTP ${response.status} ${response.statusText}`,
+          message: `HTTP ${response.status} ${response.statusText}${detail ? ` (${detail})` : ""}`,
           status: response.status,
         },
       };
