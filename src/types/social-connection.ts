@@ -34,6 +34,8 @@ export interface IntegrationStatus {
   description: string;
   /** Mock modunda her zaman `true`; gerçek modda istemci kimliği/sırrı tanımlıysa `true`. */
   configured: boolean;
+  /** Gerçek hesap bilgisi henüz bağlanmadı — bağlantı butonu "Yakında" olarak devre dışıdır. */
+  comingSoon: boolean;
   connection: SocialConnectionView | null;
 }
 

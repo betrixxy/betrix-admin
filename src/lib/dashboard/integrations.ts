@@ -7,6 +7,8 @@ import type { IntegrationStatus } from "@/types/social-connection";
 interface IntegrationDef {
   name: string;
   description: string;
+  /** `adapter.ts` hesap bilgisi NOT_IMPLEMENTED ise bağlantı her zaman başarısız olur. */
+  comingSoon?: true;
 }
 
 /** Platform başına OAuth bağlantısı (bkz. CLAUDE.md 4.1). Instagram ve Facebook aynı Meta uygulamasını kullanır. */
@@ -18,6 +20,7 @@ const INTEGRATION_DEFS: Record<SocialPlatformType, IntegrationDef> = {
   META_FACEBOOK: {
     name: "Facebook",
     description: "Graph API: tepki, yorum, paylaşım, erişim ve gösterim.",
+    comingSoon: true,
   },
   TIKTOK: {
     name: "TikTok",
@@ -40,11 +43,14 @@ export async function getIntegrationStatuses(): Promise<IntegrationStatus[]> {
 
   return SOCIAL_PLATFORM_TYPES.map((platform) => {
     const slug = PLATFORM_TO_SLUG[platform];
+    const { name, description, comingSoon } = INTEGRATION_DEFS[platform];
     return {
       platform,
       slug,
-      ...INTEGRATION_DEFS[platform],
+      name,
+      description,
       configured: isProviderConfigured(slug),
+      comingSoon: comingSoon ?? false,
       connection: byPlatform.get(platform) ?? null,
     };
   });
