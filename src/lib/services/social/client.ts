@@ -25,6 +25,14 @@ const tokenResponseSchema = z.object({
 
 export type TokenResponseRaw = z.infer<typeof tokenResponseSchema>;
 
+/** Tek GET + şema doğrulaması; hata mesajı yalnızca `what` ve HTTP özetini taşır (URL/token asla). */
+export async function getJson<T extends z.ZodTypeAny>(url: string, init: RequestInit, schema: T, what: string): Promise<Result<z.infer<T>, SocialApiError>> {
+  const response = await fetchJson(url, init);
+  if (!response.ok) return { ok: false, error: { code: "HTTP", message: `${what}: ${response.error.message}` } };
+  const parsed = schema.safeParse(response.data);
+  return parsed.success ? { ok: true, data: parsed.data } : { ok: false, error: { code: "INVALID_RESPONSE", message: `${what} yanıtı beklenen biçimde değil.` } };
+}
+
 function toTokenSet(raw: TokenResponseRaw, config: OAuthProviderConfig, previousRefresh: string | null): OAuthTokenSet {
   return {
     accessToken: raw.access_token,
