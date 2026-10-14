@@ -43,7 +43,17 @@ function providerConfig(slug: PlatformSlug): OAuthProviderConfig {
         clientId: env.META_APP_ID,
         clientSecret: env.META_APP_SECRET,
         // instagram_content_publish: Yayın Merkezi'nden doğrudan paylaşım (tekli, carousel, story).
-        scopes: ["instagram_basic", "instagram_manage_insights", "instagram_content_publish", "pages_show_list", "pages_read_engagement"],
+        // business_management: Business Manager'daki Sayfalar (`/me/businesses` yedek yolu, bkz. meta-accounts.ts).
+        scopes: [
+          "instagram_basic",
+          "instagram_manage_insights",
+          "instagram_content_publish",
+          "pages_show_list",
+          "pages_read_engagement",
+          "business_management",
+        ],
+        // Daha önce reddedilen izinler yeniden sorulur (Meta aksi halde onay ekranında atlar).
+        extraAuthorizeParams: { auth_type: "rerequest" },
       };
     case "facebook":
       return {
