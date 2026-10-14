@@ -68,6 +68,7 @@ export const CONNECT_ERROR_CODES = [
   "not_configured",
   "invalid_state",
   "denied",
+  "provider_error",
   "token_exchange_failed",
   "account_lookup_failed",
   "encryption_unavailable",

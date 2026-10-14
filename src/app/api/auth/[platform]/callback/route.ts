@@ -4,7 +4,14 @@ import { redirectToAnalytics, redirectToLogin } from "@/lib/dashboard/social-con
 import { completeConnection } from "@/lib/services/social/adapter";
 import { saveConnection } from "@/lib/services/social/connections";
 import { expiredFlowCookie, flowCookieName, verifyOAuthState } from "@/lib/services/social/oauth-flow";
-import { FRAGMENT_MARKER, fragmentBounceResponse, needsFragmentBounce } from "@/lib/services/social/oauth-fragment";
+import {
+  FRAGMENT_MARKER,
+  describeProviderError,
+  fragmentBounceResponse,
+  hasProviderError,
+  isUserDenial,
+  needsFragmentBounce,
+} from "@/lib/services/social/oauth-fragment";
 import { parsePlatformSlug } from "@/lib/services/social/platforms";
 import type { ConnectErrorCode, PlatformSlug } from "@/types/social-connection";
 
@@ -52,12 +59,17 @@ async function handleCallback(
 ): Promise<CallbackOutcome> {
   if (!(await getCurrentSession())) return "login";
 
-  // Önce state: sahte/yeniden oynatılan bir isteğe "reddedildi" bile denmez.
+  // Sağlayıcı hatası state'ten önce ele alınır: Meta `error_code` yanıtlarında state göndermeyebilir ve
+  // bu yol hiçbir şey kaydetmediği için state'siz bir isteğe hata göstermek zararsızdır.
+  if (hasProviderError(query)) {
+    console.warn(`[oauth:${slug}] sağlayıcı hatası: ${describeProviderError(query)} state=${query.has("state") ? "var" : "yok"}`);
+    // Kullanıcı onay ekranında "iptal" dedi (OAuth 2.0 `error=access_denied`) ya da sağlayıcı reddetti.
+    return { error: isUserDenial(query) ? "denied" : "provider_error" };
+  }
+
+  // State: sahte/yeniden oynatılan bir istekle kod asla token'a çevrilmez.
   const codeVerifier = verifyOAuthState(flowCookie, query.get("state"));
   if (!codeVerifier) return { error: "invalid_state" };
-
-  // Kullanıcı onay ekranında "iptal" dedi (OAuth 2.0 `error=access_denied` vb.).
-  if (query.has("error")) return { error: "denied" };
 
   const code = query.get("code");
   if (!code) return { error: "invalid_state" };

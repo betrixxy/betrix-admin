@@ -7,6 +7,7 @@ const ERROR_MESSAGES: Record<ConnectErrorCode, string> = {
   not_configured: "Bu platformun uygulama kimliği/sırrı .env'de tanımlı değil.",
   invalid_state: "Güvenlik doğrulaması başarısız (süresi dolmuş veya geçersiz istek). Lütfen tekrar deneyin.",
   denied: "Yetkilendirme platform ekranında iptal edildi.",
+  provider_error: "Platform yetkilendirmeyi bir hatayla sonlandırdı. Ayrıntı sunucu logunda.",
   token_exchange_failed: "Platform erişim token'ı veremedi. Uygulama ayarlarını ve geri dönüş adresini kontrol edin.",
   account_lookup_failed: "Token alındı ama hesap bilgisi okunamadı — hesap bağlanmadı.",
   encryption_unavailable: "SOCIAL_TOKEN_ENCRYPTION_KEY tanımlı değil; token güvenle saklanamadığı için bağlantı kurulmadı.",
