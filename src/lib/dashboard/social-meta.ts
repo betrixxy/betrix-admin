@@ -26,6 +26,13 @@ export const ANALYTICS_SOURCE_LABELS: Record<PostAnalyticsSource, string> = {
   MOCK: "mock veri",
 };
 
+/** Maça bağlı olmayan (ör. içe aktarılan) gönderinin etiketi. */
+export const NO_FIXTURE_LABEL = "Maç bağlantısı yok";
+
+export function fixtureLabelOf(labels: Readonly<Record<string, string>>, fixtureId: string | null): string {
+  return fixtureId === null ? NO_FIXTURE_LABEL : (labels[fixtureId] ?? fixtureId);
+}
+
 export const PLATFORM_LABELS: Record<SocialPlatformType, string> = {
   META_INSTAGRAM: "Instagram",
   META_FACEBOOK: "Facebook",

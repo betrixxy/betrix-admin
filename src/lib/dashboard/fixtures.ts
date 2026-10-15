@@ -51,7 +51,7 @@ export async function getFixtureLabels(): Promise<Record<string, string>> {
 
   const missingIds = [...postRows, ...contentRows]
     .map((row) => row.fixtureId)
-    .filter((id) => !(id in labels))
+    .filter((id): id is string => id !== null && !(id in labels))
     .map(parseFixtureId)
     .filter((id): id is number => id !== null);
 

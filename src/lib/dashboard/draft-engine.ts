@@ -6,6 +6,7 @@ import { parseStatsSnapshot, toJsonValue } from "@/lib/dashboard/draft-snapshot"
 import { validMediaOrder } from "@/lib/dashboard/publish-caption";
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
+import { recordPanelPublish } from "@/lib/dashboard/post-registry";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
@@ -245,30 +246,32 @@ export async function decideDraft(
 
 /**
  * Yayın Merkezi'nden API ile paylaşıldı: statü PUBLISHED, gönderi bağlantısı/kimliği, son metin ve yayın
- * ayarları kayda yazılır. Yalnızca DRAFT/APPROVED kayıt yayınlanmış sayılabilir. Taslak takvimdeki bir
- * gönderiye bağlıysa o gönderi de "Paylaşıldı" olur ve platform kimliği yazılır (metrik senkronizasyonu için).
+ * ayarları kayda yazılır. Yalnızca DRAFT/APPROVED kayıt yayınlanmış sayılabilir. Paylaşım KOŞULSUZ bir
+ * SocialPost'a dönüşür (`post-registry.ts`) — metrik toplama ve analiz yalnızca SocialPost'ları tarar.
  */
 export async function markDraftPublished(id: string, published: PublishedInfo, publish: PublishDecision): Promise<Result<null, EngineError>> {
-  const record = await prisma.aiContent.findUnique({ where: { id }, select: { renderOptions: true, postId: true } });
+  const record = await prisma.aiContent.findUnique({ where: { id }, select: { renderOptions: true, postId: true, fixtureId: true } });
   if (!record) return fail("NOT_FOUND", "Taslak bulunamadı.");
   const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
   const publishedAt = new Date(published.at);
-  const { count } = await prisma.aiContent.updateMany({
-    where: { id, status: { in: ["DRAFT", "APPROVED"] } },
-    data: {
-      status: "PUBLISHED",
-      reviewedAt: publishedAt,
-      caption: publish.caption,
-      renderOptions: JSON.parse(JSON.stringify({ ...current, publish: publish.settings })) as Prisma.InputJsonObject,
-      publishedPlatform: published.platform,
-      publishedPostId: published.postId,
-      publishedUrl: published.url,
-      publishedAt,
-    },
+  const saved = await prisma.$transaction(async (tx) => {
+    const { count } = await tx.aiContent.updateMany({
+      where: { id, status: { in: ["DRAFT", "APPROVED"] } },
+      data: {
+        status: "PUBLISHED",
+        reviewedAt: publishedAt,
+        caption: publish.caption,
+        renderOptions: JSON.parse(JSON.stringify({ ...current, publish: publish.settings })) as Prisma.InputJsonObject,
+        publishedPlatform: published.platform,
+        publishedPostId: published.postId,
+        publishedUrl: published.url,
+        publishedAt,
+      },
+    });
+    if (count !== 1) return false;
+    await recordPanelPublish(tx, { aiContentId: id, linkedPostId: record.postId, fixtureId: record.fixtureId, published, settings: publish.settings, caption: publish.caption });
+    return true;
   });
-  if (count !== 1) return fail("NOT_EDITABLE", "Gönderi paylaşıldı ama taslak bu arada değişti — kaydı kontrol edin.");
-  if (record.postId) {
-    await prisma.socialPost.update({ where: { id: record.postId }, data: { status: "PUBLISHED", publishedAt, providerPostId: published.postId } }).catch(() => undefined);
-  }
+  if (!saved) return fail("NOT_EDITABLE", "Gönderi paylaşıldı ama taslak bu arada değişti — kaydı kontrol edin.");
   return { ok: true, data: null };
 }

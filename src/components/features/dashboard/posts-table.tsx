@@ -7,7 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCompactNumber } from "@/lib/dashboard/format";
-import { PLATFORM_DOT_CLASS, STATUS_BADGE_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
+import { fixtureLabelOf, PLATFORM_DOT_CLASS, STATUS_BADGE_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
 import type { SocialPostView } from "@/types/social";
 import { PostRowActions } from "./post-row-actions";
@@ -61,7 +61,7 @@ export function PostsTable({
                     </span>
                   </TableCell>
                   <TableCell className="max-w-64">
-                    <div className="truncate text-white">{fixtureLabels[post.fixtureId] ?? post.fixtureId}</div>
+                    <div className="truncate text-white">{fixtureLabelOf(fixtureLabels, post.fixtureId)}</div>
                     <div className="truncate text-xs text-muted-foreground">{post.caption}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">

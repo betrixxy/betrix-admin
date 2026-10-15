@@ -60,24 +60,34 @@ enum SocialPlatformType {
   X
 }
 
-/// Belirli bir platformda, belirli bir maç için paylaşılan/paylaşılacak somut gönderi.
-/// ContentPlan bir fikstür için "içerik üretilecek" kararını temsil eder; SocialPost
-/// ise o kararın platform başına somutlaşmış hâlidir (bkz. CLAUDE.md §4.2 durum makinesi).
+/// Belirli bir platformda paylaşılan/paylaşılacak somut gönderi — sosyal gönderilerin TEK doğruluk kaynağı.
+/// Takvimden planlanan (PREPARING), Yayın Merkezi'nden paylaşılan (PANEL, koşulsuz kayıt) ve platformdan
+/// içe aktarılan (IMPORTED) gönderilerin hepsi burada durur (bkz. CLAUDE.md §4.4).
 model SocialPost {
   id             String           @id @default(cuid())
-  /// Hedeflenen maç — bkz. ContentPlan.fixtureId, henüz ayrı bir Fixture tablosu yok.
-  fixtureId      String
+  /// Hedeflenen maç — bkz. ContentPlan.fixtureId. İçe aktarılan gönderilerde maç bilinmediği için boş.
+  fixtureId      String?
   contentPlanId  String?
   contentPlan    ContentPlan?     @relation(fields: [contentPlanId], references: [id], onDelete: SetNull)
   platformId     String
   platform       SocialPlatform   @relation(fields: [platformId], references: [id])
   caption        String
+  /// Planlanan yayın zamanı; paylaşılmış/içe aktarılmış gönderide gerçek yayın zamanına eşittir.
   scheduledFor   DateTime
   publishedAt    DateTime?
   /// Hazırlanıyor / Paylaşıldı
   status         SocialPostStatus @default(PREPARING)
   /// Yayınlandıktan sonra platformun kendi post ID'si (metrik senkronizasyonu için).
   providerPostId String?
+  /// Kayıt nereden geldi: panelden (takvim/Yayın Merkezi) mi, platformdan içe aktarma mı.
+  source         PostSource       @default(PANEL)
+  /// Gönderinin platformdaki herkese açık bağlantısı.
+  permalink      String?
+  mediaType      PostMediaType?
+  /// Küçük görsel: panelden paylaşılanda `/api/files/...`, içe aktarılanda platformun (süreli) CDN adresi.
+  thumbnailUrl   String?
+  /// Gönderideki görseller sırasıyla (carousel/çoklu görsel).
+  mediaUrls      String[]         @default([])
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
@@ -85,9 +95,12 @@ model SocialPost {
   aiContents  AiContent[]
   trafficLogs TrafficLog[]
 
+  /// Aynı platform gönderisi iki kez kaydedilmez — içe aktarma idempotent.
+  @@unique([platformId, providerPostId])
   @@index([fixtureId])
   @@index([scheduledFor])
   @@index([status])
+  @@index([publishedAt])
 }
 
 enum SocialPostStatus {
@@ -95,6 +108,25 @@ enum SocialPostStatus {
   PREPARING
   /// Paylaşıldı
   PUBLISHED
+}
+
+enum PostSource {
+  /// Panelden oluşturuldu (takvim planı veya Yayın Merkezi paylaşımı)
+  PANEL
+  /// Platformdan "geçmiş gönderileri içe aktar" ile alındı
+  IMPORTED
+}
+
+enum PostMediaType {
+  /// Tek görsel
+  IMAGE
+  /// Kaydırmalı / çoklu görsel
+  CAROUSEL
+  VIDEO
+  REELS
+  STORY
+  /// Yalnızca metin (X)
+  TEXT
 }
 
 /// Yayınlanmış bir SocialPost'un platform metrikleri (bkz. CLAUDE.md §4.1 PostMetrics).
@@ -271,4 +303,17 @@ enum MediaCategory {
   PLAYER
   /// Stil / kompozisyon referans görselleri
   REFERENCE
+}
+
+/// X API günlük okuma sayacı (UTC günü) — X ücreti dönen kaynak başınadır (bkz. CLAUDE.md 4.5).
+/// `posts` `X_DAILY_READ_LIMIT` ile sınırlanır; sınıra gelince metrik işleri ertesi güne ertelenir.
+model XReadUsage {
+  /// UTC günü, `YYYY-MM-DD`
+  day       String   @id
+  requests  Int      @default(0)
+  /// Okunan (dönen) gönderi sayısı
+  posts     Int      @default(0)
+  /// Okunan kullanıcı nesnesi sayısı (`/2/users/me`)
+  users     Int      @default(0)
+  updatedAt DateTime @updatedAt
 }

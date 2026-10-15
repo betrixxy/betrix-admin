@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RenderThumbnail } from "./render-thumbnail";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { PLATFORM_DOT_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
+import { fixtureLabelOf, PLATFORM_DOT_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
 import type { AiContentView } from "@/types/ai-content";
 import type { SocialPostView, TopPostItem } from "@/types/social";
@@ -23,7 +23,7 @@ export function UpcomingPostsList({ posts, fixtureLabels }: { posts: SocialPostV
           >
             <span className="flex min-w-0 items-center gap-2 text-white">
               <span className={cn("size-2 shrink-0 rounded-full", PLATFORM_DOT_CLASS[post.platform.type])} />
-              <span className="truncate">{fixtureLabels[post.fixtureId] ?? post.fixtureId}</span>
+              <span className="truncate">{fixtureLabelOf(fixtureLabels, post.fixtureId)}</span>
             </span>
             <span className="shrink-0 text-muted-foreground">
               {format(new Date(post.scheduledFor), "d MMM HH:mm", { locale: tr })} · {STATUS_LABELS[post.status]}
@@ -40,7 +40,7 @@ export function BestPostLine({ item, fixtureLabels }: { item: TopPostItem | unde
   return (
     <p className="text-xs text-muted-foreground">
       En başarılı gönderi:{" "}
-      <span className="text-white">{fixtureLabels[item.post.fixtureId] ?? item.post.fixtureId}</span> ·{" "}
+      <span className="text-white">{fixtureLabelOf(fixtureLabels, item.post.fixtureId)}</span> ·{" "}
       {item.post.platform.displayName}
     </p>
   );

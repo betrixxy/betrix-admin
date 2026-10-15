@@ -6,7 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCompactNumber, formatNumber, formatPercent } from "@/lib/dashboard/format";
-import { ANALYTICS_SOURCE_LABELS, PLATFORM_DOT_CLASS, SORT_LABELS } from "@/lib/dashboard/social-meta";
+import { fixtureLabelOf, ANALYTICS_SOURCE_LABELS, PLATFORM_DOT_CLASS, SORT_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
 import type { AnalyticsSort, PostAnalyticsSummary, TopPostItem } from "@/types/social";
 import { AnalyticsFilters, type AnalyticsFilterState } from "./analytics-filters";
@@ -77,7 +77,7 @@ export function TopPostsTable({ items, sort, platform, fixtureLabels, href, metr
                   <TableCell className="max-w-56">
                     <div className="flex items-center gap-2 text-white">
                       <span className={cn("size-2 shrink-0 rounded-full", PLATFORM_DOT_CLASS[post.platform.type])} />
-                      <span className="truncate">{fixtureLabels[post.fixtureId] ?? post.fixtureId}</span>
+                      <span className="truncate">{fixtureLabelOf(fixtureLabels, post.fixtureId)}</span>
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {post.platform.displayName} ·{" "}

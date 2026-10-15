@@ -31,7 +31,7 @@ function seedOf(providerPostId: string, salt: string): number {
   return digest.readUInt32BE(0) / 0xffffffff;
 }
 
-interface MockCounts {
+export interface MockCounts {
   views: number;
   reach: number;
   likes: number;
@@ -41,7 +41,7 @@ interface MockCounts {
   watchSeconds: number;
 }
 
-function mockCounts(providerPostId: string, publishedAt: Date): MockCounts {
+export function mockCounts(providerPostId: string, publishedAt: Date): MockCounts {
   const hours = Math.max(0, (Date.now() - publishedAt.getTime()) / 3_600_000);
   // 72 saatte doygunluğa ulaşan büyüme eğrisi.
   const growth = 1 - Math.exp(-hours / 24);

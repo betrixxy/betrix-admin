@@ -2,7 +2,7 @@ import Link from "next/link";
 import { eachDayOfInterval, endOfWeek, format, isToday, startOfWeek } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
-import { PLATFORM_DOT_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
+import { fixtureLabelOf, PLATFORM_DOT_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
 import { cn } from "@/lib/utils";
 import type { SocialPostView } from "@/types/social";
 import { groupPostsByDay } from "./social-calendar";
@@ -58,7 +58,7 @@ export function SocialWeek({ anchor, posts, fixtureLabels, editHref }: SocialWee
                         {format(new Date(post.scheduledFor), "HH:mm")} · {post.platform.displayName}
                       </span>
                       <span className="truncate text-[11px] text-muted-foreground">
-                        {fixtureLabels[post.fixtureId] ?? post.fixtureId}
+                        {fixtureLabelOf(fixtureLabels, post.fixtureId)}
                       </span>
                       <span className={cn("text-[10px]", post.status === "PUBLISHED" ? "text-emerald-400" : "text-amber-400")}>
                         {STATUS_LABELS[post.status]}

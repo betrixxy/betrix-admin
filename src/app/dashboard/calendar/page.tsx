@@ -31,9 +31,9 @@ interface CalendarPageProps {
 
 /** Düzenlenen gönderinin checkmatch.net takip linki (UTM + cm_post) — kampanya adı gerçek maçtan. */
 async function trackingLinkFor(post: SocialPostView): Promise<string> {
-  const apiId = parseFixtureId(post.fixtureId);
+  const apiId = post.fixtureId === null ? null : parseFixtureId(post.fixtureId);
   const fixture = apiId === null ? null : await getFixtureById(apiId);
-  const campaign = buildCampaignSlug(fixture?.ok ? fixture.data : null, post.fixtureId);
+  const campaign = buildCampaignSlug(fixture?.ok ? fixture.data : null, post.fixtureId ?? "post");
   return buildTrackingLink({ postId: post.id, platform: post.platform.type, campaign });
 }
 

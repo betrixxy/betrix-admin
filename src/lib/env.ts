@@ -82,6 +82,8 @@ const envSchema = z.object({
   YOUTUBE_CLIENT_SECRET: z.string().optional().default(""),
   X_CLIENT_ID: z.string().optional().default(""),
   X_CLIENT_SECRET: z.string().optional().default(""),
+  /** X API'den günde okunabilecek en fazla gönderi (dönen kaynak) — kredi koruması, bkz. CLAUDE.md 4.5. */
+  X_DAILY_READ_LIMIT: z.coerce.number().int().nonnegative().optional().default(300),
 });
 
 /** Boş string'i "tanımsız" say — `.env`'de `JWT_SECRET=` satırı sessizce geçmesin. */
@@ -119,6 +121,7 @@ const parsed = envSchema.safeParse({
   YOUTUBE_CLIENT_SECRET: read("YOUTUBE_CLIENT_SECRET"),
   X_CLIENT_ID: read("X_CLIENT_ID"),
   X_CLIENT_SECRET: read("X_CLIENT_SECRET"),
+  X_DAILY_READ_LIMIT: read("X_DAILY_READ_LIMIT"),
 });
 
 /**

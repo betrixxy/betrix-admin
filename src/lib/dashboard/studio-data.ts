@@ -2,7 +2,7 @@ import { format } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
-import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
+import { fixtureLabelOf, PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import type { AiContentStatus, AiContentView, StudioPostOption } from "@/types/ai-content";
 
 const RECENT_AI_CONTENT_LIMIT = 12;
@@ -64,7 +64,7 @@ export async function getStudioData(): Promise<StudioData> {
   const fixtureLabels = await getFixtureLabels();
   const postOptions = posts.map((post) => ({
     id: post.id,
-    label: `${PLATFORM_LABELS[post.platform.type]} · ${fixtureLabels[post.fixtureId] ?? post.fixtureId} · ${format(post.scheduledFor, "d MMM HH:mm")}`,
+    label: `${PLATFORM_LABELS[post.platform.type]} · ${fixtureLabelOf(fixtureLabels, post.fixtureId)} · ${format(post.scheduledFor, "d MMM HH:mm")}`,
   }));
 
   return { recent, totalCount, postOptions, fixtureLabels };

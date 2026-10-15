@@ -15,6 +15,7 @@ import { getPostById } from "@/lib/dashboard/calendar-data";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
 import { getIntegrationStatuses } from "@/lib/dashboard/integrations";
 import { socialUseMocks } from "@/lib/env";
+import { fixtureLabelOf } from "@/lib/dashboard/social-meta";
 import { SLUG_TO_PLATFORM, parsePlatformSlug } from "@/lib/services/social/platforms";
 import { ANALYTICS_SORTS, type AnalyticsSort } from "@/types/social";
 import { CONNECT_ERROR_CODES } from "@/types/social-connection";
@@ -106,7 +107,7 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
         <EditMetricsSheet
           key={metricsPost.id}
           post={metricsPost}
-          postLabel={fixtureLabels[metricsPost.fixtureId] ?? metricsPost.fixtureId}
+          postLabel={fixtureLabelOf(fixtureLabels, metricsPost.fixtureId)}
           closeHref={href()}
         />
       ) : null}

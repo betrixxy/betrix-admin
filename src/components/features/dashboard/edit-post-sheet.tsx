@@ -37,12 +37,12 @@ export function EditPostSheet({ post, fixtures, trackingLink, closeHref }: EditP
   }, [state, router, closeHref]);
 
   // Seçilebilir pencerede (yaklaşan 7 gün) olmayan, ör. geçmiş bir maça bağlı gönderi de seçili kalabilsin.
-  const options = fixtures.some((fixture) => fixture.id === post.fixtureId)
+  const options = post.fixtureId === null || fixtures.some((fixture) => fixture.id === post.fixtureId)
     ? fixtures
     : [{ id: post.fixtureId, label: post.fixtureId }, ...fixtures];
 
   const defaults: PostFieldDefaults = {
-    fixtureId: post.fixtureId,
+    fixtureId: post.fixtureId ?? "",
     platformType: post.platform.type,
     scheduledFor: toDatetimeLocal(post.scheduledFor),
     caption: post.caption,

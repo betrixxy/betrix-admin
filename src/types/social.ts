@@ -16,6 +16,43 @@ export type SocialPlatformType = (typeof SOCIAL_PLATFORM_TYPES)[number];
 export const SOCIAL_POST_STATUSES = ["PREPARING", "PUBLISHED"] as const;
 export type SocialPostStatus = (typeof SOCIAL_POST_STATUSES)[number];
 
+/** prisma `PostSource`: panelden mi, platformdan içe aktarma mı. */
+export const POST_SOURCES = ["PANEL", "IMPORTED"] as const;
+export type PostSource = (typeof POST_SOURCES)[number];
+
+/** prisma `PostMediaType`. */
+export const POST_MEDIA_TYPES = ["IMAGE", "CAROUSEL", "VIDEO", "REELS", "STORY", "TEXT"] as const;
+export type PostMediaType = (typeof POST_MEDIA_TYPES)[number];
+
+/** İçe aktarmanın desteklendiği platformlar. */
+export const IMPORT_PLATFORMS = ["META_INSTAGRAM", "X"] as const satisfies readonly SocialPlatformType[];
+export type ImportPlatform = (typeof IMPORT_PLATFORMS)[number];
+
+/** Platformdan okunan bir gönderinin kanonik hâli (ham yanıttan `social/import-mappers.ts` üretir). */
+export interface ImportedPost {
+  platform: ImportPlatform;
+  providerPostId: string;
+  caption: string;
+  publishedAt: Date;
+  permalink: string | null;
+  mediaType: PostMediaType;
+  thumbnailUrl: string | null;
+  mediaUrls: string[];
+}
+
+export interface ImportReport {
+  platform: ImportPlatform;
+  /** Platformdan okunan gönderi sayısı. */
+  fetched: number;
+  created: number;
+  /** Zaten kayıtlı olduğu için atlanan (idempotent). */
+  skipped: number;
+  /** Zaten paylaşılmış AiContent kayıtlarından gönderiye bağlananlar. */
+  linkedDrafts: number;
+  /** Günlük X okuma sınırı yüzünden eksik kaldıysa açıklama. */
+  limitedBy: string | null;
+}
+
 export interface PostAnalyticsSummary {
   likes: number;
   comments: number;
@@ -39,7 +76,8 @@ export interface SocialPlatformRef {
 
 export interface SocialPostView {
   id: string;
-  fixtureId: string;
+  /** İçe aktarılan gönderilerde maç bilinmez — `null`. */
+  fixtureId: string | null;
   platform: SocialPlatformRef;
   caption: string;
   /** ISO 8601, UTC */
