@@ -92,6 +92,7 @@ model SocialPost {
   updatedAt      DateTime         @updatedAt
 
   analytics       PostAnalytics?
+  features        PostFeatures?
   metricSnapshots PostMetricSnapshot[]
   aiContents      AiContent[]
   trafficLogs     TrafficLog[]
@@ -430,4 +431,55 @@ enum AudienceKind {
   FOLLOWER
   /// Etkileşime giren kitle
   ENGAGED
+}
+
+/// Gönderinin yayın anındaki analiz özellikleri (bkz. CLAUDE.md 4.4) — sonradan elde edilemeyen bağlam:
+/// zaman, içerik, açıklama metni, maç bağlamı, paylaşım anındaki takipçi. "Hangi içerik / saat / kelime daha
+/// çok etkileşim getiriyor" analizinin girdisi. Türetilmiş performans değerleri (oranlar) saklanmaz, okurken
+/// snapshot'lardan hesaplanır (`lib/metrics/post-performance.ts`).
+model PostFeatures {
+  id                 String          @id @default(cuid())
+  socialPostId       String          @unique
+  socialPost         SocialPost      @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+  /// Özellik çıkarma kurallarının sürümü — kurallar değişirse eski satırlar ayırt edilir.
+  featureVersion     Int
+  computedAt         DateTime        @default(now())
+  /// İstanbul saatine göre 0–23
+  publishedHourIst   Int
+  /// ISO hafta günü, İstanbul: 1 = Pazartesi … 7 = Pazar
+  weekdayIst         Int
+  /// Yayın − başlama (saat): negatif = maçtan önce, pozitif = sonra. Maç bilinmiyorsa boş.
+  hoursFromKickoff   Float?
+  contentType        String?
+  /// En-boy oranı: 4:5, 1:1, 9:16, 16:9
+  format             String?
+  templateName       String?
+  mediaCount         Int
+  captionChars       Int
+  captionWords       Int
+  hasQuestion        Boolean
+  emojiCount         Int
+  hashtags           String[]        @default([])
+  hasLink            Boolean
+  linkPlacement      LinkPlacement
+  league             String?
+  homeTeam           String?
+  awayTeam           String?
+  /// Derbi / büyük maç (derbyIntensity DERBY veya ELITE_DERBY)
+  isDerby            Boolean?
+  derbyIntensity     String?
+  /// Paylaşım anına en yakın günlük hesap satırındaki takipçi sayısı
+  followersAtPublish Int?
+  /// Açıklama motoru bilgisi — sonraki fazda doldurulacak
+  playbookVersion    String?
+  captionModel       String?
+  captionVariant     String?
+}
+
+enum LinkPlacement {
+  /// Bağlantı gönderi metninde
+  BODY
+  /// Bağlantı ilk yanıtta (X)
+  FIRST_REPLY
+  NONE
 }

@@ -7,6 +7,7 @@ import { validMediaOrder } from "@/lib/dashboard/publish-caption";
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
 import { recordPanelPublish } from "@/lib/dashboard/post-registry";
+import { computePostFeaturesSafe } from "@/lib/metrics/feature-store";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
@@ -268,10 +269,11 @@ export async function markDraftPublished(id: string, published: PublishedInfo, p
         publishedAt,
       },
     });
-    if (count !== 1) return false;
-    await recordPanelPublish(tx, { aiContentId: id, linkedPostId: record.postId, fixtureId: record.fixtureId, published, settings: publish.settings, caption: publish.caption });
-    return true;
+    if (count !== 1) return null;
+    return recordPanelPublish(tx, { aiContentId: id, linkedPostId: record.postId, fixtureId: record.fixtureId, published, settings: publish.settings, caption: publish.caption });
   });
+  // Analiz özellikleri yayın anında kaydedilir; hata paylaşımı bozmaz.
+  if (saved) await computePostFeaturesSafe([saved]);
   if (!saved) return fail("NOT_EDITABLE", "Gönderi paylaşıldı ama taslak bu arada değişti — kaydı kontrol edin.");
   return { ok: true, data: null };
 }

@@ -1,4 +1,5 @@
 import { ensurePlatformRow } from "@/lib/dashboard/post-registry";
+import { computePostFeaturesSafe } from "@/lib/metrics/feature-store";
 import { writeSnapshot } from "@/lib/metrics/snapshot-store";
 import { prisma } from "@/lib/prisma";
 import { getAccessToken } from "@/lib/services/social/connections";
@@ -93,8 +94,11 @@ export async function importPosts(platform: ImportPlatform, requested: number): 
     skipDuplicates: true,
   });
 
-  await recordInitialSnapshots(platformId, plan.toCreate, fetched.data.initial);
-  const linkedDrafts = await linkPublishedDrafts(platformId, ids);
+  const createdIds = await recordInitialSnapshots(platformId, plan.toCreate, fetched.data.initial);
+  const linked = await linkPublishedDrafts(platformId, ids);
+  // Analiz özellikleri (metin/zaman; bağlanan taslaklarda içerik türü ve maç) — hata içe aktarmayı bozmaz.
+  await computePostFeaturesSafe([...new Set([...createdIds, ...linked])]);
+  const linkedDrafts = linked.length;
   return {
     ok: true,
     data: { platform, fetched: fetched.data.posts.length, created, skipped: plan.skipped + (plan.toCreate.length - created), linkedDrafts, limitedBy: fetched.data.limitedBy },
@@ -102,8 +106,8 @@ export async function importPosts(platform: ImportPlatform, requested: number): 
 }
 
 /** Yeni eklenen gönderiler için içe aktarma anındaki sayaçlar ilk snapshot olur (ek istek yapılmaz). */
-async function recordInitialSnapshots(platformId: string, created: readonly ImportedPost[], initial: Fetched["initial"]): Promise<void> {
-  if (created.length === 0) return;
+async function recordInitialSnapshots(platformId: string, created: readonly ImportedPost[], initial: Fetched["initial"]): Promise<string[]> {
+  if (created.length === 0) return [];
   const rows = await prisma.socialPost.findMany({
     where: { platformId, providerPostId: { in: created.map((post) => post.providerPostId) } },
     select: { id: true, providerPostId: true, publishedAt: true, mediaType: true, platform: { select: { type: true } } },
@@ -115,19 +119,20 @@ async function recordInitialSnapshots(platformId: string, created: readonly Impo
     const target = { id: row.id, platformType: row.platform.type, providerPostId: row.providerPostId, publishedAt: row.publishedAt, mediaType: row.mediaType, lastCapturedAt: null, lastCollectedAt: null };
     await writeSnapshot({ target, mapped: values.mapped, trigger: "IMPORT", checkpoint: null, raw: values.raw, now });
   }
+  return rows.map((row) => row.id);
 }
 
 /**
  * Bu değişiklikten önce paylaşılmış (SocialPost'u olmayan) taslaklar: platform kimliği eşleşen gönderiye
  * bağlanır; gönderi panelden çıktığı için kaynağı PANEL, maçı taslağın maçı olur.
  */
-async function linkPublishedDrafts(platformId: string, providerPostIds: string[]): Promise<number> {
-  if (providerPostIds.length === 0) return 0;
+async function linkPublishedDrafts(platformId: string, providerPostIds: string[]): Promise<string[]> {
+  if (providerPostIds.length === 0) return [];
   const drafts = await prisma.aiContent.findMany({
     where: { status: "PUBLISHED", postId: null, publishedPostId: { in: providerPostIds } },
     select: { id: true, fixtureId: true, publishedPostId: true },
   });
-  let linked = 0;
+  const linked: string[] = [];
   for (const draft of drafts) {
     if (!draft.publishedPostId) continue;
     const post = await prisma.socialPost.findUnique({ where: { platformId_providerPostId: { platformId, providerPostId: draft.publishedPostId } }, select: { id: true } });
@@ -136,7 +141,7 @@ async function linkPublishedDrafts(platformId: string, providerPostIds: string[]
       prisma.socialPost.update({ where: { id: post.id }, data: { source: "PANEL", fixtureId: draft.fixtureId } }),
       prisma.aiContent.update({ where: { id: draft.id }, data: { postId: post.id } }),
     ]);
-    linked += 1;
+    linked.push(post.id);
   }
   return linked;
 }
