@@ -23,7 +23,11 @@ export interface OAuthProviderConfig {
   extraAuthorizeParams: Readonly<Record<string, string>>;
 }
 
-export const META_GRAPH_VERSION = "v21.0";
+/**
+ * Meta Graph API sürümü — OAuth, paylaşım ve metrik çağrılarının hepsi bu sürümle yapılır. Her sürüm ~2 yıl
+ * desteklenir (v21.0: 2027-01-21'e kadar); yükseltmeden önce Instagram Platform changelog'u kontrol edilir.
+ */
+export const META_GRAPH_VERSION = "v26.0";
 
 const META_BASE = {
   authorizeUrl: `https://www.facebook.com/${META_GRAPH_VERSION}/dialog/oauth`,
