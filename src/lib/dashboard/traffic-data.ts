@@ -5,7 +5,6 @@ import {
   buildDailySeries,
   buildSeries,
   lastDayKeys,
-  maskIp,
   startOfDayKey,
   type DailyCounts,
 } from "@/lib/dashboard/traffic-stats";
@@ -73,7 +72,7 @@ async function getRecentVisits(): Promise<RecentVisit[]> {
     sourceLabel: row.post ? PLATFORM_LABELS[row.post.platform.type] : "Doğrudan / Organik",
     isUniqueVisit: row.isUniqueVisit,
     sessionShort: row.sessionId ? row.sessionId.slice(0, 8) : null,
-    maskedIp: maskIp(row.ipAddress),
+    ipHashShort: row.ipHash ? row.ipHash.slice(0, 10) : null,
   }));
 }
 

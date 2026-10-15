@@ -11,8 +11,8 @@ import { getCalendarSummary, getPostById, getPostsInRange, getRecentPosts } from
 import { calendarHref, parseAnchor, parseView, resolveRange } from "@/lib/dashboard/calendar-range";
 import { getFixtureLabels, getFixtureOptions } from "@/lib/dashboard/fixtures";
 import { STATUS_BADGE_CLASS, STATUS_LABELS } from "@/lib/dashboard/social-meta";
-import { buildCampaignSlug, buildTrackingLink } from "@/lib/dashboard/tracking-link";
-import { getFixtureById, parseFixtureId } from "@/lib/services/api-football";
+import { ensurePostShortLink } from "@/lib/dashboard/short-link";
+import { buildTrackingLink } from "@/lib/dashboard/tracking-link";
 import type { SocialPostView } from "@/types/social";
 
 export const metadata: Metadata = {
@@ -29,12 +29,10 @@ interface CalendarPageProps {
   searchParams: Promise<{ view?: string | string[]; date?: string | string[]; edit?: string | string[] }>;
 }
 
-/** Düzenlenen gönderinin checkmatch.net takip linki (UTM + cm_post) — kampanya adı gerçek maçtan. */
+/** Düzenlenen gönderinin kısa linki (`/r/<kod>` → checkmatch.net, UTM'li) — bkz. CLAUDE.md 4.3. */
 async function trackingLinkFor(post: SocialPostView): Promise<string> {
-  const apiId = post.fixtureId === null ? null : parseFixtureId(post.fixtureId);
-  const fixture = apiId === null ? null : await getFixtureById(apiId);
-  const campaign = buildCampaignSlug(fixture?.ok ? fixture.data : null, post.fixtureId ?? "post");
-  return buildTrackingLink({ postId: post.id, platform: post.platform.type, campaign });
+  const short = await ensurePostShortLink(post.id);
+  return short?.url ?? buildTrackingLink({ socialPostId: post.id, platform: post.platform.type, contentType: null });
 }
 
 export default async function CalendarPage({ searchParams }: CalendarPageProps) {

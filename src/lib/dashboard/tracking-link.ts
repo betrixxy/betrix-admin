@@ -1,17 +1,17 @@
-import { format } from "date-fns";
 import { POST_ATTRIBUTION_PARAM } from "@/lib/dashboard/tracker-snippet";
 import type { SocialPlatformType } from "@/types/social";
-import type { Fixture } from "@/types/sports";
 
 /**
- * Gönderi başına checkmatch.net takip linki — CLAUDE.md 4.3 UTM standardı + `cm_post`
- * (tıklamayı `SocialPost`'a bağlar; izleme kodu bunu okuyup `/api/track`'e iletir). Linkler
- * yalnızca bu fonksiyondan üretilir; elle string birleştirme yapılmaz (bkz. CLAUDE.md 4.3).
+ * Gönderi başına checkmatch.net hedef adresi — CLAUDE.md 4.3 UTM standardı. Kısa link (`/r/<kod>`) bu adrese
+ * yönlendirir; linkler yalnızca bu fonksiyondan üretilir, elle string birleştirme yapılmaz.
+ *
+ * `cm_post` de eklenir: checkmatch.net'teki eski izleme kodu UTM'i okumaz ama `cm_post`'u okur — snippet
+ * güncellenene kadar atıf yine çalışır (bkz. docs/checkmatch-net-tracking-changes.md).
  */
 
 export const CHECKMATCH_BASE_URL = "https://checkmatch.net";
 
-const UTM_SOURCE: Record<SocialPlatformType, string> = {
+export const UTM_SOURCE: Record<SocialPlatformType, string> = {
   META_INSTAGRAM: "instagram",
   META_FACEBOOK: "facebook",
   TIKTOK: "tiktok",
@@ -19,37 +19,30 @@ const UTM_SOURCE: Record<SocialPlatformType, string> = {
   X: "x",
 };
 
-/** "Beşiktaş" → "besiktas" — kebab-case ASCII (bkz. CLAUDE.md 4.3 utm_campaign). */
-export function toSlug(value: string): string {
-  return value
-    .toLocaleLowerCase("tr-TR")
-    .replace(/ı/g, "i")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
-
-/** `<ev>-vs-<deplasman>-<YYYYMMDD>` — maç verisi çözülemezse fikstür kimliğine düşer. */
-export function buildCampaignSlug(fixture: Fixture | null, fixtureId: string): string {
-  if (!fixture) return toSlug(fixtureId);
-  const date = format(new Date(fixture.kickoffUtc), "yyyyMMdd");
-  return `${toSlug(fixture.homeTeam.name)}-vs-${toSlug(fixture.awayTeam.name)}-${date}`;
+/** `utm_campaign`: içerik türü kimliği, küçük harf (ör. MATCH_DAY → match_day); bilinmiyorsa `post`. */
+export function campaignOf(contentType: string | null): string {
+  const value = (contentType ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
+  return value || "post";
 }
 
 export interface TrackingLinkInput {
-  postId: string;
+  /** `utm_content` — tıklamayı gönderiye bağlar; henüz paylaşılmamış taslakta yok. */
+  socialPostId: string | null;
   platform: SocialPlatformType;
-  campaign: string;
-  /** checkmatch.net'teki hedef yol — varsayılan ana sayfa. */
+  contentType: string | null;
+  /** checkmatch.net'teki hedef yol — varsayılan ana sayfa. Yalnızca site içi göreli yol kabul edilir. */
   path?: string;
 }
 
-export function buildTrackingLink({ postId, platform, campaign, path = "/" }: TrackingLinkInput): string {
-  const url = new URL(path, CHECKMATCH_BASE_URL);
+export function buildTrackingLink({ socialPostId, platform, contentType, path = "/" }: TrackingLinkInput): string {
+  const safePath = path.startsWith("/") && !path.startsWith("//") ? path : "/";
+  const url = new URL(safePath, CHECKMATCH_BASE_URL);
   url.searchParams.set("utm_source", UTM_SOURCE[platform]);
   url.searchParams.set("utm_medium", "social");
-  url.searchParams.set("utm_campaign", campaign);
-  url.searchParams.set(POST_ATTRIBUTION_PARAM, postId);
+  url.searchParams.set("utm_campaign", campaignOf(contentType));
+  if (socialPostId) {
+    url.searchParams.set("utm_content", socialPostId);
+    url.searchParams.set(POST_ATTRIBUTION_PARAM, socialPostId);
+  }
   return url.toString();
 }

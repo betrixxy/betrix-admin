@@ -93,6 +93,18 @@ const envSchema = z.object({
     .optional()
     .default("")
     .refine((value) => value === "" || value.length >= 32, { message: "INTERNAL_CRON_SECRET en az 32 karakter olmalı." }),
+  /**
+   * IP adreslerinin HMAC-SHA256 anahtarı (sabit — geri dönen ziyaretçi ölçülebilsin diye günlük tuz yok):
+   * `openssl rand -hex 32`. Hex olmalı: migrate bağlantı adresine (`options`) de konur. Üretimde zorunlu;
+   * geliştirmede boşsa JWT_SECRET'tan türetilir. Değiştirilirse eski ve yeni özetler eşleşmez.
+   */
+  IP_HASH_SECRET: z
+    .string()
+    .optional()
+    .default("")
+    .refine((value) => value === "" || /^[0-9a-f]{32,}$/i.test(value), { message: "IP_HASH_SECRET en az 32 hex karakter olmalı." }),
+  /** Kısa linklerin kök adresi (`<kök>/r/<kod>`) — ileride go.checkmatch.net gibi bir alt alan adına kod değişmeden geçilir. */
+  SHORT_LINK_BASE_URL: z.string().optional().default("https://www.betrix.pro").pipe(z.url("SHORT_LINK_BASE_URL geçerli bir URL olmalı.")),
 });
 
 /** Boş string'i "tanımsız" say — `.env`'de `JWT_SECRET=` satırı sessizce geçmesin. */
@@ -132,6 +144,8 @@ const parsed = envSchema.safeParse({
   X_CLIENT_SECRET: read("X_CLIENT_SECRET"),
   X_DAILY_READ_LIMIT: read("X_DAILY_READ_LIMIT"),
   INTERNAL_CRON_SECRET: read("INTERNAL_CRON_SECRET"),
+  IP_HASH_SECRET: read("IP_HASH_SECRET"),
+  SHORT_LINK_BASE_URL: read("SHORT_LINK_BASE_URL"),
 });
 
 /**

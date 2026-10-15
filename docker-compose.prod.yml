@@ -17,6 +17,10 @@ x-logging: &logging
 
 x-database-url: &database-url postgresql://${POSTGRES_USER:-betrix}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production içinde tanımlı olmalı}@postgres:5432/${POSTGRES_DB:-betrix}
 
+# migrate'e ek olarak IP özet anahtarı oturum ayarı olarak verilir: TrafficLog'daki ham IP'ler migration içinde
+# uygulamayla aynı HMAC'e çevrilip silinir (bkz. prisma/migrations/*_short_links_utm_ip_hash). Anahtar hex olmalı.
+x-migrate-database-url: &migrate-database-url postgresql://${POSTGRES_USER:-betrix}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production içinde tanımlı olmalı}@postgres:5432/${POSTGRES_DB:-betrix}?options=-c%20betrix.ip_hash_secret%3D${IP_HASH_SECRET:?IP_HASH_SECRET .env.production içinde tanımlı olmalı (openssl rand -hex 32)}
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -52,7 +56,7 @@ services:
     restart: "no"
     env_file: .env.production
     environment:
-      DATABASE_URL: *database-url
+      DATABASE_URL: *migrate-database-url
       NODE_ENV: production
     depends_on:
       postgres:

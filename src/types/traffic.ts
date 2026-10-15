@@ -40,8 +40,8 @@ export interface RecentVisit {
   isUniqueVisit: boolean;
   /** Oturum kimliğinin kısaltılmış hâli — tam değer arayüze taşınmaz. */
   sessionShort: string | null;
-  /** Son oktet maskelenmiş IP (KVKK) — örn. `192.168.1.xxx`. */
-  maskedIp: string | null;
+  /** IP'nin HMAC özetinin ilk 10 karakteri — ham IP hiçbir yerde tutulmaz (KVKK). */
+  ipHashShort: string | null;
 }
 
 export interface TrafficTotals {

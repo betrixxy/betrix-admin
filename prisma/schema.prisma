@@ -93,6 +93,7 @@ model SocialPost {
 
   analytics       PostAnalytics?
   features        PostFeatures?
+  shortLink       ShortLink?
   metricSnapshots PostMetricSnapshot[]
   aiContents      AiContent[]
   trafficLogs     TrafficLog[]
@@ -286,6 +287,8 @@ model AiContent {
   publishedUrl       String?
   publishedAt        DateTime?
 
+  shortLink ShortLink?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -311,17 +314,66 @@ enum AiContentStatus {
 /// standardı). `postId` doldurulduğunda tıklama, kaynağı olan gönderiye kadar geriye
 /// izlenebilir; doğrudan/organik trafik için boş bırakılır.
 model TrafficLog {
-  id            String      @id @default(cuid())
-  postId        String?
-  post          SocialPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
-  path          String
-  ipAddress     String?
-  sessionId     String?
-  isUniqueVisit Boolean     @default(false)
-  visitedAt     DateTime    @default(now())
+  id                   String      @id @default(cuid())
+  postId               String?
+  post                 SocialPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  path                 String
+  /// IP'nin HMAC-SHA256 özeti (`IP_HASH_SECRET`, sabit anahtar) — ham IP hiçbir tabloda tutulmaz.
+  ipHash               String?
+  /// Kalıcı ziyaretçi kimliği (snippet `cm_vid`, localStorage) — tekil/geri dönen ziyaretçi.
+  sessionId            String?
+  /// Oturum (ziyaret) kimliği (snippet `cm_sid`, sessionStorage + 30 dk hareketsizlik) — oturum bazlı atıf.
+  visitId              String?
+  isUniqueVisit        Boolean     @default(false)
+  utmSource            String?
+  utmMedium            String?
+  utmCampaign          String?
+  utmContent           String?
+  utmTerm              String?
+  /// UTM/gönderi bu sayfa görüntülemesinde yoktu, oturumun ilk ziyaretinden devralındı.
+  attributionInherited Boolean     @default(false)
+  visitedAt            DateTime    @default(now())
 
   @@index([postId])
   @@index([visitedAt])
+  @@index([sessionId, visitedAt])
+  @@index([visitId])
+  @@index([utmSource])
+}
+
+/// Gönderi başına kısa link (bkz. CLAUDE.md 4.3): `<SHORT_LINK_BASE_URL>/r/<code>`. Yayın Merkezi'nde taslak için
+/// üretilir (`aiContentId`), paylaşımda gönderiye bağlanır (`socialPostId`).
+model ShortLink {
+  id           String              @id @default(cuid())
+  code         String              @unique
+  socialPostId String?             @unique
+  socialPost   SocialPost?         @relation(fields: [socialPostId], references: [id], onDelete: SetNull)
+  aiContentId  String?             @unique
+  aiContent    AiContent?          @relation(fields: [aiContentId], references: [id], onDelete: SetNull)
+  platform     SocialPlatformType?
+  /// İçerik türü (utm_campaign)
+  contentType  String?
+  /// checkmatch.net'teki hedef yol
+  targetPath   String              @default("/")
+  createdAt    DateTime            @default(now())
+
+  clicks LinkClick[]
+}
+
+/// Kısa link tıklaması — ham IP yok (HMAC özeti), kaba bot filtresi işaretlenir (istatistikte sayılmaz).
+model LinkClick {
+  id           String              @id @default(cuid())
+  shortLinkId  String
+  shortLink    ShortLink           @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+  socialPostId String?
+  platform     SocialPlatformType?
+  clickedAt    DateTime            @default(now())
+  ipHash       String?
+  isBot        Boolean             @default(false)
+  referrerHost String?
+
+  @@index([socialPostId, clickedAt])
+  @@index([clickedAt])
 }
 
 /// Kalıcı medya/referans kütüphanesi (bkz. CLAUDE.md 1.11): stüdyoda her seferinde yükleme
@@ -438,12 +490,12 @@ enum AudienceKind {
 /// çok etkileşim getiriyor" analizinin girdisi. Türetilmiş performans değerleri (oranlar) saklanmaz, okurken
 /// snapshot'lardan hesaplanır (`lib/metrics/post-performance.ts`).
 model PostFeatures {
-  id                 String          @id @default(cuid())
-  socialPostId       String          @unique
-  socialPost         SocialPost      @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+  id                 String        @id @default(cuid())
+  socialPostId       String        @unique
+  socialPost         SocialPost    @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
   /// Özellik çıkarma kurallarının sürümü — kurallar değişirse eski satırlar ayırt edilir.
   featureVersion     Int
-  computedAt         DateTime        @default(now())
+  computedAt         DateTime      @default(now())
   /// İstanbul saatine göre 0–23
   publishedHourIst   Int
   /// ISO hafta günü, İstanbul: 1 = Pazartesi … 7 = Pazar
@@ -459,7 +511,7 @@ model PostFeatures {
   captionWords       Int
   hasQuestion        Boolean
   emojiCount         Int
-  hashtags           String[]        @default([])
+  hashtags           String[]      @default([])
   hasLink            Boolean
   linkPlacement      LinkPlacement
   league             String?

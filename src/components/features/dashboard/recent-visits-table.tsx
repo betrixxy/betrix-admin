@@ -10,7 +10,7 @@ export function RecentVisitsTable({ visits }: { visits: RecentVisit[] }) {
     <Card>
       <CardHeader>
         <CardTitle>Son Ziyaretler</CardTitle>
-        <CardDescription>En yeni {visits.length} kayıt · IP adresleri KVKK gereği maskelenir</CardDescription>
+        <CardDescription>En yeni {visits.length} kayıt · IP adresleri saklanmaz, yalnızca özetleri (HMAC) tutulur</CardDescription>
       </CardHeader>
       <CardContent>
         {visits.length === 0 ? (
@@ -25,7 +25,7 @@ export function RecentVisitsTable({ visits }: { visits: RecentVisit[] }) {
                 <TableHead>Sayfa</TableHead>
                 <TableHead>Kaynak</TableHead>
                 <TableHead>Oturum</TableHead>
-                <TableHead>IP</TableHead>
+                <TableHead>IP özeti</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -38,7 +38,7 @@ export function RecentVisitsTable({ visits }: { visits: RecentVisit[] }) {
                   <TableCell className="max-w-56 truncate text-white">{visit.path}</TableCell>
                   <TableCell>{visit.sourceLabel}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{visit.sessionShort ?? "—"}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{visit.maskedIp ?? "—"}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{visit.ipHashShort ?? "—"}</TableCell>
                   <TableCell>{visit.isUniqueVisit ? <Badge variant="outline">Yeni</Badge> : null}</TableCell>
                 </TableRow>
               ))}

@@ -76,12 +76,3 @@ export function buildSeries(
   return granularity === "week" ? aggregateWeekly(daily) : daily;
 }
 
-/** KVKK: IPv4'te son oktet, IPv6'da ilk üç grup dışındaki her şey gizlenir. */
-export function maskIp(ip: string | null): string | null {
-  if (!ip) return null;
-  if (ip.includes(":")) {
-    return `${ip.split(":").slice(0, 3).join(":")}:…`;
-  }
-  const octets = ip.split(".");
-  return octets.length === 4 ? `${octets.slice(0, 3).join(".")}.xxx` : "gizli";
-}

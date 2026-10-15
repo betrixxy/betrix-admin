@@ -5,10 +5,12 @@
  * Tasarım kararları:
  * - `Content-Type: text/plain` + site anahtarı `?key=` ile → CORS "basit istek"; ön-kontrol
  *   (preflight) yok, `keepalive` ile sayfa kapanırken bile gider.
- * - Ziyaretçi kimliği `localStorage`'da kalıcı UUID (tekil ziyaretçi), gönderi atfı
- *   (`cm_post` URL parametresi) `sessionStorage`'da o oturum boyunca taşınır.
+ * - Ziyaretçi kimliği (`cm_vid`) `localStorage`'da kalıcı UUID — tekil ve GERİ DÖNEN ziyaretçi bununla ölçülür.
+ * - Oturum kimliği (`cm_sid`) `sessionStorage`'da; 30 dk hareketsizlikte yenilenir — oturum bazlı atıf.
+ * - Gönderi atfı (`cm_post` ya da kısa linkin `utm_content`'i) ve URL'deki `utm_*` parametreleri
+ *   gönderilir; aynı oturumun sonraki sayfaları atfı sunucuda devralır (bkz. CLAUDE.md 4.3).
  * - SPA geçişleri (`pushState`/`replaceState`/`popstate`) yakalanır; aynı yol tekrar sayılmaz.
- * - Yalnızca `location.pathname` gönderilir — sorgu dizesi (olası kişisel veri) gönderilmez.
+ * - Yalnızca `location.pathname` ve `utm_*` gönderilir — sorgu dizesinin geri kalanı (olası kişisel veri) gönderilmez.
  * - Otomasyon tarayıcıları (`navigator.webdriver`) sayılmaz.
  */
 
@@ -42,8 +44,27 @@ export function buildTrackerSnippet({ panelOrigin, siteKey }: TrackerSnippetOpti
   var visitorId = read("localStorage", "cm_vid");
   if (!visitorId) { visitorId = newId(); write("localStorage", "cm_vid", visitorId); }
 
+  var IDLE_MS = 30 * 60 * 1000;
+  function visitId() {
+    var id = read("sessionStorage", "cm_sid");
+    var last = Number(read("sessionStorage", "cm_sid_t") || 0);
+    if (!id || Date.now() - last > IDLE_MS) { id = newId(); write("sessionStorage", "cm_sid", id); }
+    write("sessionStorage", "cm_sid_t", String(Date.now()));
+    return id;
+  }
+
+  var utm = null;
+  try {
+    var query = new URLSearchParams(location.search);
+    ["source", "medium", "campaign", "content", "term"].forEach(function (key) {
+      var value = query.get("utm_" + key);
+      if (value) { utm = utm || {}; utm[key] = value.slice(0, 200); }
+    });
+  } catch (e) {}
+
   var postId = null;
   try { postId = new URLSearchParams(location.search).get(POST_PARAM); } catch (e) {}
+  if (!postId && utm && utm.content) postId = utm.content;
   if (postId && /^[A-Za-z0-9_-]{1,64}$/.test(postId)) write("sessionStorage", "cm_post", postId);
   else postId = read("sessionStorage", "cm_post");
 
@@ -52,8 +73,10 @@ export function buildTrackerSnippet({ panelOrigin, siteKey }: TrackerSnippetOpti
     var path = location.pathname || "/";
     if (path === lastPath) return;
     lastPath = path;
-    var payload = { path: path.slice(0, 2048), sessionId: visitorId };
+    var payload = { path: path.slice(0, 2048), sessionId: visitorId, visitId: visitId() };
     if (postId) payload.postId = postId;
+    // UTM yalnızca giriş sayfasında gönderilir; sonraki sayfalar atfı sunucuda oturumdan devralır.
+    if (utm) { payload.utm = utm; utm = null; }
     try {
       fetch(ENDPOINT + (SITE_KEY ? "?key=" + encodeURIComponent(SITE_KEY) : ""), {
         method: "POST",

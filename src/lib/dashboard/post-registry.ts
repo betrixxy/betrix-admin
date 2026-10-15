@@ -1,5 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { canReuseLinkedPost, publishedMediaType, PUBLISH_TO_PLATFORM_TYPE } from "@/lib/dashboard/post-source";
+import { attachDraftShortLink } from "@/lib/dashboard/short-link";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import type { PublishedInfo, PublishSettings } from "@/types/publishing";
 import type { SocialPlatformType } from "@/types/social";
@@ -67,5 +68,6 @@ export async function recordPanelPublish(tx: Tx, input: PanelPublishInput): Prom
   }
 
   await tx.aiContent.update({ where: { id: input.aiContentId }, data: { postId } });
+  await attachDraftShortLink(tx, input.aiContentId, postId, platformType);
   return postId;
 }
