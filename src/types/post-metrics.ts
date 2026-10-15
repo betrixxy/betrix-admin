@@ -42,7 +42,7 @@ export function emptyMetricValues(): PostMetricValues {
 export type PostCollectOutcome =
   | { status: "OK" }
   /** Bu sefer çekilmedi, sonra tekrar denenebilir (kredi sınırı, 1 saatten sık çekme). */
-  | { status: "DEFERRED"; reason: string }
+  | { status: "DEFERRED"; reason: string; until?: Date }
   /** Geçici hata — üstel beklemeyle yeniden denenir. */
   | { status: "ERROR"; message: string }
   /** Kalıcı: token/bağlantı sorunu — yeniden bağlanana kadar durur. */

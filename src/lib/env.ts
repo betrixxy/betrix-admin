@@ -84,6 +84,15 @@ const envSchema = z.object({
   X_CLIENT_SECRET: z.string().optional().default(""),
   /** X API'den günde okunabilecek en fazla gönderi (dönen kaynak) — kredi koruması, bkz. CLAUDE.md 4.5. */
   X_DAILY_READ_LIMIT: z.coerce.number().int().nonnegative().optional().default(300),
+  /**
+   * Saatlik metrik tetikleyicisinin (`scheduler` servisi → `/api/internal/metrics/tick`) paylaşılan sırrı:
+   * `openssl rand -hex 32`. Boşsa iç uç nokta kapalıdır (503) — otomatik metrik toplama çalışmaz.
+   */
+  INTERNAL_CRON_SECRET: z
+    .string()
+    .optional()
+    .default("")
+    .refine((value) => value === "" || value.length >= 32, { message: "INTERNAL_CRON_SECRET en az 32 karakter olmalı." }),
 });
 
 /** Boş string'i "tanımsız" say — `.env`'de `JWT_SECRET=` satırı sessizce geçmesin. */
@@ -122,6 +131,7 @@ const parsed = envSchema.safeParse({
   X_CLIENT_ID: read("X_CLIENT_ID"),
   X_CLIENT_SECRET: read("X_CLIENT_SECRET"),
   X_DAILY_READ_LIMIT: read("X_DAILY_READ_LIMIT"),
+  INTERNAL_CRON_SECRET: read("INTERNAL_CRON_SECRET"),
 });
 
 /**

@@ -34,6 +34,10 @@ http://{$APP_DOMAIN} {
 		max_size 25MB
 	}
 
+	# İç metrik tetikleyicisi yalnızca iç ağdaki scheduler servisi içindir (app:3000'e doğrudan) —
+	# dışarıdan gelen istek uygulamaya hiç ulaşmaz.
+	respond /api/internal/* 404
+
 	# Uygulama gerçek ziyaretçi IP'sini tek değerli X-Forwarded-For'dan okur (/api/track rate
 	# limit'i). {client_ip} yukarıdaki güvenilir vekil ayarıyla CF-Connecting-IP'dir; istemcinin
 	# gönderdiği sahte X-Forwarded-For zinciri burada tamamen ezilir.

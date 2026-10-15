@@ -95,6 +95,40 @@ services:
       - no-new-privileges:true
     logging: *logging
 
+  # Saatlik metrik tetikleyicisi (salt okuma — CLAUDE.md 1.10, 4.4). Her saat :05'te iç ağdan
+  # app:3000/api/internal/metrics/tick'i çağırır; hangi işin ne zaman çalışacağı tamamen MetricJob
+  # tablosundadır — konteyner yeniden başlarsa hiçbir şey kaybolmaz, kaçırılan işler sonraki tetiklemede
+  # çalışır. busybox crond iş başına grup/kullanıcı ayarladığı için yalnızca SETUID/SETGID yetkisi verilir.
+  scheduler:
+    image: alpine:3.20
+    restart: unless-stopped
+    environment:
+      INTERNAL_CRON_SECRET: ${INTERNAL_CRON_SECRET:?INTERNAL_CRON_SECRET .env.production içinde tanımlı olmalı}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /tmp/crontabs
+        echo "5 * * * * wget -q -T 120 -O - --header 'x-cron-secret: $$INTERNAL_CRON_SECRET' --post-data '' http://app:3000/api/internal/metrics/tick >> /proc/1/fd/1 2>&1; echo >> /proc/1/fd/1" > /tmp/crontabs/root
+        exec crond -f -c /tmp/crontabs -l 6 -L /dev/stdout
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
   # İç ters vekil: güvenlik başlıkları, gövde sınırı, gerçek ziyaretçi IP'si. HTTPS Cloudflare
   # kenarında sonlandığı için ACME yok ve host'a HİÇBİR port açılmaz (bkz. Caddyfile).
   caddy:

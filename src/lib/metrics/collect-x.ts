@@ -1,4 +1,5 @@
 import { socialUseMocks } from "@/lib/env";
+import { nextUtcDayStart } from "@/lib/metrics/job-policy";
 import { refreshedTooRecently, X_MIN_REFRESH_MS } from "@/lib/metrics/schedule";
 import { writeSnapshot, type CollectTarget } from "@/lib/metrics/snapshot-store";
 import { chooseXReadPath, chunk, splitByPrivateWindow } from "@/lib/metrics/x-plan";
@@ -101,7 +102,8 @@ export async function collectX(
   const outcomes = new Map<string, PostCollectOutcome>();
   const eligible = targets.filter((target) => {
     if (!refreshedTooRecently(target.lastCapturedAt, now, X_MIN_REFRESH_MS)) return true;
-    outcomes.set(target.id, { status: "DEFERRED", reason: "Son çekimin üzerinden 1 saat geçmedi (X kredi koruması)." });
+    const until = new Date((target.lastCapturedAt?.getTime() ?? now.getTime()) + X_MIN_REFRESH_MS + 60_000);
+    outcomes.set(target.id, { status: "DEFERRED", reason: "Son çekimin üzerinden 1 saat geçmedi (X kredi koruması).", until });
     return false;
   });
 
@@ -127,7 +129,7 @@ export async function collectX(
       } else if (state.complete) {
         outcomes.set(target.id, { status: "GONE", message: "Gönderi X'te bulunamadı (silinmiş olabilir)." });
       } else {
-        outcomes.set(target.id, { status: "DEFERRED", reason: BUDGET_REASON });
+        outcomes.set(target.id, { status: "DEFERRED", reason: BUDGET_REASON, until: nextUtcDayStart(now) });
       }
     }
   }

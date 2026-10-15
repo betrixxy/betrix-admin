@@ -483,3 +483,47 @@ enum LinkPlacement {
   FIRST_REPLY
   NONE
 }
+
+/// Otomatik metrik toplama iş kuyruğu (salt okuma — bkz. CLAUDE.md 1.10, 4.4). Her (tür, hedef) için tek,
+/// tekrarlayan satır: iş çalışınca bir sonraki zamanı (`nextRunAt`) hesaplanır. Saatlik `scheduler` servisi
+/// `/api/internal/metrics/tick`'i çağırır; vadesi gelen işler `FOR UPDATE SKIP LOCKED` ile alınır, yani
+/// üst üste binen iki tetikleme aynı işi iki kez çalıştırmaz. Bellek içi zamanlayıcı yoktur.
+model MetricJob {
+  id            String              @id @default(cuid())
+  kind          MetricJobKind
+  /// POST_METRICS: SocialPost.id · diğerleri: platform (SocialPlatformType)
+  target        String
+  platform      SocialPlatformType?
+  status        MetricJobStatus     @default(PENDING)
+  /// Art arda başarısız deneme sayısı (başarıda sıfırlanır)
+  attempts      Int                 @default(0)
+  nextRunAt     DateTime
+  lockedAt      DateTime?
+  lastRunAt     DateTime?
+  lastSuccessAt DateTime?
+  lastError     String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([kind, target])
+  @@index([status, nextRunAt])
+}
+
+enum MetricJobKind {
+  POST_METRICS
+  ACCOUNT_DAILY
+  AUDIENCE_WEEKLY
+  /// İlk çalıştırmada bir kez: geriye dönük hesap metrikleri
+  ACCOUNT_BACKFILL
+}
+
+enum MetricJobStatus {
+  PENDING
+  RUNNING
+  /// Takvim bitti (ör. 30 günlük gönderi) ya da hedef artık yok
+  DONE
+  /// Yeniden denemeler tükendi — panelde gösterilir, elle yeniden denenebilir
+  FAILED
+  /// Token/bağlantı sorunu — hesap yeniden bağlanınca kendiliğinden devam eder
+  BLOCKED
+}
