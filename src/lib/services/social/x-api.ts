@@ -1,5 +1,7 @@
 import { socialUseMocks } from "@/lib/env";
 import { getJson, type SocialApiError } from "@/lib/services/social/client";
+import { xMeMetricsSchema, type XMeMetricsRaw } from "@/lib/services/social/metrics/account-mappers";
+import { mockXMe } from "@/lib/services/social/mock-account";
 import { mockXTweetPage, mockXTweetsById } from "@/lib/services/social/mock-import";
 import { xTweetListSchema, type XTweetListRaw } from "@/lib/services/social/x-raw";
 import type { Result } from "@/types/result";
@@ -68,4 +70,13 @@ export async function lookupTweets(accessToken: string, ids: readonly string[], 
   const params = commonParams(includePrivate);
   params.set("ids", ids.join(","));
   return getJson(`${API}/tweets?${params.toString()}`, auth(accessToken), xTweetListSchema, "X gönderi sorgusu");
+}
+
+/** Hesap sayaçları (takipçi, takip edilen, gönderi) — kullanıcı okuması, $0.010 (bkz. CLAUDE.md 4.5). */
+export async function fetchXMe(accessToken: string): Promise<Result<XMeMetricsRaw, SocialApiError>> {
+  if (socialUseMocks) {
+    const parsed = xMeMetricsSchema.safeParse(mockXMe("mock-x-account"));
+    return parsed.success ? { ok: true, data: parsed.data } : { ok: false, error: { code: "INVALID_RESPONSE", message: "Mock X yanıtı şemaya uymuyor." } };
+  }
+  return getJson(`${API}/users/me?user.fields=public_metrics`, auth(accessToken), xMeMetricsSchema, "X hesap sayaçları");
 }

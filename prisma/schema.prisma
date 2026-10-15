@@ -373,3 +373,61 @@ model XReadUsage {
   users     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
+
+/// Hesap düzeyinde günlük metrikler (bkz. CLAUDE.md 4.4) — reklam görüşmeleri için takipçi büyümesi ve
+/// günlük erişim. Geçmiş sonradan toplanamadığı için her gün kaydedilir; platform başına gün başına tek
+/// satır (upsert). `date` İstanbul günüdür; etkileşim metrikleri o günü, takipçi sayısı gün bitiminden
+/// hemen sonraki çekim anını gösterir. null = platform bu metriği vermedi.
+model AccountMetricSnapshot {
+  id                String             @id @default(cuid())
+  platform          SocialPlatformType
+  date              DateTime           @db.Date
+  capturedAt        DateTime           @default(now())
+  followerCount     Int?
+  followingCount    Int?
+  /// Toplam gönderi sayısı (IG media_count, X tweet_count)
+  mediaCount        Int?
+  reach             Int?
+  views             Int?
+  accountsEngaged   Int?
+  totalInteractions Int?
+  likes             Int?
+  comments          Int?
+  shares            Int?
+  saves             Int?
+  /// Profildeki bağlantı/iletişim düğmesi tıklamaları (IG profile_links_taps)
+  profileLinksTaps  Int?
+  follows           Int?
+  unfollows         Int?
+  /// İlk çalıştırmada geriye dönük doldurulan satır
+  backfilled        Boolean            @default(false)
+  raw               Json?
+
+  @@unique([platform, date])
+  @@index([date])
+}
+
+/// Kitle demografisi (haftalık) — Instagram follower_demographics / engaged_audience_demographics.
+/// Meta eşiğin altındaki hesaplarda (ör. < 100 takipçi) vermez; o zaman `unavailableReason` dolu, `buckets` boştur.
+model AudienceSnapshot {
+  id                String             @id @default(cuid())
+  platform          SocialPlatformType
+  capturedAt        DateTime           @default(now())
+  kind              AudienceKind
+  /// Meta timeframe: this_week | this_month
+  timeframe         String
+  /// age | gender | city | country
+  breakdown         String
+  /// { "<kova>": sayı } — ör. { "18-24": 120, "25-34": 340 }
+  buckets           Json?
+  unavailableReason String?
+
+  @@index([platform, capturedAt])
+}
+
+enum AudienceKind {
+  /// Takipçiler
+  FOLLOWER
+  /// Etkileşime giren kitle
+  ENGAGED
+}
