@@ -52,19 +52,6 @@ export interface OAuthAccount {
   accountName: string | null;
 }
 
-/** Tek bir gönderinin platformdan çekilen, kanonik biçimdeki metrikleri. */
-export interface PostMetricsSnapshot {
-  providerPostId: string;
-  likes: number;
-  comments: number;
-  shares: number;
-  saves: number;
-  views: number;
-  reach: number;
-  impressions: number;
-  watchTimeSeconds: number;
-}
-
 /** Callback'in `/dashboard/analytics`'e döndürdüğü, sabit kümeden seçilen hata kodu (URL'e serbest metin yansıtılmaz). */
 export const CONNECT_ERROR_CODES = [
   "not_configured",

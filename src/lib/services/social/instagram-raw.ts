@@ -46,6 +46,22 @@ export const igMediaSchema = z.object({
 });
 export type IgMediaRaw = z.infer<typeof igMediaSchema>;
 
+/**
+ * `GET /{id}/insights` — metrik ya `values[0].value` ya da `total_value.value` ile gelir. Değer bazı
+ * metriklerde (ör. kırılımlı) nesnedir; sayı olmayanlar yok sayılır.
+ */
+export const igInsightsSchema = z.object({
+  data: z.array(
+    z.object({
+      name: z.string(),
+      period: z.string().optional(),
+      values: z.array(z.object({ value: z.unknown(), end_time: z.string().optional() })).optional(),
+      total_value: z.object({ value: z.unknown().optional(), breakdowns: z.unknown().optional() }).optional(),
+    }),
+  ),
+});
+export type IgInsightsRaw = z.infer<typeof igInsightsSchema>;
+
 /** `GET /{ig-user-id}/media` — sayfalı. */
 export const igMediaListSchema = z.object({
   data: z.array(igMediaSchema),

@@ -91,9 +91,10 @@ model SocialPost {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  analytics   PostAnalytics?
-  aiContents  AiContent[]
-  trafficLogs TrafficLog[]
+  analytics       PostAnalytics?
+  metricSnapshots PostMetricSnapshot[]
+  aiContents      AiContent[]
+  trafficLogs     TrafficLog[]
 
   /// Aynı platform gönderisi iki kez kaydedilmez — içe aktarma idempotent.
   @@unique([platformId, providerPostId])
@@ -153,6 +154,61 @@ model PostAnalytics {
   lastSyncedAt     DateTime            @default(now())
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
+}
+
+/// Bir gönderinin belirli bir andaki metrikleri — zaman serisi (bkz. CLAUDE.md 4.4). Üzerine yazılmaz,
+/// her çekim yeni satırdır; en son satır `PostAnalytics`'e "güncel değer" olarak yansıtılır.
+/// Alanlar boş olabilir: null = platform bu metriği vermedi, 0 = gerçekten sıfır.
+model PostMetricSnapshot {
+  id                String        @id @default(cuid())
+  socialPostId      String
+  socialPost        SocialPost    @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+  capturedAt        DateTime      @default(now())
+  /// Çekim anında gönderinin yaşı (saat).
+  ageHours          Float
+  /// Karşılanan kontrol noktası ("1h", "6h", "24h", "72h", "7d", "30d", story "23h") ya da null (elle/içe aktarma).
+  checkpoint        String?
+  trigger           MetricTrigger
+  likes             Int?
+  comments          Int?
+  shares            Int?
+  saves             Int?
+  reach             Int?
+  views             Int?
+  impressions       Int?
+  profileVisits     Int?
+  follows           Int?
+  /// Bağlantı tıklaması (X url_link_clicks, IG story link_clicks).
+  linkClicks        Int?
+  /// X profil tıklaması (user_profile_clicks).
+  profileClicks     Int?
+  reposts           Int?
+  quotes            Int?
+  replies           Int?
+  bookmarks         Int?
+  totalInteractions Int?
+  watchTimeSeconds  Int?
+  /// X: PRIVATE = non_public/organic metrikler geldi (son 30 gün), PUBLIC = yalnızca public_metrics.
+  metricLevel       MetricLevel?
+  /// Sağlayıcının ham yanıtı (token içermez) — ileride yeni metrik türetmek için.
+  raw               Json?
+
+  @@index([socialPostId, capturedAt])
+  @@index([capturedAt])
+}
+
+enum MetricTrigger {
+  /// Otomatik kademeli takvim
+  SCHEDULED
+  /// Admin "şimdi güncelle"
+  MANUAL
+  /// İçe aktarma sırasında gelen ilk değerler
+  IMPORT
+}
+
+enum MetricLevel {
+  PUBLIC
+  PRIVATE
 }
 
 enum PostAnalyticsSource {

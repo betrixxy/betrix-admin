@@ -1,10 +1,13 @@
 import { ensurePlatformRow } from "@/lib/dashboard/post-registry";
+import { writeSnapshot } from "@/lib/metrics/snapshot-store";
 import { prisma } from "@/lib/prisma";
 import { getAccessToken } from "@/lib/services/social/connections";
 import { mapInstagramMedia, mapXTweetList, planImport } from "@/lib/services/social/import-mappers";
 import { listInstagramMedia } from "@/lib/services/social/instagram-graph";
+import { mapIgMediaCounts, mapXTweetMetrics } from "@/lib/services/social/metrics/post-mappers";
 import { fetchOwnTweets, X_PAGE_MAX } from "@/lib/services/social/x-api";
 import { recordXRead, xPostAllowance } from "@/lib/services/social/x-usage";
+import type { MappedPostMetrics } from "@/types/post-metrics";
 import type { Result } from "@/types/result";
 import type { ImportedPost, ImportPlatform, ImportReport } from "@/types/social";
 
@@ -22,17 +25,21 @@ const fail = (code: string, message: string): { ok: false; error: ImportError } 
 
 interface Fetched {
   posts: ImportedPost[];
+  /** İçe aktarma yanıtında gelen ilk sayaçlar (providerPostId → değerler + ham öğe). */
+  initial: Map<string, { mapped: MappedPostMetrics; raw: unknown }>;
   limitedBy: string | null;
 }
 
 async function fetchInstagram(accessToken: string, igUserId: string, count: number): Promise<Result<Fetched, ImportError>> {
   const media = await listInstagramMedia(accessToken, igUserId, count);
   if (!media.ok) return fail(media.error.code, media.error.message);
-  return { ok: true, data: { posts: media.data.map(mapInstagramMedia).filter((post): post is ImportedPost => post !== null), limitedBy: null } };
+  const initial = new Map(media.data.map((item) => [item.id, { mapped: mapIgMediaCounts(item), raw: item }]));
+  return { ok: true, data: { posts: media.data.map(mapInstagramMedia).filter((post): post is ImportedPost => post !== null), initial, limitedBy: null } };
 }
 
 async function fetchX(accessToken: string, userId: string, username: string | null, count: number): Promise<Result<Fetched, ImportError>> {
   const posts: ImportedPost[] = [];
+  const initial: Fetched["initial"] = new Map();
   let paginationToken: string | undefined;
   let limitedBy: string | null = null;
   while (posts.length < count) {
@@ -46,10 +53,11 @@ async function fetchX(accessToken: string, userId: string, username: string | nu
     const mapped = mapXTweetList(page.data, username);
     await recordXRead({ posts: mapped.length });
     posts.push(...mapped.slice(0, count - posts.length));
+    for (const tweet of page.data.data ?? []) initial.set(tweet.id, { mapped: mapXTweetMetrics(tweet), raw: tweet });
     paginationToken = page.data.meta?.next_token;
     if (!paginationToken || mapped.length === 0) break;
   }
-  return { ok: true, data: { posts, limitedBy } };
+  return { ok: true, data: { posts, initial, limitedBy } };
 }
 
 export async function importPosts(platform: ImportPlatform, requested: number): Promise<Result<ImportReport, ImportError>> {
@@ -85,11 +93,28 @@ export async function importPosts(platform: ImportPlatform, requested: number): 
     skipDuplicates: true,
   });
 
+  await recordInitialSnapshots(platformId, plan.toCreate, fetched.data.initial);
   const linkedDrafts = await linkPublishedDrafts(platformId, ids);
   return {
     ok: true,
     data: { platform, fetched: fetched.data.posts.length, created, skipped: plan.skipped + (plan.toCreate.length - created), linkedDrafts, limitedBy: fetched.data.limitedBy },
   };
+}
+
+/** Yeni eklenen gönderiler için içe aktarma anındaki sayaçlar ilk snapshot olur (ek istek yapılmaz). */
+async function recordInitialSnapshots(platformId: string, created: readonly ImportedPost[], initial: Fetched["initial"]): Promise<void> {
+  if (created.length === 0) return;
+  const rows = await prisma.socialPost.findMany({
+    where: { platformId, providerPostId: { in: created.map((post) => post.providerPostId) } },
+    select: { id: true, providerPostId: true, publishedAt: true, mediaType: true, platform: { select: { type: true } } },
+  });
+  const now = new Date();
+  for (const row of rows) {
+    const values = row.providerPostId ? initial.get(row.providerPostId) : undefined;
+    if (!values || !row.providerPostId || !row.publishedAt) continue;
+    const target = { id: row.id, platformType: row.platform.type, providerPostId: row.providerPostId, publishedAt: row.publishedAt, mediaType: row.mediaType, lastCapturedAt: null, lastCollectedAt: null };
+    await writeSnapshot({ target, mapped: values.mapped, trigger: "IMPORT", checkpoint: null, raw: values.raw, now });
+  }
 }
 
 /**

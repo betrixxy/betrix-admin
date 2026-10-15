@@ -2,13 +2,12 @@ import { socialUseMocks } from "@/lib/env";
 import { z } from "zod";
 import { exchangeCodeLive, exchangeMetaLongLivedLive, getJson, refreshTokenLive, type SocialApiError } from "@/lib/services/social/client";
 import { fetchMetaPermissions, findInstagramAccount, type MetaPermissions } from "@/lib/services/social/meta-accounts";
-import { mapPostMetrics } from "@/lib/services/social/metrics/mappers";
-import { mockAccount, mockMetricsPayload, mockTokenSet } from "@/lib/services/social/mock";
+import { mockAccount, mockTokenSet } from "@/lib/services/social/mock";
 import { getProviderConfig } from "@/lib/services/social/oauth-providers";
 import { SLUG_TO_PLATFORM } from "@/lib/services/social/platforms";
 import type { Result } from "@/types/result";
 import type { SocialPlatformType } from "@/types/social";
-import type { OAuthAccount, OAuthTokenSet, PlatformSlug, PostMetricsSnapshot } from "@/types/social-connection";
+import type { OAuthAccount, OAuthTokenSet, PlatformSlug } from "@/types/social-connection";
 
 /**
  * Sosyal medya sağlayıcılarının tek giriş noktası. `SOCIAL_USE_MOCKS` açıkken mock adaptörüne,
@@ -16,10 +15,8 @@ import type { OAuthAccount, OAuthTokenSet, PlatformSlug, PostMetricsSnapshot } f
  * modda olduğunu bilmez (bkz. CLAUDE.md 1.4, 5.2).
  *
  * Gerçek mod durumu: OAuth kod değişimi ve token yenileme standart OAuth 2.0 ile gerçek
- * çağrıdır. Instagram ve X hesap bilgisi gerçektir (Yayın Merkezi paylaşımı için); Facebook/YouTube
- * hesap bilgisi ve tüm gönderi metrikleri henüz YER TUTUCUDUR (`NOT_IMPLEMENTED`) —
- * her platform için çağrılacak uç nokta aşağıda not edildi; yanıtlar `metrics/raw-types.ts`
- * şemalarına uyduğu sürece `mappers.ts` değişmeden çalışır.
+ * çağrıdır. Instagram ve X hesap bilgisi gerçektir; Facebook/YouTube hesap bilgisi YER TUTUCUDUR
+ * (`NOT_IMPLEMENTED`). Gönderi metrikleri `lib/metrics/` toplayıcısındadır (Instagram + X).
  */
 
 const notImplemented = (what: string): { ok: false; error: SocialApiError } => ({
@@ -101,37 +98,4 @@ export async function refreshAccessToken(
 ): Promise<Result<OAuthTokenSet, SocialApiError>> {
   if (socialUseMocks) return { ok: true, data: mockTokenSet(getProviderConfig(slug).scopes) };
   return refreshTokenLive(slug, refreshToken);
-}
-
-export interface MetricsRequest {
-  platform: SocialPlatformType;
-  accessToken: string;
-  accountId: string;
-  providerPostId: string;
-  publishedAt: Date;
-}
-
-/** Tek gönderinin metrikleri: ham yanıt → şema doğrulaması → kanonik `PostMetricsSnapshot`. */
-export async function fetchPostMetrics(request: MetricsRequest): Promise<Result<PostMetricsSnapshot, SocialApiError>> {
-  const payload = socialUseMocks
-    ? { ok: true as const, data: mockMetricsPayload(request.platform, request.providerPostId, request.publishedAt) }
-    : await fetchMetricsPayloadLive(request);
-  if (!payload.ok) return payload;
-
-  const mapped = mapPostMetrics(request.platform, request.providerPostId, payload.data);
-  return mapped.ok ? mapped : { ok: false, error: { code: "INVALID_RESPONSE", message: mapped.error } };
-}
-
-/**
- * YER TUTUCU — gönderi metrikleri (bkz. `metrics/raw-types.ts` beklenen biçimler):
- * - Instagram: `GET /{media-id}/insights?metric=likes,comments,shares,saved,reach,views,ig_reels_video_view_total_time`
- * - Facebook:  `GET /{post-id}/insights?metric=post_impressions,post_impressions_unique,post_video_views,post_reactions_like_total`
- *              + `GET /{post-id}?fields=comments.summary(true),shares`
- * - TikTok:    `POST /v2/video/query/?fields=id,like_count,comment_count,share_count,view_count` (`filters.video_ids`)
- * - YouTube:   `GET youtube/v3/videos?part=statistics&id=…` + `youtubeAnalytics/v2/reports?metrics=estimatedMinutesWatched,shares&filters=video==…`
- * - X:         `GET /2/tweets/{id}?tweet.fields=public_metrics,non_public_metrics`
- * Rate-limit/retry `shared/http.ts::fetchJson` ile, token `Authorization: Bearer` başlığında.
- */
-async function fetchMetricsPayloadLive(request: MetricsRequest): Promise<Result<unknown, SocialApiError>> {
-  return notImplemented(`${request.platform} gönderi metrikleri`);
 }

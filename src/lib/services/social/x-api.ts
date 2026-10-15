@@ -1,6 +1,6 @@
 import { socialUseMocks } from "@/lib/env";
 import { getJson, type SocialApiError } from "@/lib/services/social/client";
-import { mockXTweetPage } from "@/lib/services/social/mock-import";
+import { mockXTweetPage, mockXTweetsById } from "@/lib/services/social/mock-import";
 import { xTweetListSchema, type XTweetListRaw } from "@/lib/services/social/x-raw";
 import type { Result } from "@/types/result";
 
@@ -62,9 +62,7 @@ export async function lookupTweets(accessToken: string, ids: readonly string[], 
   if (ids.length === 0) return { ok: true, data: {} };
   if (ids.length > X_PAGE_MAX) return { ok: false, error: { code: "HTTP", message: `X tek sorguda en fazla ${X_PAGE_MAX} gönderi kabul eder.` } };
   if (socialUseMocks) {
-    const page = mockXTweetPage(X_PAGE_MAX, includePrivate) as { data: { id: string }[] };
-    const wanted = new Set(ids);
-    const parsed = xTweetListSchema.safeParse({ ...page, data: page.data.filter((tweet) => wanted.has(tweet.id)) });
+    const parsed = xTweetListSchema.safeParse(mockXTweetsById(ids, includePrivate));
     return parsed.success ? { ok: true, data: parsed.data } : { ok: false, error: { code: "INVALID_RESPONSE", message: "Mock X yanıtı şemaya uymuyor." } };
   }
   const params = commonParams(includePrivate);

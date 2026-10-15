@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PLATFORM_DOT_CLASS } from "@/lib/dashboard/social-meta";
-import { SYNC_CHECKPOINT_HOURS } from "@/lib/services/social/metrics/schedule";
+import { POST_CHECKPOINTS } from "@/lib/metrics/schedule";
 import { cn } from "@/lib/utils";
 import type { IntegrationStatus } from "@/types/social-connection";
 import { SyncMetricsForm } from "./sync-metrics-form";
@@ -82,7 +82,7 @@ export function ApiConnections({ integrations, mockMode }: ApiConnectionsProps) 
           {mockMode ? <Badge variant="outline">mock modu</Badge> : null}
         </CardTitle>
         <CardDescription>
-          Metrikler yayından {SYNC_CHECKPOINT_HOURS.join(", ")} saat sonra kademeli çekilir.
+          Metrikler yayından {POST_CHECKPOINTS.map((checkpoint) => checkpoint.label).join(", ")} sonra otomatik çekilir (story: 1h, 6h, 23h).
           {mockMode ? " Mock modunda gerçek API'ye gidilmez; üretilen veriler \"mock veri\" olarak işaretlenir." : null}
         </CardDescription>
       </CardHeader>

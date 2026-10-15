@@ -77,3 +77,33 @@ export function mockXTweetPage(limit: number, includePrivate: boolean): unknown 
   });
   return { data, includes: { media }, meta: { result_count: data.length } };
 }
+
+/** Instagram `/{media-id}/insights` ham biçiminde mock metrikler; medya türüne göre doğru liste. */
+export function mockIgInsightsPayload(mediaId: string, mediaType: string | null): unknown {
+  const publishedAt = new Date(Date.now() - 36 * 3_600_000);
+  const c = mockCounts(mediaId, publishedAt);
+  const metric = (name: string, value: number) => ({ name, period: "lifetime", values: [{ value }] });
+  const base = [metric("reach", c.reach), metric("views", c.views), metric("shares", c.shares), metric("total_interactions", c.likes + c.comments + c.shares + c.saves)];
+  if (mediaType === "STORY") return { data: [...base, metric("profile_visits", Math.round(c.reach * 0.01)), metric("follows", Math.round(c.reach * 0.002)), metric("replies", c.comments), metric("link_clicks", Math.round(c.reach * 0.005))] };
+  const feed = [...base, metric("likes", c.likes), metric("comments", c.comments), metric("saved", c.saves)];
+  if (mediaType === "REELS") return { data: [...feed, metric("ig_reels_video_view_total_time", c.watchSeconds * 1000)] };
+  return { data: [...feed, metric("profile_visits", Math.round(c.reach * 0.012)), metric("follows", Math.round(c.reach * 0.003))] };
+}
+
+/** X `/2/tweets?ids=` ham biçiminde: istenen her kimlik için deterministik mock gönderi. */
+export function mockXTweetsById(ids: readonly string[], includePrivate: boolean): unknown {
+  const publishedAt = new Date(Date.now() - 36 * 3_600_000);
+  return {
+    data: ids.map((id) => {
+      const c = mockCounts(id, publishedAt);
+      return {
+        id,
+        text: "mock",
+        created_at: publishedAt.toISOString(),
+        public_metrics: { retweet_count: c.shares, reply_count: c.comments, like_count: c.likes, quote_count: Math.round(c.shares * 0.2), bookmark_count: c.saves, impression_count: c.views },
+        ...(includePrivate ? { non_public_metrics: { impression_count: c.views, url_link_clicks: Math.round(c.views * 0.01), user_profile_clicks: Math.round(c.views * 0.004), engagements: c.likes + c.comments + c.shares } } : {}),
+      };
+    }),
+    meta: { result_count: ids.length },
+  };
+}
