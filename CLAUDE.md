@@ -190,7 +190,8 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 | Genel Bakış | `/dashboard` | hepsi | 4 modülün özet kartları |
 | Maç Merkezi | `/dashboard/matches` | `AiContent` | Gerçek fikstür (API-Football, 7 gün), maç başına içerik türü menüsü + "Stüdyoya Git", onay kuyruğu — bkz. 1.10 |
 | İçerik Takvimi | `/dashboard/calendar` | `SocialPost` | Ay/Hafta/Liste görünümü, planlama, düzenleme, Hazırlanıyor/Paylaşıldı |
-| Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics`, `SocialConnection` | Bağlı hesaplardan "Senkronize et" ile çekilir, bağlı olmayanlarda elle girilir; `?sort=` (En Çok Yorum Alan/Kaydedilen/İzlenen…) + `?platform=` filtresi; "Hangi istatistik tutuyor?" analizi (`content-insights-stats.ts`) — bkz. 4.4 |
+| Gönderiler | `/dashboard/posts`, `/dashboard/posts/[id]` | `SocialPost`, `PostMetricSnapshot`, `PostFeatures` | Tüm gönderiler (PANEL + IMPORTED), sıralanabilir sütunlar, platform/tarih/içerik türü filtresi; içe aktarma, "şimdi güncelle", CSV (`/dashboard/posts/export`); detayda metrik eğrisi, siteye dönüş, analiz özellikleri — bkz. 4.3, 4.4 |
+| Etkileşim & Reklam | `/dashboard/analytics` | `PostAnalytics`, `SocialConnection`, `AccountMetricSnapshot`, `MetricJob` | Metrikler saatlik otomatik çekilir (salt okuma), bağlı olmayanlarda elle girilir; takipçi büyümesi + günlük erişim grafikleri, veri toplama durumu (bekleyen/başarısız işler, X sınırı, token uyarısı), hesap CSV'si; `?sort=` (En Çok Yorum Alan/Kaydedilen/İzlenen…) + `?platform=` filtresi; "Hangi istatistik tutuyor?" analizi (`content-insights-stats.ts`) — bkz. 4.4 |
 | AI İçerik Stüdyosu | `/dashboard/studio` | `AiContent` | Fal.ai `flux`+`birefnet` ile gerçek görsel üretir (`FAL_KEY` zorunlu, boşsa form kilitlenir); istatistik/logo/marka katmanı her zaman programatik SVG'dir, bkz. Bölüm 3 |
 | Web Trafiği | `/dashboard/traffic` | `TrafficLog` | Gün sınırları Europe/Istanbul; IP'ler arayüzde maskelenir; `POST /api/track` ile beslenir |
 
@@ -214,7 +215,8 @@ internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ─�
 - **Sertleştirme:** app `read_only` kök dosya sistemi, `cap_drop: ALL`, tüm servislerde `no-new-privileges`, log rotasyonu. Postgres `scram-sha-256` ile şifreli.
 - **Volume'lar:** `pgdata` (veritabanı), `storage` (yüklemeler/render çıktıları, bkz. 1.6), `next_cache`, `caddy_data`, `caddy_config` (Caddy'nin iç durumu; Caddyfile `auto_https off` olduğu için sertifika tutulmaz — TLS Cloudflare Tunnel kenarında sonlanır).
 - **Sırlar:** `.env.production` (gitignore'da, `chmod 600`) — şablon `.env.production.example`. `DATABASE_URL` compose tarafından `POSTGRES_*`'tan üretilir; şifre URL'e girdiği için hex olmalıdır (`openssl rand -hex 32`). Sır asla imaja girmez (`.dockerignore`).
-- **Akış:** `migrate` servisi bekleyen migration'ları uygulayıp çıkar; app yalnızca o başarıyla bitince kalkar, Caddy app sağlıklı olunca kalkar.
+- **Akış:** `migrate` servisi bekleyen migration'ları uygulayıp çıkar; app yalnızca o başarıyla bitince kalkar, Caddy app sağlıklı olunca kalkar. `migrate`'in bağlantı adresi `IP_HASH_SECRET`'ı oturum ayarı olarak taşır (ham IP'lerin migration içinde özetlenmesi için, bkz. 4.3).
+- **Metrik tetikleyicisi (`scheduler`):** alpine crond, saatte bir (`:05`) iç ağdan `app:3000/api/internal/metrics/tick`'i `INTERNAL_CRON_SECRET` ile çağırır; Caddy bu yolu dışarıya 404 döndürür. İş durumu `MetricJob` tablosundadır (bkz. 4.4). Yeni zorunlu env: `INTERNAL_CRON_SECRET`, `IP_HASH_SECRET`; isteğe bağlı: `X_DAILY_READ_LIMIT`, `SHORT_LINK_BASE_URL`.
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build

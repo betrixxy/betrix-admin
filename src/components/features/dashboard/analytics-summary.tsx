@@ -29,7 +29,7 @@ export function AnalyticsSummary({ overview }: { overview: AnalyticsOverview }) 
       <StatCard
         label="Link Tıklaması"
         value={formatCompactNumber(overview.totalClicks)}
-        hint={`Tıklama oranı ${formatPercent(overview.clickThroughRate)}`}
+        hint={`Kısa link (bot hariç) · oran ${formatPercent(overview.clickThroughRate)}`}
         icon={MousePointerClick}
         accentClassName="bg-violet-500/15 text-violet-400"
       />

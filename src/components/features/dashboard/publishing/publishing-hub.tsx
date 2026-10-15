@@ -18,6 +18,7 @@ import { downloadSequence } from "./download-sequence";
 import { GalleryPicker } from "./gallery-picker";
 import { MediaSequence } from "./media-sequence";
 import { PublishNow } from "./publish-now";
+import { ShortLinkHelper } from "./short-link-helper";
 
 const INITIAL_STATE: DraftActionState = {};
 
@@ -202,6 +203,13 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
           isGenerating={isGenerating}
           onRegenerate={() => generate(platform)}
           disabled={isPending}
+        />
+        <ShortLinkHelper
+          id={id}
+          platform={platform}
+          onInsert={(url) => setCaptions((previous) => ({ ...previous, [platform]: { text: `${current.text.trimEnd()}
+
+${url}`, source: current.source } }))}
         />
         {captionError ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

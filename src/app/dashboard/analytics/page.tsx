@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { AccountCharts } from "@/components/features/dashboard/account-charts";
 import { AdBudgetPanel } from "@/components/features/dashboard/ad-budget-panel";
 import type { AnalyticsFilterState } from "@/components/features/dashboard/analytics-filters";
 import { AnalyticsSummary } from "@/components/features/dashboard/analytics-summary";
 import { ApiConnections } from "@/components/features/dashboard/api-connections";
+import { CollectionStatusCard } from "@/components/features/dashboard/collection-status-card";
 import { ConnectStatusBanner, type ConnectStatus } from "@/components/features/dashboard/connect-status-banner";
 import { ContentInsightsCard } from "@/components/features/dashboard/content-insights";
 import { EditMetricsSheet } from "@/components/features/dashboard/edit-metrics-sheet";
@@ -10,11 +12,13 @@ import { PageHeader } from "@/components/features/dashboard/page-header";
 import { PlatformPerformanceTable } from "@/components/features/dashboard/platform-performance";
 import { TopPostsTable } from "@/components/features/dashboard/top-posts-table";
 import { getAdBudgetOverview } from "@/lib/dashboard/ad-budget-data";
+import { getAccountSeries } from "@/lib/dashboard/account-data";
 import { getAnalyticsData } from "@/lib/dashboard/analytics-data";
 import { getPostById } from "@/lib/dashboard/calendar-data";
 import { getFixtureLabels } from "@/lib/dashboard/fixtures";
 import { getIntegrationStatuses } from "@/lib/dashboard/integrations";
 import { socialUseMocks } from "@/lib/env";
+import { getCollectionStatus } from "@/lib/metrics/status";
 import { fixtureLabelOf } from "@/lib/dashboard/social-meta";
 import { SLUG_TO_PLATFORM, parsePlatformSlug } from "@/lib/services/social/platforms";
 import { ANALYTICS_SORTS, type AnalyticsSort } from "@/types/social";
@@ -66,11 +70,13 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     return `/dashboard/analytics?${query.toString()}`;
   };
 
-  const [data, adBudget, integrations, metricsPost] = await Promise.all([
+  const [data, adBudget, integrations, metricsPost, account, collection] = await Promise.all([
     getAnalyticsData(filters.sort, filters.platform ? SLUG_TO_PLATFORM[filters.platform] : null),
     getAdBudgetOverview(),
     getIntegrationStatuses(),
     metricsId ? getPostById(metricsId) : Promise.resolve(null),
+    getAccountSeries(),
+    getCollectionStatus(),
   ]);
   const fixtureLabels = await getFixtureLabels();
 
@@ -78,12 +84,16 @@ export default async function AnalyticsPage({ searchParams }: AnalyticsPageProps
     <>
       <PageHeader
         title="Etkileşim ve Reklam Paneli"
-        description="Yayınlanan içeriklerin performansı: izlenme, erişim, beğeni, yorum, paylaşım, kaydetme ve checkmatch.net'e giden tıklamalar. Bağlı hesaplardan otomatik çekilir; bağlı olmayan platformlarda elle girilir."
+        description="Yayınlanan içeriklerin performansı, hesap geneli takipçi/erişim geçmişi ve checkmatch.net'e giden tıklamalar. Bağlı hesaplardan saatlik otomatik okunur (paylaşım her zaman elle); bağlı olmayan platformlarda elle girilir."
       />
 
       {connectStatus ? <ConnectStatusBanner status={connectStatus} /> : null}
 
       <AnalyticsSummary overview={data.overview} />
+
+      <CollectionStatusCard status={collection} summaries={account.summaries} />
+
+      <AccountCharts followers={account.followers} reach={account.reach} />
 
       <TopPostsTable
         items={data.topPosts}

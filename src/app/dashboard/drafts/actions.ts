@@ -9,6 +9,8 @@ import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { isFalConfigured } from "@/lib/services/fal";
 import { captionLength } from "@/lib/dashboard/publish-caption";
 import { generateDraftCaption } from "@/lib/dashboard/publish-engine";
+import { PUBLISH_TO_PLATFORM_TYPE } from "@/lib/dashboard/post-source";
+import { ensureDraftShortLink, type ShortLinkView } from "@/lib/dashboard/short-link";
 import type { DraftActionState, DraftRenderOptions } from "@/types/draft";
 import { GALLERY_MAX_PICK, PUBLISH_LAYOUTS, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type CaptionDraft } from "@/types/publishing";
 import type { Result } from "@/types/result";
@@ -125,4 +127,18 @@ export async function decideDraftAction(_prev: DraftActionState, formData: FormD
 
   refreshDashboard();
   return { notice: decision.data === "APPROVED" ? "Onaylandı — içerik yayına hazır." : "Taslak reddedildi." };
+}
+
+/**
+ * Yayın Merkezi: taslağın kısa linki (yoksa açılır) — X ve Instagram story metni için (Instagram akış
+ * açıklamasına link konmaz, bkz. CLAUDE.md 4.3). Paylaşımda gönderiye bağlanır.
+ */
+export async function draftShortLinkAction(id: unknown, platform: unknown): Promise<Result<ShortLinkView>> {
+  if (!(await getCurrentSession())) return { ok: false, error: { code: "UNAUTHORIZED", message: UNAUTHORIZED_MESSAGE } };
+  const parsedId = idSchema.safeParse(id);
+  const parsedPlatform = platformSchema.safeParse(platform);
+  if (!parsedId.success || !parsedPlatform.success || parsedPlatform.data === "IG_POST") {
+    return { ok: false, error: { code: "INVALID_INPUT", message: "Kısa link yalnızca X ve Instagram story için." } };
+  }
+  return { ok: true, data: await ensureDraftShortLink(parsedId.data, PUBLISH_TO_PLATFORM_TYPE[parsedPlatform.data]) };
 }

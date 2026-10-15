@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Layers,
   ListOrdered,
+  Newspaper,
   Sparkles,
   Table2,
   Trophy,
@@ -42,6 +43,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "İçerik Takvimi",
     description: "Gönderi planlama",
     icon: CalendarDays,
+  },
+  {
+    href: "/dashboard/posts",
+    label: "Gönderiler",
+    description: "Tüm gönderiler ve metrikleri",
+    icon: Newspaper,
   },
   {
     href: "/dashboard/analytics",

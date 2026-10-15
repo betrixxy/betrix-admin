@@ -7,6 +7,7 @@ import { formatNumber } from "@/lib/dashboard/format";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { syncSocialMetrics } from "@/lib/services/social-metrics";
+import { retryFailedJobs } from "@/lib/metrics/jobs";
 import { deleteConnection } from "@/lib/services/social/connections";
 import { SLUG_TO_PLATFORM, parsePlatformSlug } from "@/lib/services/social/platforms";
 import type { SocialActionState } from "@/types/social";
@@ -91,4 +92,12 @@ export async function disconnectSocialAction(formData: FormData): Promise<void> 
 
   await deleteConnection(SLUG_TO_PLATFORM[slug]);
   refreshDashboard();
+}
+
+/** Başarısız metrik işlerini yeniden kuyruğa alır — bir sonraki saatlik tetiklemede çalışır. */
+export async function retryFailedJobsAction(): Promise<SocialActionState> {
+  if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const count = await retryFailedJobs();
+  refreshDashboard();
+  return { success: true, notice: `${formatNumber(count)} iş yeniden kuyruğa alındı — bir sonraki saatlik tetiklemede çalışacak.` };
 }

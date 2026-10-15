@@ -7,12 +7,13 @@ import {
 import { computeContentInsights, statKeysOf } from "@/lib/dashboard/content-insights-stats";
 import { parseRenderOptions } from "@/lib/dashboard/draft-snapshot";
 import { postInclude, toPostView } from "@/lib/dashboard/post-view";
+import { getPostSiteStats } from "@/lib/dashboard/site-attribution";
 import type { AnalyticsData, AnalyticsSort, ContentStatKey, SocialPlatformType } from "@/types/social";
 import { isApprovedStatus } from "@/types/ai-content";
 
 /**
- * Yayınlanmış gönderilerin performans verisi. `PostAnalytics` elle girişle veya
- * `lib/services/social-metrics.ts` senkronizasyonuyla dolar; bu fonksiyon kaynaktan bağımsızdır.
+ * Yayınlanmış gönderilerin performans verisi. `PostAnalytics` en son metrik snapshot'ının önbelleğidir
+ * (otomatik çekim, "Senkronize et" ya da elle giriş); bu fonksiyon kaynaktan bağımsızdır.
  * Platform filtresi özet, tablo ve içerik analizine uygulanır; platform tablosu her zaman tümünü gösterir.
  */
 export async function getAnalyticsData(
@@ -23,7 +24,12 @@ export async function getAnalyticsData(
     where: { status: "PUBLISHED" },
     include: postInclude,
   });
-  const allPosts = rows.map(toPostView);
+  // Tıklama: kısa link tıklaması (bot hariç); kısa linki olmayan eski gönderilerde atıflı site ziyareti.
+  const linkClicks = await getPostSiteStats(rows.map((row) => row.id));
+  const allPosts = rows.map(toPostView).map((post) => {
+    const clicks = linkClicks.get(post.id)?.linkClicks ?? 0;
+    return clicks > 0 ? { ...post, trafficCount: clicks } : post;
+  });
   const posts = platformFilter ? allPosts.filter((post) => post.platform.type === platformFilter) : allPosts;
   const statsByPost = await getStatsByPost(posts.map((post) => post.id));
 
