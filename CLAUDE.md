@@ -228,6 +228,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.production run --rm mi
 
 Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretimi **tam otomatik değildir**: cron/worker/zamanlayıcı ile kendi kendine içerik üreten veya yayınlayan kod yolu **eklenmez**. Her üretim bir admin tıklamasıyla tetiklenir ve onaysız hiçbir içerik yayına hazır sayılmaz.
 
+**Yayın manuel, metrik toplama otomatik (salt okuma) — Kurucu kararı, 2026-10-15.** Paylaşım HER ZAMAN admin tıklamasıyla yapılır; sistem hiçbir içeriği kendiliğinden üretmez, planlamaz veya paylaşmaz (`publishAt` yalnızca plan bilgisidir). Otomatik çalışan **tek** şey platformlardan ve kendi veritabanımızdan **okuma** yapan metrik işleridir (`lib/metrics/`, saatlik `scheduler` servisi — bkz. 4.4). Gerekçe: (1) Yayın geri alınamaz ve markayı temsil eder; kalite kapısı insandadır. (2) Metrik geçmişi sonradan toplanamaz — Instagram story metrikleri 24 saat sonra, gönderi metriklerinin "ilk 1 saat" değeri o saat geçince kaybolur, hesap düzeyi günlük veriler (takipçi büyümesi, günlük erişim) reklam görüşmeleri için her gün kaydedilmezse geriye dönük oluşturulamaz. (3) Okuma işleri yan etkisizdir: yanlış çalışsalar bile platformda hiçbir şey değişmez, en kötü ihtimalle API kredisi harcanır — bu da `X_DAILY_READ_LIMIT` ile sınırlanır. **Kural:** metrik işleri (`MetricJob`) yalnızca GET/okuma çağrısı yapar; zamanlayıcıdan tetiklenen hiçbir kod yolu `publishToPlatform`'u, Fal.ai'yi veya Anthropic'i çağıramaz.
+
 **İçerik türü kataloğu:** Maç Merkezi ve Takvim'in maç detayındaki menü `lib/dashboard/content-types.ts`'ten beslenir (tipler `types/content-type.ts`; tek kaynak, ileride `rules` alanı buraya eklenecek). Ortak bileşen `StudioLauncher`: aktif türde "Stüdyoya Git" → `<route>?fixtureId=<id>`, "Yakında" türlerde pasif. Stüdyo `fixtureId`'yi sunucuda okur, 7 günlük fikstürde doğrular ve formu dolu açar (şu an: Maç Günü). Yeni bir stüdyo aktifleştiğinde aynı `fixtureId` ön-doldurmasını eklemelidir. Her tür `phase` (maç öncesi/sonrası) taşır. Üretilen kayıt `AiContent.contentType`'a tür kimliğini yazar (`publishAt` = planlanan yayın zamanı, opsiyonel); `/calendar` maç kartındaki ilerleme çubuğu (`x/12`, yeşil onaylı / amber taslak) ve maç panelindeki **İçerik Kontrol Merkezi** (tür başına durum + İncele/Stüdyoya Git/Yakında) bu sütundan türetilir (`lib/calendar/calendar-month.ts`, `content-progress.ts`). **Planlama:** kontrol merkezindeki takvim ikonu `scheduleContentAction` ile türün `publishAt`'ini yazar; içerik henüz yoksa görseli olmayan bir DRAFT **placeholder** açılır (`resultImageUrl = null`). Placeholder taslak sayılmaz — onay kuyruğu, sayaçlar ve onay/ret ondan süzülür; stüdyo ilk üretimi onun üzerine yazar (`lib/calendar/content-schedule.ts`).
 
 **AI Market Tahmin & Analiz (`/dashboard/studio/market-analysis`):** veri `api-football/deep-analysis.ts::getDeepAnalysisStats` (iki takımın son 5 maçı: form, gol/xG, topla oynama, pas isabeti, top kazanma = müdahale + top kesme — API-Football "pres" sunmaz —, KG/üst sayıları, diziliş, anahtar oyuncular; Maç Günü ile aynı önbellekli istekler). İleri metrikler: API-Football'dan PPDA (**tüm saha yaklaşımı** — rakip pas / (müdahale+top kesme+faul); bölgesel pres verisi iki sağlayıcıda da yok), kilit pas, şut kalitesi, çalım (`api-football/advanced-metrics.ts`); Sportmonks'tan büyük şans (yaratılan/kaçırılan/izin verilen), tehlikeli atak, orta/uzun pas isabeti (`sportmonks/advanced-stats.ts` — maçlar tarih + takım adıyla eşlenir, eşleşmezse analiz onsuz devam eder). **AI Analist (Kurucu kararı, 2026-10-06):** analist metinleri ve market tahmini Claude ile yazılır (`lib/services/anthropic/`, `claude-sonnet-5-5` — "Sıfır Hata / Kusursuz Türkçe" kararı: Haiku'nun Türkçesi yetersiz kaldı; düşünme kapalı (`between_tools`), max_tokens 1.500, sistem istemi önbellekli —, yapılandırılmış çıktı, `ANTHROPIC_API_KEY`). Model yalnızca `expert-analysis-facts.ts::buildAnalysisFacts` olgu paketini görür. **Çelik Kasa denetimi** (`expert-analysis-apply.ts`): sayılar takım izolasyonlu denetlenir — güçlü yön/dikkat/oyuncu rolü/alıntı yalnızca o takımın paketiyle (rakibin sayısı "takım karışmış", hiçbir pakette olmayan "veride yok"), önerilen yaklaşım kendi + rakip + aralarındaki maçlarla, market gerekçesi iki takım + market çizgileriyle; takım kısaltma/lakapları ("Gala", "GS"…) ayrıca yakalanır; oyuncu izolasyonu: her takımın anahtar oyuncusu yalnızca kendi oyuncu listesinden (o takım formasıyla son maçlarda oynayanlar — sezon içi transferler doğru takımda kalır) kabul edilir; rakibin oyuncusu ya da uydurma ad karta girmez, "rakip/uydurma oyuncu" uyarısı üretir. Hepsi admin'e uyarı olarak gösterilir. Sınır: denetim sayının doğru takıma ait olduğunu doğrular, doğru metriğe ait olduğunu doğrulayamaz. Yalnızca admin tıklamasıyla çalışır (1.10). Anahtar yoksa form kural tabanlı önerilerle dolar (`deep-analysis-insights.ts`). **Kapak (Fal.ai):** her takımın kilit oyuncu fotoğrafı (kütüphane/yükleme) → AI Upscale + birefnet kesim (Maç Günü önbelleği, `getPlayerCutout`) + sahne (Premium: flux `generateFluxScene`, takım rengi başına önbellekli · Ekonomik: programatik) → sharp kompozit 1080×460 (`analysis-hero.ts`, `analysis-hero-compose.ts`) → `storage/generated/analysis-hero-<sha256>.png`. Kart şablonu yalnızca bu desendeki kapağı çizer (`HERO_FILE_PATTERN`); kapak bir kez üretilir, önizleme/kayıt Fal.ai'ye gitmez. Kart şablonu `templates/deep-analysis/deep-analysis-card.tsx`, CheckMatch içerik motorunun `team-analysis` şablonu + `tokens.css`'inin birebir Satori uyarlamasıdır (fontlar `lib/dashboard/deep-analysis-fonts.ts`: Space Mono / Bricolage Grotesque / Manrope / Archivo Black, OFL). "Kaydet" iki takımın kartını çizer, tek DRAFT `AiContent` (`AI_MARKET_PREDICTION`) açar — planlanmış placeholder varsa onu devralır (`market-analysis-engine.ts`); ana görsel ev sahibi kartı, iki kart + form + market tahmini `renderOptions`'ta.
@@ -474,24 +476,26 @@ SCHEDULED → PRE_MATCH_READY → PRE_MATCH_PUBLISHED → LIVE_TRACKING → POST
 
 **Kural:** Durum geçişleri yalnızca `lib/services/calendar/stateMachine.ts` içinden yapılır; UI veya route handler doğrudan `content_calendar.status` alanını güncellemez — her geçiş merkezi bir fonksiyondan geçmek zorundadır (geçersiz geçişler derleme zamanında engellenir, discriminated union sayesinde).
 
-### 4.3 CheckMatch.net Dönüşüm İzleme — UTM Standardı
+### 4.3 CheckMatch.net Dönüşüm İzleme — Kısa Link + UTM Standardı
 
-Her yayınlanan içerikteki CheckMatch.net linki aşağıdaki sabit şemaya uymalıdır:
+X gönderilerine ve Instagram story'lerine checkmatch.net linki doğrudan değil, **kısa link** olarak konur: `<SHORT_LINK_BASE_URL>/r/<kod>` (varsayılan `https://www.betrix.pro`; alan adı env'den gelir, ileride `go.checkmatch.net` gibi bir alt alan adına kod değişmeden geçilir). Her `SocialPost` için tek, benzersiz kod üretilir (`ShortLink`). `/r/[code]` tıklamayı `LinkClick`'e yazar (zaman, platform, gönderi, kaba bot filtresi, IP yalnızca HMAC özeti) ve 302 ile hedefe yönlendirir:
 
 ```
-https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_campaign={fixtureSlug}&utm_content={contentStage}-{format}
+https://checkmatch.net/{hedef-yol}?utm_source={x|instagram}&utm_medium=social&utm_campaign={contentType}&utm_content={socialPostId}
 ```
 
 | Parametre | Değer kümesi | Örnek |
 |---|---|---|
-| `utm_source` | `instagram`, `tiktok`, `youtube`, `x`, `facebook` | `instagram` |
+| `utm_source` | `instagram`, `x` (ileride `tiktok`, `youtube`, `facebook`) | `x` |
 | `utm_medium` | Her zaman sabit `social` | `social` |
-| `utm_campaign` | `<ev-takim>-vs-<deplasman-takim>-<YYYYMMDD>` (kebab-case, ASCII) | `galatasaray-vs-fenerbahce-20260921` |
-| `utm_content` | `<contentStage>-<format>` | `pre_match-story`, `post_match-feed` |
+| `utm_campaign` | İçerik türü kimliği (`AiContent.contentType`, küçük harf); bilinmiyorsa `post` | `match_day` |
+| `utm_content` | `SocialPost.id` — ziyareti gönderiye bağlayan anahtar | `cmg1x…` |
 
-**Gönderi atfı:** linke ayrıca `cm_post=<SocialPost.id>` eklenir. checkmatch.net'teki izleme kodu (`lib/dashboard/tracker-snippet.ts` — Web Trafiği sayfasında kopyalanabilir) bu parametreyi okuyup oturum boyunca `/api/track`'e iletir; böylece ziyaret, trafik kaynağı ve Reklam Bütçeleri'ndeki "ziyaret başı maliyet" o gönderiye/maça yazılır. Ziyaretçi kimliği tarayıcıda kalıcıdır (`localStorage`): "Tekil ziyaretçi" = dönemdeki farklı kimlik, "Yeni ziyaretçi" = ilk kez görülen kimlik (`isUniqueVisit`, eşzamanlı isteklerde kimlik başına advisory lock ile tekil).
+**Instagram feed açıklamalarına link konmaz** (tıklanmaz). Instagram'dan siteye dönüş hesap düzeyindeki `profile_links_taps` ve gönderi bazlı `profile_visits` ile ölçülür.
 
-**Kural:** UTM link üretimi tek bir yardımcı fonksiyondan (`lib/dashboard/tracking-link.ts::buildTrackingLink`) geçer; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyon tarafından garanti edilir. Link, Postgres `content_links` tablosuna, hangi içerikten üretildiği referansıyla kaydedilir ki tıklama→dönüşüm zinciri geriye doğru izlenebilsin.
+**Oturum bazlı atıf:** `/api/track`, gelen ziyaretteki `utm_*` parametrelerini `TrafficLog`'a ayrı sütunlar olarak yazar; aynı ziyaretçi oturumundaki sonraki sayfa görüntülemeleri ilk ziyaretin UTM değerini ve gönderisini devralır (`attributionInherited`). Eski `cm_post=<SocialPost.id>` parametresi geriye dönük uyumluluk için hâlâ kabul edilir. Ziyaretçi kimliği tarayıcıda kalıcıdır (`localStorage`): "Tekil ziyaretçi" = dönemdeki farklı kimlik, "Yeni ziyaretçi" = ilk kez görülen kimlik (`isUniqueVisit`, eşzamanlı isteklerde kimlik başına advisory lock ile tekil). IP adresi hiçbir tabloda ham tutulmaz: `IP_HASH_SECRET` ile sabit anahtarlı HMAC-SHA256 (geri dönen ziyaretçi ölçülebilsin diye günlük tuz kullanılmaz). checkmatch.net tarafında gereken değişiklikler: `docs/checkmatch-net-tracking-changes.md`.
+
+**Kural:** Kısa link ve UTM URL'si yalnızca `lib/dashboard/short-link.ts` ve `lib/dashboard/tracking-link.ts` üzerinden üretilir; hiçbir bileşen elle string birleştirme (`+`) ile link üretmez — parametre sırası ve encoding tutarlılığı bu fonksiyonlar tarafından garanti edilir.
 
 ### 4.4 Sosyal Hesap Bağlama ve Veri Çekme Motoru (Kurucu Vizyonu: Veriye Dayalı İçerik Planlama)
 
@@ -504,11 +508,30 @@ https://checkmatch.net/{hedef-yol}?utm_source={platform}&utm_medium=social&utm_c
 
 - **Bağlama:** `connect` state (CSRF) + PKCE (X, YouTube) üretir, httpOnly/yola kısıtlı/10 dk'lık cookie'ye yazar; `callback` state'i sabit zamanlı karşılaştırır, cookie'yi her durumda siler. İkisi de `proxy.ts` dışındadır, oturumu kendileri doğrular. Panele yalnızca sabit hata kodları döner (`CONNECT_ERROR_CODES`). Koparma bir Server Action'dır (`disconnectSocialAction`); geçmiş metrikler korunur.
 - **Token güvenliği:** `lib/services/social/token-crypto.ts` (AES-256-GCM) — veritabanına düz metin token yazılmaz, token'lar asla loglanmaz ve `SocialConnectionView`'a girmez. Süresi 5 dk içinde dolacak token senkronizasyondan önce yenilenir.
-- **Senkronizasyon:** kademeli takvim (`metrics/schedule.ts`, 1/6/24/72 sa), "tümünü çek" ile zorlanabilir. **Tetikleme manueldir** — cron/worker eklenmedi (1.10 ruhu); zamanlayıcı gerekirse yalnızca `syncSocialMetrics()`'i çağırır. `PostAnalytics.source`: `MANUAL | API | MOCK` — mock senkronizasyon `MANUAL` kayıtların üzerine yazmaz.
+- **Senkronizasyon (otomatik, salt okuma — bkz. 1.10):** gönderi metrikleri yayından 1 sa, 6 sa, 24 sa, 72 sa, 7 g ve 30 g sonra çekilir (story: 1/6/23 sa — Meta story metriklerini 24 saat tutar); 30 günden eski gönderiler yalnızca elle "şimdi güncelle" ile çekilir. Her çekim yeni bir `PostMetricSnapshot` satırıdır (üzerine yazılmaz); `PostAnalytics` en son snapshot'ın önbelleğidir. Hesap düzeyi günlük (`AccountMetricSnapshot`) ve haftalık demografi (`AudienceSnapshot`) işleri aynı kuyruktadır. İşler `MetricJob` tablosunda tutulur; compose'taki `scheduler` servisi saatte bir `/api/internal/metrics/tick`'i (`INTERNAL_CRON_SECRET`) çağırır — bellek içi zamanlayıcı yoktur, yeniden başlatmada iş kaybolmaz. Hatalar üstel beklemeyle yeniden denenir, 5 denemeden sonra panelde "başarısız" görünür; token süresi dolmuş bağlantının işleri `BLOCKED` olur. `PostAnalytics.source`: `MANUAL | API | MOCK` — mock senkronizasyon `MANUAL` kayıtların üzerine yazmaz.
 - **Mock modu (`SOCIAL_USE_MOCKS`, 5.2):** OAuth sağlayıcıya gitmeden callback'e döner; metrikler sağlayıcının **ham** biçiminde üretilip gerçek şema/mapper'dan geçer.
 - **Gerçek mod durumu:** OAuth kod değişimi ve token yenileme gerçek çağrıdır. Hesap bilgisi ve gönderi metrikleri `adapter.ts` içinde **yer tutucudur** (`NOT_IMPLEMENTED`); çağrılacak uç noktalar orada not edilmiştir. Gerçek senkronizasyon için `SocialPost.providerPostId` dolu olmalıdır.
 - **Etkileşim oranı:** (beğeni + yorum + paylaşım + kaydetme) / erişim; erişim yoksa izlenme. Gruplarda toplu oran (toplam etkileşim / toplam kitle) kullanılır.
 - **İçerik stratejisi analizi:** gönderiye bağlı `AiContent.renderOptions.selection` (form/gol/xG/H2H) ile etkileşim karşılaştırılır; her grupta < 3 gönderi varsa "az veri" işaretlenir. Nedensellik iddiası taşımaz.
+
+### 4.5 Platform API Maliyet Notları (açıklama motoru tasarımında kullanılır)
+
+**X API (pay-per-use, 2026-10 itibarıyla — docs.x.com/x-api/getting-started/pricing):**
+
+| İşlem | Ücret |
+|---|---|
+| Linksiz gönderi (tweet) oluşturma | $0.015 / istek |
+| **URL içeren** gönderi oluşturma | **$0.20 / istek** (~13×) |
+| Gönderi okuma (`/2/tweets?ids=`, arama) | $0.005 / dönen gönderi |
+| Kullanıcı okuma (`/2/users/me` dahil) | $0.010 / dönen kullanıcı |
+| **Owned read** — `GET /2/users/{id}/tweets` (kendi hesabımız; uygulama sahibi = hesap) | **$0.001 / dönen gönderi** |
+
+- Ücret istek başına değil **dönen kaynak** başınadır; aynı kaynak aynı UTC günü içinde tekrar okunursa ücret alınmaz (X'in deyişiyle "soft guarantee").
+- Aylık üst sınır 3 milyon gönderi okuma; bakiye/harcama limiti dolunca istekler 429 ile reddedilir.
+- Metrik işleri önce owned read yolunu kullanır; `X_DAILY_READ_LIMIT` (varsayılan 300) **okunan gönderi** sayısını sınırlar.
+- **Açıklama motoru için sonuç:** linki tweet gövdesine koymak paylaşım maliyetini ~13 kat artırır. Link ilk yanıta (reply) konursa ana tweet $0.015 + yanıt $0.20 — toplam maliyet düşmez; linkin gövdede mi ilk yanıtta mı olacağına etkileşim verisiyle (`PostFeatures.linkPlacement`) karar verilmelidir.
+
+**Meta Graph API:** çağrı başına ücret yoktur; hız limiti (kullanıcı başına saatlik çağrı kotası) geçerlidir. Instagram `impressions` 2024-07-02 sonrası medyada kaldırıldı — yerine `views`.
 
 ---
 
