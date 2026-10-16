@@ -1,6 +1,6 @@
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
 import type { ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
-import type { CompetitionRef, Fixture, FixtureStatus, TeamRef } from "@/types/sports";
+import type { CompetitionRef, Fixture, FixtureProgress, FixtureStatus, TeamRef } from "@/types/sports";
 
 /**
  * API-Football forma/marka rengi döndürmüyor (yalnızca logo URL'i verir). Gerçek
@@ -97,5 +97,17 @@ export function mapApiFootballFixtureToFixture(raw: ApiFootballFixtureRaw): Fixt
       referee: raw.fixture.referee ?? null,
       round: raw.league.round || null,
     },
+    progress: mapProgress(raw),
+  };
+}
+
+function mapProgress(raw: ApiFootballFixtureRaw): FixtureProgress {
+  const penalty = raw.score?.penalty;
+  return {
+    statusShort: raw.fixture.status.short,
+    elapsed: raw.fixture.status.elapsed,
+    homeGoals: raw.goals.home,
+    awayGoals: raw.goals.away,
+    penalty: penalty && penalty.home !== null && penalty.away !== null ? { home: penalty.home, away: penalty.away } : null,
   };
 }

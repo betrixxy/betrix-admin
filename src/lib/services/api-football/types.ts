@@ -43,6 +43,11 @@ export const apiFootballFixtureRawSchema = z.object({
     home: z.number().nullable(),
     away: z.number().nullable(),
   }),
+  /** Yalnızca penaltı atışları okunur; blok bozuk/eksikse yok sayılır. */
+  score: z
+    .object({ penalty: z.object({ home: z.number().nullable(), away: z.number().nullable() }).nullish() })
+    .nullish()
+    .catch(null),
 });
 
 export type ApiFootballFixtureRaw = z.infer<typeof apiFootballFixtureRawSchema>;
@@ -127,6 +132,25 @@ export const apiFootballFixtureDetailRawSchema = apiFootballFixtureRawSchema.ext
 
 export type ApiFootballFixtureDetailRaw = z.infer<typeof apiFootballFixtureDetailRawSchema>;
 
+/** `/fixtures?id=` olay akışı — Maç Sonucu golcü listesi yalnızca `type: "Goal"` satırlarını okur. */
+export const apiFootballEventSchema = z.object({
+  time: z.object({ elapsed: z.number().nullable(), extra: z.number().nullish() }),
+  team: z.object({ id: z.number() }),
+  player: z.object({ id: z.number().nullish(), name: z.string().nullish() }),
+  type: z.string(),
+  detail: z.string().nullish(),
+  comments: z.string().nullish(),
+});
+
+export type ApiFootballEventRaw = z.infer<typeof apiFootballEventSchema>;
+
+/** Bitmiş maç: ayrıntılı fikstür + olaylar. Bozuk olay bloğu boş sayılır. */
+export const apiFootballFixtureResultRawSchema = apiFootballFixtureDetailRawSchema.extend({
+  events: z.array(apiFootballEventSchema).optional().default([]).catch([]),
+});
+
+export type ApiFootballFixtureResultRaw = z.infer<typeof apiFootballFixtureResultRawSchema>;
+
 function responseSchema<T extends z.ZodTypeAny>(item: T) {
   return z.object({
     get: z.string(),
@@ -137,6 +161,7 @@ function responseSchema<T extends z.ZodTypeAny>(item: T) {
 
 export const apiFootballFixturesResponseSchema = responseSchema(apiFootballFixtureRawSchema);
 export const apiFootballFixtureDetailsResponseSchema = responseSchema(apiFootballFixtureDetailRawSchema);
+export const apiFootballFixtureResultsResponseSchema = responseSchema(apiFootballFixtureResultRawSchema);
 
 export type ApiFootballFixturesResponse = z.infer<typeof apiFootballFixturesResponseSchema>;
 

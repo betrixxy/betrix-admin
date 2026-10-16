@@ -67,7 +67,7 @@ export function generateMatchDayBackground(input: MatchDayBackgroundInput): Prom
   return generateFluxScene(buildMatchDayBackgroundPrompt(input), input.width, input.height, "Maç Günü arka planı üretilemedi.");
 }
 
-export interface HarmonizeInput extends MatchDayPromptInput {
+export interface CompositeInput {
   /** Kaba kompozit (arka plan + oyuncu kesimleri), PNG/JPEG baytları. */
   composite: Buffer;
   contentType: string;
@@ -75,15 +75,23 @@ export interface HarmonizeInput extends MatchDayPromptInput {
   strength: number;
 }
 
+export type HarmonizeInput = MatchDayPromptInput & CompositeInput;
+
+/** Maç Günü kompoziti — şablonun sanat yönetimi prompt'uyla (bkz. `harmonizeComposite`). */
+export function harmonizeMatchDayComposite(input: HarmonizeInput): Promise<Result<FalGeneratedImage, FalError>> {
+  return harmonizeComposite({ ...input, prompt: buildMatchDayHarmonizePrompt(input) });
+}
+
 /**
  * Kaba kompoziti Fal.ai `flux/dev/image-to-image` ile tek parça bir postere harmanlar: ışık,
  * renk tonu, kenar geçişleri ve netlik. Tipografi bu adıma girmez — sonrasında programatik
  * olarak üstüne basılır (bkz. CLAUDE.md 3.4, veri katmanı her zaman programatiktir).
+ * Prompt'u stüdyo kurar (Maç Günü, Maç Sonucu…).
  */
-export async function harmonizeMatchDayComposite(input: HarmonizeInput): Promise<Result<FalGeneratedImage, FalError>> {
+export async function harmonizeComposite(input: CompositeInput & { prompt: string }): Promise<Result<FalGeneratedImage, FalError>> {
   if (!isFalConfigured()) return NOT_CONFIGURED;
   const client = getFalClient();
-  const prompt = buildMatchDayHarmonizePrompt(input);
+  const { prompt } = input;
 
   let imageUrl: string;
   try {

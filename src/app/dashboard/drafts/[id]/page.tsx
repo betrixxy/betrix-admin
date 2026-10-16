@@ -9,6 +9,7 @@ import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { LineupDraftView } from "@/components/features/dashboard/lineup-draft-view";
 import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
+import { MatchResultDraftView } from "@/components/features/dashboard/match-result-draft-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
 import { StandingsDraftView } from "@/components/features/dashboard/standings-draft-view";
@@ -87,6 +88,17 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
       <>
         <PageHeader title={`${draft.leagueName} · ${draft.title}`} description="Puan Durumu · lig/grup tablosu kartı — onayınız olmadan yayına hazır sayılmaz." actions={backLink} />
         <StandingsDraftView draft={draft} postOptions={postOptions} />
+      </>
+    );
+  }
+
+  if (lookup.kind === "match-result") {
+    const { draft } = lookup;
+    const postOptions = draft.status === "DRAFT" ? await getLinkablePosts(draft.fixtureId) : [];
+    return (
+      <>
+        <PageHeader title={draft.title} description={`Maç Sonucu · ${draft.subtitle} — onayınız olmadan yayına hazır sayılmaz.`} actions={backLink} />
+        <MatchResultDraftView draft={draft} postOptions={postOptions} />
       </>
     );
   }

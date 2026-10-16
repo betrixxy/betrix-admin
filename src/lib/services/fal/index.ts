@@ -11,7 +11,8 @@ import {
 import type { Result } from "@/types/result";
 
 export { isFalConfigured, toFalImageSize };
-export { generateFluxScene, generateMatchDayBackground, harmonizeMatchDayComposite } from "@/lib/services/fal/match-day";
+export { generateFluxScene, generateMatchDayBackground, harmonizeComposite, harmonizeMatchDayComposite } from "@/lib/services/fal/match-day";
+export { buildMatchResultBackgroundPrompt, buildMatchResultHarmonizePrompt } from "@/lib/services/fal/match-result-prompts";
 export { buildAnalysisHeroPrompt } from "@/lib/services/fal/analysis-hero-prompts";
 export type { FalGeneratedImage } from "@/lib/services/fal/match-day";
 export { buildMatchDayBackgroundPrompt } from "@/lib/services/fal/match-day-prompts";

@@ -37,11 +37,15 @@ export interface AddMediaAssetInput {
   label: string;
   teamId?: string | null;
   teamName?: string | null;
+  /** Oyuncu fotoğrafının API-Football oyuncusu (Maç Sonucu MVP yüklemesi). */
+  playerId?: number | null;
+  playerName?: string | null;
 }
 
 /**
  * Görseli kütüphaneye ekler. Aynı dosya bu kategoride zaten varsa yeni kayıt açılmaz,
  * mevcut kayıt döner (`created: false`) — stüdyodan tekrar tekrar aynı logo yüklense de tek kopya.
+ * Mevcut kaydın oyuncusu boşsa ve bu yükleme oyuncu taşıyorsa kayıt etiketlenir.
  */
 export async function addMediaAsset(
   input: AddMediaAssetInput,
@@ -50,7 +54,16 @@ export async function addMediaAsset(
   const existing = await prisma.mediaAsset.findUnique({
     where: { category_sha256: { category, sha256: image.hash } },
   });
-  if (existing) return { asset: toView(existing), created: false };
+  if (existing) {
+    if (input.playerId && existing.playerId === null) {
+      const tagged = await prisma.mediaAsset.update({
+        where: { id: existing.id },
+        data: { playerId: input.playerId, playerName: input.playerName ?? null },
+      });
+      return { asset: toView(tagged), created: false };
+    }
+    return { asset: toView(existing), created: false };
+  }
 
   const fileName = `${category.toLowerCase()}-${image.hash}.${image.extension}`;
   const fileUrl = await saveStoredFile("library", fileName, image.bytes);
@@ -67,9 +80,33 @@ export async function addMediaAsset(
       hasAlpha: image.hasAlpha,
       teamId: input.teamId ?? null,
       teamName: input.teamName ?? null,
+      playerId: input.playerId ?? null,
+      playerName: input.playerName ?? null,
     },
   });
   return { asset: toView(row), created: true };
+}
+
+/** Bir oyuncunun kütüphanedeki fotoğrafları (en yenisi önce) — Maç Sonucu MVP alanı. */
+export async function getPlayerPhotoOptions(playerIds: number[]): Promise<Record<number, MediaAssetOption[]>> {
+  if (playerIds.length === 0) return {};
+  const rows = await prisma.mediaAsset.findMany({
+    where: { category: "PLAYER", playerId: { in: playerIds } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, label: true, fileUrl: true, playerId: true },
+  });
+  const byPlayer: Record<number, MediaAssetOption[]> = {};
+  for (const row of rows) {
+    if (row.playerId === null) continue;
+    (byPlayer[row.playerId] ??= []).push({ id: row.id, label: row.label, fileUrl: row.fileUrl });
+  }
+  return byPlayer;
+}
+
+/** Seçilen kütüphane görseli bu oyuncuya mı ait — sunucu, formdan gelen kimliğe güvenmez. */
+export async function isPlayerPhoto(assetId: string, playerId: number): Promise<boolean> {
+  const row = await prisma.mediaAsset.findUnique({ where: { id: assetId }, select: { category: true, playerId: true } });
+  return row?.category === "PLAYER" && row.playerId === playerId;
 }
 
 export async function listMediaAssets(category?: MediaCategory): Promise<MediaAssetView[]> {

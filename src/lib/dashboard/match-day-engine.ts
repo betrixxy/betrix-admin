@@ -74,7 +74,7 @@ const DB_FORMAT: Record<MatchDayFormatId, string> = {
  * gerekmez — uzun kenarı 1024px üretilip sharp ile büyütülür (Fal.ai flux megapiksel başına
  * ücretlendirir; 9:16'da ~%70, 4:5'te ~%40 daha az piksel).
  */
-function economyBackgroundSize(frame: MatchDayFrame): { width: number; height: number } {
+export function economyBackgroundSize(frame: MatchDayFrame): { width: number; height: number } {
   const scale = Math.min(1, 1024 / Math.max(frame.width, frame.height));
   return { width: Math.round(frame.width * scale), height: Math.round(frame.height * scale) };
 }

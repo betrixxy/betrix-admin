@@ -50,8 +50,15 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "coming_soon",
     route: null,
   },
-  // ---- Maç sonrası ----
-  { id: "POST_MATCH_CARD", label: "Maç Sonu Kartı", description: "Skor ve maçın öne çıkanları.", phase: "post_match", status: "coming_soon", route: null },
+  // ---- Maç sonrası ---- (ilk aktif tür, biten maçlarda menünün varsayılanıdır)
+  {
+    id: "MATCH_RESULT",
+    label: "Maç Sonucu",
+    description: "Skor, golcüler ve maçın oyuncusu — MVP fotoğraflı kahraman kartı (yalnızca biten maçlar).",
+    phase: "post_match",
+    status: "active",
+    route: "/dashboard/studio/match-result",
+  },
   { id: "MATCH_STATS", label: "Maç İstatistikleri", description: "Topa sahip olma, şut, xG karşılaştırması.", phase: "post_match", status: "coming_soon", route: null },
   { id: "PLAYER_STATS", label: "Oyuncu İstatistikleri", description: "Maçın/oyuncunun bireysel performans kartı.", phase: "post_match", status: "coming_soon", route: null },
   { id: "MARKET_RESULTS", label: "Market Sonuçları", description: "Tahminlerin maç sonu tutma durumu.", phase: "post_match", status: "coming_soon", route: null },
@@ -84,8 +91,15 @@ export const CONTENT_TYPES_BY_PHASE: readonly { phase: ContentPhase; types: Cont
   types: CONTENT_TYPES.filter((type) => type.phase === phase),
 }));
 
-/** Menüde varsayılan seçili tür: ilk aktif olan. */
-export const DEFAULT_CONTENT_TYPE_ID: ContentTypeId = CONTENT_TYPES.find((type) => type.status === "active")?.id ?? "MATCH_DAY";
+/** Bir evrenin türleri, katalog sırasıyla — Maç Merkezi menüsü maçın durumuna göre bunu gösterir. */
+export function contentTypesForPhase(phase: ContentPhase): ContentTypeDef[] {
+  return CONTENT_TYPES.filter((type) => type.phase === phase);
+}
+
+/** Evrenin menüsünde varsayılan seçili tür: o evrenin ilk aktif türü (öncesi: Maç Günü, sonrası: Maç Sonucu). */
+export function defaultContentTypeId(phase: ContentPhase): ContentTypeId | null {
+  return contentTypesForPhase(phase).find((type) => type.status === "active")?.id ?? null;
+}
 
 export function getContentType(id: string): ContentTypeDef | undefined {
   return CONTENT_TYPES.find((type) => type.id === id);

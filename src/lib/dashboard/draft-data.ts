@@ -62,6 +62,16 @@ const standingsOptionsSchema = z.object({
   sections: z.array(z.object({ rows: z.array(z.unknown()) })),
 });
 
+/** `AiContent.renderOptions` — Maç Sonucu kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const matchResultOptionsSchema = z.object({
+  kind: z.literal("MATCH_RESULT"),
+  format: formatField,
+  imageUrl: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  mvp: z.object({ name: z.string() }),
+});
+
 /** Yayın Merkezi alanları — görseller ve kayıtlı yayın ayarları doğrudan kayıttan okunur. */
 function publishable(record: {
   renderOptions: unknown;
@@ -158,6 +168,30 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           kindLabel,
           imageUrl,
           teamCount: sections.reduce((sum, section) => sum + section.rows.length, 0),
+          format,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "MATCH_RESULT") {
+    const options = matchResultOptionsSchema.safeParse(record.renderOptions);
+    if (options.success) {
+      const { imageUrl, title, subtitle, mvp, format } = options.data;
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          title,
+          subtitle,
+          mvpName: mvp.name,
+          imageUrl,
           format,
         },
       };

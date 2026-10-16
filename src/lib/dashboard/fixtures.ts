@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { MATCH_CENTER_PAST_DAYS, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/match-center-window";
 import { prisma } from "@/lib/prisma";
 import { getFixturesByIds, getUpcomingFixtures, parseFixtureId } from "@/lib/services/api-football";
 import type { ApiFootballError } from "@/lib/services/api-football";
@@ -6,15 +7,19 @@ import type { Result } from "@/types/result";
 import type { FixtureOption } from "@/types/social";
 import type { Fixture } from "@/types/sports";
 
-/** Dashboard formlarında ve Maç Merkezi'nde listelenen pencere (bugün dahil). */
-export const SELECTABLE_FIXTURE_DAYS = 7;
+export { MATCH_CENTER_PAST_DAYS, SELECTABLE_FIXTURE_DAYS };
 
 /**
- * Dashboard formlarında seçilebilir gerçek maçlar — API-Football, desteklenen ligler
- * (bkz. lib/services/api-football/leagues.ts), önümüzdeki SELECTABLE_FIXTURE_DAYS gün.
+ * Maç öncesi formlarda seçilebilir gerçek maçlar — API-Football, desteklenen ligler
+ * (bkz. lib/services/api-football/leagues.ts), bugünden itibaren SELECTABLE_FIXTURE_DAYS gün.
  */
 export function getSelectableFixtures(): Promise<Result<Fixture[], ApiFootballError>> {
   return getUpcomingFixtures(SELECTABLE_FIXTURE_DAYS);
+}
+
+/** Maç Merkezi: MATCH_CENTER_PAST_DAYS gün geriden (biten maçlar) + önümüzdeki SELECTABLE_FIXTURE_DAYS gün. */
+export function getMatchCenterFixtures(): Promise<Result<Fixture[], ApiFootballError>> {
+  return getUpcomingFixtures(SELECTABLE_FIXTURE_DAYS, MATCH_CENTER_PAST_DAYS);
 }
 
 export function formatFixtureLabel(fixture: Fixture): string {
@@ -39,7 +44,7 @@ export async function getFixtureOptions(): Promise<FixtureOption[]> {
  */
 export async function getFixtureLabels(): Promise<Record<string, string>> {
   const [upcoming, postRows, contentRows] = await Promise.all([
-    getSelectableFixtures(),
+    getMatchCenterFixtures(),
     prisma.socialPost.findMany({ distinct: ["fixtureId"], select: { fixtureId: true } }),
     prisma.aiContent.findMany({ distinct: ["fixtureId"], select: { fixtureId: true } }),
   ]);

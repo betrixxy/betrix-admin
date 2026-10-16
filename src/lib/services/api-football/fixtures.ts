@@ -1,7 +1,10 @@
 import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { addDays as addIstanbulDays, istanbulDay } from "@/lib/metrics/istanbul-time";
+import { TtlCache } from "@/lib/services/shared/ttl-cache";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { isSupportedLeagueId } from "@/lib/services/api-football/leagues";
 import { mapApiFootballFixtureToFixture } from "@/lib/services/api-football/mappers";
+import { isSettledPastDay, SETTLED_DAY_TTL_MS } from "@/lib/services/api-football/settled-day";
 import {
   apiFootballFixtureDetailsResponseSchema,
   apiFootballFixturesResponseSchema,
@@ -27,24 +30,26 @@ const DAY_REQUEST_CONCURRENCY = 7;
 const MAX_IDS_PER_REQUEST = 20;
 /** Bitmiş maçların detayı değişmez — uzun süre önbellekte kalabilir. */
 const FINISHED_DETAIL_TTL_MS = 6 * 60 * 60 * 1000;
+/** Tamamen sonuçlanmış geçmiş günler (bkz. settled-day.ts) — uzun önbellek. */
+const settledDays = new TtlCache<Fixture[]>(64);
 
 function invalidResponse(provider: string, error: z.ZodError): ApiFootballError {
   return { code: "INVALID_RESPONSE", message: `${provider} yanıtı beklenen şemaya uymuyor: ${error.message}` };
 }
 
 async function getFixturesForDate(date: string): Promise<Result<Fixture[], ApiFootballError>> {
+  const settled = settledDays.get(date);
+  if (settled) return { ok: true, data: settled };
+
   const rawResult = await apiFootballRequest("/fixtures", { date, timezone: "Europe/Istanbul" });
   if (!rawResult.ok) return rawResult;
 
   const parsed = apiFootballFixturesResponseSchema.safeParse(rawResult.data);
   if (!parsed.success) return { ok: false, error: invalidResponse("API-Football /fixtures", parsed.error) };
 
-  return {
-    ok: true,
-    data: parsed.data.response
-      .filter((raw) => isSupportedLeagueId(raw.league.id))
-      .map(mapApiFootballFixtureToFixture),
-  };
+  const fixtures = parsed.data.response.filter((raw) => isSupportedLeagueId(raw.league.id)).map(mapApiFootballFixtureToFixture);
+  if (isSettledPastDay(date, fixtures, new Date())) settledDays.set(date, fixtures, SETTLED_DAY_TTL_MS);
+  return { ok: true, data: fixtures };
 }
 
 /**
@@ -80,13 +85,14 @@ export async function getFixturesForDateRange(
   return { ok: true, data: fixtures };
 }
 
-/** Bugünden başlayarak `days` günlük fikstür listesi. */
-export function getUpcomingFixtures(days = 7): Promise<Result<Fixture[], ApiFootballError>> {
-  const today = new Date();
-  return getFixturesForDateRange({
-    from: format(today, "yyyy-MM-dd"),
-    to: format(addDays(today, days - 1), "yyyy-MM-dd"),
-  });
+/**
+ * İstanbul'da bugünden başlayarak `days` günlük fikstür listesi; `pastDays` > 0 ise o kadar gün
+ * geriden başlar. Günler İstanbul takvimiyle hesaplanır — sunucu UTC'de çalışsa da 00:00-03:00
+ * arasında "bugün" kaymaz.
+ */
+export function getUpcomingFixtures(days = 7, pastDays = 0): Promise<Result<Fixture[], ApiFootballError>> {
+  const today = istanbulDay(new Date());
+  return getFixturesForDateRange({ from: addIstanbulDays(today, -pastDays), to: addIstanbulDays(today, days - 1) });
 }
 
 /**

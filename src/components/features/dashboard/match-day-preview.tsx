@@ -5,7 +5,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { MATCH_DAY_TEMPLATES } from "@/lib/dashboard/match-day-templates";
 import { cn } from "@/lib/utils";
-import type { MatchDayFormatId, MatchDayGenerationResult } from "@/types/match-day";
+import type { MatchDayFormatId, MatchDayGenerationResult, MatchDayTemplateId } from "@/types/match-day";
+
+/** Önizlemenin okuduğu alanlar — Maç Sonucu sonucu da (şablonsuz) bu şekle uyar. */
+type PreviewResult = Omit<MatchDayGenerationResult, "template" | "prompt"> & { template?: MatchDayTemplateId };
+
+/** Stüdyoya özel metinler; verilmezse Maç Günü metinleri. */
+export interface PreviewCopy {
+  idle: string;
+  alt: string;
+  downloadPrefix: string;
+  templateLabel?: string;
+}
+
+const MATCH_DAY_COPY: PreviewCopy = {
+  idle: 'Maçı, formatı ve şablonu seçin, iki oyuncu fotoğrafını ekleyin ve "Kartı Üret"e basın.',
+  alt: "Üretilen Maç Günü kartı",
+  downloadPrefix: "checkmatch-mac-gunu",
+};
 
 const PIPELINE_STEPS = [
   "Oyuncu kesimleri: önbellek → yoksa AI Upscale + birefnet",
@@ -15,10 +32,11 @@ const PIPELINE_STEPS = [
 ];
 
 interface MatchDayPreviewProps {
-  result: MatchDayGenerationResult | undefined;
+  result: PreviewResult | undefined;
   isPending: boolean;
   /** Formda seçili format — sonuç yokken tuvalin oranını belirler. */
   format: MatchDayFormatId;
+  copy?: PreviewCopy;
 }
 
 function Thumb({ src, label, ratio }: { src: string; label: string; ratio: string }) {
@@ -32,7 +50,8 @@ function Thumb({ src, label, ratio }: { src: string; label: string; ratio: strin
 }
 
 /** Seçili formatın oranında tuval: üretim sırasında adım listesi, sonra nihai kart + maliyet özeti. */
-export function MatchDayPreview({ result, isPending, format }: MatchDayPreviewProps) {
+export function MatchDayPreview({ result, isPending, format, copy = MATCH_DAY_COPY }: MatchDayPreviewProps) {
+  const templateLabel = result?.template ? MATCH_DAY_TEMPLATES[result.template].label : copy.templateLabel;
   const frame = MATCH_DAY_FRAMES[result && !isPending ? result.format : format];
   const ratio = `${frame.width} / ${frame.height}`;
 
@@ -42,7 +61,7 @@ export function MatchDayPreview({ result, isPending, format }: MatchDayPreviewPr
         <CardTitle>Önizleme</CardTitle>
         <CardDescription>
           {frame.label} · {frame.width}×{frame.height} ({frame.ratioLabel})
-          {result && !isPending ? ` · ${MATCH_DAY_TEMPLATES[result.template].label}` : ""}
+          {result && !isPending && templateLabel ? ` · ${templateLabel}` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -62,11 +81,11 @@ export function MatchDayPreview({ result, isPending, format }: MatchDayPreviewPr
             </div>
           ) : result ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={result.resultImageUrl} alt="Üretilen Maç Günü kartı" className="size-full object-contain" />
+            <img src={result.resultImageUrl} alt={copy.alt} className="size-full object-contain" />
           ) : (
             <span className="flex flex-col items-center gap-2 px-6 text-center text-xs text-muted-foreground">
               <Sparkles className="size-6" />
-              Maçı, formatı ve şablonu seçin, iki oyuncu fotoğrafını ekleyin ve &quot;Kartı Üret&quot;e basın.
+              {copy.idle}
             </span>
           )}
         </div>
@@ -95,7 +114,7 @@ export function MatchDayPreview({ result, isPending, format }: MatchDayPreviewPr
             </Link>
             <a
               href={result.resultImageUrl}
-              download={`checkmatch-mac-gunu-${result.format.toLowerCase()}-${result.id}.png`}
+              download={`${copy.downloadPrefix}-${result.format.toLowerCase()}-${result.id}.png`}
               className={cn(buttonVariants({ variant: "outline" }), "w-full")}
             >
               <Download />

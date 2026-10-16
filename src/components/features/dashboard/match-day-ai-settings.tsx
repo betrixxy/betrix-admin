@@ -31,8 +31,14 @@ function maxPaidCalls(template: string, quality: MatchDayQualityMode): number {
   return 4 + background + harmonize;
 }
 
+interface MatchDayAiSettingsProps {
+  template: string;
+  /** Başka stüdyolar (ör. Maç Sonucu, tek oyuncu) kendi ücretli çağrı üst sınırını verir. */
+  maxCalls?: Record<MatchDayQualityMode, number>;
+}
+
 /** Kalite modu, arka plan önbelleği, harmanlama gücü ve oyuncu koruma — maliyeti doğrudan etkiler. */
-export function MatchDayAiSettings({ template }: { template: string }) {
+export function MatchDayAiSettings({ template, maxCalls }: MatchDayAiSettingsProps) {
   const [quality, setQuality] = useState<MatchDayQualityMode>("PREMIUM");
   const [strength, setStrength] = useState(0.3);
   const harmonizes = quality === "PREMIUM" && (template === RANDOM_TEMPLATE || !isMatchDayTemplateId(template) || MATCH_DAY_TEMPLATES[template].harmonize);
@@ -97,7 +103,7 @@ export function MatchDayAiSettings({ template }: { template: string }) {
 
       <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
         <Coins className="size-3.5 shrink-0 text-amber-300" />
-        Bu ayarlarla en fazla {maxPaidCalls(template, quality)} ücretli Fal.ai çağrısı. Kütüphanedeki fotoğrafların kesimleri ve
+        Bu ayarlarla en fazla {maxCalls?.[quality] ?? maxPaidCalls(template, quality)} ücretli Fal.ai çağrısı. Kütüphanedeki fotoğrafların kesimleri ve
         önbellekteki arka planlar bu sayıyı düşürür; gerçek sayı üretimden sonra gösterilir.
       </p>
     </fieldset>

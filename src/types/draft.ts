@@ -114,6 +114,23 @@ export interface WeeklyFixturesDraftView extends PublishableDraft {
   format: SocialFormatId;
 }
 
+/** Maç Sonucu taslağı — tek kart (bkz. match-result-engine.ts). */
+export interface MatchResultDraftView extends PublishableDraft {
+  id: string;
+  fixtureId: string;
+  status: AiContentStatus;
+  caption: string;
+  postId: string | null;
+  reviewedAt: string | null;
+  /** "Hoffenheim 2-3 Beşiktaş" */
+  title: string;
+  /** "UEFA Avrupa Ligi · Lig Aşaması · 2. Maç" */
+  subtitle: string;
+  mvpName: string;
+  imageUrl: string;
+  format: SocialFormatId;
+}
+
 /** Puan Durumu taslağı — tek kart (bkz. standings-engine.ts). */
 export interface StandingsDraftView extends PublishableDraft {
   id: string;
@@ -136,4 +153,5 @@ export type DraftLookup =
   | { kind: "lineup"; draft: LineupDraftView }
   | { kind: "weekly-fixtures"; draft: WeeklyFixturesDraftView }
   | { kind: "standings"; draft: StandingsDraftView }
+  | { kind: "match-result"; draft: MatchResultDraftView }
   | { kind: "legacy"; id: string; status: AiContentStatus; resultImageUrl: string | null };

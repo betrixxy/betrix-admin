@@ -5,7 +5,7 @@ import { DraftQueue } from "@/components/features/dashboard/draft-queue";
 import { MatchList } from "@/components/features/dashboard/match-list";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getDraftCountsByFixture, getDraftQueue } from "@/lib/dashboard/draft-data";
-import { getFixtureLabels, getSelectableFixtures, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/fixtures";
+import { getFixtureLabels, getMatchCenterFixtures, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/fixtures";
 import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ function Warning({ children }: { children: ReactNode }) {
 
 export default async function MatchesPage() {
   const [fixtures, queue, fixtureLabels] = await Promise.all([
-    getSelectableFixtures(),
+    getMatchCenterFixtures(),
     getDraftQueue(),
     getFixtureLabels(),
   ]);
@@ -39,7 +39,7 @@ export default async function MatchesPage() {
     <>
       <PageHeader
         title="Maç Merkezi"
-        description={`Önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Her maç için içerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
+        description={`Dünün biten maçları ve önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Biten maçta maç sonrası, başlamamış maçta maç öncesi içerikler açılır. İçerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
       />
 
       {!falConfigured ? (

@@ -40,6 +40,19 @@ export interface Fixture {
   derbyIntensity: DerbyIntensity;
   /** Sağlayıcı verdiyse maç künyesi (stadyum, hakem, tur) — "Maç Günü" kartı bunları kullanır. */
   details?: FixtureDetails;
+  /** Ham durum + skor — kanonik `status`'un kaybettiği ayrıntı (AET/PEN, dakika, penaltı atışları). */
+  progress?: FixtureProgress;
+}
+
+export interface FixtureProgress {
+  /** Sağlayıcının kısa durum kodu: "NS", "2H", "FT", "PEN", "PST"… */
+  statusShort: string;
+  /** Oynanan dakika (canlıda); bilinmiyorsa null. */
+  elapsed: number | null;
+  homeGoals: number | null;
+  awayGoals: number | null;
+  /** Penaltı atışları skoru; atış yoksa null. */
+  penalty: { home: number; away: number } | null;
 }
 
 export interface FixtureDetails {

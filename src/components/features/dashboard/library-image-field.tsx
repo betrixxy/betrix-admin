@@ -13,6 +13,8 @@ interface LibraryImageFieldProps {
   label: string;
   hint: string;
   options: MediaAssetOption[];
+  /** Açılışta seçili kütüphane görseli (ör. MVP'nin kayıtlı fotoğrafı); boşsa "Yeni yükle". */
+  defaultAssetId?: string;
 }
 
 /**
@@ -20,8 +22,8 @@ interface LibraryImageFieldProps {
  * sunucuda kütüphaneye otomatik kaydedilir (bkz. app/dashboard/studio/actions.ts), böylece
  * bir sonraki üretimde listeden seçilebilir.
  */
-export function LibraryImageField({ name, label, hint, options }: LibraryImageFieldProps) {
-  const [assetId, setAssetId] = useState("");
+export function LibraryImageField({ name, label, hint, options, defaultAssetId = "" }: LibraryImageFieldProps) {
+  const [assetId, setAssetId] = useState(defaultAssetId);
   const selected = options.find((option) => option.id === assetId);
   const selectId = `${name}-library`;
 

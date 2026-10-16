@@ -397,12 +397,16 @@ model MediaAsset {
   /// Logolar için isteğe bağlı API-Football takım kimliği/adı — ileride maça göre otomatik seçim.
   teamId      String?
   teamName    String?
+  /// Oyuncu fotoğrafları için API-Football oyuncu kimliği/adı — Maç Sonucu MVP'sinin fotoğrafı bununla bulunur.
+  playerId    Int?
+  playerName  String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
   @@unique([category, sha256])
   @@index([category])
   @@index([teamId])
+  @@index([playerId])
 }
 
 enum MediaCategory {

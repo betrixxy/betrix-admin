@@ -9,7 +9,7 @@ import type { MatchDayTemplateId } from "@/types/match-day";
  * → tipografi/marka katmanı. Ağ çağrısı yok; yalnızca sharp. Tüm ölçüler seçili formattan gelir.
  */
 
-const LIGHT_PADDING = 90;
+export const LIGHT_PADDING = 90;
 const LIGHT_BLUR = 50;
 const BOTTOM_FADE_RATIO = 0.24;
 
@@ -29,7 +29,7 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
 }
 
 /** Kanvas dışına taşan katmanı görünür bölgeye kırpar — sharp taşan ofsetleri kabul etmez. */
-async function clipToCanvas(input: Buffer, left: number, top: number, frame: MatchDayFrame): Promise<OverlayOptions | null> {
+export async function clipToCanvas(input: Buffer, left: number, top: number, frame: MatchDayFrame): Promise<OverlayOptions | null> {
   const { width = 0, height = 0 } = await sharp(input).metadata();
   const x0 = Math.max(0, -left);
   const y0 = Math.max(0, -top);
@@ -50,7 +50,7 @@ async function fadeBottom(cutout: Buffer, width: number, height: number): Promis
   return sharp(cutout).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
-async function fitCutout(bytes: Buffer, slot: PlayerSlot): Promise<{ data: Buffer; width: number; height: number }> {
+export async function fitCutout(bytes: Buffer, slot: PlayerSlot): Promise<{ data: Buffer; width: number; height: number }> {
   const trimmed = await sharp(bytes).ensureAlpha().trim().png().toBuffer();
   const { data, info } = await sharp(trimmed)
     .resize({ width: slot.maxWidth, height: slot.maxHeight, fit: "inside" })
@@ -63,7 +63,7 @@ async function fitCutout(bytes: Buffer, slot: PlayerSlot): Promise<{ data: Buffe
  * Oyuncu siluetinden türetilmiş yumuşak ışık/gölge: renkli → arka aydınlatma, siyah → temas
  * gölgesi. Düşük opaklık ve geniş bulanıklık: gerçek bir stüdyo/stadyum ışığı gibi, parlama değil.
  */
-async function silhouette(cutout: Buffer, width: number, height: number, rgb: { r: number; g: number; b: number }, alpha: number): Promise<Buffer> {
+export async function silhouette(cutout: Buffer, width: number, height: number, rgb: { r: number; g: number; b: number }, alpha: number): Promise<Buffer> {
   const solid = await sharp({ create: { width, height, channels: 4, background: { ...rgb, alpha } } })
     .composite([{ input: cutout, blend: "dest-in" }])
     .png()

@@ -1,4 +1,4 @@
-import { addMediaAsset, loadMediaAssetImage } from "@/lib/dashboard/media-library";
+import { addMediaAsset, loadMediaAssetImage, type AddMediaAssetInput } from "@/lib/dashboard/media-library";
 import { PLAYER_MIN_SHORT_SIDE, inspectImageUpload, type UploadedImage } from "@/lib/dashboard/studio-images";
 import type { MediaCategory } from "@/types/media";
 import type { Result } from "@/types/result";
@@ -31,6 +31,8 @@ export async function resolveStudioImage(
   field: string,
   category: MediaCategory,
   label: string,
+  /** Yeni yüklenen görselin kütüphane etiketi (ör. Maç Sonucu MVP'si → oyuncu kimliği). */
+  tags: Pick<AddMediaAssetInput, "playerId" | "playerName" | "teamId" | "teamName"> = {},
 ): Promise<Result<ResolvedImage | null>> {
   const assetId = formData.get(`${field}AssetId`);
   if (typeof assetId === "string" && assetId.length > 0) {
@@ -44,6 +46,7 @@ export async function resolveStudioImage(
   const inspected = await inspectImageUpload(file, label, minShortSide ? { minShortSide } : {});
   if (!inspected.ok) return inspected;
 
-  const { asset } = await addMediaAsset({ image: inspected.data, category, label: labelFromFileName(file, label) });
+  const fileLabel = tags.playerName ?? labelFromFileName(file, label);
+  const { asset } = await addMediaAsset({ image: inspected.data, category, label: fileLabel, ...tags });
   return { ok: true, data: { image: inspected.data, fileUrl: asset.fileUrl } };
 }
