@@ -37,20 +37,24 @@ async function teamFixtures(teamId: number, fromMs: number, toMs: number, includ
 }
 
 /**
- * API-Football maçının iki takımının Sportmonks kimlikleri. İki sağlayıcı arasında kimlik tablosu
- * yok (bkz. CLAUDE.md 2.1): ev sahibi adıyla aranır, adayın başlama saatinin ±1 günündeki maçında
- * rakip adı da tutuyorsa eşleşme kabul edilir. Bulunamazsa `null` — tahmin edilmez.
+ * API-Football maçının Sportmonks karşılığı. İki sağlayıcı arasında kimlik tablosu yok (bkz.
+ * CLAUDE.md 2.1): ev sahibi adıyla aranır, adayın başlama saatinin ±1 günündeki maçında rakip adı
+ * da tutuyorsa eşleşme kabul edilir. Bulunamazsa `null` — tahmin edilmez. `include` maçın hangi
+ * bloklarla döneceğini belirler (ör. `statistics.type;participants`).
  */
-async function resolveTeamIds(fixture: Fixture): Promise<{ home: number; away: number } | null> {
+export async function findSportmonksFixture(
+  fixture: Fixture,
+  include = "participants",
+): Promise<{ match: SportmonksFixture; home: number; away: number } | null> {
   const kickoff = Date.parse(fixture.kickoffUtc);
   for (const candidate of await searchTeams(fixture.homeTeam.name)) {
-    const fixtures = await teamFixtures(candidate.id, kickoff - DAY_MS, kickoff + DAY_MS, "participants");
+    const fixtures = await teamFixtures(candidate.id, kickoff - DAY_MS, kickoff + DAY_MS, include);
     for (const match of fixtures ?? []) {
       if (Math.abs(startMs(match) - kickoff) > DAY_MS) continue;
       const home = match.participants.find((p) => p.id === candidate.id);
       const away = match.participants.find((p) => p.id !== candidate.id);
       if (home && away && isSameTeam(home.name, fixture.homeTeam.name) && isSameTeam(away.name, fixture.awayTeam.name)) {
-        return { home: home.id, away: away.id };
+        return { match, home: home.id, away: away.id };
       }
     }
   }
@@ -75,7 +79,7 @@ async function recentMetrics(teamId: number, kickoff: number): Promise<Sportmonk
 export async function getSportmonksAdvancedMetrics(
   fixture: Fixture,
 ): Promise<{ home: SportmonksAdvancedMetrics | null; away: SportmonksAdvancedMetrics | null; matched: boolean }> {
-  const ids = await resolveTeamIds(fixture);
+  const ids = await findSportmonksFixture(fixture);
   if (!ids) return { home: null, away: null, matched: false };
   const kickoff = Date.parse(fixture.kickoffUtc);
   const [home, away] = await Promise.all([recentMetrics(ids.home, kickoff), recentMetrics(ids.away, kickoff)]);

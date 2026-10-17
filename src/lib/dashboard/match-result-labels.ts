@@ -87,6 +87,7 @@ const TEAM_NAMES_TR: Record<string, string> = {
   Marseille: "Marsilya",
   "Sporting CP": "Sporting",
   "Red Star Belgrade": "Kızılyıldız",
+  "FC Midtjylland": "Midtjylland",
   Germany: "Almanya",
   Spain: "İspanya",
   Italy: "İtalya",

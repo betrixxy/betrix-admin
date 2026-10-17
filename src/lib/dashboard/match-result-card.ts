@@ -1,43 +1,18 @@
-import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
+import { buildSetCard, resolveSetImages, type SetImages } from "@/lib/dashboard/checkmatch-set";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
-import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
-import type { MatchResultCard, MatchResultFacts, ScorerLine } from "@/types/match-result";
+import type { MatchResultCard, MatchResultFacts } from "@/types/match-result";
 
-/** Kart görselleri — `data:` URI; çözülemeyen `null` (şablon baş harf/boşluk çizer, render düşmez). */
-export interface MatchResultImages {
-  homeLogo: string | null;
-  awayLogo: string | null;
-  leagueLogo: string | null;
-  brandLogo: string;
+/** Kart görselleri — set kartlarıyla ortak. */
+export type MatchResultImages = SetImages;
+
+/**
+ * Saf: gerçek maç verisi + seçilen MVP adı → şablon kartı. `pageLabel` ("01 · MAÇ SONUCU") yalnızca
+ * set/carousel olarak paylaşılırken verilir; tek başına paylaşılan kartta null (etiket çizilmez).
+ */
+export function buildMatchResultCard(facts: MatchResultFacts, images: MatchResultImages, mvpName: string | null, pageLabel: string | null = null): MatchResultCard {
+  return { ...buildSetCard(facts, images, pageLabel), mvpName: mvpName ? upperTr(mvpName) : null };
 }
 
-const upperLines = (lines: ScorerLine[]): ScorerLine[] => lines.map((line) => ({ ...line, name: upperTr(line.name) }));
-
-/** Saf: gerçek maç verisi + seçilen MVP adı → şablon kartı. */
-export function buildMatchResultCard(facts: MatchResultFacts, images: MatchResultImages, mvpName: string | null): MatchResultCard {
-  return {
-    homeTeam: upperTr(facts.home.name),
-    awayTeam: upperTr(facts.away.name),
-    homeGoals: facts.home.goals,
-    awayGoals: facts.away.goals,
-    outcome: facts.outcome,
-    penaltyLabel: facts.penaltyScore ? `PEN ${facts.penaltyScore}` : null,
-    homeScorers: upperLines(facts.home.scorers),
-    awayScorers: upperLines(facts.away.scorers),
-    competitionLabel: upperTr(facts.competition.name),
-    roundLabel: upperTr(facts.roundLabel),
-    accentHex: resultAccentHex(facts),
-    mvpName: mvpName ? upperTr(mvpName) : null,
-    ...images,
-  };
-}
-
-export async function resolveMatchResultCard(facts: MatchResultFacts, mvpName: string | null): Promise<MatchResultCard> {
-  const [homeLogo, awayLogo, leagueLogo, brandLogo] = await Promise.all([
-    resolveImage(facts.home.logoUrl, 300),
-    resolveImage(facts.away.logoUrl, 300),
-    resolveImage(facts.competition.logoUrl || undefined, 200),
-    loadBrandLogo(),
-  ]);
-  return buildMatchResultCard(facts, { homeLogo, awayLogo, leagueLogo, brandLogo }, mvpName);
+export async function resolveMatchResultCard(facts: MatchResultFacts, mvpName: string | null, pageLabel: string | null = null): Promise<MatchResultCard> {
+  return buildMatchResultCard(facts, await resolveSetImages(facts), mvpName, pageLabel);
 }

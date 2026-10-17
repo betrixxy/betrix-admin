@@ -1,3 +1,4 @@
+import type { SetCard } from "./checkmatch-set";
 import type { MatchDayFormatId } from "./match-day";
 
 /**
@@ -93,27 +94,11 @@ export interface MatchResultActionState {
   result?: MatchResultGenerationResult;
 }
 
-/** Şablona giden, metinleri biçimlenmiş ve görselleri `data:` URI'ye çözülmüş kart. */
-export interface MatchResultCard {
-  /** "MAÇ SONUCU" başlığı ve takım adları tr-TR büyük harfle. */
-  homeTeam: string;
-  awayTeam: string;
-  homeGoals: number;
-  awayGoals: number;
-  outcome: MatchOutcome;
-  penaltyLabel: string | null;
-  homeScorers: ScorerLine[];
-  awayScorers: ScorerLine[];
-  /** "UEFA AVRUPA LİGİ" */
-  competitionLabel: string;
-  /** "LİG AŞAMASI · 2. MAÇ" */
-  roundLabel: string;
-  /** Tek vurgu rengi (bkz. `match-result-theme.ts`) — koyu zeminde okunur. */
-  accentHex: string;
+/**
+ * Şablona giden, metinleri biçimlenmiş ve görselleri `data:` URI'ye çözülmüş kart. Skor şeridi,
+ * golcüler, sayfa etiketi ve künye alanları set kartlarıyla ortaktır (`SetCard`).
+ */
+export interface MatchResultCard extends SetCard {
   /** "OH HYEON-GYU"; MVP'siz şablonlarda null. */
   mvpName: string | null;
-  homeLogo: string | null;
-  awayLogo: string | null;
-  leagueLogo: string | null;
-  brandLogo: string;
 }

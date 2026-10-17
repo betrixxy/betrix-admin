@@ -1,12 +1,14 @@
 import type { MatchResultCard } from "@/types/match-result";
+import { PageLabel, ScoreStrip, ScorerColumns, SET_VERTICAL, SetFooter, SetScoreBlock } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, px } from "../match-day/shared";
 import type { ResultGeometry } from "./geometry";
-import { Footer, ScoreStrip, ScorerColumns, Shade } from "./shared";
+import { Shade } from "./shared";
 
 /**
  * KAHRAMAN-SKOR — MVP kesimi büyük ve net (sharp katmanı, bkz. `match-result-compose.ts`);
- * bu katman yalnızca alt %35'teki koyu gradyanı ve yazıları çizer: "MAÇIN OYUNCUSU" satırı,
- * ortasında turnuva logosu olan skor şeridi, iki sütun golcü listesi, künye + marka.
+ * bu katman yalnızca alt %35'teki koyu gradyanı ve yazıları çizer: sayfa etiketi (set), "MAÇIN
+ * OYUNCUSU" satırı, ortasında turnuva rozeti olan skor şeridi, golcüler, künye + marka. Şerit ve
+ * golcüler set bloğudur (`SetScoreBlock`) — İstatistik kartında aynı yerde durur.
  * Beraberlik varyantında aynı yazı katmanı iki oyunculu split kompozisyonun üstüne basılır.
  */
 
@@ -23,24 +25,12 @@ function MvpLine({ card, size }: { card: MatchResultCard; size: number }) {
 
 function Vertical({ card, g }: { card: MatchResultCard; g: ResultGeometry }) {
   const { k, frame } = g;
-  const logoHeight = px(34, k);
-  const footerGap = px(34, k);
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY }}>
       <Shade g={g} />
-      <div
-        tw="absolute flex flex-col items-center"
-        style={{ left: g.left, width: g.right - g.left, bottom: frame.height - (g.bottom - logoHeight - footerGap) }}
-      >
-        <MvpLine card={card} size={px(20, k)} />
-        <div tw="flex" style={{ marginTop: px(22, k) }}>
-          <ScoreStrip card={card} k={k} scoreSize={px(196, k)} />
-        </div>
-        <div tw="flex" style={{ marginTop: px(8, k) }}>
-          <ScorerColumns card={card} width={g.right - g.left} size={px(24, k)} gap={px(124, k)} />
-        </div>
-      </div>
-      <Footer card={card} g={g} size={px(16, k)} logoHeight={logoHeight} />
+      <PageLabel card={card} box={g} k={k} />
+      <SetScoreBlock card={card} box={g} frameHeight={frame.height} k={k} headline={<MvpLine card={card} size={px(20, k)} />} />
+      <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, k)} logoHeight={px(SET_VERTICAL.logoHeight, k)} />
     </div>
   );
 }
@@ -60,7 +50,8 @@ function Landscape({ card, g }: { card: MatchResultCard; g: ResultGeometry }) {
           <ScorerColumns card={card} width={width} size={16} gap={60} />
         </div>
       </div>
-      <Footer card={card} g={g} size={12} logoHeight={26} />
+      <PageLabel card={card} box={g} k={0.8} />
+      <SetFooter card={card} box={g} size={12} logoHeight={26} />
     </div>
   );
 }
