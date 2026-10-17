@@ -1,3 +1,4 @@
+import { clubColors } from "@/lib/dashboard/club-colors";
 import type { CompetitionKind, MatchResultFacts } from "@/types/match-result";
 
 /**
@@ -13,23 +14,14 @@ export const COMPETITION_COLORS: Partial<Record<CompetitionKind, { accent: strin
   UECL: { accent: "#00C25A", deep: "#06291A" }, // yeşil
 };
 
-/** Dizilişte forma rengi gelmezse — API-Football takım id → ana renk. */
-const TEAM_COLORS: Record<number, string> = {
-  645: "#A90432", // Galatasaray
-  611: "#163962", // Fenerbahçe
-  549: "#111111", // Beşiktaş
-  998: "#7A1E3A", // Trabzonspor
-  564: "#E2672A", // Başakşehir
-  777: "#E30A17", // Türkiye
-};
-
 const FALLBACK_ACCENT = "#F5C518";
 /** Kartın koyu gradyan zemini — kontrast bu renge göre ölçülür. */
 export const RESULT_SHADE_HEX = "#07080C";
 const MIN_CONTRAST = 4.5;
 
+/** Kulübün kimlik rengi (elle tutulan tablo, bkz. `club-colors.ts`); tabloda yoksa boş. */
 export function teamColorHex(teamId: number): string {
-  return TEAM_COLORS[teamId] ?? "";
+  return clubColors(teamId)?.primary ?? "";
 }
 
 function channels(hex: string): [number, number, number] {

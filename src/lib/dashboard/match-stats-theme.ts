@@ -1,3 +1,4 @@
+import { clubColors } from "@/lib/dashboard/club-colors";
 import { readableOnDark } from "@/lib/dashboard/match-result-theme";
 import type { MatchStatsFacts } from "@/types/match-stats";
 
@@ -7,19 +8,10 @@ import type { MatchStatsFacts } from "@/types/match-stats";
  * renge, o da benzerse nötr gümüşe, gümüş de ev sahibine benziyorsa (beyaz forma) altına düşer.
  */
 
-/** API forma rengi vermediğinde ya da ikincil renk gerektiğinde — API-Football takım id → renk. */
-const TEAM_SECONDARY: Record<number, string> = {
-  645: "#FDB912", // Galatasaray sarı
-  611: "#FFED00", // Fenerbahçe sarı
-  549: "#FFFFFF", // Beşiktaş beyaz
-  998: "#5AB4E5", // Trabzonspor mavi
-  564: "#163962", // Başakşehir lacivert
-  397: "#D3122A", // Midtjylland kırmızı
-};
-
 export const NEUTRAL_SILVER = "#C9CED6";
 const NEUTRAL_GOLD = "#F5C518";
-const FALLBACK_HOME = "#F5C518";
+/** Renk tablosunda da dizilişte de rengi olmayan takım: nötr gümüş. */
+const FALLBACK_HOME = "#C9CED6";
 const FALLBACK_AWAY = "#C9CED6";
 /** "redmean" RGB uzaklığı bu eşiğin altındaysa iki renk kartta ayırt edilemez sayılır. */
 const SIMILAR_DISTANCE = 120;
@@ -100,7 +92,7 @@ function isMutedGray(hex: string): boolean {
 /** Takımın kartta okunur rengi: forma rengi, gri kalıyorsa ikincil renk. */
 function teamHex(team: MatchStatsFacts["home"], fallback: string): string[] {
   const primary = readableOnDark(isHex(team.colorHex) ? team.colorHex : fallback);
-  const secondary = TEAM_SECONDARY[team.id];
+  const secondary = clubColors(team.id)?.secondary;
   const secondaryHex = isHex(secondary) ? readableOnDark(secondary) : null;
   if (secondaryHex && isMutedGray(primary)) return [secondaryHex, primary];
   return secondaryHex ? [primary, secondaryHex] : [primary];

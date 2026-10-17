@@ -142,7 +142,8 @@ function resultTeam(raw: ApiFootballFixtureResultRaw, side: MatchSide, goals: Ap
     logoUrl: team.logo,
     goals: (side === "HOME" ? raw.goals.home : raw.goals.away) ?? 0,
     scorers: scorerLines(goals, team.id),
-    colorHex: (lineup ? lineupColorHex(lineup) : "") || teamColorHex(team.id),
+    // Öncelik: kulüp renk tablosu > o maçın diziliş forma rengi > boş (nötr).
+    colorHex: teamColorHex(team.id) || (lineup ? lineupColorHex(lineup) : ""),
   };
 }
 

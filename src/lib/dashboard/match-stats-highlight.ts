@@ -3,57 +3,67 @@ import { formatStatValue } from "@/lib/dashboard/match-stats-rows";
 import type { MatchStatsFacts, StatRowKey } from "@/types/match-stats";
 
 /**
- * Skorun altındaki "öne çıkan satır" — kurala dayalı, saf (LLM yok, bkz. CLAUDE.md 1.10). Kurallar
- * sırayla denenir, ilk tutan yazılır; hiçbiri tutmazsa satır yok. Her sayı maçın kendi verisidir.
+ * Skorun üstündeki "öne çıkan satır" — kurala dayalı, saf (LLM yok, bkz. CLAUDE.md 1.10). Yalnızca
+ * olgu yazılır, yorum yok. Kurallar sırayla denenir (her kuralda önce ev sahibi), ilk tutan yazılır;
+ * hiçbiri tutmazsa satır yok.
+ *
+ *   1. Harcanan fırsat:     gol ≤ xG − 1,5            → "19 ŞUT, 3,39 xG — 2 GOL"
+ *   2. Etkili bitiricilik:  gol ≥ xG + 1,5            → "0,84 xG'DEN 3 GOL"
+ *   3. Az topla galibiyet:  top hakimiyeti ≤ %40, kazandı → "%32 TOPLA 2-1"
+ *   4. (xG yoksa) Şut üstünlüğü: ≥ 20 şut, rakibin ≥ 3 katı, gol ≤ 1 → "28 ŞUT, 7 İSABET — TEK GOL"
  */
 
 type Side = "home" | "away";
 const other = (side: Side): Side => (side === "home" ? "away" : "home");
+
+/** xG ile gol arasındaki fark bu kadar olunca satıra değer. */
+const XG_GAP = 1.5;
+const LOW_POSSESSION = 40;
+const SHOT_DOMINANCE_MIN = 20;
+const SHOT_DOMINANCE_RATIO = 3;
 
 function valueOf(facts: MatchStatsFacts, key: StatRowKey, side: Side): number | null {
   const row = facts.rows.find((candidate) => candidate.key === key);
   return row ? row[side] : null;
 }
 
+/** 0 → "GOL YOK", 1 → "TEK GOL", n → "n GOL". */
 const goalWord = (goals: number) => (goals === 0 ? "GOL YOK" : goals === 1 ? "TEK GOL" : `${goals} GOL`);
 
 type Rule = (facts: MatchStatsFacts, side: Side) => string | null;
 
-/** xG farkı ≥ 1,5 ama gol farkı ≤ 1: "28 ŞUT, 2,41 xG — TEK GOL". */
-const xgUnderperformance: Rule = (facts, side) => {
-  const [xg, rivalXg, shots] = [valueOf(facts, "xg", side), valueOf(facts, "xg", other(side)), valueOf(facts, "shotsTotal", side)];
-  if (xg === null || rivalXg === null || xg - rivalXg < 1.5) return null;
-  if (Math.abs(facts.home.goals - facts.away.goals) > 1) return null;
-  const shotsPart = shots === null ? "" : `${shots} ŞUT, `;
-  return `${shotsPart}${formatStatValue("xg", xg)} xG — ${goalWord(facts[side].goals)}`;
+const wastedChances: Rule = (facts, side) => {
+  const xg = valueOf(facts, "xg", side);
+  const goals = facts[side].goals;
+  if (xg === null || goals > xg - XG_GAP) return null;
+  const shots = valueOf(facts, "shotsTotal", side);
+  return `${shots === null ? "" : `${shots} ŞUT, `}${formatStatValue("xg", xg)} xG — ${goalWord(goals)}`;
 };
 
-/** xG yokken şut üstünlüğü: ≥ 20 şut, rakibin ≥ 3 katı, gol farkı ≤ 1 → "28 ŞUT, 7 İSABET — TEK GOL". */
-const shotDominance: Rule = (facts, side) => {
-  const [shots, rivalShots, onTarget] = [valueOf(facts, "shotsTotal", side), valueOf(facts, "shotsTotal", other(side)), valueOf(facts, "shotsOnTarget", side)];
-  if (shots === null || rivalShots === null || shots < 20 || shots < rivalShots * 3) return null;
-  if (Math.abs(facts.home.goals - facts.away.goals) > 1) return null;
-  const onTargetPart = onTarget === null ? "" : `, ${onTarget} İSABET`;
-  return `${shots} ŞUT${onTargetPart} — ${goalWord(facts[side].goals)}`;
+const clinicalFinishing: Rule = (facts, side) => {
+  const xg = valueOf(facts, "xg", side);
+  const goals = facts[side].goals;
+  if (xg === null || goals < xg + XG_GAP) return null;
+  return `${formatStatValue("xg", xg)} xG'DEN ${goals} GOL`;
 };
 
-/** Düşük topla kazanma: kazananın top hakimiyeti ≤ %35. */
 const lowPossessionWin: Rule = (facts, side) => {
-  const winner = facts.outcome === "HOME" ? "home" : facts.outcome === "AWAY" ? "away" : null;
-  if (winner !== side) return null;
+  const won = facts.outcome === (side === "home" ? "HOME" : "AWAY");
   const possession = valueOf(facts, "possession", side);
-  if (possession === null || possession > 35) return null;
-  return `${formatStatValue("possession", possession)} TOPLA KAZANDI`;
+  if (!won || possession === null || possession > LOW_POSSESSION) return null;
+  return `${formatStatValue("possession", possession)} TOPLA ${facts[side].goals}-${facts[other(side)].goals}`;
 };
 
-/** Tek isabetli şut, tek gol (ve galibiyet ya da beraberlik). */
-const clinical: Rule = (facts, side) => {
-  const onTarget = valueOf(facts, "shotsOnTarget", side);
-  if (onTarget !== 1 || facts[side].goals !== 1) return null;
-  return "TEK İSABETLİ ŞUT, TEK GOL";
+/** Yalnızca maçta hiç xG verisi yokken. */
+const shotDominance: Rule = (facts, side) => {
+  if (facts.rows.some((row) => row.key === "xg")) return null;
+  const [shots, rivalShots, onTarget] = [valueOf(facts, "shotsTotal", side), valueOf(facts, "shotsTotal", other(side)), valueOf(facts, "shotsOnTarget", side)];
+  if (shots === null || rivalShots === null || shots < SHOT_DOMINANCE_MIN || shots < rivalShots * SHOT_DOMINANCE_RATIO) return null;
+  if (facts[side].goals > 1) return null;
+  return `${shots} ŞUT${onTarget === null ? "" : `, ${onTarget} İSABET`} — ${goalWord(facts[side].goals)}`;
 };
 
-const RULES: Rule[] = [xgUnderperformance, shotDominance, lowPossessionWin, clinical];
+const RULES: Rule[] = [wastedChances, clinicalFinishing, lowPossessionWin, shotDominance];
 
 /** "BEŞİKTAŞ · 28 ŞUT, 7 İSABET — TEK GOL"; kural tutmazsa null. */
 export function statsHighlight(facts: MatchStatsFacts): string | null {

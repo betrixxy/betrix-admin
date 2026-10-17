@@ -139,7 +139,10 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
   const { k, frame } = g;
   const width = g.right - g.left;
   const inner = width - 2 * px(PAD_X, k);
-  const spineEnd = setBlockTop(g, card.homeScorers, card.awayScorers) - px(10, k);
+  // Öne çıkan satır varsa omurga yazının üstünde kesilir; yoksa başlık yuvasından kesintisiz geçer.
+  const blockTop = setBlockTop(g, card.homeScorers, card.awayScorers);
+  const spineEnd = blockTop - px(10, k);
+  const spineTo = card.highlight ? spineEnd : blockTop + px(SET_VERTICAL.headlineSlot, k);
   const areaTop = g.top + px(PAGE_LABEL_SPACE, k);
   const areaBottom = spineEnd - px(CONNECTOR, k);
   const placed = layout(card, g, areaTop, areaBottom, inner);
@@ -151,7 +154,7 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
         tw="absolute flex"
         style={{ left: g.left, top: placed.panelTop, width, height: placed.panelHeight, borderRadius: px(28, k), backgroundColor: PANEL, border: "1px solid rgba(255,255,255,0.07)" }}
       />
-      <Spine x={spineX} from={placed.spineFrom} to={spineEnd} cuts={placed.cuts} hex={card.accentHex} k={k} />
+      <Spine x={spineX} from={placed.spineFrom} to={spineTo} cuts={placed.cuts} hex={card.accentHex} k={k} />
       {placed.titles.map((title) => (
         <span
           key={title.key}

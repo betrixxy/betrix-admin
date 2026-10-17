@@ -259,25 +259,68 @@ describe("Maç İstatistikleri — öne çıkan satır", () => {
     assert.equal(statsHighlight(facts), "BEŞİKTAŞ · 28 ŞUT, 7 İSABET — TEK GOL");
   });
 
-  it("xG farkı ≥ 1,5 ve gol farkı ≤ 1", () => {
-    const xg: MatchStatsFacts = { ...facts, rows: [...facts.rows, { key: "xg", home: 2.41, away: 0.3, source: "api-football" }] };
-    assert.equal(statsHighlight(xg), "BEŞİKTAŞ · 28 ŞUT, 2,41 xG — TEK GOL");
+  const withRows = (rows: [StatRowValue["key"], number, number][], goals: [number, number] = [1, 0]): MatchStatsFacts => ({
+    ...facts,
+    outcome: goals[0] > goals[1] ? "HOME" : goals[0] < goals[1] ? "AWAY" : "DRAW",
+    home: { ...facts.home, goals: goals[0] },
+    away: { ...facts.away, goals: goals[1] },
+    rows: rows.map(([key, home, away]) => ({ key, home, away, source: "api-football" })),
   });
 
-  it("düşük topla kazanma", () => {
-    const rows: StatRowValue[] = [{ key: "possession", home: 68, away: 32, source: "api-football" }];
-    const lowPossession: MatchStatsFacts = { ...facts, outcome: "AWAY", home: { ...facts.home, goals: 0 }, away: { ...facts.away, goals: 1 }, rows };
-    assert.equal(statsHighlight(lowPossession), "MİDTJYLLAND · %32 TOPLA KAZANDI");
+  it("harcanan fırsat: gol ≤ xG − 1,5", () => {
+    assert.equal(statsHighlight(withRows([["xg", 2.6, 0.4], ["shotsTotal", 21, 6]], [1, 0])), "BEŞİKTAŞ · 21 ŞUT, 2,60 xG — TEK GOL");
+    assert.equal(statsHighlight(withRows([["xg", 4.1, 1.0], ["shotsTotal", 25, 8]], [2, 2])), "BEŞİKTAŞ · 25 ŞUT, 4,10 xG — 2 GOL");
   });
 
-  it("tek isabetle gol", () => {
-    const rows: StatRowValue[] = [{ key: "shotsOnTarget", home: 1, away: 4, source: "api-football" }];
-    assert.equal(statsHighlight({ ...facts, rows }), "BEŞİKTAŞ · TEK İSABETLİ ŞUT, TEK GOL");
+  it("etkili bitiricilik: gol ≥ xG + 1,5", () => {
+    assert.equal(statsHighlight(withRows([["xg", 1.1, 0.84]], [1, 3])), "MİDTJYLLAND · 0,84 xG'DEN 3 GOL");
+  });
+
+  it("az topla galibiyet: top ≤ %40 ve kazandı — skor kazanan önce", () => {
+    assert.equal(statsHighlight(withRows([["possession", 68, 32]], [1, 2])), "MİDTJYLLAND · %32 TOPLA 2-1");
+    assert.equal(statsHighlight(withRows([["possession", 68, 32]], [2, 2])), null);
+  });
+
+  it("şut üstünlüğü yalnızca xG yokken", () => {
+    assert.equal(statsHighlight(withRows([["xg", 1.2, 0.5], ["shotsTotal", 28, 5], ["shotsOnTarget", 7, 1]], [1, 0])), null);
+  });
+
+  it("Hoffenheim 2-3 Beşiktaş: hiçbir kural tutmaz → satır yok", () => {
+    const hof = toMatchStatsFacts(RAW_HOFFENHEIM_BESIKTAS_STATS, sportmonksMatchValues(SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS)) as MatchStatsFacts;
+    assert.equal(statsHighlight(hof), null);
   });
 
   it("kural tutmazsa satır yok", () => {
-    const rows: StatRowValue[] = [{ key: "shotsTotal", home: 12, away: 9, source: "api-football" }];
-    assert.equal(statsHighlight({ ...facts, rows }), null);
+    assert.equal(statsHighlight(withRows([["shotsTotal", 12, 9]])), null);
+  });
+});
+
+describe("Takım rengi önceliği", () => {
+  /** Hoffenheim maçının kopyası: ev sahibinin kimliği ve diziliş forma rengi değiştirilebilir. */
+  function hoffenheimWith(homeId: number, lineupPrimary: string | null): ApiFootballFixtureResultRaw {
+    const raw = structuredClone(RAW_HOFFENHEIM_BESIKTAS_STATS);
+    raw.teams.home.id = homeId;
+    for (const lineup of raw.lineups) {
+      if (lineup.team.id !== 167) continue;
+      lineup.team.id = homeId;
+      lineup.team.colors = lineupPrimary ? { player: { primary: lineupPrimary } } : null;
+    }
+    return raw;
+  }
+
+  it("kulüp tablosu > diziliş rengi: dizilişte sarı forma gelse de Hoffenheim mavi", () => {
+    // Gerçek yanıtta diziliş rengi yok (colors: null) — tablo olmasa kart nötr renge düşerdi.
+    assert.equal(RAW_HOFFENHEIM_BESIKTAS_STATS.lineups.find((lineup) => lineup.team.id === 167)?.team.colors?.player?.primary ?? null, null);
+    assert.equal((toMatchStatsFacts(RAW_HOFFENHEIM_BESIKTAS_STATS, null) as MatchStatsFacts).home.colorHex, "#1961B5");
+    assert.equal((toMatchStatsFacts(hoffenheimWith(167, "f5c518"), null) as MatchStatsFacts).home.colorHex, "#1961B5");
+    assert.equal((toMatchStatsFacts(RAW_HOFFENHEIM_BESIKTAS_STATS, null) as MatchStatsFacts).away.colorHex, "#FFFFFF");
+  });
+
+  it("tabloda olmayan takımda diziliş rengi, o da yoksa nötr gümüş", () => {
+    assert.equal((toMatchStatsFacts(hoffenheimWith(999_001, "2a7f62"), null) as MatchStatsFacts).home.colorHex, "#2a7f62");
+    const neutral = toMatchStatsFacts(hoffenheimWith(999_001, null), null) as MatchStatsFacts;
+    assert.equal(neutral.home.colorHex, "");
+    assert.equal(statsPalette(neutral).homeHex, readableOnDark(NEUTRAL_SILVER));
   });
 });
 
