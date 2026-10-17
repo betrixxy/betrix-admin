@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
   },
   // `/api/files/<kova>/<dosya>` (veritabanında saklanan genel adres) → segmentsiz route.
   // Neden dinamik route kullanılmadığı: bkz. src/app/api/storage-file/route.ts.
+  // Eski "İçerik Takvimi" (SocialPost planlama) ve "Fikstür CRM" (ay ızgarası) sayfaları
+  // İçerik Planı'nda birleşti — eski yer imleri ve bağlantılar oraya kalıcı yönlenir. Veriler silinmedi.
+  async redirects() {
+    return [
+      { source: "/calendar", destination: "/dashboard/plan", permanent: true },
+      { source: "/calendar/:path*", destination: "/dashboard/plan", permanent: true },
+      { source: "/dashboard/calendar", destination: "/dashboard/plan", permanent: true },
+      { source: "/dashboard/calendar/:path*", destination: "/dashboard/plan", permanent: true },
+    ];
+  },
   async rewrites() {
     return [{ source: "/api/files/:bucket/:file", destination: "/api/storage-file?bucket=:bucket&file=:file" }];
   },

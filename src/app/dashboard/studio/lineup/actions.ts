@@ -111,7 +111,7 @@ export async function saveLineupAction(input: unknown): Promise<Result<{ id: str
 
   const saved = await createLineupDraft(parsed.data);
   if (!saved.ok) return saved;
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return { ok: true, data: saved.data };
 }

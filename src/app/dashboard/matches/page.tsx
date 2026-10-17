@@ -6,6 +6,7 @@ import { MatchList } from "@/components/features/dashboard/match-list";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getDraftCountsByFixture, getDraftQueue } from "@/lib/dashboard/draft-data";
 import { getFixtureLabels, getMatchCenterFixtures, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/fixtures";
+import { getWatchedIds } from "@/lib/dashboard/watched-fixtures";
 import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
@@ -33,13 +34,14 @@ export default async function MatchesPage() {
   ]);
   const falConfigured = isFalConfigured();
   const fixtureList = fixtures.ok ? fixtures.data : [];
-  const draftCounts = await getDraftCountsByFixture(fixtureList.map((fixture) => fixture.id));
+  const fixtureIds = fixtureList.map((fixture) => fixture.id);
+  const [draftCounts, watchedIds] = await Promise.all([getDraftCountsByFixture(fixtureIds), getWatchedIds(fixtureIds)]);
 
   return (
     <>
       <PageHeader
         title="Maç Merkezi"
-        description={`Dünün biten maçları ve önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Biten maçta maç sonrası, başlamamış maçta maç öncesi içerikler açılır. İçerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
+        description={`Dünün biten maçları ve önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Biten maçta maç sonrası, başlamamış maçta maç öncesi içerikler açılır. Takip etmek istediğiniz maçı ☆ ile İçerik Planı'na ekleyin. İçerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
       />
 
       {!falConfigured ? (
@@ -50,7 +52,7 @@ export default async function MatchesPage() {
       {!fixtures.ok ? <Warning>Fikstür alınamadı: {fixtures.error.message}</Warning> : null}
 
       <DraftQueue drafts={queue} fixtureLabels={fixtureLabels} />
-      <MatchList fixtures={fixtureList} draftCounts={draftCounts} />
+      <MatchList fixtures={fixtureList} draftCounts={draftCounts} watchedIds={watchedIds} />
     </>
   );
 }

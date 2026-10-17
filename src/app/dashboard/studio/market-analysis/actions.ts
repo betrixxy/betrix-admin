@@ -151,7 +151,7 @@ export async function saveMarketAnalysisAction(input: unknown): Promise<Result<{
   const saved = await createMarketAnalysisDraft(parsed.data);
   if (!saved.ok) return saved;
 
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return { ok: true, data: { id: saved.data.id } };
 }

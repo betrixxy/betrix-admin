@@ -31,7 +31,7 @@ export interface ContentPlan {
 
 /**
  * Takvimdeki gerçek fikstür (API-Football) + veritabanından türetilen içerik durumu
- * (bkz. lib/calendar/calendar-month.ts). `contentPlan` yalnızca admin bir reklam bütçesi
+ * (bkz. lib/calendar/content-plan.ts, lib/calendar/production.ts). `contentPlan` yalnızca admin bir reklam bütçesi
  * kaydettiyse (ContentPlan tablosu) doludur.
  */
 export interface CalendarFixture extends Fixture {

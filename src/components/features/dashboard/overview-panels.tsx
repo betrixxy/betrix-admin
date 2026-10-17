@@ -18,7 +18,7 @@ export function UpcomingPostsList({ posts, fixtureLabels }: { posts: SocialPostV
       {posts.map((post) => (
         <li key={post.id}>
           <Link
-            href={`/dashboard/calendar?edit=${post.id}`}
+            href={`/dashboard/posts/${post.id}`}
             className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-xs transition-colors hover:bg-muted/50"
           >
             <span className="flex min-w-0 items-center gap-2 text-white">

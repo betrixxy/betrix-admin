@@ -35,11 +35,11 @@ export function AdBudgetPanel({ overview, fixtureLabels }: AdBudgetPanelProps) {
       <CardContent className="flex flex-col gap-4">
         {rows.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
-            Henüz reklam bütçesi girilmedi —{" "}
-            <Link href="/calendar" className="text-emerald-400 hover:underline">
-              Fikstür CRM
-            </Link>
-            &apos;de bir maça tıklayıp bütçe kaydedin.
+            Henüz reklam bütçesi girilmedi — bütçe, İçerik Planı&apos;ndaki{" "}
+            <Link href="/dashboard/plan" className="text-emerald-400 hover:underline">
+              maç sayfasından
+            </Link>{" "}
+            kaydedilir.
           </p>
         ) : (
           <>
@@ -79,7 +79,7 @@ export function AdBudgetPanel({ overview, fixtureLabels }: AdBudgetPanelProps) {
                 {rows.map((row) => (
                   <TableRow key={row.fixtureId}>
                     <TableCell className="max-w-[16rem] truncate text-white">
-                      <Link href={`/calendar?month=${row.scheduledFor.slice(0, 7)}`} className="hover:underline">
+                      <Link href="/dashboard/plan" className="hover:underline">
                         {fixtureLabels[row.fixtureId] ?? row.fixtureId}
                       </Link>
                     </TableCell>

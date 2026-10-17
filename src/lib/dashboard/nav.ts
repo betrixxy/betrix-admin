@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  CalendarDays,
   Globe,
   Images,
   LayoutDashboard,
@@ -8,6 +7,7 @@ import {
   ListOrdered,
   Newspaper,
   Sparkles,
+  Star,
   Table2,
   Trophy,
   type LucideIcon,
@@ -39,10 +39,10 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     icon: Trophy,
   },
   {
-    href: "/dashboard/calendar",
-    label: "İçerik Takvimi",
-    description: "Gönderi planlama",
-    icon: CalendarDays,
+    href: "/dashboard/plan",
+    label: "İçerik Planı",
+    description: "Yıldızlı maçlar ve içerik paketleri",
+    icon: Star,
   },
   {
     href: "/dashboard/posts",
@@ -90,12 +90,6 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
 
 /** FAZ 2-4'te kurulan, dashboard dışındaki mevcut araçlar — menüde ikincil grupta durur. */
 export const LEGACY_NAV: readonly NavItem[] = [
-  {
-    href: "/calendar",
-    label: "Fikstür CRM",
-    description: "Maç bazlı içerik planı",
-    icon: CalendarDays,
-  },
   {
     href: "/studio",
     label: "Render Stüdyosu",

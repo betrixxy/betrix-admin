@@ -78,7 +78,7 @@ export async function saveAdSpendAction(fixtureId: string, adSpend: AdSpend): Pr
     return { ok: false, error: { code: "SAVE_FAILED", message: "Bütçe kaydedilemedi.", cause } };
   }
 
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   return { ok: true, data: null };
 }
 
@@ -114,6 +114,6 @@ export async function scheduleContentAction(
     return { ok: false, error: { code: "SAVE_FAILED", message: "Yayın zamanı kaydedilemedi.", cause } };
   }
 
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   return { ok: true, data: null };
 }

@@ -80,7 +80,7 @@ export async function saveWeeklyFixturesAction(input: unknown, anchorFixtureId: 
   const anchor = fixtureIdSchema.safeParse(anchorFixtureId);
   const saved = await createWeeklyFixturesDraft(parsed.data, anchor.success ? anchor.data : null);
   if (!saved.ok) return saved;
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return saved;
 }

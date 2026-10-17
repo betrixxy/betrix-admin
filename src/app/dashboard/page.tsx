@@ -51,9 +51,9 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ModuleSummaryCard
-          title="İçerik Üretim Takvimi"
+          title="Gönderiler"
           description="Planlanan ve paylaşılan gönderiler"
-          href="/dashboard/calendar"
+          href="/dashboard/posts"
           icon={CalendarDays}
           accentClassName="bg-emerald-500/15 text-emerald-400"
           metrics={[

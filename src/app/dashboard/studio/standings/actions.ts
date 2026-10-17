@@ -69,7 +69,7 @@ export async function saveStandingsAction(input: unknown, anchorFixtureId: unkno
   const anchor = fixtureIdSchema.safeParse(anchorFixtureId);
   const saved = await createStandingsDraft(parsed.data, anchor.success ? anchor.data : null);
   if (!saved.ok) return saved;
-  revalidatePath("/calendar");
+  revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return saved;
 }

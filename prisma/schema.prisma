@@ -583,3 +583,24 @@ enum MetricJobStatus {
   /// Token/bağlantı sorunu — hesap yeniden bağlanınca kendiliğinden devam eder
   BLOCKED
 }
+
+/// Yıldızlı (takip edilen) maç — İçerik Planı yalnızca bunları listeler (bkz. CLAUDE.md 1.8).
+/// Maç bilgisi yıldızlama anında sunucuda (API-Football) anlık görüntü olarak yazılır: liste
+/// sağlayıcıya ulaşılamasa da çizilir; canlı durum/skor görünen maçlar için ayrıca tazelenir.
+model WatchedFixture {
+  id         String   @id @default(cuid())
+  /// `api-football-<id>` (bkz. lib/services/api-football/mappers.ts::toFixtureId)
+  fixtureId  String   @unique
+  starredAt  DateTime @default(now())
+  kickoffUtc DateTime
+  homeName   String
+  homeLogo   String
+  awayName   String
+  awayLogo   String
+  leagueId   Int?
+  leagueName String
+  /// Sağlayıcının tur adı ("Regular Season - 9"); bilinmiyorsa null.
+  round      String?
+
+  @@index([kickoffUtc])
+}
