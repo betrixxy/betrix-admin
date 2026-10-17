@@ -3,14 +3,15 @@ import sharp from "sharp";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { backgroundCacheKey, getPlayerCutout, readCachedBackground, saveCachedBackground } from "@/lib/dashboard/match-day-cache";
-import { finalizeMatchDayImage } from "@/lib/dashboard/match-day-compose";
 import { economyBackgroundSize } from "@/lib/dashboard/match-day-engine";
 import { MATCH_DAY_FRAMES, type MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { resolveMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { buildMatchResultCaption, matchResultTitle } from "@/lib/dashboard/match-result-caption";
+import { backdropText, renderResultBackdrop } from "@/lib/dashboard/match-result-backdrop";
 import { composeResultArt } from "@/lib/dashboard/match-result-compose";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
+import { finalizeSetImage } from "@/lib/dashboard/set-finish";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
 import { toFixtureId } from "@/lib/services/api-football/mappers";
@@ -31,7 +32,12 @@ import type { SocialFormatId } from "@/types/studio-formats";
  *   2. sharp: arka plan + vurgu renkli arka ışık/gölge + oyuncu(lar) → kaba kompozit
  *   3. PREMIUM: Fal.ai image-to-image (galibiyette sıcak key light + ışık partikülleri eki)
  *   4. (isteğe bağlı) orijinal kesimleri yeniden bas — yüz/forma birebir korunur
- *   5. Satori: gradyan + skor + golcüler + marka → PNG
+ *   5. Satori: gradyan + skor + golcüler + marka → PNG + set bitişi (vinyet + film greni)
+ *
+ * Arka plan tipografisi ("1-0" / "BERABERE") oyuncunun arkasına basılır: Ekonomik'te tek
+ * kompozitte; Premium'da AI harmanlamaya girmez (yazı bozulmasın), orijinal kesimler yeniden
+ * basılırken altlarına eklenir — "oyuncuları koru" kapalıysa oyuncu harmanlanmış görselin
+ * içinde kaldığı için arkasına yazı konamaz ve atlanır.
  */
 
 type EngineError = { code: string; message: string };
@@ -131,10 +137,12 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   paidCalls += background.data.paidCalls;
   if (background.data.fromCache) savedSteps.push("Arka plan önbellekten");
 
-  // 2. Kaba kompozit.
+  // 2. Kaba kompozit (Ekonomik'te arka plan tipografisi burada; Premium'da harmanlamadan sonra).
   let composite: Buffer;
+  let backdrop: Buffer;
   try {
-    composite = await composeResultArt(background.data.bytes, frame, cutoutBytes, accent);
+    backdrop = await renderResultBackdrop(backdropText(facts.outcome, facts.home.goals, facts.away.goals), frame);
+    composite = await composeResultArt(background.data.bytes, frame, cutoutBytes, accent, true, input.quality === "PREMIUM" ? null : backdrop);
   } catch {
     return fail("COMPOSE_FAILED", "Oyuncu kesimleri arka planla birleştirilemedi.");
   }
@@ -154,7 +162,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
     prompt = harmonized.data.prompt;
     try {
       const bytes = await downloadImage(harmonized.data.imageUrl);
-      art = input.preservePlayers ? await composeResultArt(bytes, frame, cutoutBytes, accent, false) : bytes;
+      art = input.preservePlayers ? await composeResultArt(bytes, frame, cutoutBytes, accent, false, backdrop) : bytes;
     } catch {
       return fail("DOWNLOAD_FAILED", "Harmanlanmış görsel indirilemedi — birazdan tekrar deneyin.");
     }
@@ -165,7 +173,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   // 5. Yazı katmanı → nihai PNG.
   let final: Buffer;
   try {
-    final = await finalizeMatchDayImage(art, await renderMatchResultOverlay(card, frame), frame);
+    final = await finalizeSetImage(art, await renderMatchResultOverlay(card, frame), frame);
   } catch (error: unknown) {
     console.error(`[match-result] ${input.format} yazı katmanı çizilemedi:`, error);
     return fail("RENDER_FAILED", `Kartın yazı katmanı çizilemedi (${frame.ratioLabel}): ${error instanceof Error ? error.message : String(error)}`);

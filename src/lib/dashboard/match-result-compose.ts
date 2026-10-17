@@ -63,9 +63,12 @@ export async function composeResultArt(
   players: Buffer[],
   accentHex: string,
   withLight = true,
+  /** Arka plan tipografisi (bkz. `match-result-backdrop.tsx`) — arka planın üstüne, oyuncuların ALTINA basılır. */
+  backdrop: Buffer | null = null,
 ): Promise<Buffer> {
   const g = matchResultGeometry(frame);
   const slots = players.length === 1 ? [g.hero] : g.pair;
   const layers = await Promise.all(players.map((bytes, index) => playerLayers(bytes, slots[index] ?? g.hero, frame, accentHex, withLight)));
-  return sharp(background).resize(frame.width, frame.height, { fit: "cover" }).composite(layers.flat()).png().toBuffer();
+  const under: OverlayOptions[] = backdrop ? [{ input: backdrop }] : [];
+  return sharp(background).resize(frame.width, frame.height, { fit: "cover" }).composite([...under, ...layers.flat()]).png().toBuffer();
 }

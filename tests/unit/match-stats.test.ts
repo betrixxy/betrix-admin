@@ -5,7 +5,9 @@ import { buildMatchStatsCard, statSections } from "@/lib/dashboard/match-stats-c
 import { readableOnDark } from "@/lib/dashboard/match-result-theme";
 import { statsHighlight } from "@/lib/dashboard/match-stats-highlight";
 import { formatStatValue, isRowVisible, parseStatValue, statBar, statTones } from "@/lib/dashboard/match-stats-rows";
-import { isSimilarColor, NEUTRAL_SILVER, statsPalette } from "@/lib/dashboard/match-stats-theme";
+import { isSimilarColor, NEUTRAL_SILVER, statsPalette, trailHex } from "@/lib/dashboard/match-stats-theme";
+import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
+import { backdropText } from "@/lib/dashboard/match-result-backdrop";
 import { statRows, tacklesAndInterceptions, toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-mappers";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -246,5 +248,29 @@ describe("Maç İstatistikleri — renkler", () => {
   it("ikincil rengi bilinmeyen benzer renk: nötr gümüş", () => {
     const { awayHex } = statsPalette({ home: { ...facts.home, colorHex: "#E30A17" }, away: { ...facts.away, id: 1, colorHex: "#D0101A" } });
     assert.equal(awayHex.toLowerCase(), NEUTRAL_SILVER.toLowerCase());
+  });
+});
+
+describe("CheckMatch set — tasarım kuralları", () => {
+  it("geride kalan renk: aynı ton, koyu ve doygun (opaklık değil, kahverengiye kaymaz)", () => {
+    const lead = "#dc4155";
+    const trail = trailHex(lead);
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(trail.slice(i, i + 2), 16)) as [number, number, number];
+    assert.ok(r > g * 2 && r > b * 1.5, `kırmızı baskın kalmalı: ${trail}`);
+    assert.ok(Math.max(r, g, b) < 0xdc, `koyulaşmalı: ${trail}`);
+    assert.equal(trailHex("#ffffff"), "#8c8c8c");
+  });
+
+  it("sağ üst tarih: maçın İstanbul günü, dd.MM.yyyy", () => {
+    assert.equal(setDateLabel("2026-07-23T18:00:00+00:00"), "23.07.2026");
+    assert.equal(setDateLabel("2026-07-23T22:30:00+00:00"), "24.07.2026");
+  });
+
+  it("01 arka plan tipografisi: galibiyette skor, beraberlikte BERABERE", () => {
+    assert.equal(backdropText("HOME", 1, 0), "1-0");
+    assert.equal(backdropText("AWAY", 2, 3), "2-3");
+    assert.equal(backdropText("DRAW", 1, 1), "BERABERE");
+    // Penaltılarla biten maçta kazanan var, skor eşit — yine skor yazılır.
+    assert.equal(backdropText("HOME", 1, 1), "1-1");
   });
 });

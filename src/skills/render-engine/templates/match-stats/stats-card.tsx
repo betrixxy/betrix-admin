@@ -1,15 +1,16 @@
 import type { ReactNode } from "react";
 import type { MatchStatsCard } from "@/types/match-stats";
-import { PageLabel, SET_VERTICAL, SetFooter, SetScoreBlock } from "../checkmatch-set/set-parts";
+import { SetHeader, SET_VERTICAL, SetFooter, SetScoreBlock } from "../checkmatch-set/set-parts";
 import { BODY, px } from "../match-day/shared";
 import { PAGE_LABEL_SPACE, setBlockTop, type StatsGeometry } from "./geometry";
-import { Highlight, rgba, rowHeight, SpineRow } from "./parts";
+import { HeroRow, heroRowHeight, Highlight, rgba, ROW, rowHeight, SpineRow } from "./parts";
 
 /**
  * MAÇ İSTATİSTİKLERİ — dikey (4:5, 1:1, 9:16) sayfa, "CheckMatch set" kartı: sol üstte sayfa
  * etiketi, altta Maç Sonucu ile AYNI set bloğu (öne çıkan satır · skor şeridi · golcüler) ve künye.
- * Arada satır paneli; vurgu renginde ince omurga panelin üstünden iner, her satırın etiketinde
- * kesilir ve set bloğunda turnuva rozetine ulaşır. Satır konumları burada hesaplanır (Satori ölçüm
+ * Arada satır paneli: Özet sayfasında en üstte kahraman satır (top hakimiyeti, tam genişlik), altında
+ * kompakt satırlar. Vurgu renginde ince omurga yalnızca panel içinde (kahraman satırın altından)
+ * başlar, her satır etiketinde ve öne çıkan satırın yazı alanında kesilir, rozete ulaşır. Satır konumları burada hesaplanır (Satori ölçüm
  * vermez); panel kalan alanda dikeyde ortalanır, satır aralığı boşluğa göre büyür (ölü alan yok).
  */
 
@@ -36,14 +37,21 @@ interface Layout {
   titles: { key: string; top: number; text: string }[];
   /** Etiketlerin y aralıkları — omurga bu aralıklarda kesilir. */
   labels: [number, number][];
+  /** Omurganın panel içindeki başlangıcı (kahraman satırın altı ya da ilk satırın üstü). */
+  spineFrom: number;
 }
+
+/** Özet sayfasının ilk satırı top hakimiyetiyse kahraman satır olarak çizilir. */
+const isHero = (card: MatchStatsCard, key: string, index: number) => card.page === "SUMMARY" && index === 0 && key === "possession";
 
 function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBottom: number, inner: number): Layout {
   const { k } = g;
   const rowH = rowHeight(k);
   const rowCount = card.sections.reduce((sum, section) => sum + section.rows.length, 0);
+  const hero = card.sections[0]?.rows[0] && isHero(card, card.sections[0].rows[0].key, 0);
+  const rowsHeight = rowCount * rowH + (hero ? heroRowHeight(k) - rowH : 0);
   const titled = card.sections.filter((section) => section.title).length;
-  const fixed = 2 * px(PAD_Y, k) + rowCount * rowH + titled * px(TITLE + TITLE_GAP, k) + Math.max(0, card.sections.length - 1) * px(SECTION_GAP, k);
+  const fixed = 2 * px(PAD_Y, k) + rowsHeight + titled * px(TITLE + TITLE_GAP, k) + Math.max(0, card.sections.length - 1) * px(SECTION_GAP, k);
   const available = areaBottom - areaTop;
   const gaps = Math.max(1, rowCount - card.sections.length);
   const gap = Math.max(px(12, k), Math.min(px(46, k), Math.floor((available - fixed) / (gaps + 2))));
@@ -54,6 +62,8 @@ function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBot
   const titles: Layout["titles"] = [];
   const labels: Layout["labels"] = [];
   let y = panelTop + px(PAD_Y, k);
+  let spineFrom = y;
+  let flat = 0;
   card.sections.forEach((section, sectionIndex) => {
     if (sectionIndex > 0) y += px(SECTION_GAP, k);
     if (section.title) {
@@ -62,12 +72,18 @@ function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBot
     }
     section.rows.forEach((row, index) => {
       if (index > 0) y += gap;
-      rows.push({ key: row.key, top: y, node: <SpineRow row={row} card={card} width={inner} k={k} /> });
-      labels.push([y, y + px(17, k)]);
+      const heroRow = isHero(card, row.key, flat++);
+      rows.push({ key: row.key, top: y, node: heroRow ? <HeroRow row={row} card={card} width={inner} k={k} /> : <SpineRow row={row} card={card} width={inner} k={k} /> });
+      if (heroRow) {
+        y += heroRowHeight(k);
+        spineFrom = y + px(LABEL_CLEARANCE, k);
+        return;
+      }
+      labels.push([y, y + px(ROW.label, k)]);
       y += rowH;
     });
   });
-  return { panelTop, panelHeight, rows, titles, labels };
+  return { panelTop, panelHeight, rows, titles, labels, spineFrom };
 }
 
 /** Omurga parçaları: panelin üstünden başlık yuvasına kadar, her satır etiketinde kesilir. */
@@ -100,12 +116,12 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
   const spineX = g.left + width / 2;
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY }}>
-      <PageLabel card={card} box={g} k={k} />
+      <SetHeader card={card} box={g} k={k} />
       <div
         tw="absolute flex"
         style={{ left: g.left, top: placed.panelTop, width, height: placed.panelHeight, borderRadius: px(28, k), backgroundColor: PANEL, border: "1px solid rgba(255,255,255,0.07)" }}
       />
-      <Spine x={spineX} from={placed.panelTop} to={spineEnd} labels={placed.labels} hex={card.accentHex} k={k} />
+      <Spine x={spineX} from={placed.spineFrom} to={spineEnd} labels={placed.labels} hex={card.accentHex} k={k} />
       {placed.titles.map((title) => (
         <span
           key={title.key}

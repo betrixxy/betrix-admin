@@ -22,6 +22,12 @@ export interface SetBox {
 
 const LOSER_ALPHA = 0.5;
 
+/** "#ff6b00", 0.45 → "rgba(255,107,0,0.45)" */
+export function hexAlpha(hex: string, alpha: number): string {
+  const value = Number.parseInt(hex.replace("#", ""), 16);
+  return `rgba(${(value >> 16) & 255},${(value >> 8) & 255},${value & 255},${alpha})`;
+}
+
 /** Dikey set ölçüleri (k ile ölçeklenir) — iki kart da bu sayıları okur. */
 export const SET_VERTICAL = {
   headlineSlot: 32,
@@ -95,9 +101,20 @@ export function ScoreStrip({ card, k, scoreSize }: { card: SetCard; k: number; s
       </div>
       <div tw="flex flex-col items-center justify-center" style={{ width: center }}>
         {card.leagueLogo ? (
-          <div tw="flex items-center justify-center" style={{ width: badge, height: badge, borderRadius: px(18, k), backgroundColor: "rgba(255,255,255,0.95)" }}>
+          // Şeffaf rozet: beyaz kutu yok — vurgu renginde 2px halka + hafif ışıma.
+          <div
+            tw="flex items-center justify-center"
+            style={{
+              width: badge,
+              height: badge,
+              borderRadius: badge / 2,
+              border: `2px solid ${card.accentHex}`,
+              boxShadow: `0 0 ${px(22, k)}px ${hexAlpha(card.accentHex, 0.45)}, inset 0 0 ${px(14, k)}px ${hexAlpha(card.accentHex, 0.25)}`,
+              backgroundColor: "rgba(7,8,12,0.35)",
+            }}
+          >
             {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-            <img src={card.leagueLogo} alt="" width={px(70, k)} height={px(70, k)} style={{ objectFit: "contain" }} />
+            <img src={card.leagueLogo} alt="" width={px(58, k)} height={px(58, k)} style={{ objectFit: "contain" }} />
           </div>
         ) : (
           <div tw="flex" style={{ width: px(28, k), height: px(6, k), backgroundColor: card.accentHex }} />
@@ -197,20 +214,28 @@ export function SetScoreBlock({
   );
 }
 
-/** Sayfa etiketi — sol üst: "01" vurgu renginde, "· MAÇ SONUCU" beyaz. Kart tek başına paylaşılırken çizilmez. */
-export function PageLabel({ card, box, k }: { card: SetCard; box: SetBox; k: number }) {
-  if (!card.pageLabel) return null;
-  const [number, ...rest] = card.pageLabel.split(" · ");
+const HEADER_SHADOW = "0 2px 12px rgba(0,0,0,0.6)";
+
+/**
+ * Üst satır: solda sayfa etiketi ("01" vurgu renginde, "· MAÇ SONUCU" beyaz — kart tek başına
+ * paylaşılırken çizilmez), sağda simetrik maç tarihi ("23.07.2026", aynı stil).
+ */
+export function SetHeader({ card, box, k }: { card: SetCard; box: SetBox; k: number }) {
   const size = px(18, k);
+  const text = { fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, letterSpacing: size * 0.24, color: "rgba(255,255,255,0.88)", textShadow: HEADER_SHADOW };
+  const [number, ...rest] = card.pageLabel?.split(" · ") ?? [];
   return (
-    <div tw="absolute flex items-center" style={{ left: box.left, top: box.top }}>
-      <span style={{ fontFamily: BODY, fontWeight: 900, fontSize: size, letterSpacing: size * 0.12, color: card.accentHex, textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>
-        {number}
-      </span>
-      <div tw="flex" style={{ width: px(22, k), height: 2, backgroundColor: "rgba(255,255,255,0.55)", margin: `0 ${px(12, k)}px` }} />
-      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, letterSpacing: size * 0.24, color: "rgba(255,255,255,0.88)", textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}>
-        {rest.join(" · ")}
-      </span>
+    <div tw="absolute flex items-center justify-between" style={{ left: box.left, top: box.top, width: box.right - box.left, height: size }}>
+      {card.pageLabel ? (
+        <div tw="flex items-center">
+          <span style={{ ...text, fontWeight: 900, letterSpacing: size * 0.12, color: card.accentHex }}>{number}</span>
+          <div tw="flex" style={{ width: px(22, k), height: 2, backgroundColor: "rgba(255,255,255,0.55)", margin: `0 ${px(12, k)}px` }} />
+          <span style={text}>{rest.join(" · ")}</span>
+        </div>
+      ) : (
+        <div tw="flex" />
+      )}
+      <span style={text}>{card.dateLabel}</span>
     </div>
   );
 }

@@ -33,6 +33,8 @@ export interface SetCard {
   accentHex: string;
   /** "01 · MAÇ SONUCU"; tek başına paylaşılan kartta null (etiket çizilmez). */
   pageLabel: string | null;
+  /** Sağ üstte, sayfa etiketiyle simetrik: maç tarihi "23.07.2026" (İstanbul günü). */
+  dateLabel: string;
   homeLogo: string | null;
   awayLogo: string | null;
   leagueLogo: string | null;

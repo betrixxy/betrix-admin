@@ -1,5 +1,5 @@
 import type { MatchResultCard } from "@/types/match-result";
-import { PageLabel, ScoreStrip, ScorerColumns, SET_VERTICAL, SetFooter, SetScoreBlock } from "../checkmatch-set/set-parts";
+import { SetHeader, ScoreStrip, ScorerColumns, SET_VERTICAL, SetFooter, SetScoreBlock } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, px } from "../match-day/shared";
 import type { ResultGeometry } from "./geometry";
 import { Shade } from "./shared";
@@ -28,7 +28,7 @@ function Vertical({ card, g }: { card: MatchResultCard; g: ResultGeometry }) {
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY }}>
       <Shade g={g} />
-      <PageLabel card={card} box={g} k={k} />
+      <SetHeader card={card} box={g} k={k} />
       <SetScoreBlock card={card} box={g} frameHeight={frame.height} k={k} headline={<MvpLine card={card} size={px(20, k)} />} />
       <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, k)} logoHeight={px(SET_VERTICAL.logoHeight, k)} />
     </div>
@@ -50,7 +50,7 @@ function Landscape({ card, g }: { card: MatchResultCard; g: ResultGeometry }) {
           <ScorerColumns card={card} width={width} size={16} gap={60} />
         </div>
       </div>
-      <PageLabel card={card} box={g} k={0.8} />
+      <SetHeader card={card} box={g} k={0.8} />
       <SetFooter card={card} box={g} size={12} logoHeight={26} />
     </div>
   );
