@@ -113,8 +113,17 @@ services:
       - -c
       - |
         set -eu
+        umask 077
         mkdir -p /tmp/crontabs
-        echo "5 * * * * wget -q -T 120 -O - --header 'x-cron-secret: $$INTERNAL_CRON_SECRET' --post-data '' http://app:3000/api/internal/metrics/tick >> /proc/1/fd/1 2>&1; echo >> /proc/1/fd/1" > /tmp/crontabs/root
+        # Sır crontab satırında DEĞİL: crond her çalıştırmada komutun tamamını loglar. Header yalnızca
+        # 700 izinli betikte durur, log'a sadece betiğin yolu düşer. tmpfs noexec olduğu için `sh` ile çağrılır.
+        cat > /tmp/tick.sh <<EOF
+        #!/bin/sh
+        exec wget -q -T 120 -O - --header "x-cron-secret: $$INTERNAL_CRON_SECRET" --post-data '' http://app:3000/api/internal/metrics/tick
+        EOF
+        chmod 700 /tmp/tick.sh
+        echo "5 * * * * /bin/sh /tmp/tick.sh >> /proc/1/fd/1 2>&1; echo >> /proc/1/fd/1" > /tmp/crontabs/root
+        unset INTERNAL_CRON_SECRET
         exec crond -f -c /tmp/crontabs -l 6 -L /dev/stdout
     depends_on:
       app:
