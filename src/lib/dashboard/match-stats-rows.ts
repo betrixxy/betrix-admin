@@ -14,25 +14,60 @@ const row = (def: Omit<StatRowDef, "hideWhenZero" | "decimals" | "percent"> & Pa
 });
 
 export const STAT_ROWS: Record<StatRowKey, StatRowDef> = {
-  possession: row({ key: "possession", label: "Top hakimiyeti", kind: "share100", higherIsBetter: true, summaryOrder: 1, section: "PASSING", percent: true }),
-  xg: row({ key: "xg", label: "Gol beklentisi (xG)", kind: "count", higherIsBetter: true, summaryOrder: 2, section: "ATTACK", decimals: 2 }),
-  shotsTotal: row({ key: "shotsTotal", label: "Toplam şut", kind: "count", higherIsBetter: true, summaryOrder: 3, section: "ATTACK" }),
-  shotsOnTarget: row({ key: "shotsOnTarget", label: "İsabetli şut", kind: "count", higherIsBetter: true, summaryOrder: 4, section: "ATTACK" }),
-  bigChancesMissed: row({ key: "bigChancesMissed", label: "Kaçan net pozisyon", kind: "count", higherIsBetter: null, summaryOrder: 5, section: "ATTACK" }),
-  corners: row({ key: "corners", label: "Korner", kind: "count", higherIsBetter: true, summaryOrder: 6, section: "ATTACK" }),
-  passAccuracy: row({ key: "passAccuracy", label: "Pas isabeti", kind: "rate", higherIsBetter: true, summaryOrder: 7, section: "PASSING", percent: true }),
-  saves: row({ key: "saves", label: "Kaleci kurtarışı", kind: "count", higherIsBetter: true, summaryOrder: 8, section: "DEFENCE" }),
-  shotsOffTarget: row({ key: "shotsOffTarget", label: "İsabetsiz şut", kind: "count", higherIsBetter: null, summaryOrder: null, section: "ATTACK" }),
-  shotsBlocked: row({ key: "shotsBlocked", label: "Engellenen şut", kind: "count", higherIsBetter: null, summaryOrder: null, section: "ATTACK" }),
-  shotsInsideBox: row({ key: "shotsInsideBox", label: "Ceza sahası içi şut", kind: "count", higherIsBetter: true, summaryOrder: null, section: "ATTACK" }),
-  woodwork: row({ key: "woodwork", label: "Direkten dönen", kind: "count", higherIsBetter: null, summaryOrder: null, section: "ATTACK", hideWhenZero: true }),
-  offsides: row({ key: "offsides", label: "Ofsayt", kind: "count", higherIsBetter: null, summaryOrder: null, section: "ATTACK" }),
-  passes: row({ key: "passes", label: "Pas", kind: "count", higherIsBetter: true, summaryOrder: null, section: "PASSING" }),
-  tacklesInterceptions: row({ key: "tacklesInterceptions", label: "Top çalma ve müdahale", kind: "count", higherIsBetter: true, summaryOrder: null, section: "DEFENCE" }),
-  fouls: row({ key: "fouls", label: "Faul", kind: "count", higherIsBetter: null, summaryOrder: null, section: "DISCIPLINE" }),
-  yellowCards: row({ key: "yellowCards", label: "Sarı kart", kind: "count", higherIsBetter: null, summaryOrder: null, section: "DISCIPLINE" }),
-  redCards: row({ key: "redCards", label: "Kırmızı kart", kind: "count", higherIsBetter: null, summaryOrder: null, section: "DISCIPLINE", hideWhenZero: true }),
+  possession: row({ key: "possession", label: "Top hakimiyeti", kind: "share100", higherIsBetter: true, section: "PASSING", percent: true }),
+  xg: row({ key: "xg", label: "Beklenen gol ({xG})", kind: "count", higherIsBetter: true, section: "ATTACK", decimals: 2 }),
+  shotsTotal: row({ key: "shotsTotal", label: "Toplam şut", kind: "count", higherIsBetter: true, section: "ATTACK" }),
+  shotsOnTarget: row({ key: "shotsOnTarget", label: "İsabetli şut", kind: "count", higherIsBetter: true, section: "ATTACK" }),
+  bigChancesMissed: row({ key: "bigChancesMissed", label: "Kaçan net pozisyon", kind: "count", higherIsBetter: null, section: "ATTACK" }),
+  dangerousAttacks: row({ key: "dangerousAttacks", label: "Tehlikeli atak", kind: "count", higherIsBetter: true, section: "ATTACK" }),
+  corners: row({ key: "corners", label: "Korner", kind: "count", higherIsBetter: true, section: "ATTACK" }),
+  passAccuracy: row({ key: "passAccuracy", label: "Pas isabeti", kind: "rate", higherIsBetter: true, section: "PASSING", percent: true }),
+  saves: row({ key: "saves", label: "Kaleci kurtarışı", kind: "count", higherIsBetter: true, section: "DEFENCE" }),
+  shotsOffTarget: row({ key: "shotsOffTarget", label: "İsabetsiz şut", kind: "count", higherIsBetter: null, section: "ATTACK" }),
+  shotsBlocked: row({ key: "shotsBlocked", label: "Engellenen şut", kind: "count", higherIsBetter: null, section: "ATTACK" }),
+  shotsInsideBox: row({ key: "shotsInsideBox", label: "Ceza sahası içi şut", kind: "count", higherIsBetter: true, section: "ATTACK" }),
+  woodwork: row({ key: "woodwork", label: "Direkten dönen", kind: "count", higherIsBetter: null, section: "ATTACK", hideWhenZero: true }),
+  offsides: row({ key: "offsides", label: "Ofsayt", kind: "count", higherIsBetter: null, section: "ATTACK" }),
+  passes: row({ key: "passes", label: "Pas", kind: "count", higherIsBetter: true, section: "PASSING" }),
+  tacklesInterceptions: row({ key: "tacklesInterceptions", label: "Top çalma ve müdahale", kind: "count", higherIsBetter: true, section: "DEFENCE" }),
+  fouls: row({ key: "fouls", label: "Faul", kind: "count", higherIsBetter: null, section: "DISCIPLINE" }),
+  yellowCards: row({ key: "yellowCards", label: "Sarı kart", kind: "count", higherIsBetter: null, section: "DISCIPLINE" }),
+  redCards: row({ key: "redCards", label: "Kırmızı kart", kind: "count", higherIsBetter: null, section: "DISCIPLINE", hideWhenZero: true }),
 };
+
+/** Özet (02) en fazla bu kadar satır; ilki kahraman satır (top hakimiyeti). */
+export const SUMMARY_SIZE = 8;
+export const SUMMARY_PRIORITY: readonly StatRowKey[] = ["possession", "xg", "shotsTotal", "shotsOnTarget", "bigChancesMissed", "corners", "passAccuracy", "saves"];
+/** Öncelikli satırın verisi yoksa boşluk sırayla bunlardan doldurulur (direkten dönen yalnızca toplam > 0 ise). */
+export const SUMMARY_FALLBACKS: readonly StatRowKey[] = ["dangerousAttacks", "tacklesInterceptions", "passes", "woodwork", "fouls"];
+
+/**
+ * Özet sayfasının satırları (saf): öncelik listesinden verisi olanlar kendi sırasında, eksik kalan
+ * yer sırayla yedeklerle 8'e tamamlanır; tamamlanamazsa olan kadar. Detay sayfası (03) burada
+ * kullanılmayan satırları alır.
+ */
+export function summaryRowKeys(values: readonly StatRowValue[]): StatRowKey[] {
+  const available = new Set(values.filter(isRowVisible).map((value) => value.key));
+  const primary = SUMMARY_PRIORITY.filter((key) => available.has(key));
+  const fallbacks = SUMMARY_FALLBACKS.filter((key) => available.has(key)).slice(0, Math.max(0, SUMMARY_SIZE - primary.length));
+  return [...primary, ...fallbacks];
+}
+
+/** Etiketin büyük harfli hâli — süslü parantez içi olduğu gibi kalır: "Beklenen gol ({xG})" → "BEKLENEN GOL (xG)". */
+export function upperLabel(label: string): string {
+  return label
+    .split(/(\{[^}]*\})/)
+    .map((part) => (part.startsWith("{") && part.endsWith("}") ? part.slice(1, -1) : part.toLocaleUpperCase("tr-TR")))
+    .join("");
+}
+
+/** Etiketin düz hâli (gönderi metni, uyarılar): "Beklenen gol ({xG})" → "Beklenen gol (xG)". */
+export function plainLabel(label: string): string {
+  return label.replace(/\{([^}]*)\}/g, "$1");
+}
+
+/** Özette xG satırı varsa panelin altına yazılan açıklama. */
+export const XG_FOOTNOTE = "xG: Pozisyonların gole dönme ihtimallerinin toplamı. Yüksek xG = daha net fırsat.";
 
 export const SECTION_LABELS: Record<StatSection, string> = {
   ATTACK: "Hücum",

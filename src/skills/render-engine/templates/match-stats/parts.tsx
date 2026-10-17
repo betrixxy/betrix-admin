@@ -19,8 +19,8 @@ const TRACK = "rgba(255,255,255,0.06)";
 /** Satır ölçüleri (k ile ölçeklenir). */
 export const ROW = {
   label: 22,
-  labelGap: 10,
-  value: 40,
+  labelGap: 8,
+  value: 36,
   bar: 12,
   /** Değer sütunu genişliği ("%88", "685"). */
   valueColumn: 118,
@@ -69,7 +69,8 @@ function Label({ text, k }: { text: string; k: number }) {
   const size = px(ROW.label, k);
   return (
     <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, height: size, letterSpacing: px(1.4, k), color: "rgba(255,255,255,0.66)" }}>
-      {text.toLocaleUpperCase("tr-TR")}
+      {/* Kart oluşturucu büyük harfe çevirir (`upperLabel` — "xG" gibi muaf parçalar korunur). */}
+      {text}
     </span>
   );
 }

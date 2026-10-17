@@ -1,4 +1,4 @@
-import { parseStatValue, STAT_ROWS } from "@/lib/dashboard/match-stats-rows";
+import { parseStatValue, plainLabel, STAT_ROWS } from "@/lib/dashboard/match-stats-rows";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import type { SportmonksMatchValues } from "@/lib/services/sportmonks/match-stats-mappers";
@@ -67,6 +67,22 @@ function apiFootballPair(raw: ApiFootballFixtureResultRaw, key: StatRowKey): Pai
   const type = API_FOOTBALL_TYPES[key];
   if (!type) return null;
   const [home, away] = [teamStat(raw, homeId, type), teamStat(raw, awayId, type)];
+  if (home !== null && away !== null) return { home, away };
+  if (key === "passAccuracy") return derivedPassAccuracy(raw, homeId, awayId);
+  return null;
+}
+
+/**
+ * "Passes %" gelmeyen maçlarda pas isabeti aynı kaynağın iki sayısından hesaplanır:
+ * isabetli pas / toplam pas (tam yüzdeye yuvarlı). Toplam pas 0 ya da eksikse null.
+ */
+function derivedPassAccuracy(raw: ApiFootballFixtureResultRaw, homeId: number, awayId: number): Pair | null {
+  const pct = (teamId: number) => {
+    const total = teamStat(raw, teamId, "Total passes");
+    const accurate = teamStat(raw, teamId, "Passes accurate");
+    return total && accurate !== null ? Math.round((accurate / total) * 100) : null;
+  };
+  const [home, away] = [pct(homeId), pct(awayId)];
   return home === null || away === null ? null : { home, away };
 }
 
@@ -94,7 +110,7 @@ export function cardConflicts(raw: ApiFootballFixtureResultRaw, sportmonks: Spor
     const primary = apiFootballPair(raw, key);
     const other = sportmonks?.[key];
     if (!primary || !other || (primary.home === other.home && primary.away === other.away)) continue;
-    warnings.push(`${STAT_ROWS[key].label}: API-Football ${primary.home}-${primary.away}, Sportmonks ${other.home}-${other.away} — kartta API-Football değeri kullanıldı, kontrol edin.`);
+    warnings.push(`${plainLabel(STAT_ROWS[key].label)}: API-Football ${primary.home}-${primary.away}, Sportmonks ${other.home}-${other.away} — kartta API-Football değeri kullanıldı, kontrol edin.`);
   }
   return warnings;
 }

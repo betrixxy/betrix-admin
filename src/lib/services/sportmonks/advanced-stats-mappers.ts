@@ -27,7 +27,9 @@ export const sportmonksTeamSearchSchema = z.object({
 });
 
 /** Yaygın kulüp ekleri — "Kasımpaşa SK" ile "Kasimpasa" aynı takımdır. */
-const CLUB_TOKENS = new Set(["fc", "sk", "ak", "as", "jk", "fk", "cf", "ac", "afc", "sc", "club", "spor", "kulubu"]);
+const CLUB_TOKENS = new Set(["fc", "sk", "ak", "as", "jk", "fk", "cf", "ac", "afc", "sc", "tsg", "club", "spor", "kulubu"]);
+/** Kuruluş yılı ("1899 Hoffenheim" ↔ "TSG Hoffenheim") — iki sağlayıcıdan biri yazar, diğeri yazmaz. */
+const FOUNDING_YEAR = /^1[89]\d\d$/;
 
 /** Türkçe karakterleri ASCII'ye indirger, küçültür, kulüp eklerini ve noktalamayı atar. */
 export function normalizeTeamName(name: string): string {
@@ -37,7 +39,7 @@ export function normalizeTeamName(name: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .split(/[^a-z0-9]+/)
-    .filter((token) => token && !CLUB_TOKENS.has(token))
+    .filter((token) => token && !CLUB_TOKENS.has(token) && !FOUNDING_YEAR.test(token))
     .join("");
 }
 
@@ -49,7 +51,10 @@ export function isSameTeam(a: string, b: string): boolean {
 
 /** API arama ucu için sade ad — "Kasımpaşa" → "Kasimpasa". */
 export function searchableTeamName(name: string): string {
-  return name.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const ascii = name.replace(/ı/g, "i").replace(/İ/g, "I").normalize("NFD").replace(/[̀-ͯ]/g, "");
+  // "1899 Hoffenheim" Sportmonks aramasında sonuç vermez, "Hoffenheim" verir.
+  const withoutYear = ascii.split(/\s+/).filter((token) => !FOUNDING_YEAR.test(token)).join(" ").trim();
+  return withoutYear || ascii;
 }
 
 function statValue(fixture: SportmonksFixture, participantId: number, type: string): number | null {

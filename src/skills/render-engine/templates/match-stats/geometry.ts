@@ -30,7 +30,7 @@ export function matchStatsGeometry(frame: MatchDayFrame): StatsGeometry {
 }
 
 /** Sayfa etiketi satırının yüksekliği + altındaki boşluk. */
-export const PAGE_LABEL_SPACE = 18 + 44;
+export const PAGE_LABEL_SPACE = 18 + 36;
 
 /**
  * Set bloğunun üst kenarı (y) — golcü satır sayısından deterministik hesaplanır (Satori ölçüm

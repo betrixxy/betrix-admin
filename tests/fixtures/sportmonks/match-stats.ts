@@ -491,3 +491,782 @@ export const SM_BESIKTAS_MIDTJYLLAND: SportmonksFixture = {
 };
 
 export const SM_BESIKTAS_MIDTJYLLAND_IDS = { home: 554, away: 939 };
+
+/**
+ * Sportmonks — TSG Hoffenheim (2726) 2-3 Beşiktaş (554), 2026-10-15. Eşleşme deplasman adıyla
+ * bulunur ("1899 Hoffenheim" aramada sonuç vermez). Tehlikeli atak, büyük fırsat dolu.
+ */
+export const SM_HOFFENHEIM_BESIKTAS: SportmonksFixture = {
+  "id": 19873855,
+  "starting_at": "2026-10-15 19:00:00",
+  "participants": [
+    {
+      "id": 554,
+      "name": "Beşiktaş"
+    },
+    {
+      "id": 2726,
+      "name": "TSG Hoffenheim"
+    }
+  ],
+  "statistics": [
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "CORNERS"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "CORNERS"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_OFF_TARGET"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_OFF_TARGET"
+      },
+      "data": {
+        "value": 6
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_TOTAL"
+      },
+      "data": {
+        "value": 19
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_TOTAL"
+      },
+      "data": {
+        "value": 13
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "ATTACKS"
+      },
+      "data": {
+        "value": 100
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "ATTACKS"
+      },
+      "data": {
+        "value": 105
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "DANGEROUS_ATTACKS"
+      },
+      "data": {
+        "value": 42
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "DANGEROUS_ATTACKS"
+      },
+      "data": {
+        "value": 45
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "BALL_POSSESSION"
+      },
+      "data": {
+        "value": 46
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "BALL_POSSESSION"
+      },
+      "data": {
+        "value": 54
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "BALL_SAFE"
+      },
+      "data": {
+        "value": 105
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "BALL_SAFE"
+      },
+      "data": {
+        "value": 88
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_INSIDEBOX"
+      },
+      "data": {
+        "value": 16
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_INSIDEBOX"
+      },
+      "data": {
+        "value": 9
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_OUTSIDEBOX"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_OUTSIDEBOX"
+      },
+      "data": {
+        "value": 4
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "GOALS"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "GOALS"
+      },
+      "data": {
+        "value": 2
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "GOAL_KICKS"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "GOAL_KICKS"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "GOAL_ATTEMPTS"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "GOAL_ATTEMPTS"
+      },
+      "data": {
+        "value": 8
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "FREE_KICKS"
+      },
+      "data": {
+        "value": 18
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "FREE_KICKS"
+      },
+      "data": {
+        "value": 8
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "FOULS"
+      },
+      "data": {
+        "value": 8
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "FOULS"
+      },
+      "data": {
+        "value": 18
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SAVES"
+      },
+      "data": {
+        "value": 1
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SAVES"
+      },
+      "data": {
+        "value": 2
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_BLOCKED"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_BLOCKED"
+      },
+      "data": {
+        "value": 4
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUBSTITUTIONS"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUBSTITUTIONS"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "THROWINS"
+      },
+      "data": {
+        "value": 25
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "THROWINS"
+      },
+      "data": {
+        "value": 13
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "LONG_PASSES"
+      },
+      "data": {
+        "value": 68
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "LONG_PASSES"
+      },
+      "data": {
+        "value": 50
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "HIT_WOODWORK"
+      },
+      "data": {
+        "value": 0
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "HIT_WOODWORK"
+      },
+      "data": {
+        "value": 1
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_HEADERS"
+      },
+      "data": {
+        "value": 11
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_HEADERS"
+      },
+      "data": {
+        "value": 21
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "TACKLES"
+      },
+      "data": {
+        "value": 17
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "TACKLES"
+      },
+      "data": {
+        "value": 16
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "ASSISTS"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "ASSISTS"
+      },
+      "data": {
+        "value": 2
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "PASSES"
+      },
+      "data": {
+        "value": 420
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "PASSES"
+      },
+      "data": {
+        "value": 486
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_PASSES"
+      },
+      "data": {
+        "value": 332
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_PASSES"
+      },
+      "data": {
+        "value": 383
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_PASSES_PERCENTAGE"
+      },
+      "data": {
+        "value": 79
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_PASSES_PERCENTAGE"
+      },
+      "data": {
+        "value": 79
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "YELLOWCARDS"
+      },
+      "data": {
+        "value": 1
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "YELLOWCARDS"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SHOTS_ON_TARGET"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SHOTS_ON_TARGET"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "INJURIES"
+      },
+      "data": {
+        "value": 1
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "INJURIES"
+      },
+      "data": {
+        "value": 0
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "TOTAL_CROSSES"
+      },
+      "data": {
+        "value": 13
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "TOTAL_CROSSES"
+      },
+      "data": {
+        "value": 18
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "ACCURATE_CROSSES"
+      },
+      "data": {
+        "value": 4
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "ACCURATE_CROSSES"
+      },
+      "data": {
+        "value": 5
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "INTERCEPTIONS"
+      },
+      "data": {
+        "value": 8
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "INTERCEPTIONS"
+      },
+      "data": {
+        "value": 15
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "DUELS_WON"
+      },
+      "data": {
+        "value": 56
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "DUELS_WON"
+      },
+      "data": {
+        "value": 48
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "DRIBBLED_ATTEMPTS"
+      },
+      "data": {
+        "value": 16
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "DRIBBLED_ATTEMPTS"
+      },
+      "data": {
+        "value": 11
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_DRIBBLES"
+      },
+      "data": {
+        "value": 10
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_DRIBBLES"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "KEY_PASSES"
+      },
+      "data": {
+        "value": 16
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "KEY_PASSES"
+      },
+      "data": {
+        "value": 7
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "BIG_CHANCES_CREATED"
+      },
+      "data": {
+        "value": 6
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "BIG_CHANCES_CREATED"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "BIG_CHANCES_MISSED"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "BIG_CHANCES_MISSED"
+      },
+      "data": {
+        "value": 3
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_DRIBBLES_PERCENTAGE"
+      },
+      "data": {
+        "value": 63
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_DRIBBLES_PERCENTAGE"
+      },
+      "data": {
+        "value": 27
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_LONG_PASSES"
+      },
+      "data": {
+        "value": 29
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_LONG_PASSES"
+      },
+      "data": {
+        "value": 18
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "SUCCESSFUL_LONG_PASSES_PERCENTAGE"
+      },
+      "data": {
+        "value": 43
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "SUCCESSFUL_LONG_PASSES_PERCENTAGE"
+      },
+      "data": {
+        "value": 36
+      }
+    },
+    {
+      "participant_id": 554,
+      "type": {
+        "developer_name": "TACKLES_WON"
+      },
+      "data": {
+        "value": 9
+      }
+    },
+    {
+      "participant_id": 2726,
+      "type": {
+        "developer_name": "TACKLES_WON"
+      },
+      "data": {
+        "value": 10
+      }
+    }
+  ]
+};
+
+export const SM_HOFFENHEIM_BESIKTAS_IDS = { home: 2726, away: 554 };

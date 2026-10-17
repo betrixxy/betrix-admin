@@ -4,7 +4,8 @@ import { buildMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { buildMatchStatsCard, statSections } from "@/lib/dashboard/match-stats-card";
 import { readableOnDark } from "@/lib/dashboard/match-result-theme";
 import { statsHighlight } from "@/lib/dashboard/match-stats-highlight";
-import { formatStatValue, isRowVisible, parseStatValue, statBar, statTones } from "@/lib/dashboard/match-stats-rows";
+import { formatStatValue, isRowVisible, parseStatValue, plainLabel, statBar, statTones, summaryRowKeys, upperLabel } from "@/lib/dashboard/match-stats-rows";
+import { isSameTeam, searchableTeamName } from "@/lib/services/sportmonks/advanced-stats-mappers";
 import { isSimilarColor, NEUTRAL_SILVER, statsPalette, trailHex } from "@/lib/dashboard/match-stats-theme";
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { backdropText } from "@/lib/dashboard/match-result-backdrop";
@@ -14,8 +15,8 @@ import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/ty
 import { sportmonksMatchValues } from "@/lib/services/sportmonks/match-stats-mappers";
 import { SET_PAGE_LABELS, type SetCard } from "@/types/checkmatch-set";
 import type { MatchStatsFacts, StatRowValue } from "@/types/match-stats";
-import { RAW_BESIKTAS_MIDTJYLLAND } from "../fixtures/api-football/match-stats";
-import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS } from "../fixtures/sportmonks/match-stats";
+import { RAW_BESIKTAS_MIDTJYLLAND, RAW_HOFFENHEIM_BESIKTAS_STATS } from "../fixtures/api-football/match-stats";
+import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
 
 const sportmonks = sportmonksMatchValues(SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS);
 const facts = toMatchStatsFacts(RAW_BESIKTAS_MIDTJYLLAND, sportmonks) as MatchStatsFacts;
@@ -179,23 +180,77 @@ describe("CheckMatch set — Maç Sonucu ile aynı kaynak", () => {
 });
 
 describe("Maç İstatistikleri — sayfalar", () => {
-  it("Özet: sabit sırayla, yalnızca verisi olan satırlar", () => {
+  it("Özet: xG ve kaçan net pozisyon yok → yedeklerle (tehlikeli atak, top çalma) 8 satır", () => {
     const [summary] = statSections(facts, "SUMMARY");
-    assert.deepEqual(summary?.rows.map((r) => r.key), ["possession", "shotsTotal", "shotsOnTarget", "corners", "passAccuracy", "saves"]);
+    assert.deepEqual(summary?.rows.map((r) => r.key), [
+      "possession",
+      "shotsTotal",
+      "shotsOnTarget",
+      "corners",
+      "passAccuracy",
+      "saves",
+      "dangerousAttacks",
+      "tacklesInterceptions",
+    ]);
     assert.equal(summary?.title, null);
   });
 
-  it("Detay: kalan satırlar Hücum / Pas / Savunma / Disiplin başlıklarıyla", () => {
+  it("Detay: özette kullanılmayan satırlar Hücum / Pas / Disiplin başlıklarıyla (boş bölüm yok)", () => {
     const sections = statSections(facts, "DETAIL");
     assert.deepEqual(
       sections.map((s) => [s.title, s.rows.map((r) => r.key)]),
       [
         ["HÜCUM", ["shotsOffTarget", "shotsBlocked", "woodwork", "offsides"]],
         ["PAS", ["passes"]],
-        ["SAVUNMA", ["tacklesInterceptions"]],
         ["DİSİPLİN", ["fouls", "yellowCards", "redCards"]],
       ],
     );
+  });
+
+  it("yedekler: direkten dönen yalnızca toplam > 0 ise; tamamlanamazsa olan kadar", () => {
+    const rows = (values: [StatRowValue["key"], number, number][]): StatRowValue[] => values.map(([key, home, away]) => ({ key, home, away, source: "api-football" }));
+    assert.deepEqual(summaryRowKeys(rows([["possession", 50, 50], ["woodwork", 0, 0], ["fouls", 10, 12]])), ["possession", "fouls"]);
+    assert.deepEqual(summaryRowKeys(rows([["possession", 50, 50], ["woodwork", 1, 0], ["fouls", 10, 12]])), ["possession", "woodwork", "fouls"]);
+  });
+});
+
+describe("Maç İstatistikleri — xG olan maç (Hoffenheim 2-3 Beşiktaş)", () => {
+  const hof = toMatchStatsFacts(RAW_HOFFENHEIM_BESIKTAS_STATS, sportmonksMatchValues(SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS)) as MatchStatsFacts;
+  const card = buildMatchStatsCard(hof, "SUMMARY", { homeLogo: null, awayLogo: null, leagueLogo: null, brandLogo: "" }, SET_PAGE_LABELS.STATS);
+
+  it("öncelik listesinin tamamı dolu: 8 satır, yedek yok", () => {
+    assert.deepEqual(card.sections[0]?.rows.map((r) => r.key), ["possession", "xg", "shotsTotal", "shotsOnTarget", "bigChancesMissed", "corners", "passAccuracy", "saves"]);
+  });
+
+  it("xG etiketi büyük harfe çevrilirken 'xG' korunur; dipnot eklenir", () => {
+    assert.equal(card.sections[0]?.rows[1]?.label, "BEKLENEN GOL (xG)");
+    assert.equal(card.sections[0]?.rows[1]?.homeText, "1,23");
+    assert.equal(card.footnote, "xG: Pozisyonların gole dönme ihtimallerinin toplamı. Yüksek xG = daha net fırsat.");
+    assert.equal(buildMatchStatsCard(facts, "SUMMARY", { homeLogo: null, awayLogo: null, leagueLogo: null, brandLogo: "" }, null).footnote, null);
+  });
+
+  it("pas isabeti 'Passes %' yokken isabetli/toplam pastan (API-Football) hesaplanır", () => {
+    assert.deepEqual(rowOf(hof, "passAccuracy"), { key: "passAccuracy", home: 79, away: 79, source: "api-football" });
+  });
+
+  it("API-Football dolu satırda Sportmonks'un farklı değeri kullanılmaz (top hakimiyeti 53-47)", () => {
+    assert.deepEqual(rowOf(hof, "possession"), { key: "possession", home: 53, away: 47, source: "api-football" });
+    assert.deepEqual(rowOf(hof, "bigChancesMissed"), { key: "bigChancesMissed", home: 3, away: 3, source: "sportmonks" });
+  });
+});
+
+describe("Etiket büyük harf dönüşümü", () => {
+  it("süslü parantez içi muaf, geri kalanı tr-TR", () => {
+    assert.equal(upperLabel("Beklenen gol ({xG})"), "BEKLENEN GOL (xG)");
+    assert.equal(upperLabel("İsabetli şut"), "İSABETLİ ŞUT");
+    assert.equal(upperLabel("{xG} ve {PPDA} farkı"), "xG VE PPDA FARKI");
+    assert.equal(plainLabel("Beklenen gol ({xG})"), "Beklenen gol (xG)");
+  });
+
+  it("Sportmonks takım adı eşlemesi: kuruluş yılı ve TSG eki yok sayılır", () => {
+    assert.ok(isSameTeam("TSG Hoffenheim", "1899 Hoffenheim"));
+    assert.equal(searchableTeamName("1899 Hoffenheim"), "Hoffenheim");
+    assert.equal(searchableTeamName("Beşiktaş"), "Besiktas");
   });
 });
 
@@ -259,6 +314,10 @@ describe("CheckMatch set — tasarım kuralları", () => {
     assert.ok(r > g * 2 && r > b * 1.5, `kırmızı baskın kalmalı: ${trail}`);
     assert.ok(Math.max(r, g, b) < 0xdc, `koyulaşmalı: ${trail}`);
     assert.equal(trailHex("#ffffff"), "#8c8c8c");
+    // Sarı daha az koyulaşır — zeytine/kahverengiye kaymaz (kırmızı, yeşilin belirgin üstünde kalır).
+    const yellow = trailHex("#f5c518");
+    const [yr, yg, yb] = [1, 3, 5].map((i) => Number.parseInt(yellow.slice(i, i + 2), 16)) as [number, number, number];
+    assert.ok(yr > 0xa0 && yr > yg && yg > yb * 4, `koyu hardal beklenirdi: ${yellow}`);
   });
 
   it("sağ üst tarih: maçın İstanbul günü, dd.MM.yyyy", () => {

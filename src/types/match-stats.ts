@@ -16,6 +16,7 @@ export const STAT_ROW_KEYS = [
   "shotsBlocked",
   "shotsInsideBox",
   "bigChancesMissed",
+  "dangerousAttacks",
   "woodwork",
   "corners",
   "offsides",
@@ -40,13 +41,14 @@ export type StatSection = (typeof STAT_SECTIONS)[number];
 
 export interface StatRowDef {
   key: StatRowKey;
-  /** Kartta yazan Türkçe etiket ("Top hakimiyeti"). */
+  /**
+   * Kartta yazan Türkçe etiket ("Top hakimiyeti"). Süslü parantez içi büyük harf dönüşümünden
+   * muaftır ve olduğu gibi yazılır: "Beklenen gol ({xG})" → "BEKLENEN GOL (xG)" (bkz. `upperLabel`).
+   */
   label: string;
   kind: StatRowKind;
   /** true: önde olan taraf parlak (takım rengi), diğeri soluk · null: nötr (faul/kart/ofsayt). */
   higherIsBetter: boolean | null;
-  /** Özet sayfasındaki sırası; yoksa satır Detay sayfasında `section` başlığı altında çizilir. */
-  summaryOrder: number | null;
   section: StatSection;
   /** İki taraf da 0 ise satır gizlenir (kırmızı kart, direkten dönen). */
   hideWhenZero: boolean;
@@ -133,4 +135,6 @@ export interface MatchStatsCard extends SetCard {
   homeHex: string;
   awayHex: string;
   sections: StatCardSection[];
+  /** Özette xG satırı varsa panelin altındaki açıklama; yoksa null. */
+  footnote: string | null;
 }

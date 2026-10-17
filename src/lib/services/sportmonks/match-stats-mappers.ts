@@ -19,6 +19,7 @@ const SINGLE: Partial<Record<StatRowKey, string>> = {
   shotsBlocked: "SHOTS_BLOCKED",
   shotsInsideBox: "SHOTS_INSIDEBOX",
   bigChancesMissed: "BIG_CHANCES_MISSED",
+  dangerousAttacks: "DANGEROUS_ATTACKS",
   woodwork: "HIT_WOODWORK",
   corners: "CORNERS",
   offsides: "OFFSIDES",

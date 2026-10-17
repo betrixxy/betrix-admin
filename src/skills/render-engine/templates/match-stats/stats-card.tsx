@@ -6,23 +6,34 @@ import { PAGE_LABEL_SPACE, setBlockTop, type StatsGeometry } from "./geometry";
 import { HeroRow, heroRowHeight, Highlight, rgba, ROW, rowHeight, SpineRow } from "./parts";
 
 /**
- * MAÇ İSTATİSTİKLERİ — dikey (4:5, 1:1, 9:16) sayfa, "CheckMatch set" kartı: sol üstte sayfa
- * etiketi, altta Maç Sonucu ile AYNI set bloğu (öne çıkan satır · skor şeridi · golcüler) ve künye.
- * Arada satır paneli: Özet sayfasında en üstte kahraman satır (top hakimiyeti, tam genişlik), altında
- * kompakt satırlar. Vurgu renginde ince omurga yalnızca panel içinde (kahraman satırın altından)
- * başlar, her satır etiketinde ve öne çıkan satırın yazı alanında kesilir, rozete ulaşır. Satır konumları burada hesaplanır (Satori ölçüm
- * vermez); panel kalan alanda dikeyde ortalanır, satır aralığı boşluğa göre büyür (ölü alan yok).
+ * MAÇ İSTATİSTİKLERİ — dikey (4:5, 1:1, 9:16) sayfa, "CheckMatch set" kartı: üstte sayfa etiketi +
+ * tarih, altta Maç Sonucu ile AYNI set bloğu (öne çıkan satır · skor şeridi · golcüler) ve künye.
+ * Arada satır paneli: Özet'te en üstte kahraman satır (top hakimiyeti), altında en fazla 7 kompakt
+ * satır; xG satırı varsa panelin altında dipnot. Vurgu renginde ince omurga yalnızca panel içinde
+ * (kahraman satırın altından) başlar; satır etiketlerinde, dipnotta ve öne çıkan satırın yazı
+ * alanında kesilir, rozete ulaşır. Konumlar burada hesaplanır (Satori ölçüm vermez): panel kalan
+ * alanda dikeyde ortalanır, satır aralığı boşluğa göre büyür/daralır — etiket boyu hiç küçülmez.
  */
 
 const PANEL = "rgba(7,8,12,0.42)";
 const SPINE_ALPHA = 0.6;
-const PAD_Y = 30;
+const PAD_Y = 24;
 const PAD_X = 36;
 const TITLE = 16;
 const TITLE_GAP = 14;
 const SECTION_GAP = 26;
+/** Satır aralığı sınırları — 8 satır sığsın diye alt sınır düşük. */
+const MIN_GAP = 6;
+const MAX_GAP = 46;
+/** Panel ile öne çıkan satır arasında görünür omurga parçası. */
+const CONNECTOR = 22;
 /** Omurga etiketin üst/alt kenarından bu kadar uzakta kesilir. */
 const LABEL_CLEARANCE = 7;
+const FOOTNOTE = 15;
+const FOOTNOTE_LINE = 1.3;
+const FOOTNOTE_GAP = 16;
+/** Geist normal ağırlıkta karakter başına yaklaşık genişlik (em). */
+const FOOTNOTE_EM_PER_CHAR = 0.5;
 
 interface PlacedRow {
   key: string;
@@ -35,14 +46,21 @@ interface Layout {
   panelHeight: number;
   rows: PlacedRow[];
   titles: { key: string; top: number; text: string }[];
-  /** Etiketlerin y aralıkları — omurga bu aralıklarda kesilir. */
-  labels: [number, number][];
+  /** Omurganın kesildiği y aralıkları (satır etiketleri, dipnot). */
+  cuts: [number, number][];
   /** Omurganın panel içindeki başlangıcı (kahraman satırın altı ya da ilk satırın üstü). */
   spineFrom: number;
+  footnote: { top: number; height: number } | null;
 }
 
 /** Özet sayfasının ilk satırı top hakimiyetiyse kahraman satır olarak çizilir. */
 const isHero = (card: MatchStatsCard, key: string, index: number) => card.page === "SUMMARY" && index === 0 && key === "possession";
+
+function footnoteHeight(card: MatchStatsCard, inner: number, k: number): number {
+  if (!card.footnote) return 0;
+  const lines = Math.max(1, Math.ceil((card.footnote.length * FOOTNOTE_EM_PER_CHAR * px(FOOTNOTE, k)) / inner));
+  return Math.round(lines * px(FOOTNOTE, k) * FOOTNOTE_LINE);
+}
 
 function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBottom: number, inner: number): Layout {
   const { k } = g;
@@ -51,16 +69,22 @@ function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBot
   const hero = card.sections[0]?.rows[0] && isHero(card, card.sections[0].rows[0].key, 0);
   const rowsHeight = rowCount * rowH + (hero ? heroRowHeight(k) - rowH : 0);
   const titled = card.sections.filter((section) => section.title).length;
-  const fixed = 2 * px(PAD_Y, k) + rowsHeight + titled * px(TITLE + TITLE_GAP, k) + Math.max(0, card.sections.length - 1) * px(SECTION_GAP, k);
+  const note = footnoteHeight(card, inner, k);
+  const fixed =
+    2 * px(PAD_Y, k) +
+    rowsHeight +
+    titled * px(TITLE + TITLE_GAP, k) +
+    Math.max(0, card.sections.length - 1) * px(SECTION_GAP, k) +
+    (note ? px(FOOTNOTE_GAP, k) + note : 0);
   const available = areaBottom - areaTop;
   const gaps = Math.max(1, rowCount - card.sections.length);
-  const gap = Math.max(px(12, k), Math.min(px(46, k), Math.floor((available - fixed) / (gaps + 2))));
+  const gap = Math.max(px(MIN_GAP, k), Math.min(px(MAX_GAP, k), Math.floor((available - fixed) / (gaps + 2))));
   const panelHeight = fixed + gaps * gap;
   const panelTop = areaTop + Math.max(0, Math.round((available - panelHeight) / 2));
 
   const rows: PlacedRow[] = [];
   const titles: Layout["titles"] = [];
-  const labels: Layout["labels"] = [];
+  const cuts: Layout["cuts"] = [];
   let y = panelTop + px(PAD_Y, k);
   let spineFrom = y;
   let flat = 0;
@@ -79,21 +103,27 @@ function layout(card: MatchStatsCard, g: StatsGeometry, areaTop: number, areaBot
         spineFrom = y + px(LABEL_CLEARANCE, k);
         return;
       }
-      labels.push([y, y + px(ROW.label, k)]);
+      cuts.push([y, y + px(ROW.label, k)]);
       y += rowH;
     });
   });
-  return { panelTop, panelHeight, rows, titles, labels, spineFrom };
+  let footnote: Layout["footnote"] = null;
+  if (note) {
+    y += px(FOOTNOTE_GAP, k);
+    footnote = { top: y, height: note };
+    cuts.push([y, y + note]);
+  }
+  return { panelTop, panelHeight, rows, titles, cuts, spineFrom, footnote };
 }
 
-/** Omurga parçaları: panelin üstünden başlık yuvasına kadar, her satır etiketinde kesilir. */
-function Spine({ x, from, to, labels, hex, k }: { x: number; from: number; to: number; labels: [number, number][]; hex: string; k: number }) {
+/** Omurga parçaları: panelin içinden başlık yuvasına kadar, kesim aralıklarında boşluk. */
+function Spine({ x, from, to, cuts, hex, k }: { x: number; from: number; to: number; cuts: [number, number][]; hex: string; k: number }) {
   const clearance = px(LABEL_CLEARANCE, k);
   const pieces: [number, number][] = [];
   let start = from;
-  for (const [top, bottom] of labels) {
+  for (const [top, bottom] of cuts) {
     if (top - clearance > start) pieces.push([start, top - clearance]);
-    start = bottom + clearance;
+    start = Math.max(start, bottom + clearance);
   }
   if (to > start) pieces.push([start, to]);
   return (
@@ -111,7 +141,7 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
   const inner = width - 2 * px(PAD_X, k);
   const spineEnd = setBlockTop(g, card.homeScorers, card.awayScorers) - px(10, k);
   const areaTop = g.top + px(PAGE_LABEL_SPACE, k);
-  const areaBottom = spineEnd - px(30, k);
+  const areaBottom = spineEnd - px(CONNECTOR, k);
   const placed = layout(card, g, areaTop, areaBottom, inner);
   const spineX = g.left + width / 2;
   return (
@@ -121,7 +151,7 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
         tw="absolute flex"
         style={{ left: g.left, top: placed.panelTop, width, height: placed.panelHeight, borderRadius: px(28, k), backgroundColor: PANEL, border: "1px solid rgba(255,255,255,0.07)" }}
       />
-      <Spine x={spineX} from={placed.spineFrom} to={spineEnd} labels={placed.labels} hex={card.accentHex} k={k} />
+      <Spine x={spineX} from={placed.spineFrom} to={spineEnd} cuts={placed.cuts} hex={card.accentHex} k={k} />
       {placed.titles.map((title) => (
         <span
           key={title.key}
@@ -136,6 +166,13 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
           {row.node}
         </div>
       ))}
+      {card.footnote && placed.footnote ? (
+        <div tw="absolute flex justify-center" style={{ left: g.left + px(PAD_X, k), top: placed.footnote.top, width: inner, height: placed.footnote.height }}>
+          <span style={{ fontFamily: BODY, fontWeight: 400, fontSize: px(FOOTNOTE, k), lineHeight: FOOTNOTE_LINE, textAlign: "center", color: "rgba(255,255,255,0.55)" }}>
+            {card.footnote}
+          </span>
+        </div>
+      ) : null}
       <SetScoreBlock card={card} box={g} frameHeight={frame.height} k={k} headline={<Highlight card={card} k={k} />} spineHex={rgba(card.accentHex, SPINE_ALPHA)} />
       <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, k)} logoHeight={px(SET_VERTICAL.logoHeight, k)} />
     </div>

@@ -38,23 +38,29 @@ async function teamFixtures(teamId: number, fromMs: number, toMs: number, includ
 
 /**
  * API-Football maçının Sportmonks karşılığı. İki sağlayıcı arasında kimlik tablosu yok (bkz.
- * CLAUDE.md 2.1): ev sahibi adıyla aranır, adayın başlama saatinin ±1 günündeki maçında rakip adı
- * da tutuyorsa eşleşme kabul edilir. Bulunamazsa `null` — tahmin edilmez. `include` maçın hangi
- * bloklarla döneceğini belirler (ör. `statistics.type;participants`).
+ * CLAUDE.md 2.1): önce ev sahibi, bulunamazsa deplasman adıyla aranır; adayın başlama saatinin ±1
+ * günündeki maçında rakibin adı da tutuyorsa eşleşme kabul edilir. Bulunamazsa `null` — tahmin
+ * edilmez. `include` maçın hangi bloklarla döneceğini belirler (ör. `statistics.type;participants`).
  */
 export async function findSportmonksFixture(
   fixture: Fixture,
   include = "participants",
 ): Promise<{ match: SportmonksFixture; home: number; away: number } | null> {
   const kickoff = Date.parse(fixture.kickoffUtc);
-  for (const candidate of await searchTeams(fixture.homeTeam.name)) {
-    const fixtures = await teamFixtures(candidate.id, kickoff - DAY_MS, kickoff + DAY_MS, include);
-    for (const match of fixtures ?? []) {
-      if (Math.abs(startMs(match) - kickoff) > DAY_MS) continue;
-      const home = match.participants.find((p) => p.id === candidate.id);
-      const away = match.participants.find((p) => p.id !== candidate.id);
-      if (home && away && isSameTeam(home.name, fixture.homeTeam.name) && isSameTeam(away.name, fixture.awayTeam.name)) {
-        return { match, home: home.id, away: away.id };
+  const sides = [
+    { searchName: fixture.homeTeam.name, otherName: fixture.awayTeam.name, searchedIsHome: true },
+    { searchName: fixture.awayTeam.name, otherName: fixture.homeTeam.name, searchedIsHome: false },
+  ];
+  for (const side of sides) {
+    for (const candidate of await searchTeams(side.searchName)) {
+      const fixtures = await teamFixtures(candidate.id, kickoff - DAY_MS, kickoff + DAY_MS, include);
+      for (const match of fixtures ?? []) {
+        if (Math.abs(startMs(match) - kickoff) > DAY_MS) continue;
+        const searched = match.participants.find((p) => p.id === candidate.id);
+        const other = match.participants.find((p) => p.id !== candidate.id);
+        if (searched && other && isSameTeam(searched.name, side.searchName) && isSameTeam(other.name, side.otherName)) {
+          return side.searchedIsHome ? { match, home: searched.id, away: other.id } : { match, home: other.id, away: searched.id };
+        }
       }
     }
   }

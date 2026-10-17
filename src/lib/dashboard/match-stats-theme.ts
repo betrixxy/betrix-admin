@@ -80,8 +80,13 @@ function fromHsl(h: number, s: number, l: number): string {
  */
 export function trailHex(hex: string): string {
   const [h, s, l] = toHsl(hex);
-  return fromHsl(h, Math.min(1, s * TRAIL_SATURATION_BOOST), l * TRAIL_LIGHTNESS);
+  const factor = isYellowHue(h) ? TRAIL_LIGHTNESS_YELLOW : TRAIL_LIGHTNESS;
+  return fromHsl(h, Math.min(1, s * TRAIL_SATURATION_BOOST), l * factor);
 }
+
+/** Sarı (≈40°-75°) koyulaşınca zeytin/kahverengiye döner — daha az koyulaştırılır (koyu hardal). */
+const TRAIL_LIGHTNESS_YELLOW = 0.72;
+const isYellowHue = (h: number) => h * 360 >= 40 && h * 360 <= 75;
 
 /**
  * Koyu zeminde griye açılan renksiz forma (siyah, antrasit): kartta nötr gümüş satırlarla
