@@ -173,7 +173,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   // 5. Yazı katmanı → nihai PNG.
   let final: Buffer;
   try {
-    final = await finalizeSetImage(art, await renderMatchResultOverlay(card, frame), frame);
+    final = await finalizeSetImage(art, await renderMatchResultOverlay(card, frame), frame, facts.fixtureId);
   } catch (error: unknown) {
     console.error(`[match-result] ${input.format} yazı katmanı çizilemedi:`, error);
     return fail("RENDER_FAILED", `Kartın yazı katmanı çizilemedi (${frame.ratioLabel}): ${error instanceof Error ? error.message : String(error)}`);

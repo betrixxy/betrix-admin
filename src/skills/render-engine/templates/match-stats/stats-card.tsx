@@ -29,7 +29,12 @@ const MAX_GAP = 46;
 const CONNECTOR = 22;
 /** Omurga etiketin üst/alt kenarından bu kadar uzakta kesilir. */
 const LABEL_CLEARANCE = 7;
-const FOOTNOTE = 15;
+/** Dipnot fontu — etiketten (22) küçük; 15 → 18 (+%20, telefonda okunurluk). */
+const FOOTNOTE = 18;
+/** Kelime arası boşluk (em) — Geist'in normal boşluk genişliğine yakın. */
+const FOOTNOTE_WORD_GAP = 0.28;
+/** Harf başına eksi aralık (em) — glif genişlikleri tek tek ölçüldüğünde oluşan fazlayı geri alır. */
+const FOOTNOTE_TRACKING = -0.045;
 const FOOTNOTE_LINE = 1.3;
 const FOOTNOTE_GAP = 16;
 /** Geist normal ağırlıkta karakter başına yaklaşık genişlik (em). */
@@ -135,6 +140,36 @@ function Spine({ x, from, to, cuts, hex, k }: { x: number; from: number; to: num
   );
 }
 
+/**
+ * Dipnot harf harf çizilir. Satori, Geist'te kelimenin genişliğini kerning'siz ölçüp glifleri
+ * kerning'li çiziyor: fark kelimedeki dar harf (i, l, n) sayısıyla büyür ve kelime sonlarında
+ * eşitsiz boşluk ("Pozisyonların  gole") bırakır; `wordSpacing`/`letterSpacing` bunu düzeltmez.
+ * Tek glifte kerning çifti olmadığından ölçü = çizim; harfler hafif eksi aralıkla doğal
+ * yoğunluğa çekilir, kelime araları sabit. Kelime alt satıra kayabilir (yükseklik `footnoteHeight`).
+ */
+function Footnote({ text, left, top, width, height, k }: { text: string; left: number; top: number; width: number; height: number; k: number }) {
+  const size = px(FOOTNOTE, k);
+  const style = { fontFamily: BODY, fontWeight: 400, fontSize: size, lineHeight: FOOTNOTE_LINE, color: "rgba(255,255,255,0.55)" };
+  const tracking = size * FOOTNOTE_TRACKING;
+  const words = text.split(/\s+/).filter(Boolean);
+  return (
+    <div tw="absolute flex flex-wrap justify-center" style={{ left, top, width, height }}>
+      {words.map((word, index) => {
+        const glyphs = [...word];
+        return (
+          <div key={`${word}-${index}`} tw="flex" style={{ marginRight: index < words.length - 1 ? Math.round(size * FOOTNOTE_WORD_GAP) : 0 }}>
+            {glyphs.map((glyph, position) => (
+              <span key={position} style={{ ...style, marginRight: position < glyphs.length - 1 ? tracking : 0 }}>
+                {glyph}
+              </span>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
   const { k, frame } = g;
   const width = g.right - g.left;
@@ -169,13 +204,7 @@ function Vertical({ card, g }: { card: MatchStatsCard; g: StatsGeometry }) {
           {row.node}
         </div>
       ))}
-      {card.footnote && placed.footnote ? (
-        <div tw="absolute flex justify-center" style={{ left: g.left + px(PAD_X, k), top: placed.footnote.top, width: inner, height: placed.footnote.height }}>
-          <span style={{ fontFamily: BODY, fontWeight: 400, fontSize: px(FOOTNOTE, k), lineHeight: FOOTNOTE_LINE, textAlign: "center", color: "rgba(255,255,255,0.55)" }}>
-            {card.footnote}
-          </span>
-        </div>
-      ) : null}
+      {card.footnote && placed.footnote ? <Footnote text={card.footnote} left={g.left + px(PAD_X, k)} top={placed.footnote.top} width={inner} height={placed.footnote.height} k={k} /> : null}
       <SetScoreBlock card={card} box={g} frameHeight={frame.height} k={k} headline={<Highlight card={card} k={k} />} spineHex={rgba(card.accentHex, SPINE_ALPHA)} />
       <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, k)} logoHeight={px(SET_VERTICAL.logoHeight, k)} />
     </div>

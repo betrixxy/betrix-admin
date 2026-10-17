@@ -9,6 +9,7 @@ import { isSameTeam, searchableTeamName } from "@/lib/services/sportmonks/advanc
 import { isSimilarColor, NEUTRAL_SILVER, statsPalette, trailHex } from "@/lib/dashboard/match-stats-theme";
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { backdropText } from "@/lib/dashboard/match-result-backdrop";
+import { grainPixels, grainSeed } from "@/lib/dashboard/set-finish";
 import { statRows, tacklesAndInterceptions, toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-mappers";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -374,5 +375,17 @@ describe("CheckMatch set — tasarım kuralları", () => {
     assert.equal(backdropText("DRAW", 1, 1), "BERABERE");
     // Penaltılarla biten maçta kazanan var, skor eşit — yine skor yazılır.
     assert.equal(backdropText("HOME", 1, 1), "1-1");
+  });
+});
+
+describe("Tohumlu film greni", () => {
+  it("aynı maç kimliği → aynı gren; farklı maç → farklı gren", () => {
+    assert.equal(grainSeed(1636268), grainSeed("1636268"));
+    assert.notEqual(grainSeed(1636268), grainSeed(1556543));
+    const [a, b, c] = [grainPixels(64, 64, grainSeed(1636268)), grainPixels(64, 64, grainSeed(1636268)), grainPixels(64, 64, grainSeed(1556543))];
+    assert.deepEqual(a, b);
+    assert.notDeepEqual(a, c);
+    const mean = a.reduce((sum, value) => sum + value, 0) / a.length;
+    assert.ok(Math.abs(mean - 128) < 3, `ortalama nötr gri olmalı: ${mean}`);
   });
 });

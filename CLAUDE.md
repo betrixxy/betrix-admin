@@ -562,7 +562,7 @@ https://checkmatch.net/{hedef-yol}?utm_source={x|instagram}&utm_medium=social&ut
 
 ### 5.3 Render Görsel Doğrulaması (Satori + PNG diff)
 
-- Her render şablonu değişikliğinde, üç format (IG Feed, Story/Reels, X) Satori ile PNG'ye çizilir ve `tests/visual/__baseline__/` altındaki referans (golden) görsellerle `tests/visual/image-diff.ts` ile piksel-fark eşiği içinde karşılaştırılır (tarayıcı/Playwright kullanılmaz; şu an kapsanan: Maç Günü, `npm run test:visual`).
+- Her render şablonu değişikliğinde, üç format (IG Feed, Story/Reels, X) Satori ile PNG'ye çizilir ve `tests/visual/__baseline__/` altındaki referans (golden) görsellerle `tests/visual/image-diff.ts` ile piksel-fark eşiği içinde karşılaştırılır (tarayıcı/Playwright kullanılmaz; şu an kapsanan: Maç Günü + CheckMatch set (01 Maç Sonucu + 02 İstatistikler, 4:5, iki gerçek maç; ağsız, gren maç kimliğinden tohumlu), `npm run test:visual`).
 - Yeni bir şablon veya katmanlama değişikliği, golden görseller güncellenmeden "tamamlandı" sayılmaz; golden güncellemesi kullanıcı onayı ile yapılır (görsel bir tasarım kararı olduğu için sessizce ezilmez).
 - Doğrulanacak asgari kontrol listesi her render için:
   - [ ] 5 katman doğru z-sırasında (bkz. 3.4)
