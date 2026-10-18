@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { planLegacyMigration, type LegacyAsset } from "@/lib/archive/migrate-plan";
 import { ARCHIVE_TEAM_NAMES, cardTeamName, compareTr, displayPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
 import { archiveUpscaleFactor } from "@/lib/archive/storage";
+import { isOldKit, planTransfer } from "@/lib/archive/transfer";
 import { ARCHIVE_GROUPS, ARCHIVE_GROUP_LABELS, clubTeamDecision, currentCoach, domesticLeague, groupPeople, positionFromApi } from "@/lib/archive/structure";
 
 describe("arşiv — isim disiplini", () => {
@@ -180,5 +181,30 @@ describe("arşiv — eski kütüphaneden taşıma planı", () => {
         ["w", "takım belirlenemedi — arşivde elle etiketlenmeli"],
       ],
     );
+  });
+});
+
+describe("arşiv — transfer", () => {
+  const photos = [
+    { id: "kulup-1", teamId: 549, kitTeamId: 549 },
+    { id: "kulup-2", teamId: 549, kitTeamId: 549 },
+    { id: "milli", teamId: 777, kitTeamId: 777 },
+    { id: "eski-kiralik", teamId: 549, kitTeamId: 645 },
+  ];
+
+  it("eski kulüp klasöründekiler yeni kulübe geçer, formaları aynı kalır; milli takım klasörü dokunulmaz", () => {
+    const plan = planTransfer(photos, 549, 611);
+    assert.deepEqual(plan.moveIds, ["kulup-1", "kulup-2", "eski-kiralik"]);
+    assert.deepEqual(plan.oldKitIds, ["kulup-1", "kulup-2", "eski-kiralik"]);
+  });
+
+  it("aynı takıma ya da takımsız kişiden transfer hiçbir şeyi taşımaz", () => {
+    assert.deepEqual(planTransfer(photos, 549, 549), { moveIds: [], oldKitIds: [] });
+    assert.deepEqual(planTransfer(photos, null, 611), { moveIds: [], oldKitIds: [] });
+  });
+
+  it("eski forma rozeti: forma takımı klasör takımından farklıysa", () => {
+    assert.equal(isOldKit({ teamId: 611, kitTeamId: 549 }), true);
+    assert.equal(isOldKit({ teamId: 549, kitTeamId: 549 }), false);
   });
 });

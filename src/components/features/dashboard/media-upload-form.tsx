@@ -29,7 +29,8 @@ export function MediaUploadForm({ defaultCategory }: { defaultCategory: MediaCat
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="category">Klasör</Label>
             <NativeSelect id="category" name="category" defaultValue={defaultCategory}>
-              {MEDIA_CATEGORIES.map((category) => (
+              {/* Oyuncu ve maç fotoğrafları artık Fotoğraf Arşivi'nde (etiketli klasörler) — burada yalnızca logo/referans. */}
+              {MEDIA_CATEGORIES.filter((category) => category === "LOGO" || category === "REFERENCE").map((category) => (
                 <option key={category} value={category}>
                   {MEDIA_CATEGORY_META[category].label}
                 </option>
@@ -50,17 +51,7 @@ export function MediaUploadForm({ defaultCategory }: { defaultCategory: MediaCat
               <Input id="teamId" name="teamId" pattern="\d*|league-\d+" placeholder="645 · lig: league-203" />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="fixtureId">Maç ID (maç fotoğrafı)</Label>
-              <Input id="fixtureId" name="fixtureId" pattern="(api-football-)?\d*" placeholder="1584435" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="playerId">Oyuncu ID (isteğe bağlı)</Label>
-              <Input id="playerId" name="playerId" inputMode="numeric" pattern="\d*" placeholder="62137" />
-            </div>
-          </div>
-          <ImageUploadField name="file" label="Görsel" hint="JPEG/PNG/WebP · en fazla 8 MB · oyuncular için ≥256px · maç fotoğrafı için kısa kenar ≥2000px önerilir" />
+          <ImageUploadField name="file" label="Görsel" hint="JPEG/PNG/WebP · en fazla 8 MB · logolar için şeffaf PNG önerilir (oyuncu ve maç fotoğrafları Fotoğraf Arşivi'ne)" />
 
           {state.error ? (
             <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

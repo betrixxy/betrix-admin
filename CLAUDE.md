@@ -253,7 +253,16 @@ Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretim
 
 ### 1.11 Medya / Referans Kütüphanesi
 
-Stüdyoda her üretimde logo/oyuncu fotoğrafı yüklemek yerine kalıcı, seçilebilir bir kütüphane (`/dashboard/library`, model `MediaAsset`).
+Stüdyoda her üretimde logo/oyuncu fotoğrafı yüklemek yerine kalıcı, seçilebilir bir kütüphane (`/dashboard/library`). Sekmeler: **Fotoğraf Arşivi** (varsayılan), Logolar ve Referanslar (`MediaAsset`).
+
+**Fotoğraf Arşivi (2026-10-19)** — modeller `League`, `Team`, `Person`, `Photo`; kod `lib/archive/`:
+- **Sanal klasörler:** Lig / Takım / mevki grubu / Kişi, etiketlerden türetilir (fiziksel taşıma yok). Gruplar sabit sırada (Takım Fotoğrafları, Teknik Direktör, Kaleciler, Defans, Orta Saha, Forvet), grup içinde tr-TR alfabetik. Yabancı takımlar kendi liglerinin altında; milli takımlar "Milli Takımlar" kökünde (milli kadro + milli formalı fotoğraf).
+- **İsim disiplini (`names.ts`):** elle yazılan klasör adı yok. Lig adı `OFFICIAL_COMPETITION_NAMES`; takım arşiv adı `ARCHIVE_TEAM_NAMES` (sponsorsuz, TFF tescilli adın kısaltılmışı — "Beşiktaş JK"); kart adı ayrı, mevcut Türkçe eşleme (`teamNameTr` — "Beşiktaş"). Kişi adı API kadrosundan açılır ("O. Kökçü" → "Orkun Kökçü"); admin "resmi adı düzelt" (`nameOverride`) her zaman kazanır, senkron ezmez.
+- **Senkron (`sync.ts`, yalnızca API okuma):** Trendyol Süper Lig + 1. Lig elle ("Türk liglerini senkronla"), diğer takımlar gerektikçe; takımın ligi o sezonun yurt içi ligi (küme düşen/çıkan kendiliğinden); kadro + teknik direktör (`/coachs`); 7 gün içinde tekrar istenmez.
+- **Transfer:** kadroda başka takımda görünen kişi OTOMATİK TAŞINMAZ — "taşınsın mı?" önerisi; onay ya da elle "Takımını değiştir" eski kulüp klasöründeki fotoğrafları yeni klasöre taşır, `kitTeamId` (forma) aynı kalır → "eski forma" rozeti.
+- **Kalite (`storage.ts`):** orijinal bayt olduğu gibi (yeniden sıkıştırma yok); kısa kenar < 2000 → Fal ESRGAN ile büyütülmüş sürüm ayrı (tek çağrı, önbellekli). Kart büyütülmüşü, arşiv orijinali gösterir; taşınan eski fotoğraflar kartta ilk kullanımda büyütülür.
+- **Silme = arşivden gizleme** (`hiddenAt`): dosya ve kartlar bozulmaz.
+- **Etiket bekleyenler:** eski kütüphanenin etiketsiz oyuncu/maç fotoğrafları (`MediaAsset`) — admin kişi/takım seçince `Photo` olur (aynı dosya, `legacyAssetId`); tahminle etiketlenmez. Taşıma scripti `scripts/archive-migrate.ts` (kuru çalıştırma varsayılan).
 
 - **Klasörler = `MediaCategory`:** `LOGO` (takım/marka/sponsor; turnuva logosu `teamId = "league-<id>"` — set rozeti şeffaf PNG'yi buradan alır, yoksa sağlayıcı logosunun düz zemini temizlenir, o da olmazsa rozetsiz), `PLAYER` (oyuncu fotoğrafı, ≥1024px kısa kenar — birefnet için, Maç Günü), `MATCH_PHOTO` (tam kadraj maç fotoğrafı — `fixtureId` zorunlu, `playerId` isteğe bağlı; Maç Sonucu), `REFERENCE` (stil/kompozisyon referansı; şimdilik yalnızca arşiv, üretim hattına bağlanması ayrı bir görev).
 - **Depolama:** `storage/library/<kategori>-<sha256>.<uzantı>` — içerik-adreslidir; aynı dosya aynı klasöre ikinci kez eklenmez (`@@unique([category, sha256])`). Tüm işlemler `lib/dashboard/media-library.ts`'ten geçer; istemci bileşenleri yalnızca `media-library-meta.ts`'i (sunucu bağımlılığı yok) içe aktarır.
