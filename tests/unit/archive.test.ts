@@ -22,6 +22,34 @@ describe("arşiv — isim disiplini", () => {
     assert.equal(cardTeamName("Gençlerbirliği S.K."), "Gençlerbirliği");
   });
 
+  it("kart adı = medyada yaygın ad: Gaziantep FK, Çorum FK, Bodrum FK ekiyle; Erzurumspor, Vanspor eksiz; Manisa FK", () => {
+    assert.deepEqual(
+      ["Gaziantep FK", "Çorum FK", "Bodrum FK", "Erzurumspor FK", "Vanspor FK", "Manisa F.K."].map(cardTeamName),
+      ["Gaziantep FK", "Çorum FK", "Bodrum FK", "Erzurumspor", "Vanspor", "Manisa FK"],
+    );
+  });
+
+  it("TFF'den doğrulanan arşiv adları (sponsorsuz tescilli ad); doğrulanamayanlar işaretli kalır", () => {
+    assert.deepEqual(
+      [3579, 3595, 6533, 3605, 3583, 1007, 7402].map((id) => [ARCHIVE_TEAM_NAMES[id]?.archiveName, ARCHIVE_TEAM_NAMES[id]?.verified]),
+      [
+        ["Amed Sportif Faaliyetler", true],
+        ["Ankara Keçiörengücü", true],
+        ["Mardin 1969 Spor", true],
+        ["Sarıyer", true],
+        ["Bodrum FK", true],
+        ["Çaykur Rizespor", true],
+        ["Esenler Erokspor", true],
+      ],
+    );
+    assert.deepEqual(
+      Object.entries(ARCHIVE_TEAM_NAMES)
+        .filter(([, entry]) => !entry.verified)
+        .map(([id]) => Number(id)),
+      [994, 3589],
+    );
+  });
+
   it("arşiv adlarında sponsor yok; Trendyol Süper Lig (18) ve 1. Lig (20) tam kapsanır", () => {
     const sponsors = /trendyol|rams|tümosan|reeder|sipay|net global|corendon|atakaş|ikas|zecorner|hesap.com|bitexen|siltaş|onvo|kasımpaşa spor a.ş/i;
     for (const [id, entry] of Object.entries(ARCHIVE_TEAM_NAMES)) assert.ok(!sponsors.test(entry.archiveName), `${id}: ${entry.archiveName}`);

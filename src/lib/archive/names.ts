@@ -20,6 +20,10 @@ export const NATIONAL_ROOT_NAME = "Milli Takımlar";
  *   - `apiName`: API-Football'un döndürdüğü ad (2026-10-19) — kart adı bununla türetilir.
  *   - `verified: false`: resmi kısa ad kullanıcı onayı bekliyor.
  *
+ * Kaynak (2026-10-19): TFF kulüp bilgi sayfalarındaki tescilli ad, sponsor ön eki atılıp kısaltılmış
+ * ("… Spor Kulübü" → SK, "… Futbol Kulübü" → FK). TFF'nin dernek yerine futbol şirketini (A.Ş.)
+ * listelediği kulüplerde (Göztepe, Fatih Karagümrük) "SK" doğrulanamadı — işaretli.
+ *
  * Tabloda olmayan takım: Türkçe eşleme → API adı.
  */
 export interface TeamNameEntry {
@@ -33,7 +37,7 @@ const team = (archiveName: string, apiName: string, verified = true): TeamNameEn
 export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   // ---- Trendyol Süper Lig 2026-27 (18) ----
   996: team("Alanyaspor", "Alanyaspor"),
-  3579: team("Amed SFK", "Amed", false),
+  3579: team("Amed Sportif Faaliyetler", "Amed"),
   564: team("İstanbul Başakşehir FK", "Başakşehir"),
   549: team("Beşiktaş JK", "Beşiktaş"),
   6343: team("Çorum FK", "Çorum FK"),
@@ -47,27 +51,27 @@ export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   1004: team("Kasımpaşa SK", "Kasımpaşa"),
   7411: team("Kocaelispor", "Kocaelispor"),
   607: team("Konyaspor", "Konyaspor"),
-  1007: team("Çaykur Rizespor", "Rizespor", false),
+  1007: team("Çaykur Rizespor", "Rizespor"),
   3603: team("Samsunspor", "Samsunspor"),
   998: team("Trabzonspor", "Trabzonspor"),
   // ---- Trendyol 1. Lig 2026-27 (20) ----
   1005: team("Antalyaspor", "Antalyaspor"),
   3584: team("Bandırmaspor", "Bandırmaspor"),
   7395: team("Batman Petrolspor", "Batman Petrolspor"),
-  3583: team("Bodrum FK", "Bodrum FK", false),
+  3583: team("Bodrum FK", "Bodrum FK"),
   3569: team("Boluspor", "Boluspor"),
   1003: team("Bursaspor", "Bursaspor"),
-  7402: team("Esenler Erokspor", "Esenler Erokspor", false),
+  7402: team("Esenler Erokspor", "Esenler Erokspor"),
   3589: team("Fatih Karagümrük SK", "Fatih Karagümrük", false),
   17259: team("Iğdır FK", "Iğdır FK"),
   3578: team("İstanbulspor", "İstanbulspor"),
   1001: team("Kayserispor", "Kayserispor"),
-  3595: team("Ankara Keçiörengücü SK", "Keçiörengücü", false),
+  3595: team("Ankara Keçiörengücü", "Keçiörengücü"),
   3597: team("Manisa FK", "Manisa F.K."),
-  6533: team("Mardin 1969 SK", "Mardin 1969", false),
+  6533: team("Mardin 1969 Spor", "Mardin 1969"),
   7414: team("Muğlaspor", "Muğlaspor"),
   3601: team("Pendikspor", "Pendikspor"),
-  3605: team("Sarıyer SK", "Sarıyer", false),
+  3605: team("Sarıyer", "Sarıyer"),
   1002: team("Sivasspor", "Sivasspor"),
   3577: team("Ümraniyespor", "Ümraniyespor"),
   6342: team("Vanspor FK", "Vanspor FK"),
