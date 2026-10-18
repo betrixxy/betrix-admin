@@ -97,7 +97,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
     const postOptions = draft.status === "DRAFT" ? await getLinkablePosts(draft.fixtureId) : [];
     return (
       <>
-        <PageHeader title={draft.title} description={`Maç Sonucu · ${draft.subtitle} — onayınız olmadan yayına hazır sayılmaz.`} actions={backLink} />
+        <PageHeader title={draft.title} description={`${draft.kindLabel} · ${draft.subtitle} — onayınız olmadan yayına hazır sayılmaz.`} actions={backLink} />
         <MatchResultDraftView draft={draft} postOptions={postOptions} />
       </>
     );

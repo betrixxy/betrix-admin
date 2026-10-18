@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { captionWarnings } from "@/lib/dashboard/publish-caption";
+import { findBannedWords } from "@/lib/prediction/banned-words";
 import { cn } from "@/lib/utils";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { DraftActionState } from "@/types/draft";
@@ -36,6 +37,8 @@ interface PublishingHubProps {
   downloadName: string;
   /** Platform başına "Hemen Paylaş" durumu (bağlantı, izin, mock modu) — sunucuda hesaplanır. */
   targets: Record<PublishPlatform, PublishTarget>;
+  /** Maç önü vitrin: metinde bahis dili uyarısı ve kısa link yok (onay sunucuda ayrıca reddeder). */
+  vitrin?: boolean;
 }
 
 /** Dizilimin toplam sınırı: taslağın kartı + galeriden en fazla 9 (Instagram carousel = 10). */
@@ -53,7 +56,7 @@ interface CaptionState {
  * değiştirildiğinde o platformun metni bir kez Claude ile yazılır (admin tıklaması — ücretli); ilk açılışta
  * çağrı yapılmaz, kayıttaki şablon metni gösterilir.
  */
-export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets }: PublishingHubProps) {
+export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false }: PublishingHubProps) {
   const [platform, setPlatform] = useState<PublishPlatform>("IG_POST");
   const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: caption, source: "template" } });
   const [layout, setLayout] = useState<PublishLayout>(media.length > 1 ? "multi" : "single");
@@ -69,7 +72,11 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
   const current = captions[platform] ?? { text: caption, source: "template" as const };
   const multi = layout === "multi" && order.length > 1;
   const selected = (multi ? order.slice(0, def.maxMedia) : order.slice(0, 1)).map((item) => item.url);
-  const warnings = captionWarnings(current.text, platform, `${caption} ${media.map((item) => item.label).join(" ")}`);
+  const banned = vitrin ? findBannedWords(current.text) : [];
+  const warnings = [
+    ...captionWarnings(current.text, platform, `${caption} ${media.map((item) => item.label).join(" ")}`),
+    ...(banned.length ? [`Bahis dili yasak: ${banned.join(", ")} — bu metinle onaylanmaz.`] : []),
+  ];
   const formatHint = format && format !== def.recommendedFormat ? `Kart ${SOCIAL_FORMATS[format].label} formatında; ${def.label} için ${SOCIAL_FORMATS[def.recommendedFormat].label} önerilir — gerekirse stüdyoda o formatta yeniden üretin.` : null;
 
   function generate(target: PublishPlatform) {
@@ -204,13 +211,15 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
           onRegenerate={() => generate(platform)}
           disabled={isPending}
         />
-        <ShortLinkHelper
-          id={id}
-          platform={platform}
-          onInsert={(url) => setCaptions((previous) => ({ ...previous, [platform]: { text: `${current.text.trimEnd()}
+        {vitrin ? null : (
+          <ShortLinkHelper
+            id={id}
+            platform={platform}
+            onInsert={(url) => setCaptions((previous) => ({ ...previous, [platform]: { text: `${current.text.trimEnd()}
 
 ${url}`, source: current.source } }))}
-        />
+          />
+        )}
         {captionError ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
             <AlertCircle className="size-3.5 shrink-0" />

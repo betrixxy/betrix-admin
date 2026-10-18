@@ -9,7 +9,8 @@ import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-ca
 import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
 import { PUBLISH_PLATFORMS } from "@/types/publishing";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
-import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
+import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS, type SocialFormatId } from "@/types/studio-formats";
 
 /** Format seçiminden önceki kayıtlarda alan yok — o kartlar 4:5 (post) çizilmişti. */
 const formatField = z.enum(SOCIAL_FORMAT_IDS).catch(DEFAULT_SOCIAL_FORMAT);
@@ -25,6 +26,10 @@ const marketAnalysisOptionsSchema = z.object({
   marketPick: z.string(),
   marketRationale: z.string(),
 });
+
+/** `AiContent.renderOptions` — maç önü vitrin kaydı (inceleme ekranı yalnızca görseli ve başlığı okur). */
+const vitrinViewSchema = z.object({ kind: z.literal("VITRIN"), format: z.enum(MATCH_DAY_FORMAT_IDS), imageUrl: z.string(), title: z.string(), subtitle: z.string() });
+const VITRIN_SOCIAL_FORMAT: Record<MatchDayFormatId, SocialFormatId> = { IG_PORTRAIT: "post", IG_SQUARE: "square", STORY: "story", X_LANDSCAPE: "landscape" };
 
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const lineupOptionsSchema = z.object({
@@ -104,6 +109,30 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (!record) return null;
 
   if (record.contentType === "AI_MARKET_PREDICTION") {
+    const vitrin = vitrinViewSchema.safeParse(record.renderOptions);
+    if (vitrin.success) {
+      const { imageUrl, title, subtitle, format } = vitrin.data;
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          title,
+          subtitle,
+          kindLabel: "Maç Önü Analiz",
+          mvpName: null,
+          imageUrl,
+          slides: [{ url: imageUrl, label: "Maç Önü Analiz" }],
+          format: VITRIN_SOCIAL_FORMAT[format],
+          vitrin: true,
+        },
+      };
+    }
     const options = marketAnalysisOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
       const { home, away, homeImageUrl, awayImageUrl, marketPick, marketRationale, format } = options.data;
@@ -198,6 +227,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           imageUrl,
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: kindLabel }],
           format,
+          vitrin: false,
         },
       };
     }

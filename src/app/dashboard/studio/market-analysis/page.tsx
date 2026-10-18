@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
-import { MarketAnalysisForm } from "@/components/features/dashboard/market-analysis/market-analysis-form";
+import { VitrinForm } from "@/components/features/dashboard/vitrin/vitrin-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
-import { isFalConfigured } from "@/lib/services/fal";
-import { isAnthropicConfigured } from "@/lib/services/anthropic";
 
 export const metadata: Metadata = {
-  title: "AI Market Tahmin & Analiz — betrix.pro",
-  description: "İki takımın son maç verisiyle Derinlemesine Analiz kartları ve market tahmini",
+  title: "Maç Önü Vitrin — betrix.pro",
+  description: "Kazanma olasılıkları, senaryolar ve denetimli gerekçelerle maç önü vitrin kartı",
 };
 
 // Canlı fikstür — statik önbelleğe alınmaz (bkz. CLAUDE.md 1.5).
@@ -28,8 +26,8 @@ export default async function MarketAnalysisPage({ searchParams }: MarketAnalysi
   return (
     <>
       <PageHeader
-        title="AI Market Tahmin & Analiz"
-        description="Maçı seçin; iki takımın son 5 maçındaki form, xG, topla oynama, pas isabeti ve anahtar oyuncuları çekilir. Güçlü yönler, dikkat edilmesi gerekenler ve taktiksel yaklaşım veriden önerilir — düzenleyip her takım için Derinlemesine Analiz kartını önizleyin."
+        title="Maç Önü Vitrin"
+        description="Maçı seçin; iki takımın son maç verisinden kazanma olasılıkları ve senaryolar hesaplanır. İki açık kutu (olasılık + denetimli gerekçe), üç kilitli kutu ve sitenin kancası tek kartta."
       />
 
       {!fixtures.ok ? (
@@ -39,13 +37,7 @@ export default async function MarketAnalysisPage({ searchParams }: MarketAnalysi
         </div>
       ) : null}
 
-      <MarketAnalysisForm
-        fixtures={fixtureList}
-        initialFixtureId={initialFixtureId}
-        analystAvailable={isAnthropicConfigured()}
-       
-        falConfigured={isFalConfigured()}
-      />
+      <VitrinForm fixtures={fixtureList} initialFixtureId={initialFixtureId} />
     </>
   );
 }

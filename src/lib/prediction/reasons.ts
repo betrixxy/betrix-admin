@@ -1,0 +1,151 @@
+import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
+import { teamNameTr } from "@/lib/dashboard/match-result-labels";
+import type { DeepAnalysisStats } from "@/types/deep-analysis";
+import { REASON_MAX_LENGTH, type Scenario, type ScenarioId } from "@/types/prediction";
+import { findBannedWords } from "./banned-words";
+import type { MatchSides } from "./catalog";
+
+/**
+ * Vitrin gerekçeleri — Çelik Kasa denetimi (bkz. CLAUDE.md 1.10 AI Analist) + kural tabanlı yedek.
+ * Her sayı olgu paketinden gelir; takım izolasyonu CÜMLECİK düzeyinde: bir takımın adı geçen
+ * cümleciğin sayıları yalnızca o takımın paketiyle (+ maç künyesi / aralarındaki maçlar) denetlenir.
+ * Denetimden geçemeyen gerekçe kartı kilitler (üretilmez); admin düzeltir, denetim AI'sız tekrar çalışır.
+ */
+
+/** Kartta ve gerekçede kullanılan takım adları (mevcut Türkçe kart adı eşlemesi). */
+export function matchSides(stats: DeepAnalysisStats): MatchSides {
+  return { home: teamNameTr(stats.fixture.homeTeam.name), away: teamNameTr(stats.fixture.awayTeam.name) };
+}
+
+const tally = (letters: string, letter: string) => [...letters].filter((value) => value === letter).length;
+
+/**
+ * Vitrin olgu paketi: mevcut paket, takım adları kart adıyla ve bahis dili taşıyan anahtarlar analiz
+ * diliyle ("kg_var_mac" → "iki_takimin_da_gol_buldugu_mac"); sayılar aynı. Galibiyet/beraberlik/
+ * mağlubiyet sayıları formdan eklenir (gerekçelerin "son 5 maçta 4 galibiyet" diyebilmesi için).
+ */
+export function vitrinFacts(stats: DeepAnalysisStats) {
+  const base = buildAnalysisFacts(stats);
+  const sides = matchSides(stats);
+  const team = (facts: typeof base.ev_sahibi, name: string) => {
+    const { kg_var_mac, ust_2_5_mac, ...rest } = facts;
+    return {
+      ...rest,
+      takim: name,
+      galibiyet: tally(facts.form_eskiden_yeniye, "G"),
+      beraberlik: tally(facts.form_eskiden_yeniye, "B"),
+      maglubiyet: tally(facts.form_eskiden_yeniye, "M"),
+      iki_takimin_da_gol_buldugu_mac: kg_var_mac,
+      uc_veya_daha_fazla_gollu_mac: ust_2_5_mac,
+    };
+  };
+  return {
+    mac: { ...base.mac, ev_sahibi: sides.home, deplasman: sides.away },
+    ev_sahibi: team(base.ev_sahibi, sides.home),
+    deplasman: team(base.deplasman, sides.away),
+    aralarindaki_son_maclar: base.aralarindaki_son_maclar,
+  };
+}
+
+export type VitrinFacts = ReturnType<typeof vitrinFacts>;
+
+/** Senaryonun kendi sayıları ("3+ gol", "4+ gol") gerekçede serbesttir. */
+const SCENARIO_NUMBERS: Partial<Record<ScenarioId, string[]>> = { GOALS_3PLUS: ["3"], GOALS_4PLUS: ["4"], COMBO: ["3"] };
+
+/** Cümlecik sınırı: noktalı virgül/iki nokta, ardından boşluk gelen virgül/nokta (ondalık "2,4" bölünmez), bağlaçlar. */
+const CLAUSE_SPLIT = /[;:]|[,.](?=\s|$)|\s(?:ve|ama|fakat|ancak|oysa|iken|buna karşın)\s/u;
+const lower = (text: string) => text.toLocaleLowerCase("tr-TR");
+
+/** Cümleciğin takımı: yalnızca birinin adı geçiyorsa o; ikisi ya da hiçbiri → null (birleşik kapsam). */
+function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
+  const has = (name: string) => lower(clause).includes(lower(name));
+  const home = has(sides.home);
+  const away = has(sides.away);
+  return home === away ? null : home ? "home" : "away";
+}
+
+/** Gerekçe denetimi: boş değil, ≤160, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
+  const text = reason.trim();
+  if (!text) return ["gerekçe boş"];
+  const issues: string[] = [];
+  if (text.length > REASON_MAX_LENGTH) issues.push(`${text.length} karakter (en fazla ${REASON_MAX_LENGTH})`);
+  const banned = findBannedWords(text);
+  if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
+  const short = findTeamAbbreviations(text, [sides.home, sides.away]);
+  if (short.length) issues.push(`takım kısaltması: ${short.join(", ")}`);
+
+  const scopes = allowedNumbersBySide(facts);
+  const free = new Set(SCENARIO_NUMBERS[scenarioId] ?? []);
+  for (const clause of text.split(CLAUSE_SPLIT)) {
+    const side = clauseSide(clause, sides);
+    const allowed = side === "home" ? union(scopes.home, scopes.shared, free) : side === "away" ? union(scopes.away, scopes.shared, free) : union(scopes.home, scopes.away, scopes.shared, free);
+    const opponent = side === "home" ? scopes.away : side === "away" ? scopes.home : new Set<string>();
+    for (const number of findUngroundedNumbers(clause, allowed, opponent)) {
+      issues.push(number.foundIn === "opponent" ? `"${number.value}" rakibin verisi — takımlar karışmış` : `"${number.value}" veride yok`);
+    }
+  }
+  return issues;
+}
+
+/** Bütün senaryoların denetimi: senaryo → sorunlar (boş dizi = temiz). */
+export function auditReasons(scenarios: Scenario[], facts: VitrinFacts, sides: MatchSides): Record<string, string[]> {
+  return Object.fromEntries(scenarios.map((scenario) => [scenario.id, auditReason(scenario.reason, scenario.id, facts, sides)]));
+}
+
+const decimal = (value: number | null) => (value === null ? null : String(value).replace(".", ","));
+
+/** Parçaları sığdığı kadar birleştirir (≤160); ilk parça her zaman alınır. */
+function compose(parts: (string | null)[]): string {
+  let out = "";
+  for (const part of parts) {
+    if (!part) continue;
+    // Parçalar takım adıyla başlar — özel ad küçültülmez.
+    const next = out ? `${out}; ${part}` : part;
+    if (next.length + 1 > REASON_MAX_LENGTH) break;
+    out = next;
+  }
+  return out ? `${out}.` : "";
+}
+
+/**
+ * Kural tabanlı gerekçeler (AI yoksa ya da admin isterse) — sayılar olgu paketinden, denetimden geçer.
+ */
+export function ruleReason(scenario: Scenario, facts: VitrinFacts, sides: MatchSides): string {
+  const home = facts.ev_sahibi;
+  const away = facts.deplasman;
+  const form = (team: typeof home, name: string) => `${name} son ${team.ornek_mac} maçında ${team.galibiyet} galibiyet aldı`;
+  const scoring = (team: typeof home, name: string) => (team.gol_atilan_ort === null ? null : `${name} maç başı ${decimal(team.gol_atilan_ort)} gol atıyor`);
+  const conceding = (team: typeof home, name: string) => (team.gol_yenilen_ort === null ? null : `${name} maç başı ${decimal(team.gol_yenilen_ort)} gol yiyor`);
+  const favouriteIsHome = scenario.outcome.scenario === "COMBO" ? scenario.outcome.team === "HOME" : scenario.outcome.pick !== "AWAY";
+  const [fav, favName, other, otherName] = favouriteIsHome ? [home, sides.home, away, sides.away] : [away, sides.away, home, sides.home];
+
+  switch (scenario.id) {
+    case "RESULT_1X2":
+      return scenario.outcome.pick === "DRAW"
+        ? compose([form(home, sides.home), form(away, sides.away)])
+        : compose([form(fav, favName), conceding(other, otherName)]);
+    case "BTTS":
+      if (scenario.outcome.pick === "YES") return compose([scoring(home, sides.home), scoring(away, sides.away)]);
+      return compose([
+        home.gol_yemedigi_mac >= away.gol_yemedigi_mac
+          ? `${sides.home} son ${home.ornek_mac} maçta ${home.gol_yemedigi_mac} kez gol yemedi`
+          : `${sides.away} son ${away.ornek_mac} maçta ${away.gol_yemedigi_mac} kez gol yemedi`,
+        scoring(home, sides.home),
+      ]);
+    case "GOALS_3PLUS":
+      if (scenario.outcome.pick === "YES") {
+        const goalsSeen = (team: typeof home, name: string) => `${name} son ${team.ornek_mac} maçının ${team.uc_veya_daha_fazla_gollu_mac} tanesinde 3+ gol gördü`;
+        return compose([goalsSeen(home, sides.home), goalsSeen(away, sides.away)]);
+      }
+      return compose([conceding(home, sides.home), conceding(away, sides.away)]);
+    case "GOALS_4PLUS":
+      // "Gol yağmuru": evet → iki hücum; hayır → iki savunmanın yediği.
+      return scenario.outcome.pick === "YES" ? compose([scoring(home, sides.home), scoring(away, sides.away)]) : compose([conceding(home, sides.home), conceding(away, sides.away)]);
+    case "HT_RESULT":
+      return compose([scoring(fav, favName), conceding(other, otherName)]);
+    case "COMBO":
+      // Evet → favorinin formu ve hücumu; hayır → rakibin direnci (yediği gol azsa) ve favorinin hücumu.
+      return scenario.outcome.pick === "YES" ? compose([form(fav, favName), scoring(fav, favName)]) : compose([conceding(other, otherName), scoring(fav, favName)]);
+  }
+}

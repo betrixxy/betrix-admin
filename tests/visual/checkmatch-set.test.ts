@@ -3,7 +3,6 @@ import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, test } from "node:test";
-import sharp from "sharp";
 import { checkLayout, describeLayoutIssues } from "@/lib/dashboard/layout-check";
 import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES, type MatchDayFrame } from "@/lib/dashboard/match-day-formats";
@@ -31,6 +30,7 @@ import { RAW_GENCLERBIRLIGI_GALATASARAY } from "../fixtures/api-football/match-r
 import { RAW_BESIKTAS_MIDTJYLLAND, RAW_HOFFENHEIM_BESIKTAS_STATS } from "../fixtures/api-football/match-stats";
 import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
 import { diffPng } from "./image-diff";
+import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
 /**
  * "CheckMatch set" görsel regresyon testi (bkz. CLAUDE.md 5.3) — tam kadraj Maç Sonucu (01) +
@@ -65,21 +65,8 @@ const EUROPE: Record<string, Match> = {
   "hof-bjk": { raw: RAW_HOFFENHEIM_BESIKTAS_STATS, sportmonks: SM_HOFFENHEIM_BESIKTAS, ids: SM_HOFFENHEIM_BESIKTAS_IDS },
 };
 
-/** 3:2 sentetik maç "fotoğrafı": gece tribünü, ışıklar, çim, iki forma silueti (deterministik). */
-async function syntheticPhoto(): Promise<Buffer> {
-  const [w, h] = [2400, 1600];
-  const lights = Array.from({ length: 70 }, (_, i) => `<circle cx="${(i * 337) % w}" cy="${90 + ((i * 53) % 520)}" r="${5 + (i % 6)}" fill="#fff" opacity="${0.35 + (i % 4) * 0.15}"/>`).join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-    <defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#131c2e"/><stop offset="0.5" stop-color="#3a4660"/><stop offset="0.52" stop-color="#2f6f3a"/><stop offset="1" stop-color="#173f1f"/></linearGradient></defs>
-    <rect width="100%" height="100%" fill="url(#s)"/>${lights}
-    <rect x="1050" y="560" width="230" height="760" rx="70" fill="#b8122f"/><circle cx="1165" cy="470" r="96" fill="#d9a77f"/>
-    <rect x="1380" y="640" width="210" height="700" rx="70" fill="#f2f2f2"/><circle cx="1485" cy="560" r="84" fill="#c9926d"/>
-  </svg>`;
-  return sharp(Buffer.from(svg)).jpeg({ quality: 92 }).toBuffer();
-}
-
 const PHOTO = syntheticPhoto();
-const SOURCE = { width: 2400, height: 1600 };
+const SOURCE = SYNTHETIC_PHOTO_SIZE;
 
 async function art(frame: MatchDayFrame, accentHex: string, deepHex: string | undefined, side: ColumnSide, template: MatchResultTemplateId) {
   const g = matchResultGeometry(frame, side, template);
