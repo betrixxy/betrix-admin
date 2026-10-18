@@ -22,7 +22,8 @@ export const NATIONAL_ROOT_NAME = "Milli Takımlar";
  *
  * Kaynak (2026-10-19): TFF kulüp bilgi sayfalarındaki tescilli ad, sponsor ön eki atılıp kısaltılmış
  * ("… Spor Kulübü" → SK, "… Futbol Kulübü" → FK). TFF'nin dernek yerine futbol şirketini (A.Ş.)
- * listelediği kulüplerde (Göztepe, Fatih Karagümrük) "SK" doğrulanamadı — işaretli.
+ * listelediği kulüplerde (Göztepe, Fatih Karagümrük) "SK" kullanıcı onaylı; Amed "Sportif Faaliyetler
+ * Kulübü" → SFK (kısaltma kuralıyla tutarlı, kullanıcı onaylı). Tüm satırlar onaylı (2026-10-19).
  *
  * Tabloda olmayan takım: Türkçe eşleme → API adı.
  */
@@ -37,7 +38,7 @@ const team = (archiveName: string, apiName: string, verified = true): TeamNameEn
 export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   // ---- Trendyol Süper Lig 2026-27 (18) ----
   996: team("Alanyaspor", "Alanyaspor"),
-  3579: team("Amed Sportif Faaliyetler", "Amed"),
+  3579: team("Amed SFK", "Amed"),
   564: team("İstanbul Başakşehir FK", "Başakşehir"),
   549: team("Beşiktaş JK", "Beşiktaş"),
   6343: team("Çorum FK", "Çorum FK"),
@@ -47,7 +48,7 @@ export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   645: team("Galatasaray SK", "Galatasaray"),
   3573: team("Gaziantep FK", "Gaziantep FK"),
   997: team("Gençlerbirliği SK", "Gençlerbirliği S.K."),
-  994: team("Göztepe SK", "Göztepe", false),
+  994: team("Göztepe SK", "Göztepe"),
   1004: team("Kasımpaşa SK", "Kasımpaşa"),
   7411: team("Kocaelispor", "Kocaelispor"),
   607: team("Konyaspor", "Konyaspor"),
@@ -62,7 +63,7 @@ export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   3569: team("Boluspor", "Boluspor"),
   1003: team("Bursaspor", "Bursaspor"),
   7402: team("Esenler Erokspor", "Esenler Erokspor"),
-  3589: team("Fatih Karagümrük SK", "Fatih Karagümrük", false),
+  3589: team("Fatih Karagümrük SK", "Fatih Karagümrük"),
   17259: team("Iğdır FK", "Iğdır FK"),
   3578: team("İstanbulspor", "İstanbulspor"),
   1001: team("Kayserispor", "Kayserispor"),

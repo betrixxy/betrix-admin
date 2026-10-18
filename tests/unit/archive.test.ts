@@ -30,11 +30,11 @@ describe("arşiv — isim disiplini", () => {
     );
   });
 
-  it("TFF'den doğrulanan arşiv adları (sponsorsuz tescilli ad); doğrulanamayanlar işaretli kalır", () => {
+  it("TFF'den doğrulanan ve kullanıcı onaylı arşiv adları; işaretli satır kalmadı", () => {
     assert.deepEqual(
       [3579, 3595, 6533, 3605, 3583, 1007, 7402].map((id) => [ARCHIVE_TEAM_NAMES[id]?.archiveName, ARCHIVE_TEAM_NAMES[id]?.verified]),
       [
-        ["Amed Sportif Faaliyetler", true],
+        ["Amed SFK", true],
         ["Ankara Keçiörengücü", true],
         ["Mardin 1969 Spor", true],
         ["Sarıyer", true],
@@ -47,8 +47,9 @@ describe("arşiv — isim disiplini", () => {
       Object.entries(ARCHIVE_TEAM_NAMES)
         .filter(([, entry]) => !entry.verified)
         .map(([id]) => Number(id)),
-      [994, 3589],
+      [],
     );
+    assert.deepEqual([ARCHIVE_TEAM_NAMES[994]?.archiveName, ARCHIVE_TEAM_NAMES[3589]?.archiveName], ["Göztepe SK", "Fatih Karagümrük SK"]);
   });
 
   it("arşiv adlarında sponsor yok; Trendyol Süper Lig (18) ve 1. Lig (20) tam kapsanır", () => {
