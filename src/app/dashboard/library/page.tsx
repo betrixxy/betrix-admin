@@ -1,112 +1,102 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ImageOff } from "lucide-react";
-import { MediaDeleteButton } from "@/components/features/dashboard/media-delete-button";
-import { MediaUploadForm } from "@/components/features/dashboard/media-upload-form";
+import { Search } from "lucide-react";
+import { ArchiveContentOverview } from "@/components/features/archive/archive-overview";
+import { PersonFolderView, SearchResultsView, TeamFolderView } from "@/components/features/archive/archive-content";
+import { ArchiveInbox } from "@/components/features/archive/archive-inbox";
+import { ArchiveSyncForm, ArchiveTransferSuggestions } from "@/components/features/archive/archive-person-tools";
+import { ArchiveTree } from "@/components/features/archive/archive-tree";
+import { LegacyMediaView } from "@/components/features/archive/legacy-media-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MEDIA_CATEGORY_META, countMediaAssetsByCategory, listMediaAssets } from "@/lib/dashboard/media-library";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { getArchiveTree, getInbox, getPeopleOptions, getPendingTransfers, getTeamFolder, getTeamOptions, searchArchive } from "@/lib/archive/queries";
+import { ARCHIVE_GROUPS, type ArchiveGroup } from "@/lib/archive/structure";
 import { cn } from "@/lib/utils";
-import { MEDIA_CATEGORIES, type MediaCategory } from "@/types/media";
 
 export const metadata: Metadata = {
   title: "Medya Kütüphanesi — betrix.pro",
-  description: "Kalıcı logo, oyuncu ve referans görsel kütüphanesi",
+  description: "Fotoğraf arşivi (Lig / Takım / Kişi), logolar ve referans görseller",
 };
 
 export const dynamic = "force-dynamic";
 
+const VIEWS = { archive: "Fotoğraf Arşivi", logos: "Logolar", references: "Referanslar" } as const;
+type View = keyof typeof VIEWS;
+
+type Param = string | string[] | undefined;
+const one = (value: Param) => (typeof value === "string" ? value : undefined);
+
 interface LibraryPageProps {
-  searchParams: Promise<{ category?: string | string[] }>;
-}
-
-function parseCategory(param: string | string[] | undefined): MediaCategory {
-  return MEDIA_CATEGORIES.find((category) => category === param) ?? "LOGO";
-}
-
-function formatBytes(bytes: number): string {
-  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`;
+  searchParams: Promise<{ view?: Param; team?: Param; person?: Param; group?: Param; q?: Param; inbox?: Param }>;
 }
 
 export default async function LibraryPage({ searchParams }: LibraryPageProps) {
-  const category = parseCategory((await searchParams).category);
-  const [assets, counts] = await Promise.all([listMediaAssets(category), countMediaAssetsByCategory()]);
-  const meta = MEDIA_CATEGORY_META[category];
-
+  const params = await searchParams;
+  const view: View = (Object.keys(VIEWS) as View[]).find((key) => key === one(params.view)) ?? "archive";
   return (
     <>
       <PageHeader
         title="Medya Kütüphanesi"
-        description="Logoları, oyuncu fotoğraflarını ve referans görselleri bir kez ekleyin; stüdyoda her üretimde listeden seçin. Stüdyoda yeni yüklenen görseller de buraya otomatik kaydedilir."
+        description="Fotoğraf arşivi Lig / Takım / Kişi klasörlerinde — adlar API-Football ve resmi ad tablosundan, elle klasör adı yok. Logolar ve referans görseller ayrı sekmelerde."
       />
-
-      <nav className="flex flex-wrap gap-2" aria-label="Klasörler">
-        {MEDIA_CATEGORIES.map((item) => (
+      <nav className="flex flex-wrap gap-2" aria-label="Kütüphane">
+        {(Object.keys(VIEWS) as View[]).map((key) => (
           <Link
-            key={item}
-            href={`/dashboard/library?category=${item}`}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-sm transition-colors",
-              item === category ? "bg-white/[0.08] text-white" : "text-muted-foreground hover:text-white",
-            )}
+            key={key}
+            href={key === "archive" ? "/dashboard/library" : `/dashboard/library?view=${key}`}
+            className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", key === view ? "bg-white/[0.08] text-white" : "text-muted-foreground hover:text-white")}
           >
-            {MEDIA_CATEGORY_META[item].label} <span className="text-xs text-muted-foreground">{counts[item]}</span>
+            {VIEWS[key]}
           </Link>
         ))}
       </nav>
-
-      <div className="grid gap-6 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <CardTitle>{meta.label}</CardTitle>
-            <CardDescription>{meta.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {assets.length === 0 ? (
-              <p className="py-10 text-center text-sm text-muted-foreground">
-                Bu klasör boş — sağdaki formdan ya da stüdyoda yükleyerek ekleyin.
-              </p>
-            ) : (
-              <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                {assets.map((asset) => (
-                  <li key={asset.id} className="flex flex-col gap-1.5">
-                    <div
-                      className={cn(
-                        "flex aspect-square items-center justify-center overflow-hidden rounded-lg ring-1 ring-border",
-                        // Şeffaf logolar dama deseni üzerinde gösterilir — kenar/halo kontrolü için.
-                        asset.hasAlpha
-                          ? "bg-[repeating-conic-gradient(#27272a_0%_25%,#18181b_0%_50%)] bg-[length:16px_16px]"
-                          : "bg-muted/30",
-                      )}
-                    >
-                      {asset.fileUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={asset.fileUrl} alt={asset.label} loading="lazy" className="size-full object-contain p-2" />
-                      ) : (
-                        <ImageOff className="size-5 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="flex items-start justify-between gap-1">
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-xs text-white" title={asset.label}>
-                          {asset.label}
-                        </span>
-                        <span className="truncate text-[10px] text-muted-foreground">
-                          {asset.teamName ? `${asset.teamName} · ` : ""}
-                          {asset.width}×{asset.height} · {formatBytes(asset.sizeBytes)}
-                        </span>
-                      </div>
-                      <MediaDeleteButton id={asset.id} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <MediaUploadForm key={category} defaultCategory={category} />
-      </div>
+      {view === "logos" ? <LegacyMediaView category="LOGO" /> : view === "references" ? <LegacyMediaView category="REFERENCE" /> : <ArchiveView params={params} />}
     </>
+  );
+}
+
+async function ArchiveView({ params }: { params: Awaited<LibraryPageProps["searchParams"]> }) {
+  const teamId = Number(one(params.team));
+  const personId = one(params.person) ?? null;
+  const group = ARCHIVE_GROUPS.find((entry) => entry === one(params.group)) ?? null;
+  const query = one(params.q)?.trim() ?? "";
+  const inbox = one(params.inbox) === "1";
+
+  const [tree, folder, teams, transfers, inboxAssets] = await Promise.all([
+    getArchiveTree(),
+    Number.isInteger(teamId) && teamId > 0 ? getTeamFolder(teamId) : Promise.resolve(null),
+    getTeamOptions(),
+    getPendingTransfers(),
+    getInbox(),
+  ]);
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+      <Card className="h-fit">
+        <CardContent className="flex flex-col gap-4 pt-6">
+          <form action="/dashboard/library" className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input name="q" defaultValue={query} placeholder="Kişi, takım, açıklama…" className="h-8 pl-8 text-xs" />
+          </form>
+          <ArchiveTree leagues={tree} folder={folder} selectedPerson={personId} inboxCount={inboxAssets.length} inboxActive={inbox} />
+          <ArchiveSyncForm teamId={folder?.id ?? null} teamName={folder?.name ?? null} />
+        </CardContent>
+      </Card>
+      <div className="flex min-w-0 flex-col gap-4">
+        <ArchiveTransferSuggestions items={transfers} />
+        {query ? (
+          <SearchResultsView query={query} results={await searchArchive(query)} teams={teams} />
+        ) : inbox ? (
+          <ArchiveInbox assets={inboxAssets} teams={teams} people={await getPeopleOptions()} />
+        ) : folder && personId ? (
+          <PersonFolderView folder={folder} personId={personId} teams={teams} />
+        ) : folder ? (
+          <TeamFolderView folder={folder} group={group as ArchiveGroup | null} teams={teams} />
+        ) : (
+          <ArchiveContentOverview tree={tree} inboxCount={inboxAssets.length} />
+        )}
+      </div>
+    </div>
   );
 }

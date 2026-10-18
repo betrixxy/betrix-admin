@@ -168,7 +168,8 @@ export type ApiFootballFixturesResponse = z.infer<typeof apiFootballFixturesResp
 /* ---------- Lig / takım / kadro (bkz. squads.ts — medya havuzu) ---------- */
 
 export const apiFootballLeagueSeasonsRawSchema = z.object({
-  league: z.object({ id: z.number(), name: z.string() }),
+  // `type`: "League" | "Cup" — arşiv takımın yurt içi ligini bununla seçer.
+  league: z.object({ id: z.number(), name: z.string(), type: z.string().optional(), logo: z.string().nullish() }),
   country: z.object({ name: z.string().nullable() }),
   seasons: z.array(z.object({ year: z.number(), current: z.boolean() })),
 });
@@ -179,6 +180,7 @@ export const apiFootballTeamInfoRawSchema = z.object({
     name: z.string(),
     country: z.string().nullable(),
     national: z.boolean().nullable().optional(),
+    logo: z.string().nullish(),
   }),
 });
 
@@ -194,7 +196,19 @@ export const apiFootballSeasonPlayerRawSchema = z.object({ player: apiFootballPl
 
 export type ApiFootballPlayerProfileRaw = z.infer<typeof apiFootballPlayerProfileRawSchema>;
 
+/** `/coachs?team=` — teknik direktör ve kariyeri (güncel takımı: `end = null`). */
+export const apiFootballCoachRawSchema = z.object({
+  id: z.number(),
+  name: z.string().nullable(),
+  firstname: z.string().nullable(),
+  lastname: z.string().nullable(),
+  career: z.array(z.object({ team: z.object({ id: z.number() }), start: z.string().nullable(), end: z.string().nullable() })).default([]),
+});
+
+export type ApiFootballCoachRaw = z.infer<typeof apiFootballCoachRawSchema>;
+
 export const apiFootballLeagueSeasonsResponseSchema = responseSchema(apiFootballLeagueSeasonsRawSchema);
+export const apiFootballCoachsResponseSchema = responseSchema(apiFootballCoachRawSchema);
 export const apiFootballTeamsResponseSchema = responseSchema(apiFootballTeamInfoRawSchema);
 export const apiFootballProfilesResponseSchema = responseSchema(apiFootballSeasonPlayerRawSchema);
 export const apiFootballSeasonPlayersResponseSchema = responseSchema(apiFootballSeasonPlayerRawSchema).extend({

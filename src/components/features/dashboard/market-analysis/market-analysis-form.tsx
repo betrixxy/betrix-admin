@@ -17,7 +17,6 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { emptyTeamDraft } from "@/lib/dashboard/deep-analysis-insights";
 import { cn } from "@/lib/utils";
 import type { MarketAnalysisDraft, TeamSide } from "@/types/deep-analysis";
-import type { MediaAssetOption } from "@/types/media";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import { DEFAULT_SOCIAL_FORMAT, type SocialFormatId } from "@/types/studio-formats";
 import { AnalysisHeroFields } from "./analysis-hero-fields";
@@ -33,7 +32,6 @@ interface MarketAnalysisFormProps {
   /** ANTHROPIC_API_KEY tanımlı mı — değilse "AI Analist" pasiftir, öneriler kural tabanlı kalır. */
   analystAvailable: boolean;
   /** Medya kütüphanesindeki oyuncu fotoğrafları — kapak için (bkz. CLAUDE.md 1.11). */
-  playerOptions: MediaAssetOption[];
   falConfigured: boolean;
 }
 
@@ -57,7 +55,13 @@ function draftFor(fixture: MatchDayFixtureOption | undefined, format: SocialForm
   };
 }
 
-export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailable, playerOptions, falConfigured }: MarketAnalysisFormProps) {
+/** Kapak seçicisi için seçili maçtaki takımların API-Football kimlikleri. */
+function heroTeamIds(fixtures: MatchDayFixtureOption[], fixtureId: string): Record<TeamSide, number | null> {
+  const fixture = fixtures.find((option) => option.id === fixtureId);
+  return { home: fixture?.homeTeamId ?? null, away: fixture?.awayTeamId ?? null };
+}
+
+export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailable, falConfigured }: MarketAnalysisFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<MarketAnalysisDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<DeepAnalysisLoadResult | null>(null);
@@ -237,7 +241,7 @@ export function MarketAnalysisForm({ fixtures, initialFixtureId, analystAvailabl
 
         <AnalysisHeroFields
           draft={draft}
-          playerOptions={playerOptions}
+          teamIds={heroTeamIds(fixtures, draft.fixtureId)}
           falConfigured={falConfigured}
           onHeroChange={(side, heroImageUrl) => setDraft((current) => ({ ...current, [side]: { ...current[side], heroImageUrl } }))}
         />

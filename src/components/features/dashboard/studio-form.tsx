@@ -13,6 +13,7 @@ import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { STUDIO_FORMATS, type StudioActionState, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { FixtureOption } from "@/types/social";
 import type { MediaAssetOption } from "@/types/media";
+import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { LibraryImageField } from "./library-image-field";
 import { StatSelectionFields } from "./stat-selection-fields";
 import { StudioPreview } from "./studio-preview";
@@ -20,18 +21,20 @@ import { StudioPreview } from "./studio-preview";
 interface StudioFormProps {
   fixtures: FixtureOption[];
   postOptions: StudioPostOption[];
-  /** Medya kütüphanesindeki seçilebilir logolar ve oyuncu fotoğrafları (bkz. CLAUDE.md 1.11). */
+  /** Medya kütüphanesindeki seçilebilir logolar (bkz. CLAUDE.md 1.11). */
   logoOptions: MediaAssetOption[];
-  playerOptions: MediaAssetOption[];
+  /** fixtureId → maçtaki takımlar; oyuncu fotoğrafı Fotoğraf Arşivi seçicisinden gelir. */
+  fixtureTeams: Record<string, { id: number; name: string }[]>;
   /** FAL_KEY tanımlı değilken formu kilitler — bkz. dashboard/studio/page.tsx uyarı bandı. */
   disabled?: boolean;
 }
 
 const INITIAL_STATE: StudioActionState = {};
 
-export function StudioForm({ fixtures, postOptions, logoOptions, playerOptions, disabled = false }: StudioFormProps) {
+export function StudioForm({ fixtures, postOptions, logoOptions, fixtureTeams, disabled = false }: StudioFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateAiContentAction, INITIAL_STATE);
   const [format, setFormat] = useState<StudioFormat>("IG_FEED");
+  const [fixtureId, setFixtureId] = useState("");
   const isDisabled = disabled || isPending;
 
   return (
@@ -48,7 +51,7 @@ export function StudioForm({ fixtures, postOptions, logoOptions, playerOptions, 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="fixtureId">Maç</Label>
-                <NativeSelect id="fixtureId" name="fixtureId" required defaultValue="">
+                <NativeSelect id="fixtureId" name="fixtureId" required value={fixtureId} onChange={(event) => setFixtureId(event.target.value)}>
                   <option value="" disabled>
                     Maç seçin…
                   </option>
@@ -77,12 +80,7 @@ export function StudioForm({ fixtures, postOptions, logoOptions, playerOptions, 
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <LibraryImageField
-                name="playerPhoto"
-                label="Oyuncu fotoğrafı"
-                hint="JPEG/PNG/WebP · küçükse AI ile büyütülür"
-                options={playerOptions}
-              />
+              <ArchivePhotoPicker name="playerPhoto" label="Oyuncu fotoğrafı (Fotoğraf Arşivi)" teams={fixtureTeams[fixtureId] ?? []} fixtureId={fixtureId || null} />
               <LibraryImageField name="logo" label="Logo" hint="JPEG/PNG/WebP · isteğe bağlı" options={logoOptions} />
             </div>
 

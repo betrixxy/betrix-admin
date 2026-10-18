@@ -3,7 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { AiContentGallery } from "@/components/features/dashboard/ai-content-gallery";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { StudioForm } from "@/components/features/dashboard/studio-form";
-import { getFixtureOptions } from "@/lib/dashboard/fixtures";
+import { getFixtureOptions, getFixtureTeams } from "@/lib/dashboard/fixtures";
 import { getMediaAssetOptions } from "@/lib/dashboard/media-library";
 import { getStudioData } from "@/lib/dashboard/studio-data";
 import { isFalConfigured } from "@/lib/services/fal";
@@ -17,11 +17,11 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function StudioPage() {
-  const [data, fixtureOptions, logoOptions, playerOptions] = await Promise.all([
+  const [data, fixtureOptions, fixtureTeams, logoOptions] = await Promise.all([
     getStudioData(),
     getFixtureOptions(),
+    getFixtureTeams(),
     getMediaAssetOptions("LOGO"),
-    getMediaAssetOptions("PLAYER"),
   ]);
   const falConfigured = isFalConfigured();
 
@@ -47,7 +47,7 @@ export default async function StudioPage() {
         fixtures={fixtureOptions}
         postOptions={data.postOptions}
         logoOptions={logoOptions}
-        playerOptions={playerOptions}
+        fixtureTeams={fixtureTeams}
         disabled={!falConfigured}
       />
       <AiContentGallery items={data.recent} totalCount={data.totalCount} fixtureLabels={data.fixtureLabels} />

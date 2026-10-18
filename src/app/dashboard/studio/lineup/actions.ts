@@ -10,7 +10,7 @@ import { createLineupDraft } from "@/lib/dashboard/lineup-engine";
 import { renderLineupCard } from "@/lib/dashboard/lineup-render";
 import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/services/api-football";
 import { getPlayerCutout, playerCutoutUrl } from "@/lib/dashboard/match-day-cache";
-import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
+import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
 import { isFalConfigured } from "@/lib/services/fal";
 import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
@@ -138,12 +138,13 @@ export async function generateLineupHeroAction(formData: FormData): Promise<Resu
     return { ok: false, error: { code: "INVALID_INPUT", message: "Takım seçilmedi." } };
   }
   const label = `${teamName.trim().slice(0, 60)} kapak oyuncusu`;
+  const fixtureId = formData.get("fixtureId");
 
-  let player: Awaited<ReturnType<typeof resolveStudioImage>>;
+  let player: Awaited<ReturnType<typeof resolveStudioPhoto>>;
   try {
-    player = await resolveStudioImage(formData, `${side}Hero`, "PLAYER", label);
+    player = await resolveStudioPhoto(formData, `${side}Hero`, typeof fixtureId === "string" ? fixtureId : "", label);
   } catch {
-    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı medya kütüphanesine kaydedilemedi." } };
+    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
   }
   if (!player.ok) return player;
   if (!player.data) return { ok: false, error: { code: "INVALID_INPUT", message: `${teamName} için kapak oyuncusu fotoğrafı seçin veya yükleyin.` } };

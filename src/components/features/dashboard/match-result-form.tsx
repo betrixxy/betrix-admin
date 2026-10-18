@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { AlertCircle, Sparkles } from "lucide-react";
 import { generateMatchResultAction, previewMatchPhotoAction } from "@/app/dashboard/studio/match-result/actions";
 import { Button } from "@/components/ui/button";
@@ -19,18 +19,15 @@ import {
   type MatchResultFacts,
   type MatchResultTemplateId,
 } from "@/types/match-result";
-import type { MatchPhotoOption } from "@/types/media";
 import { MatchDayFormatPicker } from "./match-day-format-picker";
 import { MatchResultCropControls } from "./match-result-crop-controls";
-import { MatchResultPhotoField } from "./match-result-photo-field";
+import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
 import { MatchResultPreview } from "./match-result-preview";
 
 interface MatchResultFormProps {
   fixtureId: string;
   /** Sunucuda doğrulanmış bitmiş maç (FT/AET/PEN). Üretimde sunucu maçı yeniden çeker. */
   facts: MatchResultFacts;
-  /** Bu maçın kütüphanedeki fotoğrafları. */
-  photos: MatchPhotoOption[];
   disabled?: boolean;
 }
 
@@ -59,21 +56,23 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
   );
 }
 
-export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: MatchResultFormProps) {
+export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchResultFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateMatchResultAction, INITIAL_STATE);
   const [previewState, previewAction, previewPending] = useActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
   const [template, setTemplate] = useState<MatchResultTemplateId>(DEFAULT_MATCH_RESULT_TEMPLATE);
-  const [assetId, setAssetId] = useState(photos[0]?.id ?? "");
-  const [uploadPlayerId, setUploadPlayerId] = useState("");
+  // Arşiv seçicisinin seçtiği kişi — "MAÇIN OYUNCUSU" kuralı fotoğraftaki oyuncuyla karşılaştırılır.
+  const [selection, setSelection] = useState<PickerSelection>({ subject: null, photoId: null, upload: false });
+  const onPhotoChange = useCallback((next: PickerSelection) => setSelection(next), []);
+  const matchTeams = useMemo(() => [{ id: facts.home.id, name: facts.home.name }, { id: facts.away.id, name: facts.away.name }], [facts.home.id, facts.home.name, facts.away.id, facts.away.name]);
   const [mvpId, setMvpId] = useState(facts.mvp ? String(facts.mvp.playerId) : "");
   const [photoIsMvp, setPhotoIsMvp] = useState(false);
 
   const players = mvpOptions(facts);
   const mvp = players.find((player) => String(player.playerId) === mvpId) ?? null;
-  const photoPlayerId = assetId ? (photos.find((photo) => photo.id === assetId)?.playerId ?? null) : uploadPlayerId ? Number(uploadPlayerId) : null;
+  const photoPlayerId = selection.subject?.isPlayer ? selection.subject.personApiId : null;
   const mvpShown = mvpLineName({ mvp, photoPlayerId, photoIsMvp }) !== null;
 
   function onPreview() {
@@ -97,7 +96,7 @@ export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: 
             <input type="hidden" name="fixtureId" value={fixtureId} />
             <MatchDayFormatPicker value={format} onChange={setFormat} />
             <TemplatePicker value={template} onChange={setTemplate} />
-            <MatchResultPhotoField facts={facts} photos={photos} assetId={assetId} onAssetChange={setAssetId} uploadPlayerId={uploadPlayerId} onUploadPlayerChange={setUploadPlayerId} />
+            <ArchivePhotoPicker name="photo" label="Fotoğraftaki kişi (Fotoğraf Arşivi)" teams={matchTeams} fixtureId={fixtureId} onChange={onPhotoChange} />
             <MatchResultCropControls state={previewState} isPending={previewPending} onPreview={onPreview} />
 
             <div className="flex flex-col gap-1.5">

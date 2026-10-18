@@ -7,12 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { TeamSide } from "@/types/deep-analysis";
 import type { LineupDraft } from "@/types/lineup";
-import type { MediaAssetOption } from "@/types/media";
-import { LibraryImageField } from "../library-image-field";
+import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 
 interface LineupHeroFieldsProps {
   draft: LineupDraft;
-  playerOptions: MediaAssetOption[];
+  /** Seçili maçtaki takımların API-Football kimlikleri — seçici her tarafta o takımın arşivini açar. */
+  teamIds: Record<TeamSide, number | null>;
   falConfigured: boolean;
   onHeroChange: (side: TeamSide, heroImageUrl: string) => void;
 }
@@ -30,7 +30,7 @@ interface SideStatus {
  * (birefnet, fotoğraf başına bir kez ücretli). Dosya alanları sekmelerin dışında tek bir formdadır:
  * sekme değişince seçim kaybolmaz. Kesim bir kez üretilir; önizleme ve kayıt onu kullanır.
  */
-export function LineupHeroFields({ draft, playerOptions, falConfigured, onHeroChange }: LineupHeroFieldsProps) {
+export function LineupHeroFields({ draft, teamIds, falConfigured, onHeroChange }: LineupHeroFieldsProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<Record<TeamSide, SideStatus>>({
     home: { pending: false, error: null, note: null },
@@ -44,6 +44,7 @@ export function LineupHeroFields({ draft, playerOptions, falConfigured, onHeroCh
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     formData.set("side", side);
+    formData.set("fixtureId", draft.fixtureId);
     formData.set("teamName", draft[side].teamName);
     update(side, { pending: true, error: null, note: null });
     startGenerating(async () => {
@@ -74,11 +75,11 @@ export function LineupHeroFields({ draft, playerOptions, falConfigured, onHeroCh
             const state = status[side];
             return (
               <div key={side} className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
-                <LibraryImageField
+                <ArchivePhotoPicker
                   name={`${side}Hero`}
                   label={`${team.teamName || SIDE_LABELS[side]} · kapak oyuncusu`}
-                  hint="JPEG/PNG/WebP"
-                  options={playerOptions}
+                  teams={teamIds[side] ? [{ id: teamIds[side], name: team.teamName }] : []}
+                  fixtureId={draft.fixtureId || null}
                 />
                 {team.heroImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- korumalı depolama dosyası, küçük önizleme.

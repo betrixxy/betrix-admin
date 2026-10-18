@@ -77,6 +77,9 @@ export interface MatchDayFixtureOption {
   label: string;
   homeTeam: string;
   awayTeam: string;
+  /** API-Football takım kimlikleri — Fotoğraf Arşivi seçicisi bu takımların arşivini açar. */
+  homeTeamId: number;
+  awayTeamId: number;
   /** API-Football logo URL'leri (media.api-sports.io). */
   homeLogoUrl: string;
   awayLogoUrl: string;

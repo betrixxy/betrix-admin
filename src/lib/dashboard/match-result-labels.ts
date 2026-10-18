@@ -47,6 +47,12 @@ export const OFFICIAL_COMPETITION_NAMES: Readonly<Record<number, string>> = {
   2: "UEFA Şampiyonlar Ligi",
   3: "UEFA Avrupa Ligi",
   848: "UEFA Konferans Ligi",
+  // Avrupa ligleri — fotoğraf arşivinde yabancı takımlar kendi liglerinin altında (bkz. lib/archive/names.ts).
+  39: "Premier League",
+  140: "LaLiga",
+  135: "Serie A",
+  78: "Bundesliga",
+  61: "Ligue 1",
 };
 
 /** Kartta yazan turnuva adı: resmi ad tablosu > eşlenmiş Türkçe ad > sağlayıcının adı. */
@@ -77,7 +83,11 @@ const TEAM_NAMES_TR: Record<string, string> = {
   "Fatih Karagumruk": "Fatih Karagümrük",
   Karagumruk: "Fatih Karagümrük",
   Rizespor: "Çaykur Rizespor",
+  // Kart adı kuralı: medyada yaygın kullanılan ad. Gaziantep FK, Çorum FK, Bodrum FK ekiyle
+  // (API adı zaten öyle); Erzurumspor ve Vanspor eksiz.
   "Erzurumspor FK": "Erzurumspor",
+  "Vanspor FK": "Vanspor",
+  "Manisa F.K.": "Manisa FK",
   Istanbulspor: "İstanbulspor",
   Bandirmaspor: "Bandırmaspor",
   "Corum FK": "Çorum FK",

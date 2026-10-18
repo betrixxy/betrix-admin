@@ -3,7 +3,6 @@ import { AlertTriangle } from "lucide-react";
 import { MarketAnalysisForm } from "@/components/features/dashboard/market-analysis/market-analysis-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
-import { getMediaAssetOptions } from "@/lib/dashboard/media-library";
 import { isFalConfigured } from "@/lib/services/fal";
 import { isAnthropicConfigured } from "@/lib/services/anthropic";
 
@@ -21,7 +20,7 @@ interface MarketAnalysisPageProps {
 }
 
 export default async function MarketAnalysisPage({ searchParams }: MarketAnalysisPageProps) {
-  const [fixtures, playerOptions, params] = await Promise.all([getMatchDayFixtureOptions(), getMediaAssetOptions("PLAYER"), searchParams]);
+  const [fixtures, params] = await Promise.all([getMatchDayFixtureOptions(), searchParams]);
   const fixtureList = fixtures.ok ? fixtures.data : [];
   const requestedFixtureId = typeof params.fixtureId === "string" ? params.fixtureId : null;
   const initialFixtureId = fixtureList.some((fixture) => fixture.id === requestedFixtureId) ? requestedFixtureId : null;
@@ -44,7 +43,7 @@ export default async function MarketAnalysisPage({ searchParams }: MarketAnalysi
         fixtures={fixtureList}
         initialFixtureId={initialFixtureId}
         analystAvailable={isAnthropicConfigured()}
-        playerOptions={playerOptions}
+       
         falConfigured={isFalConfigured()}
       />
     </>

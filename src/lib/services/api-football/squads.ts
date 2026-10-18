@@ -38,6 +38,8 @@ export interface SquadEntry {
   id: number;
   name: string | null;
   number: number | null;
+  /** "Goalkeeper" | "Defender" | "Midfielder" | "Attacker" — fotoğraf arşivinin mevki grubu. */
+  position: string | null;
 }
 
 function invalid(path: string, error: z.ZodError): ApiFootballError {
@@ -116,7 +118,7 @@ export async function getTeamSquad(teamId: number): Promise<Result<SquadEntry[],
   return {
     ok: true,
     data: parsed.data.response.flatMap((r) =>
-      r.players.map((p) => ({ id: p.id, name: p.name, number: p.number ?? null })),
+      r.players.map((p) => ({ id: p.id, name: p.name, number: p.number ?? null, position: p.position ?? null })),
     ),
   };
 }

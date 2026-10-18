@@ -609,3 +609,144 @@ model WatchedFixture {
 
   @@index([kickoffUtc])
 }
+
+// ---------------------------------------------------------------------------
+// Fotoğraf ARŞİVİ (bkz. CLAUDE.md 1.11) — Lig / Takım / mevki grubu / Kişi sanal klasörleri bu
+// tablolardan türetilir; dosyalar fiziksel olarak taşınmaz. Adlar tek kaynaktan (API-Football +
+// resmi ad tabloları, `lib/archive/names.ts`); elle yazılan serbest klasör adı yoktur.
+// ---------------------------------------------------------------------------
+
+/// Arşiv kökü: yurt içi lig ya da "Milli Takımlar" (isNational). Kimlik = API-Football league id.
+model League {
+  id           Int      @id
+  officialName String
+  country      String?
+  logoUrl      String?
+  /// Milli takım kökü (ağaçta en altta).
+  isNational   Boolean  @default(false)
+  /// Ağaç sırası (küçük önce); aynı sırada resmi ada göre tr-TR.
+  sortOrder    Int      @default(100)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teams Team[]
+}
+
+/// Takım — kimlik = API-Football team id. Ligi o sezonun yurt içi ligidir (küme düşen/çıkan takım
+/// kendiliğinden yeni ligin altında görünür).
+model Team {
+  id              Int       @id
+  officialName    String
+  /// API-Football'un ham adı ("Besiktas") — resmi ad tablosunda yoksa kaynak.
+  apiName         String
+  logoUrl         String?
+  country         String?
+  national        Boolean   @default(false)
+  currentLeagueId Int?
+  currentLeague   League?   @relation(fields: [currentLeagueId], references: [id], onDelete: SetNull)
+  /// Son kadro/teknik direktör senkronu; 7 gün içinde tekrar istek atılmaz.
+  squadSyncedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  people         Person[] @relation("PersonCurrentTeam")
+  nationalPeople Person[] @relation("PersonNationalTeam")
+  pendingPeople  Person[] @relation("PersonPendingTeam")
+  photos         Photo[]  @relation("PhotoTeam")
+  kitPhotos      Photo[]  @relation("PhotoKitTeam")
+
+  @@index([currentLeagueId])
+}
+
+enum PersonRole {
+  PLAYER
+  COACH
+}
+
+/// Mevki grubu — ağaçta sabit sırada: Kaleciler, Defans, Orta Saha, Forvet.
+enum PersonPosition {
+  GK
+  DEF
+  MID
+  FWD
+}
+
+/// Oyuncu ya da teknik direktör. `apiId` API-Football oyuncu/teknik direktör kimliği (iki ayrı
+/// sayı uzayı — `role` ile birlikte tekil).
+model Person {
+  id             String          @id @default(cuid())
+  apiId          Int
+  role           PersonRole
+  position       PersonPosition?
+  /// API-Football ham adı ("O. Kökçü").
+  apiName        String
+  /// Türetilmiş resmi tam ad ("Orkun Kökçü") — senkron yeniler.
+  officialName   String
+  /// Admin düzeltmesi ("resmi adı düzelt") — her zaman kazanır, senkron ezmez.
+  nameOverride   String?
+  currentTeamId  Int?
+  currentTeam    Team?           @relation("PersonCurrentTeam", fields: [currentTeamId], references: [id], onDelete: SetNull)
+  nationalTeamId Int?
+  nationalTeam   Team?           @relation("PersonNationalTeam", fields: [nationalTeamId], references: [id], onDelete: SetNull)
+  /// Senkron başka takım kadrosunda gördü — "taşınsın mı?" önerisi (otomatik taşıma YOK).
+  pendingTeamId  Int?
+  pendingTeam    Team?           @relation("PersonPendingTeam", fields: [pendingTeamId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  photos Photo[]
+
+  @@unique([apiId, role])
+  @@index([currentTeamId])
+  @@index([nationalTeamId])
+}
+
+enum PhotoKind {
+  CELEBRATION
+  PORTRAIT
+  ACTION
+  TEAM
+}
+
+/// Arşiv fotoğrafı. Orijinal hiçbir zaman yeniden sıkıştırılmaz; kısa kenar < 2000 ise ayrıca
+/// büyütülmüş sürüm tutulur (kart üretimi onu, arşiv orijinali gösterir).
+model Photo {
+  id            String    @id @default(cuid())
+  /// null = takım fotoğrafı.
+  personId      String?
+  person        Person?   @relation(fields: [personId], references: [id], onDelete: SetNull)
+  /// Klasörün takımı (kulüp ya da milli takım). Transferde kulüp bağlamlı fotoğraflar yeni takıma geçer.
+  teamId        Int
+  team          Team      @relation("PhotoTeam", fields: [teamId], references: [id])
+  /// Fotoğraftaki FORMANIN takımı — çekildiği andaki takım, transferde değişmez ("eski forma").
+  kitTeamId     Int
+  kitTeam       Team      @relation("PhotoKitTeam", fields: [kitTeamId], references: [id])
+  /// `api-football-<id>`; maç fotoğrafıysa.
+  fixtureId     String?
+  kind          PhotoKind
+  caption       String    @default("")
+  /// Kaynak / fotoğrafçı.
+  credit        String    @default("")
+  takenAt       DateTime?
+  uploadedAt    DateTime  @default(now())
+  /// `/api/files/library/...` — yüklenen baytlar olduğu gibi.
+  originalUrl   String
+  /// Kısa kenarı 2000'e büyütülmüş sürüm (Fal ESRGAN, önbellekli); gerekmiyorsa ya da henüz yoksa null.
+  upscaledUrl   String?
+  sha256        String
+  contentType   String
+  width         Int
+  height        Int
+  sizeBytes     Int
+  /// Arşivden silindi (gizlendi) — dosya ve kullanılmış kartlar bozulmaz.
+  hiddenAt      DateTime?
+  /// Taşınan eski `MediaAsset` kaydı (veri kaybı yok; eski kayıt silinmez).
+  legacyAssetId String?   @unique
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([sha256, personId, teamId])
+  @@index([personId])
+  @@index([teamId])
+  @@index([fixtureId])
+  @@index([kitTeamId])
+}

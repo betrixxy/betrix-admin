@@ -12,8 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useActionForm } from "@/hooks/use-action-form";
 import { RANDOM_TEMPLATE } from "@/lib/dashboard/match-day-templates";
 import type { MatchDayActionState, MatchDayFixtureOption, MatchDayFormatId } from "@/types/match-day";
-import type { MediaAssetOption } from "@/types/media";
-import { LibraryImageField } from "./library-image-field";
+import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { MatchDayAiSettings } from "./match-day-ai-settings";
 import { MatchDayFormatPicker } from "./match-day-format-picker";
 import { MatchDayPreview } from "./match-day-preview";
@@ -25,7 +24,6 @@ interface MatchDayFormProps {
   /** URL'den (`?fixtureId=`) gelen, listede bulunduğu doğrulanmış maç — form bu maçla dolu açılır. */
   initialFixtureId?: string | null;
   /** Medya kütüphanesindeki oyuncu fotoğrafları (bkz. CLAUDE.md 1.11). */
-  playerOptions: MediaAssetOption[];
   disabled?: boolean;
 }
 
@@ -59,13 +57,14 @@ function infoFor(fixtures: MatchDayFixtureOption[], id: string): MatchDayInfoVal
   return fixture ? toInfo(fixture) : EMPTY_MATCH_DAY_INFO;
 }
 
-export function MatchDayForm({ fixtures, initialFixtureId = null, playerOptions, disabled = false }: MatchDayFormProps) {
+export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = false }: MatchDayFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateMatchDayAction, INITIAL_STATE);
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   // Maç Merkezi'nden gelindiyse takımlar, logolar, stadyum, tarih/saat ilk çizimde dolu gelir.
   const [info, setInfo] = useState<MatchDayInfoValues>(() => infoFor(fixtures, initialFixtureId ?? ""));
   const [template, setTemplate] = useState<string>(RANDOM_TEMPLATE);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
+  const selectedFixture = fixtures.find((option) => option.id === fixtureId) ?? null;
 
   function selectFixture(id: string) {
     setFixtureId(id);
@@ -108,17 +107,17 @@ export function MatchDayForm({ fixtures, initialFixtureId = null, playerOptions,
             <MatchDayTemplatePicker value={template} onChange={setTemplate} />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <LibraryImageField
+              <ArchivePhotoPicker
                 name="homePlayer"
                 label={`${info.homeTeam || "Ev sahibi"} oyuncusu (sol)`}
-                hint="JPEG/PNG/WebP · küçükse AI ile büyütülür"
-                options={playerOptions}
+                teams={selectedFixture ? [{ id: selectedFixture.homeTeamId, name: selectedFixture.homeTeam }] : []}
+                fixtureId={selectedFixture?.id ?? null}
               />
-              <LibraryImageField
+              <ArchivePhotoPicker
                 name="awayPlayer"
                 label={`${info.awayTeam || "Deplasman"} oyuncusu (sağ)`}
-                hint="JPEG/PNG/WebP · küçükse AI ile büyütülür"
-                options={playerOptions}
+                teams={selectedFixture ? [{ id: selectedFixture.awayTeamId, name: selectedFixture.awayTeam }] : []}
+                fixtureId={selectedFixture?.id ?? null}
               />
               <p className="flex items-start gap-2 rounded-lg border border-sky-500/25 bg-sky-500/[0.07] px-3 py-2 text-xs text-sky-200 sm:col-span-2">
                 <Wand2 className="mt-0.5 size-3.5 shrink-0 text-sky-300" />
