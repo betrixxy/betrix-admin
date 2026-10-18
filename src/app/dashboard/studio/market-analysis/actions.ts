@@ -9,7 +9,7 @@ import { createExpertAnalysisDraft, type ExpertAnalysisResult } from "@/lib/dash
 import { renderDeepAnalysisCard } from "@/lib/dashboard/deep-analysis-render";
 import { createMarketAnalysisDraft } from "@/lib/dashboard/market-analysis-engine";
 import { createAnalysisHero, type AnalysisHeroResult } from "@/lib/dashboard/analysis-hero";
-import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
+import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
 import { isFalConfigured } from "@/lib/services/fal";
 import { getDeepAnalysisStats, getFixtureById, parseFixtureId } from "@/lib/services/api-football";
 import {
@@ -200,11 +200,11 @@ export async function generateAnalysisHeroAction(formData: FormData): Promise<Re
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
   const { side, teamName, colorHex, quality } = parsed.data;
 
-  let player: Awaited<ReturnType<typeof resolveStudioImage>>;
+  let player: Awaited<ReturnType<typeof resolveStudioPhoto>>;
   try {
-    player = await resolveStudioImage(formData, `${side}Hero`, "PLAYER", `${teamName} kilit oyuncu fotoğrafı`);
+    player = await resolveStudioPhoto(formData, `${side}Hero`, field("fixtureId"), `${teamName} kilit oyuncu fotoğrafı`);
   } catch {
-    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı medya kütüphanesine kaydedilemedi." } };
+    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
   }
   if (!player.ok) return player;
   if (!player.data) return { ok: false, error: { code: "INVALID_INPUT", message: `${teamName} için kilit oyuncu fotoğrafı seçin veya yükleyin.` } };

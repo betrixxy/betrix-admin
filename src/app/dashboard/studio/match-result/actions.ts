@@ -2,6 +2,7 @@
 
 import sharp from "sharp";
 import { z } from "zod";
+import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
@@ -11,7 +12,6 @@ import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/mat
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { loadMatchStatsFacts } from "@/lib/dashboard/match-stats-studio";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
-import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
 import { getMatchResultRaw, parseFixtureId } from "@/lib/services/api-football";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { matchResultGeometry } from "@/skills/render-engine/templates/match-result/geometry";
@@ -29,7 +29,6 @@ const photoSchema = z.object({
   fixtureId: z.string().regex(/^api-football-\d+$/, "Maç seçilmedi — Maç Merkezi'nden açın."),
   template: z.enum(MATCH_RESULT_TEMPLATE_IDS, "Bir şablon seçin."),
   format: z.enum(MATCH_DAY_FORMAT_IDS, "Bir platform formatı seçin."),
-  photoPlayerId: optionalPlayerId,
   offsetX: offset,
   offsetY: offset,
   zoom,
@@ -37,7 +36,7 @@ const photoSchema = z.object({
 
 const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean() });
 
-const FIELDS = ["fixtureId", "template", "format", "photoPlayerId", "offsetX", "offsetY", "zoom", "mvpId"] as const;
+const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId"] as const;
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -69,9 +68,10 @@ async function resolveInput(formData: FormData): Promise<
 }
 
 /**
- * Maç fotoğrafı: kütüphaneden seçilen (`photoAssetId`) gerçekten BU maçın fotoğrafı olmalı (form
- * kimliğine güvenilmez); yoksa yeni yükleme (`photo`) maç + isteğe bağlı oyuncu etiketiyle
- * kütüphaneye kaydedilir — bir sonraki açılışta listede gelir. Fotoğraf yoksa kart üretilmez.
+ * Maç fotoğrafı — Fotoğraf Arşivi seçicisinden (`resolveArchivePhoto`): arşivden seçilen fotoğraf ya
+ * da yeni yükleme (seçilen kişi/takım klasörüne, bu maçın etiketiyle) maçtaki takımlardan birine ait
+ * olmalı; kart büyütülmüş sürümü kullanır. Eski kütüphane alanı (`photoAssetId`) bir sürüm boyunca
+ * okunmaya devam eder. Fotoğraf yoksa kart üretilmez.
  */
 async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema>, facts: MatchResultFacts): Promise<Result<MatchPhotoInput>> {
   const assetId = text(formData, "photoAssetId");
@@ -81,20 +81,14 @@ async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema
     const loaded = await loadMediaAssetImage(assetId, "MATCH_PHOTO");
     return loaded.ok ? { ok: true, data: { image: loaded.data.image, fileUrl: loaded.data.fileUrl, playerId: tag.playerId } } : loaded;
   }
-
-  const player = data.photoPlayerId ? facts.players.find((candidate) => candidate.playerId === data.photoPlayerId) : undefined;
-  if (data.photoPlayerId && !player) return { ok: false, error: { code: "PLAYER_NOT_IN_MATCH", message: "Fotoğraf etiketi: seçilen oyuncu bu maçın kadrosunda değil." } };
   try {
-    const resolved = await resolveStudioImage(formData, "photo", "MATCH_PHOTO", `${facts.home.name}-${facts.away.name} maç fotoğrafı`, {
-      fixtureId: data.fixtureId,
-      playerId: player?.playerId ?? null,
-      playerName: player?.name ?? null,
-    });
+    const resolved = await resolveArchivePhoto(formData, "photo", [facts.home.id, facts.away.id], data.fixtureId);
     if (!resolved.ok) return resolved;
-    if (!resolved.data) return { ok: false, error: { code: "PHOTO_MISSING", message: "Maç fotoğrafı yok — kütüphaneden seçin ya da yükleyin. Kart üretilmedi." } };
-    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: player?.playerId ?? null } };
-  } catch {
-    return { ok: false, error: { code: "LIBRARY_FAILED", message: "Maç fotoğrafı medya kütüphanesine kaydedilemedi." } };
+    if (!resolved.data) return { ok: false, error: { code: "PHOTO_MISSING", message: "Maç fotoğrafı yok — arşivden seçin ya da yükleyin. Kart üretilmedi." } };
+    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId } };
+  } catch (error: unknown) {
+    console.error("[match-result] arşiv fotoğrafı çözülemedi:", error);
+    return { ok: false, error: { code: "ARCHIVE_FAILED", message: "Maç fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
   }
 }
 

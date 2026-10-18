@@ -5,7 +5,7 @@ import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createMatchDayCard } from "@/lib/dashboard/match-day-engine";
 import { RANDOM_TEMPLATE, isMatchDayTemplateId, pickRandomTemplate } from "@/lib/dashboard/match-day-templates";
-import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
+import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
 import { isFalConfigured } from "@/lib/services/fal";
 import { MATCH_DAY_FORMAT_IDS, MATCH_DAY_QUALITY_MODES, type MatchDayActionState } from "@/types/match-day";
 
@@ -91,15 +91,15 @@ export async function generateMatchDayAction(
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Geçersiz form verisi." };
   const data = parsed.data;
 
-  let home: Awaited<ReturnType<typeof resolveStudioImage>>;
-  let away: Awaited<ReturnType<typeof resolveStudioImage>>;
+  let home: Awaited<ReturnType<typeof resolveStudioPhoto>>;
+  let away: Awaited<ReturnType<typeof resolveStudioPhoto>>;
   try {
     [home, away] = await Promise.all([
-      resolveStudioImage(formData, "homePlayer", "PLAYER", "Ev sahibi oyuncu fotoğrafı"),
-      resolveStudioImage(formData, "awayPlayer", "PLAYER", "Deplasman oyuncu fotoğrafı"),
+      resolveStudioPhoto(formData, "homePlayer", data.fixtureId ?? "", "Ev sahibi oyuncu fotoğrafı"),
+      resolveStudioPhoto(formData, "awayPlayer", data.fixtureId ?? "", "Deplasman oyuncu fotoğrafı"),
     ]);
   } catch {
-    return { error: "Oyuncu fotoğrafları medya kütüphanesine kaydedilemedi." };
+    return { error: "Oyuncu fotoğrafları arşivden alınamadı ya da arşive kaydedilemedi." };
   }
   if (!home.ok) return { error: home.error.message };
   if (!away.ok) return { error: away.error.message };

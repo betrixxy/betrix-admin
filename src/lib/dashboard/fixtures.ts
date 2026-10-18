@@ -36,6 +36,15 @@ export async function getFixtureOptions(): Promise<FixtureOption[]> {
   return result.ok ? result.data.map(toFixtureOption) : [];
 }
 
+/** fixtureId → maçtaki iki takım (API-Football kimliği + ad) — Fotoğraf Arşivi seçicisi için. */
+export async function getFixtureTeams(): Promise<Record<string, { id: number; name: string }[]>> {
+  const result = await getSelectableFixtures();
+  if (!result.ok) return {};
+  return Object.fromEntries(
+    result.data.map((fixture) => [fixture.id, [fixture.homeTeam, fixture.awayTeam].map((team) => ({ id: Number(team.id), name: team.name }))]),
+  );
+}
+
 /**
  * fixtureId → "Ev – Deplasman · tarih" etiketleri: yaklaşan maçlar + veritabanında gönderi/
  * görsel kaydı olan her maç (pencere dışındakiler kimlikle toplu çekilir). Çözülemeyen

@@ -8,12 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import type { HeroQuality, MarketAnalysisDraft, TeamSide } from "@/types/deep-analysis";
-import type { MediaAssetOption } from "@/types/media";
-import { LibraryImageField } from "../library-image-field";
+import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 
 interface AnalysisHeroFieldsProps {
   draft: MarketAnalysisDraft;
-  playerOptions: MediaAssetOption[];
+  /** Seçili maçtaki takımların API-Football kimlikleri — seçici her tarafta o takımın arşivini açar. */
+  teamIds: Record<TeamSide, number | null>;
   falConfigured: boolean;
   onHeroChange: (side: TeamSide, heroImageUrl: string) => void;
 }
@@ -33,7 +33,7 @@ interface SideStatus {
  * → kalıcı kapak. Dosya alanları sekmelerin dışında tek bir formdadır: sekme değişince seçim kaybolmaz.
  * Kapak bir kez üretilir; önizleme ve kayıt onu kullanır (Fal.ai'ye tekrar gidilmez).
  */
-export function AnalysisHeroFields({ draft, playerOptions, falConfigured, onHeroChange }: AnalysisHeroFieldsProps) {
+export function AnalysisHeroFields({ draft, teamIds, falConfigured, onHeroChange }: AnalysisHeroFieldsProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const [quality, setQuality] = useState<HeroQuality>("PREMIUM");
   const [status, setStatus] = useState<Record<TeamSide, SideStatus>>({
@@ -48,6 +48,7 @@ export function AnalysisHeroFields({ draft, playerOptions, falConfigured, onHero
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     formData.set("side", side);
+    formData.set("fixtureId", draft.fixtureId);
     formData.set("teamName", draft[side].teamName);
     formData.set("colorHex", draft[side].colorHex || BRAND_GREEN);
     formData.set("quality", quality);
@@ -90,11 +91,11 @@ export function AnalysisHeroFields({ draft, playerOptions, falConfigured, onHero
               const state = status[side];
               return (
                 <div key={side} className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
-                  <LibraryImageField
+                  <ArchivePhotoPicker
                     name={`${side}Hero`}
                     label={`${team.teamName || SIDE_LABELS[side]} · kilit oyuncu`}
-                    hint="JPEG/PNG/WebP · yeni yükleme kütüphaneye kaydedilir"
-                    options={playerOptions}
+                    teams={teamIds[side] ? [{ id: teamIds[side], name: team.teamName }] : []}
+                    fixtureId={draft.fixtureId || null}
                   />
                   {team.heroImageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- korumalı depolama dosyası, küçük önizleme.

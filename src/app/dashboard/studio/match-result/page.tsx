@@ -4,7 +4,6 @@ import { AlertTriangle } from "lucide-react";
 import { MatchResultForm } from "@/components/features/dashboard/match-result-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getMatchPhotoOptions } from "@/lib/dashboard/media-library";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { getMatchResultRaw, parseFixtureId, toFixtureId } from "@/lib/services/api-football";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
@@ -109,7 +108,6 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
           <MatchResultForm
             fixtureId={toFixtureId(apiId)}
             facts={validation.data}
-            photos={await getMatchPhotoOptions(toFixtureId(apiId))}
           />
         </>
       ) : null}

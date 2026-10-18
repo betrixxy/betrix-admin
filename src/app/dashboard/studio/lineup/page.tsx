@@ -3,7 +3,6 @@ import { AlertTriangle } from "lucide-react";
 import { LineupForm } from "@/components/features/dashboard/lineup/lineup-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
-import { getMediaAssetOptions } from "@/lib/dashboard/media-library";
 import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
@@ -20,7 +19,7 @@ interface LineupPageProps {
 }
 
 export default async function LineupPage({ searchParams }: LineupPageProps) {
-  const [fixtures, playerOptions, params] = await Promise.all([getMatchDayFixtureOptions(), getMediaAssetOptions("PLAYER"), searchParams]);
+  const [fixtures, params] = await Promise.all([getMatchDayFixtureOptions(), searchParams]);
   const fixtureList = fixtures.ok ? fixtures.data : [];
   const requestedFixtureId = typeof params.fixtureId === "string" ? params.fixtureId : null;
   const initialFixtureId = fixtureList.some((fixture) => fixture.id === requestedFixtureId) ? requestedFixtureId : null;
@@ -39,7 +38,7 @@ export default async function LineupPage({ searchParams }: LineupPageProps) {
         </div>
       ) : null}
 
-      <LineupForm fixtures={fixtureList} initialFixtureId={initialFixtureId} playerOptions={playerOptions} falConfigured={isFalConfigured()} />
+      <LineupForm fixtures={fixtureList} initialFixtureId={initialFixtureId} falConfigured={isFalConfigured()} />
     </>
   );
 }

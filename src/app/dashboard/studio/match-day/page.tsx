@@ -3,7 +3,6 @@ import { AlertTriangle } from "lucide-react";
 import { MatchDayForm } from "@/components/features/dashboard/match-day-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
-import { getMediaAssetOptions } from "@/lib/dashboard/media-library";
 import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
@@ -29,9 +28,8 @@ interface MatchDayPageProps {
 }
 
 export default async function MatchDayPage({ searchParams }: MatchDayPageProps) {
-  const [fixtures, playerOptions, params] = await Promise.all([
+  const [fixtures, params] = await Promise.all([
     getMatchDayFixtureOptions(),
-    getMediaAssetOptions("PLAYER"),
     searchParams,
   ]);
   const falConfigured = isFalConfigured();
@@ -65,7 +63,7 @@ export default async function MatchDayPage({ searchParams }: MatchDayPageProps) 
       <MatchDayForm
         fixtures={fixtureList}
         initialFixtureId={initialFixtureId}
-        playerOptions={playerOptions}
+       
         disabled={!falConfigured}
       />
     </>

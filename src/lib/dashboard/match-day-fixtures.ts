@@ -31,6 +31,8 @@ function toOption(fixture: Fixture): MatchDayFixtureOption {
     label: `${formatFixtureLabel(fixture)} · ${fixture.competition.shortName}`,
     homeTeam: fixture.homeTeam.name,
     awayTeam: fixture.awayTeam.name,
+    homeTeamId: Number(fixture.homeTeam.id),
+    awayTeamId: Number(fixture.awayTeam.id),
     homeLogoUrl: fixture.homeTeam.logoUrl,
     awayLogoUrl: fixture.awayTeam.logoUrl,
     leagueLogoUrl: fixture.competition.logoUrl ?? "",

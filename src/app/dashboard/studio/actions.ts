@@ -5,6 +5,7 @@ import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createMatchDraft } from "@/lib/dashboard/draft-engine";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
+import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
 import { resolveStudioImage, type ResolvedImage } from "@/lib/dashboard/studio-image-input";
 import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { prisma } from "@/lib/prisma";
@@ -50,7 +51,7 @@ export async function generateAiContentAction(
   let logo: Result<ResolvedImage | null>;
   try {
     [player, logo] = await Promise.all([
-      resolveStudioImage(formData, "playerPhoto", "PLAYER", "Oyuncu fotoğrafı"),
+      resolveStudioPhoto(formData, "playerPhoto", fixtureId, "Oyuncu fotoğrafı"),
       resolveStudioImage(formData, "logo", "LOGO", "Logo"),
     ]);
   } catch {

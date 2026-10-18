@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, type LineupDraft, type LineupTemplateStyle } from "@/types/lineup";
 import type { MatchDayFixtureOption } from "@/types/match-day";
-import type { MediaAssetOption } from "@/types/media";
 import { DEFAULT_SOCIAL_FORMAT, type SocialFormatId } from "@/types/studio-formats";
 import { LineupHeroFields } from "./lineup-hero-fields";
 import { LineupPreview } from "./lineup-preview";
@@ -27,7 +26,6 @@ interface LineupFormProps {
   /** `?fixtureId=` ile gelen, listede doğrulanmış maç — açılışta verisi otomatik yüklenir. */
   initialFixtureId: string | null;
   /** Medya kütüphanesindeki oyuncu fotoğrafları — kapak oyuncusu için (bkz. CLAUDE.md 1.11). */
-  playerOptions: MediaAssetOption[];
   falConfigured: boolean;
 }
 
@@ -59,7 +57,13 @@ function draftFor(
   };
 }
 
-export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfigured }: LineupFormProps) {
+/** Kapak seçicisi için seçili maçtaki takımların API-Football kimlikleri. */
+function heroTeamIds(fixtures: MatchDayFixtureOption[], fixtureId: string): Record<TeamSide, number | null> {
+  const fixture = fixtures.find((option) => option.id === fixtureId);
+  return { home: fixture?.homeTeamId ?? null, away: fixture?.awayTeamId ?? null };
+}
+
+export function LineupForm({ fixtures, initialFixtureId, falConfigured }: LineupFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<LineupDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<LineupLoadResult | null>(null);
@@ -223,7 +227,7 @@ export function LineupForm({ fixtures, initialFixtureId, playerOptions, falConfi
         {draft.templateStyle === "hero_list" ? (
           <LineupHeroFields
             draft={draft}
-            playerOptions={playerOptions}
+            teamIds={heroTeamIds(fixtures, draft.fixtureId)}
             falConfigured={falConfigured}
             onHeroChange={(target, heroImageUrl) => setDraft((current) => ({ ...current, [target]: { ...current[target], heroImageUrl } }))}
           />

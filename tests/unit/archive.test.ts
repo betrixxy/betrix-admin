@@ -4,6 +4,7 @@ import { planLegacyMigration, type LegacyAsset } from "@/lib/archive/migrate-pla
 import { ARCHIVE_TEAM_NAMES, cardTeamName, compareTr, displayPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
 import { archiveUpscaleFactor } from "@/lib/archive/storage";
 import { isOldKit, planTransfer } from "@/lib/archive/transfer";
+import { orderPickerPhotos, photoBucket } from "@/lib/archive/picker-order";
 import { ARCHIVE_GROUPS, ARCHIVE_GROUP_LABELS, clubTeamDecision, currentCoach, domesticLeague, groupPeople, positionFromApi } from "@/lib/archive/structure";
 
 describe("arşiv — isim disiplini", () => {
@@ -207,5 +208,26 @@ describe("arşiv — transfer", () => {
   it("eski forma rozeti: forma takımı klasör takımından farklıysa", () => {
     assert.equal(isOldKit({ teamId: 611, kitTeamId: 549 }), true);
     assert.equal(isOldKit({ teamId: 549, kitTeamId: 549 }), false);
+  });
+});
+
+describe("arşiv — stüdyo seçici sırası", () => {
+  const photo = (id: string, kitTeamId: number, uploadedAt: string, fixtureId: string | null = null) => ({ id, kitTeamId, uploadedAt, fixtureId });
+
+  it("önce bu maç, sonra güncel formalı en yeniler, en altta eski forma", () => {
+    const photos = [
+      photo("eski-yeni", 645, "2026-10-10"),
+      photo("guncel-eski", 549, "2026-01-01"),
+      photo("bu-mac", 645, "2025-05-01", "api-football-900"),
+      photo("guncel-yeni", 549, "2026-09-01"),
+      photo("eski-eski", 645, "2024-01-01"),
+    ];
+    assert.deepEqual(orderPickerPhotos(photos, 549, "api-football-900").map((entry) => entry.id), ["bu-mac", "guncel-yeni", "guncel-eski", "eski-yeni", "eski-eski"]);
+  });
+
+  it("maç yoksa 'bu maç' kovası boş; başka maçın fotoğrafı formaya göre sıralanır", () => {
+    assert.equal(photoBucket(photo("x", 549, "2026-01-01", "api-football-1"), 549, null), "CURRENT_KIT");
+    assert.equal(photoBucket(photo("x", 645, "2026-01-01", "api-football-1"), 549, "api-football-2"), "OLD_KIT");
+    assert.equal(photoBucket(photo("x", 645, "2026-01-01", "api-football-2"), 549, "api-football-2"), "THIS_MATCH");
   });
 });
