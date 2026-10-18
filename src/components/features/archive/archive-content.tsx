@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFolderPhotos, getPerson, type ArchivePhotoView, type SearchResults, type TeamFolder } from "@/lib/archive/queries";
 import { ARCHIVE_GROUP_LABELS, type ArchiveGroup } from "@/lib/archive/structure";
+import { ArchiveCoachAdder } from "./archive-coach-adder";
 import { ArchivePhotoCard } from "./archive-photo-card";
 import { ArchivePersonTools } from "./archive-person-tools";
 import { archiveHref } from "./archive-tree";
@@ -105,6 +106,17 @@ export async function TeamFolderView({ folder, group, teams }: { folder: TeamFol
           <CardHeader><CardTitle className="text-base">Takım fotoğrafı ekle</CardTitle></CardHeader>
           <CardContent>
             <ArchiveUploadForm teamId={folder.id} personId={null} folderLabel={`${folder.name} / ${ARCHIVE_GROUP_LABELS.TEAM}`} teams={teams} defaultKind="TEAM" />
+          </CardContent>
+        </Card>
+      ) : null}
+      {group === null || group === "COACH" ? (
+        <Card className="xl:max-w-xl">
+          <CardHeader>
+            <CardTitle className="text-base">Teknik direktör ekle</CardTitle>
+            <CardDescription>API-Football&apos;da adla arayın; yoksa tam adı elle girin. Eklenen kişi bu takımın Teknik Direktör klasörüne girer.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ArchiveCoachAdder teamId={folder.id} />
           </CardContent>
         </Card>
       ) : null}

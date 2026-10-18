@@ -3,6 +3,7 @@ import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import type { PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import { prisma } from "@/lib/prisma";
 import type { Result } from "@/types/result";
+import { displayPersonName, manualPersonName, officialPersonName } from "./names";
 import { createArchiveUpscale, storeArchiveOriginal } from "./storage";
 import { planTransfer } from "./transfer";
 
@@ -146,4 +147,50 @@ export async function tagLegacyAsset(assetId: string, tag: LegacyTag): Promise<R
     select: { id: true },
   });
   return { ok: true, data: row };
+}
+
+/** Etiket bekleyen eski fotoğrafı arşive almadan gizle / geri getir (dosya ve eski kayıt yerinde kalır). */
+export async function dismissLegacyAsset(assetId: string, dismissed: boolean): Promise<Result<{ id: string }>> {
+  const asset = await prisma.mediaAsset.findUnique({ where: { id: assetId }, select: { id: true, category: true } });
+  if (!asset || (asset.category !== "PLAYER" && asset.category !== "MATCH_PHOTO")) return fail("NOT_FOUND", "Eski fotoğraf bulunamadı.");
+  await prisma.mediaAsset.update({ where: { id: assetId }, data: { archiveDismissedAt: dismissed ? new Date() : null } });
+  return { ok: true, data: { id: assetId } };
+}
+
+export type CoachInput =
+  | { source: "API"; apiId: number; apiName: string; firstname: string | null; lastname: string | null }
+  | { source: "MANUAL"; name: string };
+
+/**
+ * Takıma teknik direktör ekle (admin kararı — doğrudan atanır, öneri değil). API'den seçilen kişi
+ * `(apiId, COACH)` ile tekildir; başka takımdaysa bu takıma geçer. Elle eklenen kişi negatif kimlik
+ * alır (`isManualPerson`), senkron ona dokunmaz. Milli takımda `nationalTeamId` yazılır.
+ */
+export async function addCoach(teamId: number, input: CoachInput): Promise<Result<{ id: string; name: string }>> {
+  const team = await prisma.team.findUnique({ where: { id: teamId }, select: { national: true } });
+  if (!team) return fail("NOT_FOUND", "Takım arşivde yok.");
+  const membership = team.national ? { nationalTeamId: teamId } : { currentTeamId: teamId, pendingTeamId: null };
+
+  if (input.source === "API") {
+    const officialName = officialPersonName(input.apiName, input.firstname, input.lastname);
+    const person = await prisma.person.upsert({
+      where: { apiId_role: { apiId: input.apiId, role: "COACH" } },
+      create: { apiId: input.apiId, role: "COACH", apiName: input.apiName, officialName, ...membership },
+      update: { apiName: input.apiName, officialName, ...membership },
+      select: { id: true, officialName: true, nameOverride: true },
+    });
+    return { ok: true, data: { id: person.id, name: displayPersonName(person) } };
+  }
+
+  const name = manualPersonName(input.name);
+  if (!name) return fail("INVALID_NAME", "Tam ad yazın (en az 3 harf, kısaltma yok — ör. \"Vincenzo Italiano\").");
+  const existing = await prisma.person.findFirst({ where: { role: "COACH", apiId: { lt: 0 }, officialName: name }, select: { id: true } });
+  if (existing) {
+    await prisma.person.update({ where: { id: existing.id }, data: membership });
+    return { ok: true, data: { id: existing.id, name } };
+  }
+  const lowest = await prisma.person.aggregate({ where: { apiId: { lt: 0 } }, _min: { apiId: true } });
+  const apiId = Math.min(lowest._min.apiId ?? 0, 0) - 1;
+  const person = await prisma.person.create({ data: { apiId, role: "COACH", apiName: name, officialName: name, ...membership }, select: { id: true } });
+  return { ok: true, data: { id: person.id, name } };
 }

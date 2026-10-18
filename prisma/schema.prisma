@@ -402,6 +402,8 @@ model MediaAsset {
   playerName  String?
   /// Maç fotoğrafları (MATCH_PHOTO) için maç: "api-football-<id>" — Maç Sonucu fotoğrafı bununla otomatik bulunur.
   fixtureId   String?
+  /// Fotoğraf arşivi "Etiket bekleyenler" kutusundan arşive alınmadan gizlendi (geri getirilebilir).
+  archiveDismissedAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 

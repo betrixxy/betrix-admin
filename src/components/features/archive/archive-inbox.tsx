@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { tagLegacyAssetAction } from "@/app/dashboard/library/archive-actions";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useActionForm } from "@/hooks/use-action-form";
 import type { InboxAsset } from "@/lib/archive/queries";
 import { PHOTO_KINDS, PHOTO_KIND_LABELS, type ArchiveActionState } from "@/types/archive";
+import { DismissButton, HiddenInboxItem } from "./archive-inbox-dismiss";
+import { ArchiveTeamAdder } from "./archive-team-adder";
 
 const INITIAL: ArchiveActionState = {};
 
@@ -37,66 +40,89 @@ function InboxItem({ asset, teams, people }: { asset: InboxAsset; teams: { id: n
         {/* eslint-disable-next-line @next/next/no-img-element -- oturumlu /api/files görseli */}
         <img src={asset.fileUrl} alt={asset.label} loading="lazy" className="aspect-[4/5] size-full object-cover" />
       </a>
-      <form onSubmit={onSubmit} className="flex min-w-0 flex-1 flex-col gap-2">
-        <input type="hidden" name="assetId" value={asset.id} />
-        <span className="truncate text-[11px] text-muted-foreground" title={asset.label}>
-          {asset.label} · {asset.width}×{asset.height}
-        </span>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`team-${asset.id}`} className="text-[11px]">Takım (klasör)</Label>
-            <NativeSelect id={`team-${asset.id}`} name="teamId" value={teamId} onChange={(event) => {
-                setTeamId(event.target.value);
-                setKitTeamId(event.target.value);
-              }} className="h-8 text-xs" required>
-              <option value="" disabled>Seçin…</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </NativeSelect>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
+          <input type="hidden" name="assetId" value={asset.id} />
+          <span className="truncate text-[11px] text-muted-foreground" title={asset.label}>
+            {asset.label} · {asset.width}×{asset.height}
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`team-${asset.id}`} className="text-[11px]">Takım (klasör)</Label>
+              <NativeSelect id={`team-${asset.id}`} name="teamId" value={teamId} onChange={(event) => {
+                  setTeamId(event.target.value);
+                  setKitTeamId(event.target.value);
+                }} className="h-8 text-xs" required>
+                <option value="" disabled>Seçin…</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`person-${asset.id}`} className="text-[11px]">Kişi</Label>
+              <NativeSelect id={`person-${asset.id}`} name="personId" defaultValue="" className="h-8 text-xs" disabled={!teamId}>
+                <option value="">Takım fotoğrafı</option>
+                {squad.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`kind-${asset.id}`} className="text-[11px]">Tür</Label>
+              <NativeSelect id={`kind-${asset.id}`} name="kind" defaultValue="PORTRAIT" className="h-8 text-xs">
+                {PHOTO_KINDS.map((kind) => (
+                  <option key={kind} value={kind}>{PHOTO_KIND_LABELS[kind]}</option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`kit-${asset.id}`} className="text-[11px]">Forma takımı</Label>
+              <NativeSelect id={`kit-${asset.id}`} name="kitTeamId" value={kitTeamId} onChange={(event) => setKitTeamId(event.target.value)} className="h-8 text-xs" disabled={!teamId}>
+                <option value="">—</option>
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </NativeSelect>
+            </div>
           </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`person-${asset.id}`} className="text-[11px]">Kişi</Label>
-            <NativeSelect id={`person-${asset.id}`} name="personId" defaultValue="" className="h-8 text-xs" disabled={!teamId}>
-              <option value="">Takım fotoğrafı</option>
-              {squad.map((person) => (
-                <option key={person.id} value={person.id}>{person.name}</option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`kind-${asset.id}`} className="text-[11px]">Tür</Label>
-            <NativeSelect id={`kind-${asset.id}`} name="kind" defaultValue="PORTRAIT" className="h-8 text-xs">
-              {PHOTO_KINDS.map((kind) => (
-                <option key={kind} value={kind}>{PHOTO_KIND_LABELS[kind]}</option>
-              ))}
-            </NativeSelect>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label htmlFor={`kit-${asset.id}`} className="text-[11px]">Forma takımı</Label>
-            <NativeSelect id={`kit-${asset.id}`} name="kitTeamId" value={kitTeamId} onChange={(event) => setKitTeamId(event.target.value)} className="h-8 text-xs" disabled={!teamId}>
-              <option value="">—</option>
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </NativeSelect>
-          </div>
-        </div>
-        <Input name="caption" defaultValue="" placeholder="Açıklama" maxLength={300} className="h-8 text-xs" />
-        {state.error ? <p className="text-[11px] text-destructive">{state.error}</p> : null}
-        <Button type="submit" size="sm" disabled={isPending || !teamId}>{isPending ? "Alınıyor…" : "Arşive al"}</Button>
-      </form>
+          <Input name="caption" defaultValue="" placeholder="Açıklama" maxLength={300} className="h-8 text-xs" />
+          {state.error ? <p className="text-[11px] text-destructive">{state.error}</p> : null}
+          <Button type="submit" size="sm" disabled={isPending || !teamId}>{isPending ? "Alınıyor…" : "Arşive al"}</Button>
+        </form>
+        <DismissButton assetId={asset.id} restore={false} />
+      </div>
     </li>
   );
 }
 
-export function ArchiveInbox({ assets, teams, people }: { assets: InboxAsset[]; teams: { id: number; name: string }[]; people: Option[] }) {
-  if (assets.length === 0) return <p className="py-10 text-center text-sm text-muted-foreground">Etiket bekleyen fotoğraf yok.</p>;
+interface ArchiveInboxProps {
+  assets: InboxAsset[];
+  /** Gizlenenler görünümü (`?inbox=1&hidden=1`). */
+  hiddenView: boolean;
+  hiddenCount: number;
+  teams: { id: number; name: string }[];
+  people: Option[];
+}
+
+export function ArchiveInbox({ assets, hiddenView, hiddenCount, teams, people }: ArchiveInboxProps) {
   return (
-    <ul className="grid gap-3 lg:grid-cols-2">
-      {assets.map((asset) => (
-        <InboxItem key={asset.id} asset={asset} teams={teams} people={people} />
-      ))}
-    </ul>
+    <div className="flex flex-col gap-3">
+      {hiddenView ? null : <ArchiveTeamAdder />}
+      <div className="flex justify-end text-[11px]">
+        {hiddenView ? (
+          <Link href="/dashboard/library?inbox=1" className="text-muted-foreground hover:text-white">← Etiket bekleyenler</Link>
+        ) : hiddenCount > 0 ? (
+          <Link href="/dashboard/library?inbox=1&hidden=1" className="text-muted-foreground hover:text-white">Gizlenenler ({hiddenCount})</Link>
+        ) : null}
+      </div>
+      {assets.length === 0 ? (
+        <p className="py-10 text-center text-sm text-muted-foreground">{hiddenView ? "Gizlenen fotoğraf yok." : "Etiket bekleyen fotoğraf yok."}</p>
+      ) : (
+        <ul className="grid gap-3 lg:grid-cols-2">
+          {assets.map((asset) => (hiddenView ? <HiddenInboxItem key={asset.id} asset={asset} /> : <InboxItem key={asset.id} asset={asset} teams={teams} people={people} />))}
+        </ul>
+      )}
+    </div>
   );
 }

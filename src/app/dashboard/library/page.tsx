@@ -28,7 +28,7 @@ type Param = string | string[] | undefined;
 const one = (value: Param) => (typeof value === "string" ? value : undefined);
 
 interface LibraryPageProps {
-  searchParams: Promise<{ view?: Param; team?: Param; person?: Param; group?: Param; q?: Param; inbox?: Param }>;
+  searchParams: Promise<{ view?: Param; team?: Param; person?: Param; group?: Param; q?: Param; inbox?: Param; hidden?: Param }>;
 }
 
 export default async function LibraryPage({ searchParams }: LibraryPageProps) {
@@ -62,13 +62,15 @@ async function ArchiveView({ params }: { params: Awaited<LibraryPageProps["searc
   const group = ARCHIVE_GROUPS.find((entry) => entry === one(params.group)) ?? null;
   const query = one(params.q)?.trim() ?? "";
   const inbox = one(params.inbox) === "1";
+  const showHidden = inbox && one(params.hidden) === "1";
 
-  const [tree, folder, teams, transfers, inboxAssets] = await Promise.all([
+  const [tree, folder, teams, transfers, inboxAssets, hiddenAssets] = await Promise.all([
     getArchiveTree(),
     Number.isInteger(teamId) && teamId > 0 ? getTeamFolder(teamId) : Promise.resolve(null),
     getTeamOptions(),
     getPendingTransfers(),
     getInbox(),
+    inbox ? getInbox(true) : Promise.resolve([]),
   ]);
 
   return (
@@ -88,7 +90,7 @@ async function ArchiveView({ params }: { params: Awaited<LibraryPageProps["searc
         {query ? (
           <SearchResultsView query={query} results={await searchArchive(query)} teams={teams} />
         ) : inbox ? (
-          <ArchiveInbox assets={inboxAssets} teams={teams} people={await getPeopleOptions()} />
+          <ArchiveInbox assets={showHidden ? hiddenAssets : inboxAssets} hiddenView={showHidden} hiddenCount={hiddenAssets.length} teams={teams} people={await getPeopleOptions()} />
         ) : folder && personId ? (
           <PersonFolderView folder={folder} personId={personId} teams={teams} />
         ) : folder ? (
