@@ -14,6 +14,9 @@ const uploadSchema = z.object({
   teamName: z.string().trim().max(120),
   // Takım: "645"; turnuva logosu: "league-203" — set rozeti şeffaf logoyu bununla bulur (`findLeagueLogoUrl`).
   teamId: z.string().trim().regex(/^(\d*|league-\d+)$/, "Kimlik rakam (takım) ya da league-<id> (turnuva) olmalı — API-Football."),
+  // Maç fotoğrafı (MATCH_PHOTO): maç "1584435" ya da "api-football-1584435", isteğe bağlı oyuncu kimliği.
+  fixtureId: z.string().trim().regex(/^((api-football-)?\d+)?$/, "Maç kimliği rakam olmalı (API-Football fixture id)."),
+  playerId: z.string().trim().regex(/^\d*$/, "Oyuncu kimliği yalnızca rakam olmalı (API-Football)."),
 });
 
 /** Kütüphaneye görsel ekler — içerik-adresli; aynı dosya aynı klasöre ikinci kez eklenmez. */
@@ -25,13 +28,16 @@ export async function uploadMediaAction(_prev: MediaActionState, formData: FormD
     label: formData.get("label"),
     teamName: formData.get("teamName") ?? "",
     teamId: formData.get("teamId") ?? "",
+    fixtureId: formData.get("fixtureId") ?? "",
+    playerId: formData.get("playerId") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Geçersiz form verisi." };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Bir görsel dosyası seçin." };
 
-  const { category, label, teamName, teamId } = parsed.data;
+  const { category, label, teamName, teamId, fixtureId, playerId } = parsed.data;
+  if (category === "MATCH_PHOTO" && !fixtureId) return { error: "Maç fotoğrafı için maç kimliğini girin (Maç Merkezi'ndeki API-Football fixture id)." };
   const minShortSide = MEDIA_CATEGORY_META[category].minShortSide;
   const image = await inspectImageUpload(file, "Görsel", minShortSide ? { minShortSide } : {});
   if (!image.ok) return { error: image.error.message };
@@ -43,6 +49,8 @@ export async function uploadMediaAction(_prev: MediaActionState, formData: FormD
       label,
       teamName: teamName || null,
       teamId: teamId || null,
+      fixtureId: category === "MATCH_PHOTO" && fixtureId ? `api-football-${fixtureId.replace(/^api-football-/, "")}` : null,
+      playerId: playerId ? Number(playerId) : null,
     });
     refreshDashboard();
     return {

@@ -1,68 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { AlertCircle, Sparkles } from "lucide-react";
-import { generateMatchResultAction } from "@/app/dashboard/studio/match-result/actions";
+import { generateMatchResultAction, previewMatchPhotoAction } from "@/app/dashboard/studio/match-result/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { Textarea } from "@/components/ui/textarea";
 import { useActionForm } from "@/hooks/use-action-form";
-import { featuredSlots, MATCH_RESULT_TEMPLATES } from "@/lib/dashboard/match-result-featured";
-import { COMPETITION_LABELS, MATCH_IMPORTANCE_LABELS } from "@/lib/dashboard/match-result-labels";
+import { MATCH_RESULT_TEMPLATES, mvpLineName, mvpOptions, playerOptionLabel } from "@/lib/dashboard/match-result-featured";
 import { cn } from "@/lib/utils";
 import type { MatchDayFormatId } from "@/types/match-day";
-import { MATCH_IMPORTANCE_LEVELS, MATCH_RESULT_TEMPLATE_IDS, type MatchResultActionState, type MatchResultFacts } from "@/types/match-result";
-import type { MediaAssetOption } from "@/types/media";
-import { MatchDayAiSettings } from "./match-day-ai-settings";
+import {
+  DEFAULT_MATCH_RESULT_TEMPLATE,
+  MATCH_RESULT_TEMPLATE_IDS,
+  type MatchPhotoPreviewState,
+  type MatchResultActionState,
+  type MatchResultFacts,
+  type MatchResultTemplateId,
+} from "@/types/match-result";
+import type { MatchPhotoOption } from "@/types/media";
 import { MatchDayFormatPicker } from "./match-day-format-picker";
-import { MatchDayPreview } from "./match-day-preview";
-import { MatchResultPlayerField } from "./match-result-player-field";
+import { MatchResultCropControls } from "./match-result-crop-controls";
+import { MatchResultPhotoField } from "./match-result-photo-field";
+import { MatchResultPreview } from "./match-result-preview";
 
 interface MatchResultFormProps {
   fixtureId: string;
   /** Sunucuda doğrulanmış bitmiş maç (FT/AET/PEN). Üretimde sunucu maçı yeniden çeker. */
   facts: MatchResultFacts;
-  /** Oyuncu kimliği → kütüphanedeki fotoğrafları. */
-  photos: Record<number, MediaAssetOption[]>;
+  /** Bu maçın kütüphanedeki fotoğrafları. */
+  photos: MatchPhotoOption[];
   disabled?: boolean;
 }
 
 const INITIAL_STATE: MatchResultActionState = {};
-const TEMPLATE = "HERO_SCORE";
+const INITIAL_PREVIEW: MatchPhotoPreviewState = {};
 
-/** Kesim: oyuncu başına en fazla 2 (upscale + birefnet) · arka plan 1 · Premium'da AI düzenleme 1. */
-function maxCalls(playerCount: number) {
-  const base = playerCount * 2 + 1;
-  return { PREMIUM: base + 1, ECONOMY: base };
-}
-
-function TemplatePicker() {
+function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onChange: (value: MatchResultTemplateId) => void }) {
   return (
     <fieldset className="flex flex-col gap-1.5">
       <legend className="mb-1 text-sm font-medium leading-none">Şablon</legend>
-      <input type="hidden" name="template" value={TEMPLATE} />
+      <input type="hidden" name="template" value={value} />
       <div className="grid gap-2 sm:grid-cols-3">
-        {MATCH_RESULT_TEMPLATE_IDS.map((id) => {
-          const meta = MATCH_RESULT_TEMPLATES[id];
-          return (
-            <div
-              key={id}
-              aria-disabled={!meta.active}
-              className={cn(
-                "flex flex-col gap-0.5 rounded-lg border p-2.5 text-left",
-                id === TEMPLATE ? "border-emerald-500/60 bg-emerald-500/10" : "border-border opacity-50",
-              )}
-            >
-              <span className="text-sm font-medium text-white">
-                {meta.label}
-                {meta.active ? "" : " (Yakında)"}
-              </span>
-              <span className="text-[11px] leading-snug text-muted-foreground">{meta.description}</span>
-            </div>
-          );
-        })}
+        {MATCH_RESULT_TEMPLATE_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={cn("flex flex-col gap-0.5 rounded-lg border p-2.5 text-left", id === value ? "border-emerald-500/60 bg-emerald-500/10" : "border-border hover:border-muted-foreground/40")}
+          >
+            <span className="text-sm font-medium text-white">{MATCH_RESULT_TEMPLATES[id].label}</span>
+            <span className="text-[11px] leading-snug text-muted-foreground">{MATCH_RESULT_TEMPLATES[id].description}</span>
+          </button>
+        ))}
       </div>
     </fieldset>
   );
@@ -70,8 +61,26 @@ function TemplatePicker() {
 
 export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: MatchResultFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateMatchResultAction, INITIAL_STATE);
+  const [previewState, previewAction, previewPending] = useActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
+  const [, startPreview] = useTransition();
+  const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
-  const slots = featuredSlots(facts);
+  const [template, setTemplate] = useState<MatchResultTemplateId>(DEFAULT_MATCH_RESULT_TEMPLATE);
+  const [assetId, setAssetId] = useState(photos[0]?.id ?? "");
+  const [uploadPlayerId, setUploadPlayerId] = useState("");
+  const [mvpId, setMvpId] = useState(facts.mvp ? String(facts.mvp.playerId) : "");
+  const [photoIsMvp, setPhotoIsMvp] = useState(false);
+
+  const players = mvpOptions(facts);
+  const mvp = players.find((player) => String(player.playerId) === mvpId) ?? null;
+  const photoPlayerId = assetId ? (photos.find((photo) => photo.id === assetId)?.playerId ?? null) : uploadPlayerId ? Number(uploadPlayerId) : null;
+  const mvpShown = mvpLineName({ mvp, photoPlayerId, photoIsMvp }) !== null;
+
+  function onPreview() {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    startPreview(() => previewAction(formData));
+  }
 
   return (
     <div className="grid gap-6 xl:grid-cols-5">
@@ -79,51 +88,35 @@ export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: 
         <CardHeader>
           <CardTitle>Maç Sonucu Kartı Üretici</CardTitle>
           <CardDescription>
-            Skor, golcüler ve turnuva maçtan otomatik gelir. Maçın oyuncusu önerilir, değiştirebilirsiniz; fotoğrafı
-            kütüphanede yoksa yükleyin. {facts.outcome === "DRAW" ? "Beraberlik: iki takımdan birer oyuncuyla split kart." : ""}
+            Gerçek maç fotoğrafı tam kadraj kullanılır (oyuncu kesimi ve AI arka plan yok). Skor, golcüler ve turnuva maçtan otomatik gelir; kırpma yüzlere göre
+            otomatik, elle düzeltilebilir. Yerleşimde çakışma varsa kart üretilmez.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+          <form ref={formRef} onSubmit={onSubmit} className="flex flex-col gap-5">
             <input type="hidden" name="fixtureId" value={fixtureId} />
-
             <MatchDayFormatPicker value={format} onChange={setFormat} />
-            <TemplatePicker />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {slots.map((slot) => (
-                <MatchResultPlayerField key={slot.key} slot={slot} facts={facts} photos={photos} />
-              ))}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <Label>Turnuva (otomatik)</Label>
-                <div className="flex h-9 items-center rounded-md border border-border bg-muted/20 px-3 text-sm text-muted-foreground">
-                  {COMPETITION_LABELS[facts.competition.kind]}
-                  {facts.competition.kind === "OTHER" || facts.competition.kind === "NATIONAL" ? ` · ${facts.competition.name}` : ""}
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="importance">Maç önemi</Label>
-                <NativeSelect id="importance" name="importance" required defaultValue="">
-                  <option value="" disabled>
-                    Seçin…
-                  </option>
-                  {MATCH_IMPORTANCE_LEVELS.map((level) => (
-                    <option key={level} value={level}>
-                      {MATCH_IMPORTANCE_LABELS[level]}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </div>
-            </div>
-
-            <MatchDayAiSettings template={TEMPLATE} maxCalls={maxCalls(slots.length)} />
+            <TemplatePicker value={template} onChange={setTemplate} />
+            <MatchResultPhotoField facts={facts} photos={photos} assetId={assetId} onAssetChange={setAssetId} uploadPlayerId={uploadPlayerId} onUploadPlayerChange={setUploadPlayerId} />
+            <MatchResultCropControls state={previewState} isPending={previewPending} onPreview={onPreview} />
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="match-result-prompt">Ek yönerge (isteğe bağlı)</Label>
-              <Textarea id="match-result-prompt" name="customPrompt" rows={2} maxLength={500} placeholder="Örn: yağmurlu gece, ıslak çim…" />
+              <Label htmlFor="mvpId">Maçın oyuncusu (gönderi metni)</Label>
+              <NativeSelect id="mvpId" name="mvpId" value={mvpId} onChange={(event) => setMvpId(event.target.value)}>
+                <option value="">Yok</option>
+                {players.map((player) => (
+                  <option key={player.playerId} value={player.playerId}>
+                    {playerOptionLabel(player, facts)}
+                  </option>
+                ))}
+              </NativeSelect>
+              <label className="flex items-center gap-2 text-xs">
+                <input type="checkbox" name="photoIsMvp" checked={photoIsMvp} onChange={(event) => setPhotoIsMvp(event.target.checked)} />
+                Fotoğraftaki oyuncu maçın oyuncusu
+              </label>
+              <p className="text-[11px] text-muted-foreground">
+                Kartta &quot;MAÇIN OYUNCUSU&quot; satırı: {mvpShown ? "çizilecek" : "gizlenecek (fotoğraf etiketi MVP ile eşleşmiyor ve kutucuk işaretli değil)"}.
+              </p>
             </div>
 
             {state.error ? (
@@ -142,17 +135,7 @@ export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: 
       </Card>
 
       <div className="xl:col-span-2">
-        <MatchDayPreview
-          result={state.result}
-          isPending={isPending}
-          format={format}
-          copy={{
-            idle: 'Formatı ve maç önemini seçin, oyuncu fotoğrafını kontrol edin ve "Kartı Üret"e basın.',
-            alt: "Üretilen Maç Sonucu kartı",
-            downloadPrefix: "checkmatch-mac-sonucu",
-            templateLabel: MATCH_RESULT_TEMPLATES.HERO_SCORE.label,
-          }}
-        />
+        <MatchResultPreview result={state.result} isPending={isPending} format={format} templateLabel={MATCH_RESULT_TEMPLATES[template].label} />
       </div>
     </div>
   );

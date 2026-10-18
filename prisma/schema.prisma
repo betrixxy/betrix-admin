@@ -400,6 +400,8 @@ model MediaAsset {
   /// Oyuncu fotoğrafları için API-Football oyuncu kimliği/adı — Maç Sonucu MVP'sinin fotoğrafı bununla bulunur.
   playerId    Int?
   playerName  String?
+  /// Maç fotoğrafları (MATCH_PHOTO) için maç: "api-football-<id>" — Maç Sonucu fotoğrafı bununla otomatik bulunur.
+  fixtureId   String?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -407,6 +409,7 @@ model MediaAsset {
   @@index([category])
   @@index([teamId])
   @@index([playerId])
+  @@index([fixtureId])
 }
 
 enum MediaCategory {
@@ -416,6 +419,8 @@ enum MediaCategory {
   PLAYER
   /// Stil / kompozisyon referans görselleri
   REFERENCE
+  /// Tam kadraj maç fotoğrafları (Maç Sonucu) — maç (+ isteğe bağlı oyuncu) etiketli, ≥1080px kısa kenar önerilir
+  MATCH_PHOTO
 }
 
 /// X API günlük okuma sayacı (UTC günü) — X ücreti dönen kaynak başınadır (bkz. CLAUDE.md 4.5).

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { SetCard } from "@/types/checkmatch-set";
 import type { ScorerLine } from "@/types/match-result";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
+import { blockOpacity, type BlockFilter } from "./blocks";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 
 /**
@@ -37,7 +38,8 @@ export const SET_VERTICAL = {
   scorerGap: 8,
   scorerSize: 24,
   scorerColumnGap: 124,
-  footerSize: 16,
+  // Künye ≥ %40 büyütüldü (16 → 23, 2026-10-18 geri bildirimi).
+  footerSize: 23,
   logoHeight: 34,
   footerGap: 34,
 } as const;
@@ -152,8 +154,23 @@ function ScorerRow({ line, size, accent, align }: { line: ScorerLine; size: numb
 }
 
 /** İki sütun golcü listesi — ev sahibi sağa (merkeze), deplasman sola (merkeze) yaslı. */
-export function ScorerColumns({ card, width, size, gap }: { card: SetCard; width: number; size: number; gap: number }) {
+/** Büyük harf Geist Bold'un ortalama glif genişliği (em) ve satırdaki sabit paylar (ikon + iki boşluk). */
+const SCORER_EM_PER_CHAR = 0.7;
+const SCORER_FIXED_EM = 0.92 + 0.45 * 2;
+
+/**
+ * Golcü yazı boyutu: en uzun satır ("İRFAN CAN EĞRİBAYAT 88' (KK)") sütununa sığana kadar küçültülür
+ * — iki sütun aynı boyutu kullanır. Yerleşim kontrolü taşmayı ayrıca denetler.
+ */
+export function scorerFontSize(lines: ScorerLine[], columnWidth: number, size: number): number {
+  const longest = Math.max(0, ...lines.map((line) => line.name.length + line.minutes.join(", ").length));
+  if (longest === 0) return size;
+  return Math.min(size, Math.floor(columnWidth / (SCORER_FIXED_EM + longest * SCORER_EM_PER_CHAR)));
+}
+
+export function ScorerColumns({ card, width, size: maxSize, gap }: { card: SetCard; width: number; size: number; gap: number }) {
   const columnWidth = (width - gap) / 2;
+  const size = scorerFontSize([...card.homeScorers, ...card.awayScorers], columnWidth, maxSize);
   const column = (lines: ScorerLine[], align: "left" | "right") => (
     <div tw="flex flex-col" style={{ width: columnWidth, alignItems: align === "right" ? "flex-end" : "flex-start" }}>
       {lines.map((line) => (
@@ -182,6 +199,7 @@ export function SetScoreBlock({
   k,
   headline,
   spineHex,
+  only,
 }: {
   card: SetCard;
   box: SetBox;
@@ -189,6 +207,7 @@ export function SetScoreBlock({
   k: number;
   headline: ReactNode;
   spineHex?: string | null;
+  only?: BlockFilter;
 }) {
   const width = box.right - box.left;
   const v = SET_VERTICAL;
@@ -199,15 +218,15 @@ export function SetScoreBlock({
   return (
     <div tw="absolute flex flex-col items-center" style={{ left: box.left, width, bottom: frameHeight - setBlockBottom(box, k) }}>
       {spineHex ? (
-        <div tw="absolute flex" style={{ left: width / 2 - 1, top: spineTop, width: 2, height: spineHeight, backgroundColor: spineHex }} />
+        <div tw="absolute flex" style={{ left: width / 2 - 1, top: spineTop, width: 2, height: spineHeight, backgroundColor: spineHex, opacity: only ? 0 : 1 }} />
       ) : null}
-      <div tw="flex items-center justify-center" style={{ height: px(v.headlineSlot, k) }}>
+      <div tw="flex items-center justify-center" style={{ height: px(v.headlineSlot, k), opacity: blockOpacity(only, "headline") }}>
         {headline}
       </div>
-      <div tw="flex" style={{ marginTop: px(v.headlineGap, k) }}>
+      <div tw="flex" style={{ marginTop: px(v.headlineGap, k), opacity: blockOpacity(only, "strip") }}>
         <ScoreStrip card={card} k={k} scoreSize={scoreSize} />
       </div>
-      <div tw="flex" style={{ marginTop: px(v.scorerGap, k) }}>
+      <div tw="flex" style={{ marginTop: px(v.scorerGap, k), opacity: blockOpacity(only, "scorers") }}>
         <ScorerColumns card={card} width={width} size={px(v.scorerSize, k)} gap={px(v.scorerColumnGap, k)} />
       </div>
     </div>
@@ -220,14 +239,14 @@ const HEADER_SHADOW = "0 2px 12px rgba(0,0,0,0.6)";
  * Üst satır: solda sayfa etiketi ("01" vurgu renginde, "· MAÇ SONUCU" beyaz — kart tek başına
  * paylaşılırken çizilmez), sağda simetrik maç tarihi ("23.07.2026", aynı stil).
  */
-export function SetHeader({ card, box, k }: { card: SetCard; box: SetBox; k: number }) {
+export function SetHeader({ card, box, k, only }: { card: SetCard; box: SetBox; k: number; only?: BlockFilter }) {
   const size = px(18, k);
   const text = { fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, letterSpacing: size * 0.24, color: "rgba(255,255,255,0.88)", textShadow: HEADER_SHADOW };
   const [number, ...rest] = card.pageLabel?.split(" · ") ?? [];
   return (
     <div tw="absolute flex items-center justify-between" style={{ left: box.left, top: box.top, width: box.right - box.left, height: size }}>
       {card.pageLabel ? (
-        <div tw="flex items-center">
+        <div tw="flex items-center" style={{ opacity: blockOpacity(only, "header-label") }}>
           <span style={{ ...text, fontWeight: 900, letterSpacing: size * 0.12, color: card.accentHex }}>{number}</span>
           <div tw="flex" style={{ width: px(22, k), height: 2, backgroundColor: "rgba(255,255,255,0.55)", margin: `0 ${px(12, k)}px` }} />
           <span style={text}>{rest.join(" · ")}</span>
@@ -235,19 +254,36 @@ export function SetHeader({ card, box, k }: { card: SetCard; box: SetBox; k: num
       ) : (
         <div tw="flex" />
       )}
-      <span style={text}>{card.dateLabel}</span>
+      <span style={{ ...text, opacity: blockOpacity(only, "header-date") }}>{card.dateLabel}</span>
     </div>
   );
 }
 
-/** Künye (sol: turnuva · tur) + CheckMatch logosu (sağ alt köşe, tüm set kartlarında aynı yer). */
-export function SetFooter({ card, box, size, logoHeight }: { card: SetCard; box: SetBox; size: number; logoHeight: number }) {
-  const line = [card.competitionLabel, card.roundLabel].filter(Boolean).join("  ·  ");
+/** Künye harf aralığı (em) ve büyük harf Geist Bold'un ortalama glif genişliği (em) — sığdırma tahmini. */
+const FOOTER_TRACKING = 0.12;
+const FOOTER_EM_PER_CHAR = 0.7 + FOOTER_TRACKING;
+const FOOTER_LOGO_GAP = 28;
+
+export const footerLine = (card: Pick<SetCard, "competitionLabel" | "roundLabel">) => [card.competitionLabel, card.roundLabel].filter(Boolean).join("  ·  ");
+
+/** Künye yazı boyutu: istenen boyut, logoya çarpacaksa satır sığana kadar küçültülür. */
+export function footerFontSize(line: string, boxWidth: number, size: number, logoHeight: number): number {
+  const available = boxWidth - brandLogoWidth(logoHeight) - FOOTER_LOGO_GAP;
+  return Math.min(size, Math.floor(available / Math.max(1, line.length * FOOTER_EM_PER_CHAR)));
+}
+
+/**
+ * Künye (sol: resmi turnuva adı · tur, %85 beyaz) + CheckMatch logosu (sağ alt köşe, tüm set
+ * kartlarında aynı yer). Uzun turnuva/tur adı logoya çarpmasın diye boyut sığdırılır.
+ */
+export function SetFooter({ card, box, size, logoHeight, only }: { card: SetCard; box: SetBox; size: number; logoHeight: number; only?: BlockFilter }) {
+  const line = footerLine(card);
+  const fontSize = footerFontSize(line, box.right - box.left, size, logoHeight);
   return (
     <div tw="absolute flex items-center justify-between" style={{ left: box.left, width: box.right - box.left, top: box.bottom - logoHeight, height: logoHeight }}>
-      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, letterSpacing: size * 0.18, color: "rgba(255,255,255,0.78)" }}>{line}</span>
+      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize, letterSpacing: fontSize * FOOTER_TRACKING, color: "rgba(255,255,255,0.85)", opacity: blockOpacity(only, "footer-text") }}>{line}</span>
       {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-      <img src={card.brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(logoHeight)} height={logoHeight} />
+      <img src={card.brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(logoHeight)} height={logoHeight} style={{ opacity: blockOpacity(only, "footer-logo") }} />
     </div>
   );
 }

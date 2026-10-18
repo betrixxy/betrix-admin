@@ -4,10 +4,9 @@ import { AlertTriangle } from "lucide-react";
 import { MatchResultForm } from "@/components/features/dashboard/match-result-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPlayerPhotoOptions } from "@/lib/dashboard/media-library";
+import { getMatchPhotoOptions } from "@/lib/dashboard/media-library";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { getMatchResultRaw, parseFixtureId, toFixtureId } from "@/lib/services/api-football";
-import { isFalConfigured } from "@/lib/services/fal";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
 
 export const metadata: Metadata = {
@@ -89,13 +88,12 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
   const apiId = typeof params.fixtureId === "string" ? parseFixtureId(params.fixtureId) : null;
   const raw = apiId ? await getMatchResultRaw(apiId) : null;
   const validation = raw?.ok ? validateMatchResultFixture(raw.data, new Date()) : null;
-  const falConfigured = isFalConfigured();
 
   return (
     <>
       <PageHeader
         title="Maç Sonucu"
-        description="Biten maçın skoru, golcüleri ve maçın oyuncusu. Maçı Maç Merkezi'nden seçin; kart yalnızca biten maçlar (FT/AET/PEN) için üretilir."
+        description="Biten maçın skoru ve golcüleri, gerçek maç fotoğrafı üstünde (tam kadraj). Maçı Maç Merkezi'nden seçin; kart yalnızca biten maçlar (FT/AET/PEN) için üretilir."
       />
 
       {!apiId ? (
@@ -107,17 +105,11 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
       {validation && !validation.ok ? <Notice>{validation.error.message}</Notice> : null}
       {validation?.ok && apiId ? (
         <>
-          {!falConfigured ? (
-            <Notice>
-              <code className="rounded bg-black/20 px-1 py-0.5 text-xs">FAL_KEY</code> tanımlı değil — üretim devre dışı.
-            </Notice>
-          ) : null}
           <FactsSummary facts={validation.data} />
           <MatchResultForm
             fixtureId={toFixtureId(apiId)}
             facts={validation.data}
-            photos={await getPlayerPhotoOptions(validation.data.players.map((player) => player.playerId))}
-            disabled={!falConfigured}
+            photos={await getMatchPhotoOptions(toFixtureId(apiId))}
           />
         </>
       ) : null}

@@ -1,6 +1,6 @@
 /** Bkz. CLAUDE.md 1.11 — medya/referans kütüphanesi tipleri. prisma `MediaCategory` ile birebir. */
 
-export const MEDIA_CATEGORIES = ["LOGO", "PLAYER", "REFERENCE"] as const;
+export const MEDIA_CATEGORIES = ["LOGO", "PLAYER", "MATCH_PHOTO", "REFERENCE"] as const;
 export type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
 
 export interface MediaAssetView {
@@ -23,6 +23,14 @@ export interface MediaAssetOption {
   id: string;
   label: string;
   fileUrl: string;
+}
+
+/** Maç fotoğrafı seçeneği — oyuncu etiketi "MAÇIN OYUNCUSU" satırının kuralı için taşınır. */
+export interface MatchPhotoOption extends MediaAssetOption {
+  playerId: number | null;
+  playerName: string | null;
+  width: number;
+  height: number;
 }
 
 export interface MediaActionState {

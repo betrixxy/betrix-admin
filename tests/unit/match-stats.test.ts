@@ -2,13 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { buildMatchStatsCard, statSections } from "@/lib/dashboard/match-stats-card";
-import { readableOnDark } from "@/lib/dashboard/match-result-theme";
+import { liftLightness } from "@/lib/dashboard/color-math";
 import { statsHighlight } from "@/lib/dashboard/match-stats-highlight";
 import { formatStatValue, isRowVisible, parseStatValue, plainLabel, statBar, statTones, summaryRowKeys, upperLabel } from "@/lib/dashboard/match-stats-rows";
 import { isSameTeam, searchableTeamName } from "@/lib/services/sportmonks/advanced-stats-mappers";
 import { isSimilarColor, NEUTRAL_SILVER, statsPalette, trailHex } from "@/lib/dashboard/match-stats-theme";
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
-import { backdropText } from "@/lib/dashboard/match-result-backdrop";
 import { grainPixels, grainSeed } from "@/lib/dashboard/set-finish";
 import { statRows, tacklesAndInterceptions, toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-mappers";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
@@ -321,7 +320,7 @@ describe("Takım rengi önceliği", () => {
     assert.equal((toMatchStatsFacts(hoffenheimWith(999_001, "2a7f62"), null) as MatchStatsFacts).home.colorHex, "#2a7f62");
     const neutral = toMatchStatsFacts(hoffenheimWith(999_001, null), null) as MatchStatsFacts;
     assert.equal(neutral.home.colorHex, "");
-    assert.equal(statsPalette(neutral).homeHex, readableOnDark(NEUTRAL_SILVER));
+    assert.equal(statsPalette(neutral).homeHex, liftLightness(NEUTRAL_SILVER));
   });
 });
 
@@ -329,7 +328,7 @@ describe("Maç İstatistikleri — renkler", () => {
   it("beyaz ve siyah forma: siyah griye açılıp nötrle karışacağı için ikincil renge (kırmızı) düşer", () => {
     const { homeHex, awayHex } = statsPalette(facts);
     assert.equal(homeHex, "#ffffff");
-    assert.equal(awayHex, readableOnDark("#D3122A"));
+    assert.equal(awayHex, liftLightness("#D3122A"));
   });
 
   it("ikincil rengi bilinmeyen siyah forma gri kalır ama ev sahibinden ayrışır", () => {
@@ -341,7 +340,7 @@ describe("Maç İstatistikleri — renkler", () => {
     // Kırmızı ev sahibi vs Galatasaray (645) kırmızı → sarı.
     const { homeHex, awayHex } = statsPalette({ home: { ...facts.home, id: 1, colorHex: "#E30A17" }, away: { ...facts.away, id: 645, colorHex: "#C8102E" } });
     assert.ok(!isSimilarColor(homeHex, awayHex));
-    assert.equal(awayHex, readableOnDark("#FDB912"));
+    assert.equal(awayHex, liftLightness("#FDB912"));
   });
 
   it("ikincil rengi bilinmeyen benzer renk: nötr gümüş", () => {
@@ -369,13 +368,6 @@ describe("CheckMatch set — tasarım kuralları", () => {
     assert.equal(setDateLabel("2026-07-23T22:30:00+00:00"), "24.07.2026");
   });
 
-  it("01 arka plan tipografisi: galibiyette skor, beraberlikte BERABERE", () => {
-    assert.equal(backdropText("HOME", 1, 0), "1-0");
-    assert.equal(backdropText("AWAY", 2, 3), "2-3");
-    assert.equal(backdropText("DRAW", 1, 1), "BERABERE");
-    // Penaltılarla biten maçta kazanan var, skor eşit — yine skor yazılır.
-    assert.equal(backdropText("HOME", 1, 1), "1-1");
-  });
 });
 
 describe("Tohumlu film greni", () => {

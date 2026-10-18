@@ -32,7 +32,7 @@ export async function resolveStudioImage(
   category: MediaCategory,
   label: string,
   /** Yeni yüklenen görselin kütüphane etiketi (ör. Maç Sonucu MVP'si → oyuncu kimliği). */
-  tags: Pick<AddMediaAssetInput, "playerId" | "playerName" | "teamId" | "teamName"> = {},
+  tags: Pick<AddMediaAssetInput, "playerId" | "playerName" | "teamId" | "teamName" | "fixtureId"> = {},
 ): Promise<Result<ResolvedImage | null>> {
   const assetId = formData.get(`${field}AssetId`);
   if (typeof assetId === "string" && assetId.length > 0) {

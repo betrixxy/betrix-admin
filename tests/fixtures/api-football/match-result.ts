@@ -364,7 +364,7 @@ export const RAW_HOFFENHEIM_BESIKTAS: ApiFootballFixtureResultRaw = {
 
 /**
  * `/fixtures?id=1584435` — Gençlerbirliği 0-1 Galatasaray (Süper Lig, 2026-10-17). Gerçek yanıttan
- * kırpılmıştır (yukarıdakiyle aynı kural; Eğribayat da oyuncu listesinde). Tek gol kendi kalesine:
+ * kırpılmıştır (yukarıdakiyle aynı kural; Eğribayat da oyuncu listesinde; maç istatistikleri tam — 02 kartı). Tek gol kendi kalesine:
  * API olayı KK'da `team` alanını GOLÜN YARADIĞI takımla (Galatasaray) verir, oyuncu ise Gençlerbirliği'nden.
  */
 export const RAW_GENCLERBIRLIGI_GALATASARAY: ApiFootballFixtureResultRaw = {
@@ -473,7 +473,166 @@ export const RAW_GENCLERBIRLIGI_GALATASARAY: ApiFootballFixtureResultRaw = {
       "formation": "4-2-3-1"
     }
   ],
-  "statistics": [],
+  "statistics": [
+    {
+      "team": {
+        "id": 997
+      },
+      "statistics": [
+        {
+          "type": "Shots on Goal",
+          "value": 6
+        },
+        {
+          "type": "Shots off Goal",
+          "value": 9
+        },
+        {
+          "type": "Total Shots",
+          "value": 19
+        },
+        {
+          "type": "Blocked Shots",
+          "value": 4
+        },
+        {
+          "type": "Shots insidebox",
+          "value": 15
+        },
+        {
+          "type": "Shots outsidebox",
+          "value": 4
+        },
+        {
+          "type": "Fouls",
+          "value": 12
+        },
+        {
+          "type": "Corner Kicks",
+          "value": 9
+        },
+        {
+          "type": "Offsides",
+          "value": 0
+        },
+        {
+          "type": "Ball Possession",
+          "value": "31%"
+        },
+        {
+          "type": "Yellow Cards",
+          "value": 0
+        },
+        {
+          "type": "Red Cards",
+          "value": null
+        },
+        {
+          "type": "Goalkeeper Saves",
+          "value": 4
+        },
+        {
+          "type": "Total passes",
+          "value": 231
+        },
+        {
+          "type": "Passes accurate",
+          "value": 145
+        },
+        {
+          "type": "Passes %",
+          "value": "63%"
+        },
+        {
+          "type": "expected_goals",
+          "value": "1.16"
+        },
+        {
+          "type": "goals_prevented",
+          "value": "0.80"
+        }
+      ]
+    },
+    {
+      "team": {
+        "id": 645
+      },
+      "statistics": [
+        {
+          "type": "Shots on Goal",
+          "value": 4
+        },
+        {
+          "type": "Shots off Goal",
+          "value": 9
+        },
+        {
+          "type": "Total Shots",
+          "value": 18
+        },
+        {
+          "type": "Blocked Shots",
+          "value": 5
+        },
+        {
+          "type": "Shots insidebox",
+          "value": 12
+        },
+        {
+          "type": "Shots outsidebox",
+          "value": 6
+        },
+        {
+          "type": "Fouls",
+          "value": 10
+        },
+        {
+          "type": "Corner Kicks",
+          "value": 10
+        },
+        {
+          "type": "Offsides",
+          "value": 3
+        },
+        {
+          "type": "Ball Possession",
+          "value": "69%"
+        },
+        {
+          "type": "Yellow Cards",
+          "value": 1
+        },
+        {
+          "type": "Red Cards",
+          "value": null
+        },
+        {
+          "type": "Goalkeeper Saves",
+          "value": 6
+        },
+        {
+          "type": "Total passes",
+          "value": 528
+        },
+        {
+          "type": "Passes accurate",
+          "value": 460
+        },
+        {
+          "type": "Passes %",
+          "value": "87%"
+        },
+        {
+          "type": "expected_goals",
+          "value": "1.81"
+        },
+        {
+          "type": "goals_prevented",
+          "value": "0.80"
+        }
+      ]
+    }
+  ],
   "players": [
     {
       "team": {

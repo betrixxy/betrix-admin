@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   // Docker üretim imajı için: yalnızca çalışma zamanında gereken dosyaları `.next/standalone`
   // altına izleyip kopyalar (node_modules'ün tamamı imaja girmez) — bkz. Dockerfile.
   output: "standalone",
+  // Maç Sonucu yerel yüz tespiti (lib/dashboard/match-photo/faces.ts): onnxruntime-web WASM'ı
+  // çalışma anında dosyadan yükler — paketlenmez, WASM ve YuNet modeli standalone çıktıya izlenir.
+  serverExternalPackages: ["onnxruntime-web"],
+  outputFileTracingIncludes: {
+    "/dashboard/studio/match-result": ["./assets/models/**", "./node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded*"],
+  },
   experimental: {
     // Stüdyo formları görseli Server Action ile yükler (Maç Günü: iki oyuncu × en fazla 8 MB,
     // bkz. lib/dashboard/image-limits.ts). Varsayılanlar (1 MB / proxy 10 MB) bunu keser.

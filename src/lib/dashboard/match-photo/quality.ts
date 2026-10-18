@@ -64,8 +64,31 @@ export function photoUpscaleFactor(image: Pick<UploadedImage, "width" | "height"
 /** Büyütücü — testte/offline'da Fal'sız sahtesi verilir. */
 export type PhotoUpscaler = (image: UploadedImage, scale: number) => Promise<Result<UploadedImage>>;
 
-/** Fal servisi (ve env doğrulaması) yalnızca büyütme gerçekten gerektiğinde yüklenir. */
+const upscaleCacheName = (image: UploadedImage, scale: number) => `upscale-${image.hash}-x${scale}.jpg`;
+
+/**
+ * Fal ESRGAN büyütme, kaynak SHA-256 + katsayıyla ÖNBELLEKLİ (`storage/generated/upscale-*.jpg`):
+ * aynı fotoğrafın yeniden çizimi, başka format/şablonu ya da "yeniden üret" ikinci kez ücret
+ * doğurmaz. Fal servisi (ve env doğrulaması) yalnızca önbellekte yoksa yüklenir.
+ */
 export const falPhotoUpscaler: PhotoUpscaler = async (image, scale) => {
+  const { readStoredFile, saveStoredFile } = await import("@/lib/dashboard/storage");
+  const cached = await readStoredFile("generated", upscaleCacheName(image, scale));
+  if (cached) return inspectImageBytes(cached, "Büyütülmüş maç fotoğrafı (önbellek)");
+  const result = await falUpscale(image, scale);
+  if (result.ok) await saveStoredFile("generated", upscaleCacheName(image, scale), await sharp(result.data.bytes).jpeg({ quality: 95 }).toBuffer());
+  return result;
+};
+
+/** Önbellekte bu fotoğrafın büyütülmüş hâli var mı — ücretli çağrı tahmini için (çağrı yapmaz). */
+export async function hasCachedUpscale(image: UploadedImage): Promise<boolean> {
+  const scale = photoUpscaleFactor(image);
+  if (scale === 1) return true;
+  const { readStoredFile } = await import("@/lib/dashboard/storage");
+  return (await readStoredFile("generated", upscaleCacheName(image, scale))) !== null;
+}
+
+const falUpscale: PhotoUpscaler = async (image, scale) => {
   const { upscaleImage } = await import("@/lib/services/fal");
   const upscaled = await upscaleImage({ bytes: image.bytes, contentType: image.contentType, scale });
   if (!upscaled.ok) return { ok: false, error: { code: upscaled.error.code, message: `Maç fotoğrafı büyütülemedi (AI Upscale): ${upscaled.error.message}` } };
@@ -80,7 +103,7 @@ export interface PhotoQuality {
   image: UploadedImage;
   upscaled: boolean;
   sharpness: number;
-  /** Ücretli Fal çağrısı (0 ya da 1). */
+  /** Yapılan ücretli Fal çağrısı (0 ya da 1 — önbellek isabeti 0). */
   paidCalls: number;
   /** Bilgi seviyesinde uyarılar — kart yine üretilir, formda gösterilir. */
   warnings: string[];
@@ -88,6 +111,8 @@ export interface PhotoQuality {
 
 export async function checkPhotoQuality(image: UploadedImage, upscale: PhotoUpscaler = falPhotoUpscaler): Promise<Result<PhotoQuality>> {
   const scale = photoUpscaleFactor(image);
+  // Ücretli çağrı yalnızca gerçek Fal büyütücüsü önbellekte bulamazsa yapılır.
+  const paidCalls = scale > 1 && upscale === falPhotoUpscaler && !(await hasCachedUpscale(image)) ? 1 : 0;
   let current = image;
   if (scale > 1) {
     const result = await upscale(image, scale);
@@ -108,5 +133,5 @@ export async function checkPhotoQuality(image: UploadedImage, upscale: PhotoUpsc
   // Uyarı KAYNAK boyutuna bakar: upscale edilmiş görsel büyük görünse de doku kaynağınkidir.
   const shortSide = Math.min(image.width, image.height);
   const warnings = shortSide < PHOTO_RECOMMENDED_SHORT_SIDE ? [`${SMALL_PHOTO_WARNING} (kısa kenar ${shortSide}px).`] : [];
-  return { ok: true, data: { image: current, upscaled: scale > 1, sharpness, paidCalls: scale > 1 ? 1 : 0, warnings } };
+  return { ok: true, data: { image: current, upscaled: scale > 1, sharpness, paidCalls, warnings } };
 }

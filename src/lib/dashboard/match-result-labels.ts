@@ -1,9 +1,9 @@
 import { roundLabel } from "@/lib/services/api-football/weekly-mappers";
-import type { CompetitionKind, MatchImportance } from "@/types/match-result";
+import type { CompetitionKind } from "@/types/match-result";
 
 /**
  * Maç Sonucu kartının Türkçe etiketleri — saf fonksiyonlar. Turnuva türü API-Football league
- * id'sinden türetilir (formda salt okunur); maç önemi admin seçimidir.
+ * id'sinden türetilir (formda salt okunur).
  */
 
 const KIND_BY_LEAGUE_ID: Record<number, CompetitionKind> = {
@@ -31,19 +31,28 @@ export const COMPETITION_LABELS: Record<CompetitionKind, string> = {
   OTHER: "Diğer",
 };
 
-export const MATCH_IMPORTANCE_LABELS: Record<MatchImportance, string> = {
-  NORMAL: "Normal",
-  DERBY: "Derbi",
-  BIG_DERBY: "Büyük derbi",
-  FINAL_CRITICAL: "Final / kritik",
-};
-
 export function competitionKind(leagueId: number): CompetitionKind {
   return KIND_BY_LEAGUE_ID[leagueId] ?? "OTHER";
 }
 
-/** Kartta yazan turnuva adı: eşlenmiş turnuvada Türkçe ad, "Diğer"de sağlayıcının adı. */
-export function competitionName(kind: CompetitionKind, providerName: string): string {
+/**
+ * Kartta (künye satırı) yazan RESMİ görünen ad — sponsorlu adlar dahil, API-Football league id
+ * anahtarlı. Sponsor adı değişirse yalnızca bu tablo güncellenir. Tabloda olmayan turnuvada
+ * Türkçe tür adı, o da yoksa sağlayıcının adı.
+ */
+export const OFFICIAL_COMPETITION_NAMES: Readonly<Record<number, string>> = {
+  203: "Trendyol Süper Lig",
+  204: "Trendyol 1. Lig",
+  206: "Ziraat Türkiye Kupası",
+  2: "UEFA Şampiyonlar Ligi",
+  3: "UEFA Avrupa Ligi",
+  848: "UEFA Konferans Ligi",
+};
+
+/** Kartta yazan turnuva adı: resmi ad tablosu > eşlenmiş Türkçe ad > sağlayıcının adı. */
+export function competitionName(leagueId: number, kind: CompetitionKind, providerName: string): string {
+  const official = OFFICIAL_COMPETITION_NAMES[leagueId];
+  if (official) return official;
   if (kind === "OTHER" || kind === "NATIONAL") return providerName;
   return kind === "UCL" || kind === "UEL" || kind === "UECL" ? `UEFA ${COMPETITION_LABELS[kind]}` : COMPETITION_LABELS[kind];
 }

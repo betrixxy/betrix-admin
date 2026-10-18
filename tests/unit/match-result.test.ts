@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { competitionKind, competitionName, resultRoundLabel, teamNameTr, upperTr } from "@/lib/dashboard/match-result-labels";
-import { contrastRatio, readableOnDark, resultAccentHex, RESULT_SHADE_HEX } from "@/lib/dashboard/match-result-theme";
+import { isSimilarColor, liftLightness, toHsl } from "@/lib/dashboard/color-math";
+import { contrastRatio, resultAccentHex, RESULT_SHADE_HEX } from "@/lib/dashboard/match-result-theme";
 import { countedGoals, formatMinute, pickMvp, scorerLines, toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballEventRaw, ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { RAW_GENCLERBIRLIGI_GALATASARAY, RAW_HOFFENHEIM_BESIKTAS } from "../fixtures/api-football/match-result";
@@ -118,8 +119,12 @@ describe("etiketler ve tema", () => {
     assert.equal(competitionKind(203), "SUPER_LIG");
     assert.equal(competitionKind(848), "UECL");
     assert.equal(competitionKind(39), "OTHER");
-    assert.equal(competitionName("UCL", "UEFA Champions League"), "UEFA Şampiyonlar Ligi");
-    assert.equal(competitionName("OTHER", "Premier League"), "Premier League");
+    assert.equal(competitionName(2, "UCL", "UEFA Champions League"), "UEFA Şampiyonlar Ligi");
+    assert.equal(competitionName(203, "SUPER_LIG", "Süper Lig"), "Trendyol Süper Lig");
+    assert.equal(competitionName(204, "OTHER", "1. Lig"), "Trendyol 1. Lig");
+    assert.equal(competitionName(206, "TR_CUP", "Cup"), "Ziraat Türkiye Kupası");
+    assert.equal(competitionName(848, "UECL", "UEFA Europa Conference League"), "UEFA Konferans Ligi");
+    assert.equal(competitionName(39, "OTHER", "Premier League"), "Premier League");
     assert.equal(resultRoundLabel("Regular Season - 7"), "7. Hafta");
     assert.equal(resultRoundLabel("Quarter-finals"), "Çeyrek Final");
   });
@@ -130,9 +135,44 @@ describe("etiketler ve tema", () => {
     assert.equal(upperTr("Beşiktaş"), "BEŞİKTAŞ");
   });
 
-  it("koyu forma rengi koyu zeminde okunur hale açılır", () => {
-    const accent = readableOnDark("#111111");
-    assert.ok(contrastRatio(accent, RESULT_SHADE_HEX) >= 4.5);
-    assert.equal(readableOnDark("#FF6B00"), "#ff6b00");
+  it("okunurluk: ton ve doygunluk korunur, yalnızca açıklık yükselir — kırmızı pembeye dönmez", () => {
+    assert.equal(liftLightness("#FF6B00"), "#ff6b00"); // zaten okunuyor
+    const red = liftLightness("#A90432");
+    assert.ok(red);
+    assert.ok(contrastRatio(red, RESULT_SHADE_HEX) >= 4.5);
+    const [h0, s0] = toHsl("#A90432");
+    const [h1, s1, l1] = toHsl(red);
+    assert.ok(Math.abs(h0 - h1) * 360 < 2 && Math.abs(s0 - s1) < 0.03, `ton/doygunluk korunmalı: ${red}`);
+    assert.ok(l1 <= 0.62);
+    // Beyaza karıştırma pembe üretirdi: G ve B kanalları kırmızıya göre düşük kalmalı.
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(red.slice(i, i + 2), 16)) as [number, number, number];
+    assert.ok(g < r * 0.35 && b < r * 0.5, `pembe değil kırmızı: ${red}`);
+  });
+
+  it("renksiz koyu (siyah) ve sınırda da okunmayan saf koyu mavi açılamaz → null (ikincile geçilir)", () => {
+    assert.equal(liftLightness("#111111"), null);
+    assert.equal(liftLightness("#00008B"), null);
+    // Lacivert ise tonu korunarak okunur maviye açılır (pastele dönmeden).
+    const navy = liftLightness("#0B1F4F");
+    assert.ok(navy && Math.abs(toHsl(navy)[0] - toHsl("#0B1F4F")[0]) * 360 < 2);
+  });
+
+  it("benzerlik ton farkına da bakar: iki kırmızı benzer, kırmızı/altın değil", () => {
+    assert.ok(isSimilarColor(liftLightness("#A90432") ?? "", liftLightness("#E30613") ?? ""));
+    assert.ok(!isSimilarColor(liftLightness("#A90432") ?? "", "#FDB912"));
+  });
+
+  it("Gençlerbirliği 0-1 Galatasaray: iki kırmızı → vurgu GS ikincil altın (#FDB912)", () => {
+    const real = toMatchResultFacts(RAW_GENCLERBIRLIGI_GALATASARAY);
+    assert.ok(real);
+    assert.equal(resultAccentHex(real), "#fdb912");
+  });
+
+  it("rakiple benzemeyen kazanan kendi birincil rengini (tonu korunmuş) alır", () => {
+    const real = toMatchResultFacts(RAW_GENCLERBIRLIGI_GALATASARAY);
+    assert.ok(real);
+    // Ev sahibi lacivert-beyaz bir takım olsaydı GS kırmızısı kalırdı.
+    const accent = resultAccentHex({ ...real, home: { ...real.home, id: 999_001, colorHex: "#FFFFFF" } });
+    assert.equal(accent, liftLightness("#A90432"));
   });
 });

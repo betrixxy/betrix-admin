@@ -7,17 +7,17 @@ import type { MatchDayFormatId } from "./match-day";
  * maçtan (FT/AET/PEN) gelir.
  */
 
-/** dergi-kapagi · kahraman-skor · cerceve */
-export const MATCH_RESULT_TEMPLATE_IDS = ["MAGAZINE_COVER", "HERO_SCORE", "FRAME"] as const;
+/**
+ * Tam kadraj maç fotoğrafı şablonları: A tam-kadraj (varsayılan) · B dev-skor · C manşet.
+ * Eski taslaklarda `renderOptions.template = "HERO_SCORE"` (kesim modu) kalabilir — yalnızca okunur.
+ */
+export const MATCH_RESULT_TEMPLATE_IDS = ["FULL_FRAME", "BIG_SCORE", "HEADLINE"] as const;
 export type MatchResultTemplateId = (typeof MATCH_RESULT_TEMPLATE_IDS)[number];
+export const DEFAULT_MATCH_RESULT_TEMPLATE: MatchResultTemplateId = "FULL_FRAME";
 
 /** API-Football league id'den türetilen turnuva — formda salt okunur gösterilir. */
 export const COMPETITION_KINDS = ["SUPER_LIG", "UCL", "UEL", "UECL", "TR_CUP", "NATIONAL", "OTHER"] as const;
 export type CompetitionKind = (typeof COMPETITION_KINDS)[number];
-
-/** Maç önemi — admin elle seçer ("Maç tansiyonu" alanının yerini alır). */
-export const MATCH_IMPORTANCE_LEVELS = ["NORMAL", "DERBY", "BIG_DERBY", "FINAL_CRITICAL"] as const;
-export type MatchImportance = (typeof MATCH_IMPORTANCE_LEVELS)[number];
 
 export type MatchSide = "HOME" | "AWAY";
 export type MatchOutcome = MatchSide | "DRAW";
@@ -81,12 +81,35 @@ export interface MatchResultFacts {
 export interface MatchResultGenerationResult {
   id: string;
   resultImageUrl: string;
+  /** Tonlanmış, kırpılmış fotoğraf (yazısız sanat katmanı). */
   backgroundImageUrl: string;
-  compositeImageUrl: string;
-  prompt: string;
   format: MatchDayFormatId;
+  /** Yapılan ücretli Fal çağrısı (0 ya da 1 — yalnızca AI büyütme; önbellek isabeti 0). */
   paidCalls: number;
-  savedSteps: string[];
+  /** Bilgi notları: küçük kaynak uyarısı, aynalama, gizlenen MVP satırı… */
+  notes: string[];
+  zoom: number;
+  facesInSafe: boolean;
+  side: "left" | "right";
+}
+
+/** Formdaki kırpma önizlemesi — kart üretmeden fotoğraf hattının sonucu (yazısız). */
+export interface MatchPhotoPreview {
+  /** Kart boyutunda tonlanmış kırpma + yazısız bölge çerçevesi, küçük JPEG `data:` URI. */
+  imageDataUri: string;
+  faces: number;
+  facesInSafe: boolean;
+  zoom: number;
+  side: "left" | "right";
+  sharpness: number;
+  upscaled: boolean;
+  paidCalls: number;
+  warnings: string[];
+}
+
+export interface MatchPhotoPreviewState {
+  error?: string;
+  preview?: MatchPhotoPreview;
 }
 
 export interface MatchResultActionState {

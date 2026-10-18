@@ -17,5 +17,9 @@ export const MEDIA_CATEGORY_META: Record<MediaCategory, MediaCategoryMeta> = {
     description: "Oyuncu fotoğrafları — stüdyoda arka planı Fal.ai birefnet ile temizlenir.",
     minShortSide: PLAYER_MIN_SHORT_SIDE,
   },
+  MATCH_PHOTO: {
+    label: "Maç fotoğrafları",
+    description: "Tam kadraj maç fotoğrafları (Maç Sonucu) — maç ve isteğe bağlı oyuncu etiketiyle. Kısa kenar ≥2000px önerilir (<1080 AI ile büyütülür).",
+  },
   REFERENCE: { label: "Referanslar", description: "Stil, renk ve kompozisyon için ilham/referans görselleri." },
 };

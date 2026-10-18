@@ -52,6 +52,8 @@ RUN addgroup -S -g 1001 nodejs \
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# Yerel yüz tespiti modeli (YuNet, MIT — bkz. assets/models/LICENSE-*) — dosya izlemeye ek güvence.
+COPY --from=builder /app/assets ./assets
 RUN mkdir -p storage/uploads storage/generated storage/renders .next/cache \
  && chown -R nextjs:nodejs storage .next/cache
 

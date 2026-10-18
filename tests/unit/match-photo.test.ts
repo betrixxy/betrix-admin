@@ -185,7 +185,10 @@ describe("tonlama ve okunurluk", () => {
     assert.ok(shadeStrengthFor(0.3) > shadeStrengthFor(0.2));
   });
 
-  it("güç verilmezse kesim modunun gradyanı birebir korunur (set baseline'ları değişmez)", () => {
-    assert.deepEqual(shadeStops(undefined), { lead: 0, mid: 0.78, solid: 0.94, end: 0.97 });
+  it("gradyan gücü arttıkça erken başlar ve koyulaşır; 0..1 dışı değer sınırlanır", () => {
+    const soft = shadeStops(0.2);
+    const strong = shadeStops(1);
+    assert.ok(strong.lead > soft.lead && strong.mid > soft.mid && strong.solid > soft.solid);
+    assert.deepEqual(shadeStops(5), strong);
   });
 });

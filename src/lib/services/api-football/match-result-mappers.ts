@@ -162,7 +162,7 @@ export function toMatchResultFacts(raw: ApiFootballFixtureResultRaw): MatchResul
     fixtureId: raw.fixture.id,
     kickoffUtc: raw.fixture.date,
     statusShort: status,
-    competition: { kind, name: competitionName(kind, raw.league.name), leagueId: raw.league.id, logoUrl: raw.league.logo ?? "" },
+    competition: { kind, name: competitionName(raw.league.id, kind, raw.league.name), leagueId: raw.league.id, logoUrl: raw.league.logo ?? "" },
     roundLabel: resultRoundLabel(raw.league.round),
     home: resultTeam(raw, "HOME", goals),
     away: resultTeam(raw, "AWAY", goals),

@@ -3,7 +3,7 @@ import { MEDIA_CATEGORY_META } from "@/lib/dashboard/media-library-meta";
 import { inspectImageBytes, type UploadedImage } from "@/lib/dashboard/studio-images";
 import { prisma } from "@/lib/prisma";
 import type { Result } from "@/types/result";
-import type { MediaAssetOption, MediaAssetView, MediaCategory } from "@/types/media";
+import type { MatchPhotoOption, MediaAssetOption, MediaAssetView, MediaCategory } from "@/types/media";
 
 /**
  * Medya/referans kütüphanesi (bkz. CLAUDE.md 1.11). Tüm kütüphane dosya işlemleri buradan
@@ -40,6 +40,8 @@ export interface AddMediaAssetInput {
   /** Oyuncu fotoğrafının API-Football oyuncusu (Maç Sonucu MVP yüklemesi). */
   playerId?: number | null;
   playerName?: string | null;
+  /** Maç fotoğrafının maçı ("api-football-<id>"). */
+  fixtureId?: string | null;
 }
 
 /**
@@ -55,10 +57,15 @@ export async function addMediaAsset(
     where: { category_sha256: { category, sha256: image.hash } },
   });
   if (existing) {
-    if (input.playerId && existing.playerId === null) {
+    const tagPlayer = input.playerId && existing.playerId === null;
+    const tagFixture = input.fixtureId && existing.fixtureId === null;
+    if (tagPlayer || tagFixture) {
       const tagged = await prisma.mediaAsset.update({
         where: { id: existing.id },
-        data: { playerId: input.playerId, playerName: input.playerName ?? null },
+        data: {
+          ...(tagPlayer ? { playerId: input.playerId ?? null, playerName: input.playerName ?? null } : {}),
+          ...(tagFixture ? { fixtureId: input.fixtureId ?? null } : {}),
+        },
       });
       return { asset: toView(tagged), created: false };
     }
@@ -82,6 +89,7 @@ export async function addMediaAsset(
       teamName: input.teamName ?? null,
       playerId: input.playerId ?? null,
       playerName: input.playerName ?? null,
+      fixtureId: input.fixtureId ?? null,
     },
   });
   return { asset: toView(row), created: true };
@@ -101,6 +109,22 @@ export async function getPlayerPhotoOptions(playerIds: number[]): Promise<Record
     (byPlayer[row.playerId] ??= []).push({ id: row.id, label: row.label, fileUrl: row.fileUrl });
   }
   return byPlayer;
+}
+
+/** Bir maçın kütüphanedeki fotoğrafları (en yenisi önce) — Maç Sonucu formu. */
+export async function getMatchPhotoOptions(fixtureId: string): Promise<MatchPhotoOption[]> {
+  const rows = await prisma.mediaAsset.findMany({
+    where: { category: "MATCH_PHOTO", fixtureId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, label: true, fileUrl: true, playerId: true, playerName: true, width: true, height: true },
+  });
+  return rows;
+}
+
+/** Seçilen kütüphane görseli bu maçın fotoğrafı mı — sunucu, formdan gelen kimliğe güvenmez. */
+export async function matchPhotoTag(assetId: string, fixtureId: string): Promise<{ playerId: number | null } | null> {
+  const row = await prisma.mediaAsset.findUnique({ where: { id: assetId }, select: { category: true, fixtureId: true, playerId: true } });
+  return row?.category === "MATCH_PHOTO" && row.fixtureId === fixtureId ? { playerId: row.playerId } : null;
 }
 
 /** Turnuva logosunun kütüphane etiketi (`MediaAsset.teamId`) — "league-203". */
@@ -132,7 +156,7 @@ export async function listMediaAssets(category?: MediaCategory): Promise<MediaAs
 
 export async function countMediaAssetsByCategory(): Promise<Record<MediaCategory, number>> {
   const groups = await prisma.mediaAsset.groupBy({ by: ["category"], _count: { _all: true } });
-  const counts: Record<MediaCategory, number> = { LOGO: 0, PLAYER: 0, REFERENCE: 0 };
+  const counts: Record<MediaCategory, number> = { LOGO: 0, PLAYER: 0, MATCH_PHOTO: 0, REFERENCE: 0 };
   for (const group of groups) counts[group.category] = group._count._all;
   return counts;
 }
