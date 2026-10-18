@@ -24,7 +24,7 @@ export function buildMatchResultCaption(facts: MatchResultFacts, mvpName: string
 }
 
 /** Taslak başlığı: "Hoffenheim 2-3 Beşiktaş" (+ penaltılar). */
-export function matchResultTitle(facts: MatchResultFacts): string {
+export function matchResultTitle(facts: Pick<MatchResultFacts, "home" | "away" | "penaltyScore">): string {
   const penalty = facts.penaltyScore ? ` (P ${facts.penaltyScore})` : "";
   return `${facts.home.name} ${facts.home.goals}-${facts.away.goals} ${facts.away.name}${penalty}`;
 }

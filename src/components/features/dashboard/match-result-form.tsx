@@ -119,6 +119,16 @@ export function MatchResultForm({ fixtureId, facts, photos, disabled = false }: 
               </p>
             </div>
 
+            <label className="flex items-start gap-2 rounded-lg border border-border p-3 text-sm">
+              <input type="checkbox" name="includeStats" defaultChecked className="mt-0.5" />
+              <span>
+                İstatistik sayfasını da ekle
+                <span className="block text-[11px] text-muted-foreground">
+                  Tek taslak, carousel: 01 Maç Sonucu + 02 İstatistikler — aynı format, aynı fotoğrafın bulanık zemini, aynı vurgu rengi. İki sayfa da yerleşim kontrolünden geçer.
+                </span>
+              </span>
+            </label>
+
             {state.error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                 <AlertCircle className="size-3.5 shrink-0" />

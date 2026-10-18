@@ -114,7 +114,10 @@ export interface WeeklyFixturesDraftView extends PublishableDraft {
   format: SocialFormatId;
 }
 
-/** Maç Sonucu taslağı — tek kart (bkz. match-result-engine.ts). */
+/**
+ * Maç sonrası set taslağı — Maç Sonucu (tek kart ya da 01 + 02 carousel, bkz. match-result-engine.ts)
+ * ve tek başına Maç İstatistikleri (bkz. match-stats-engine.ts).
+ */
 export interface MatchResultDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;
@@ -126,8 +129,13 @@ export interface MatchResultDraftView extends PublishableDraft {
   title: string;
   /** "UEFA Avrupa Ligi · Lig Aşaması · 2. Maç" */
   subtitle: string;
-  mvpName: string;
+  /** "Maç Sonucu" | "Maç İstatistikleri" */
+  kindLabel: string;
+  /** Gönderi metnindeki maçın oyuncusu; istatistik kartında ya da seçilmediyse null. */
+  mvpName: string | null;
   imageUrl: string;
+  /** Yayın sırasıyla görseller (carousel); tek kartta tek öğe. */
+  slides: { url: string; label: string }[];
   format: SocialFormatId;
 }
 

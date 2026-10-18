@@ -54,12 +54,19 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
   {
     id: "MATCH_RESULT",
     label: "Maç Sonucu",
-    description: "Skor, golcüler ve maçın oyuncusu — MVP fotoğraflı kahraman kartı (yalnızca biten maçlar).",
+    description: "Skor ve golcüler, tam kadraj maç fotoğrafı üstünde — istenirse 02 İstatistik sayfasıyla carousel (yalnızca biten maçlar).",
     phase: "post_match",
     status: "active",
     route: "/dashboard/studio/match-result",
   },
-  { id: "MATCH_STATS", label: "Maç İstatistikleri", description: "Topa sahip olma, şut, xG karşılaştırması.", phase: "post_match", status: "coming_soon", route: null },
+  {
+    id: "MATCH_STATS",
+    label: "Maç İstatistikleri",
+    description: "Topa sahip olma, şut, xG karşılaştırması — CheckMatch set kartı (02, yalnızca biten maçlar).",
+    phase: "post_match",
+    status: "active",
+    route: "/dashboard/studio/match-stats",
+  },
   { id: "PLAYER_STATS", label: "Oyuncu İstatistikleri", description: "Maçın/oyuncunun bireysel performans kartı.", phase: "post_match", status: "coming_soon", route: null },
   { id: "MARKET_RESULTS", label: "Market Sonuçları", description: "Tahminlerin maç sonu tutma durumu.", phase: "post_match", status: "coming_soon", route: null },
   {

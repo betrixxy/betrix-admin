@@ -81,6 +81,8 @@ export interface MatchResultFacts {
 export interface MatchResultGenerationResult {
   id: string;
   resultImageUrl: string;
+  /** "İstatistik sayfasını da ekle" seçildiyse carousel'in 02 görseli; yoksa null. */
+  statsImageUrl: string | null;
   /** Tonlanmış, kırpılmış fotoğraf (yazısız sanat katmanı). */
   backgroundImageUrl: string;
   format: MatchDayFormatId;

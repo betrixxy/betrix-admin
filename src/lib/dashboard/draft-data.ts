@@ -63,13 +63,15 @@ const standingsOptionsSchema = z.object({
 });
 
 /** `AiContent.renderOptions` — Maç Sonucu kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+const slideSchema = z.object({ url: z.string(), label: z.string() });
 const matchResultOptionsSchema = z.object({
-  kind: z.literal("MATCH_RESULT"),
+  kind: z.enum(["MATCH_RESULT", "MATCH_STATS"]),
   format: formatField,
   imageUrl: z.string(),
   title: z.string(),
   subtitle: z.string(),
-  mvp: z.object({ name: z.string() }),
+  mvp: z.object({ name: z.string() }).nullish(),
+  carousel: z.array(slideSchema).optional(),
 });
 
 /** Yayın Merkezi alanları — görseller ve kayıtlı yayın ayarları doğrudan kayıttan okunur. */
@@ -174,10 +176,11 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
     }
   }
 
-  if (record.contentType === "MATCH_RESULT") {
+  if (record.contentType === "MATCH_RESULT" || record.contentType === "MATCH_STATS") {
     const options = matchResultOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { imageUrl, title, subtitle, mvp, format } = options.data;
+      const { imageUrl, title, subtitle, mvp, format, carousel, kind } = options.data;
+      const kindLabel = kind === "MATCH_STATS" ? "Maç İstatistikleri" : "Maç Sonucu";
       return {
         kind: "match-result",
         draft: {
@@ -190,8 +193,10 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           ...publishable(record),
           title,
           subtitle,
-          mvpName: mvp.name,
+          kindLabel,
+          mvpName: mvp?.name ?? null,
           imageUrl,
+          slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: kindLabel }],
           format,
         },
       };

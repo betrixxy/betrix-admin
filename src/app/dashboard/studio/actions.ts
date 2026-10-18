@@ -11,6 +11,7 @@ import { prisma } from "@/lib/prisma";
 import { isFalConfigured } from "@/lib/services/fal";
 import type { Result } from "@/types/result";
 import { STUDIO_FORMATS, type StudioActionState } from "@/types/ai-content";
+import { carouselUrls } from "@/lib/dashboard/publish-caption";
 
 const generateSchema = z.object({
   fixtureId: z.string().min(1, "Bir maç seçin."),
@@ -85,9 +86,9 @@ export async function deleteAiContentAction(id: string): Promise<Result<null>> {
 
   try {
     const record = await prisma.aiContent.delete({ where: { id } });
-    await Promise.all(
-      [record.resultImageUrl, record.playerImageUrl, record.backgroundImageUrl].map(deleteStoredUrl),
-    );
+    // Set carousel'inin 02 görseli de bu kayda özeldir (01 zaten resultImageUrl).
+    const urls = new Set([record.resultImageUrl, record.playerImageUrl, record.backgroundImageUrl, ...carouselUrls(record.renderOptions)]);
+    await Promise.all([...urls].map(deleteStoredUrl));
   } catch (cause) {
     return { ok: false, error: { code: "DELETE_FAILED", message: "Kayıt silinemedi.", cause } };
   }

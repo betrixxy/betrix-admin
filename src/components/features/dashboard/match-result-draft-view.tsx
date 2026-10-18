@@ -7,11 +7,13 @@ import type { MatchResultDraftView as MatchResultDraft } from "@/types/draft";
 import { SOCIAL_FORMATS, socialFormatCaption } from "@/types/studio-formats";
 
 /**
- * Maç Sonucu taslağının incelemesi: kart, gönderi metni ve onay/ret. Kart değişikliği stüdyoda
- * yapılır (yeniden üretmek yeni bir taslak açar).
+ * Maç sonrası set taslağının incelemesi: kart(lar), gönderi metni ve onay/ret. Carousel'de (01 Maç
+ * Sonucu + 02 İstatistikler) iki görsel yayın sırasıyla yan yana gösterilir; Yayın Merkezi de bu
+ * sırayla dizer. Kart değişikliği stüdyoda yapılır (yeniden üretmek yeni bir taslak açar).
  */
 export function MatchResultDraftView({ draft, postOptions }: { draft: MatchResultDraft; postOptions: StudioPostOption[] }) {
   const frame = SOCIAL_FORMATS[draft.format];
+  const carousel = draft.slides.length > 1;
   return (
     <div className="grid gap-6 xl:grid-cols-2">
       <Card>
@@ -21,11 +23,22 @@ export function MatchResultDraftView({ draft, postOptions }: { draft: MatchResul
             <DraftStatusBadge status={draft.status} />
           </div>
           <CardDescription>
-            {draft.subtitle} · Maçın oyuncusu: {draft.mvpName} · {socialFormatCaption(draft.format)}
+            {draft.kindLabel} · {draft.subtitle}
+            {draft.mvpName ? ` · Maçın oyuncusu: ${draft.mvpName}` : ""} · {socialFormatCaption(draft.format)}
+            {carousel ? ` · Carousel (${draft.slides.length} görsel)` : ""}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <DraftPreview url={draft.imageUrl} width={frame.width} height={frame.height} alt={`${draft.title} maç sonucu kartı`} downloadName={`checkmatch-mac-sonucu-${draft.id}`} />
+        <CardContent className={carousel ? "grid gap-4 sm:grid-cols-2" : undefined}>
+          {draft.slides.map((slide, index) => (
+            <div key={slide.url} className="flex flex-col gap-1.5">
+              {carousel ? (
+                <span className="text-xs text-muted-foreground">
+                  {index + 1}/{draft.slides.length} · {slide.label}
+                </span>
+              ) : null}
+              <DraftPreview url={slide.url} width={frame.width} height={frame.height} alt={`${draft.title} · ${slide.label}`} downloadName={`checkmatch-${draft.id}-${index + 1}`} />
+            </div>
+          ))}
         </CardContent>
       </Card>
 

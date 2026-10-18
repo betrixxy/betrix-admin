@@ -13,9 +13,19 @@ const pairSchema = z.object({
   away: z.object({ teamName: z.string() }),
 });
 const singleSchema = z.object({ imageUrl: z.string().min(1) });
+/** Set carousel'i (Maç Sonucu 01 + 02 İstatistikler) — sıra yayın sırasıdır. */
+const carouselSchema = z.object({ carousel: z.array(z.object({ url: z.string().min(1), label: z.string() })).min(2) });
 
 /** Taslağın yayınlanabilir görselleri: iki takımlı kartlarda ev + deplasman, diğerlerinde tek kart. */
+/** Set carousel'inin kendi görselleri (silmede temizlenir); carousel değilse boş. */
+export function carouselUrls(renderOptions: unknown): string[] {
+  const carousel = carouselSchema.safeParse(renderOptions);
+  return carousel.success ? carousel.data.carousel.map((slide) => slide.url) : [];
+}
+
 export function publishMediaOf(renderOptions: unknown, resultImageUrl: string | null): PublishMedia[] {
+  const carousel = carouselSchema.safeParse(renderOptions);
+  if (carousel.success) return carousel.data.carousel.map((slide) => ({ url: slide.url, label: slide.label }));
   const pair = pairSchema.safeParse(renderOptions);
   if (pair.success) {
     return [

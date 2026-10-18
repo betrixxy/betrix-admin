@@ -9,9 +9,11 @@ import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
 import { loadMediaAssetImage, matchPhotoTag } from "@/lib/dashboard/media-library";
 import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/match-result-engine";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
+import { loadMatchStatsFacts } from "@/lib/dashboard/match-stats-studio";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { resolveStudioImage } from "@/lib/dashboard/studio-image-input";
 import { getMatchResultRaw, parseFixtureId } from "@/lib/services/api-football";
+import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { matchResultGeometry } from "@/skills/render-engine/templates/match-result/geometry";
 import { MATCH_DAY_FORMAT_IDS } from "@/types/match-day";
 import { MATCH_RESULT_TEMPLATE_IDS, type MatchPhotoPreviewState, type MatchResultActionState, type MatchResultFacts } from "@/types/match-result";
@@ -33,7 +35,7 @@ const photoSchema = z.object({
   zoom,
 });
 
-const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean() });
+const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean() });
 
 const FIELDS = ["fixtureId", "template", "format", "photoPlayerId", "offsetX", "offsetY", "zoom", "mvpId"] as const;
 
@@ -46,10 +48,10 @@ type Fail = { ok: false; error: string };
 
 /** Form → doğrulanmış alanlar + maç (sunucuda yeniden çekilir) + maç fotoğrafı. */
 async function resolveInput(formData: FormData): Promise<
-  | { ok: true; data: z.infer<typeof cardSchema>; facts: MatchResultFacts; photo: MatchPhotoInput }
+  | { ok: true; data: z.infer<typeof cardSchema>; facts: MatchResultFacts; photo: MatchPhotoInput; raw: ApiFootballFixtureResultRaw }
   | Fail
 > {
-  const parsed = cardSchema.safeParse({ ...Object.fromEntries(FIELDS.map((name) => [name, text(formData, name)])), photoIsMvp: formData.get("photoIsMvp") === "on" });
+  const parsed = cardSchema.safeParse({ ...Object.fromEntries(FIELDS.map((name) => [name, text(formData, name)])), photoIsMvp: formData.get("photoIsMvp") === "on", includeStats: formData.get("includeStats") === "on" });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Geçersiz form verisi." };
   const data = parsed.data;
 
@@ -59,9 +61,11 @@ async function resolveInput(formData: FormData): Promise<
   const validated = validateMatchResultFixture(raw.data, new Date());
   if (!validated.ok) return { ok: false, error: validated.error.message };
   const facts = validated.data;
+  if (!raw.data) return { ok: false, error: "Maç bulunamadı." };
+  const fixtureRaw = raw.data;
 
   const photo = await resolvePhoto(formData, data, facts);
-  return photo.ok ? { ok: true, data, facts, photo: photo.data } : { ok: false, error: photo.error.message };
+  return photo.ok ? { ok: true, data, facts, photo: photo.data, raw: fixtureRaw } : { ok: false, error: photo.error.message };
 }
 
 /**
@@ -100,6 +104,9 @@ export async function generateMatchResultAction(_prevState: MatchResultActionSta
   const input = await resolveInput(formData);
   if (!input.ok) return { error: input.error };
   const { data, facts, photo } = input;
+  // "İstatistik sayfasını da ekle": 02 aynı DRAFT'ta carousel'in ikinci görseli.
+  const stats = data.includeStats ? await loadMatchStatsFacts(input.raw) : null;
+  if (data.includeStats && !stats) return { error: "Maç istatistikleri alınamadı — kart üretilmedi." };
 
   const mvp = (data.mvpId ? facts.players.find((player) => player.playerId === data.mvpId) : null) ?? facts.mvp;
   const result = await createMatchResultCard({
@@ -111,6 +118,7 @@ export async function generateMatchResultAction(_prevState: MatchResultActionSta
     photoIsMvp: data.photoIsMvp,
     offset: { x: data.offsetX, y: data.offsetY },
     zoom: data.zoom,
+    stats,
   });
   if (!result.ok) return { error: result.error.message };
 

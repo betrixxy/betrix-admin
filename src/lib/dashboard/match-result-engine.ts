@@ -11,13 +11,16 @@ import { buildMatchResultCaption, matchResultTitle } from "@/lib/dashboard/match
 import { mvpLineName } from "@/lib/dashboard/match-result-featured";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
+import { renderMatchStatsImage } from "@/lib/dashboard/match-stats-render";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { toFixtureId } from "@/lib/services/api-football/mappers";
+import { SET_PAGE_LABELS } from "@/types/checkmatch-set";
 import type { ContentTypeId } from "@/types/content-type";
 import type { MatchDayFormatId } from "@/types/match-day";
 import type { MatchResultFacts, MatchResultGenerationResult, MatchResultTemplateId, MvpCandidate } from "@/types/match-result";
+import type { MatchStatsFacts } from "@/types/match-stats";
 import type { Result } from "@/types/result";
 import type { SocialFormatId } from "@/types/studio-formats";
 
@@ -33,6 +36,7 @@ import type { SocialFormatId } from "@/types/studio-formats";
  *   3. Satori şablonu (A tam-kadraj · B dev-skor · C manşet) + YERLEŞİM KAPISI: hiçbir blok başka
  *      blokla ya da güvenli kenarla çakışmaz; çakışma varsa kart üretilmez, sebep yazılır.
  *   4. Set bitişi (vinyet + maç kimliği tohumlu gren) → PNG → DRAFT `AiContent`.
+ *   5. (isteğe bağlı) 02 İstatistikler aynı DRAFT'ta carousel'in ikinci görseli (`renderMatchStatsImage`).
  */
 
 type EngineError = { code: string; message: string };
@@ -56,6 +60,11 @@ export interface CreateMatchResultInput {
   mvp: MvpCandidate | null;
   /** Formdaki "Fotoğraftaki oyuncu maçın oyuncusu" kutucuğu. */
   photoIsMvp: boolean;
+  /**
+   * "İstatistik sayfasını da ekle": verilirse tek DRAFT'ta carousel — 01 Maç Sonucu + 02
+   * İstatistikler (aynı format, 01'in bulanık zemini, aynı vurgu rengi, aynı 16:9 sütun tarafı).
+   */
+  stats?: MatchStatsFacts | null | undefined;
   offset?: CropOffset | undefined;
   zoom?: number | undefined;
 }
@@ -90,7 +99,8 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
 
   // 3. Kart + yerleşim kapısı.
   const mvpName = mvpLineName({ mvp: input.mvp, photoPlayerId: input.photo.playerId, photoIsMvp: input.photoIsMvp });
-  const card = await resolveMatchResultCard(facts, mvpName);
+  const carousel = input.stats ? input.stats : null;
+  const card = await resolveMatchResultCard(facts, mvpName, carousel ? SET_PAGE_LABELS.RESULT : null);
   const options = { template: input.template, shadeStrength: photo.shadeStrength, side: photo.side };
   let final: Buffer;
   try {
@@ -103,17 +113,32 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
     return fail("RENDER_FAILED", `Kartın yazı katmanı çizilemedi (${frame.ratioLabel}): ${error instanceof Error ? error.message : String(error)}`);
   }
 
-  const notes = [...photo.quality.warnings];
+  // 02 — aynı fotoğrafın (01 nihai görseli) bulanık zemini, aynı sütun tarafı; kendi yerleşim kapısı.
+  let statsImage: Buffer | null = null;
+  if (carousel) {
+    const rendered = await renderMatchStatsImage({ stats: carousel, frame, page: "SUMMARY", side: photo.side, resultImage: final, pageLabel: SET_PAGE_LABELS.STATS });
+    if (!rendered.ok) return fail(rendered.error.code, rendered.error.message);
+    statsImage = rendered.data;
+  }
+
+  const notes = [...photo.quality.warnings, ...(carousel?.warnings ?? [])];
   if (!photo.crop.facesInSafe) notes.push("Yüzler yazısız bölgeye tam sığmadı — kırpmayı elle kaydırmayı deneyin.");
   if (photo.side === "left") notes.push("16:9: özne sağda olduğu için yazı sütunu sola aynalandı.");
   if (photo.quality.upscaled && photo.quality.paidCalls === 0) notes.push("AI büyütme önbellekten");
   if (input.mvp && !mvpName) notes.push("\"MAÇIN OYUNCUSU\" satırı gizlendi — fotoğraftaki oyuncu MVP olarak işaretlenmedi.");
 
   try {
-    const [backgroundImageUrl, resultImageUrl] = await Promise.all([
+    const [backgroundImageUrl, resultImageUrl, statsImageUrl] = await Promise.all([
       saveStoredFile("generated", `${randomUUID()}.jpg`, await sharp(photo.art).jpeg({ quality: 90 }).toBuffer()),
       saveStoredFile("renders", `${randomUUID()}.png`, final),
+      statsImage ? saveStoredFile("renders", `${randomUUID()}.png`, statsImage) : Promise.resolve(null),
     ]);
+    const slides = statsImageUrl
+      ? [
+          { url: resultImageUrl, label: "01 · Maç Sonucu" },
+          { url: statsImageUrl, label: "02 · İstatistikler" },
+        ]
+      : null;
     const format = FORMATS[input.format];
     const record = await createScheduledContent({
       fixtureId: toFixtureId(facts.fixtureId),
@@ -142,11 +167,13 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
         shadeStrength: photo.shadeStrength,
         sharpness: Math.round(photo.quality.sharpness),
         paidCalls: photo.quality.paidCalls,
+        // Yayın Merkezi bu sırayla dizer (Instagram carousel); tek kartta yok.
+        ...(slides ? { carousel: slides } : {}),
       }),
     });
     return {
       ok: true,
-      data: { id: record.id, resultImageUrl, backgroundImageUrl, format: input.format, paidCalls: photo.quality.paidCalls, notes, zoom: photo.crop.zoom, facesInSafe: photo.crop.facesInSafe, side: photo.side },
+      data: { id: record.id, resultImageUrl, statsImageUrl, backgroundImageUrl, format: input.format, paidCalls: photo.quality.paidCalls, notes, zoom: photo.crop.zoom, facesInSafe: photo.crop.facesInSafe, side: photo.side },
     };
   } catch (error: unknown) {
     console.error("[match-result] kart kaydedilemedi:", error);

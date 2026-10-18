@@ -42,8 +42,11 @@ async function teamFixtures(teamId: number, fromMs: number, toMs: number, includ
  * günündeki maçında rakibin adı da tutuyorsa eşleşme kabul edilir. Bulunamazsa `null` — tahmin
  * edilmez. `include` maçın hangi bloklarla döneceğini belirler (ör. `statistics.type;participants`).
  */
+/** Eşleme için yeterli maç bilgisi — kanonik `Fixture` da, bitmiş maç olgusu da bu şekle uyar. */
+export type SportmonksFixtureQuery = Pick<Fixture, "kickoffUtc"> & { homeTeam: { name: string }; awayTeam: { name: string } };
+
 export async function findSportmonksFixture(
-  fixture: Fixture,
+  fixture: SportmonksFixtureQuery,
   include = "participants",
 ): Promise<{ match: SportmonksFixture; home: number; away: number } | null> {
   const kickoff = Date.parse(fixture.kickoffUtc);

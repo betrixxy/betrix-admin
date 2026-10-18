@@ -31,6 +31,13 @@ export function MatchResultPreview({ result, isPending, format, templateLabel }:
         </div>
         {result && !isPending ? (
           <>
+            {result.statsImageUrl ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">Carousel 2/2 · 02 İstatistikler</span>
+                {/* eslint-disable-next-line @next/next/no-img-element -- oturumlu /api/files görseli */}
+                <img src={result.statsImageUrl} alt="Üretilen İstatistik sayfası" className="w-full rounded-lg border border-border" />
+              </div>
+            ) : null}
             <p className="text-xs text-muted-foreground">{result.paidCalls} ücretli Fal.ai çağrısı · zoom {result.zoom}</p>
             {result.notes.map((note) => (
               <p key={note} className="flex items-center gap-1.5 text-xs text-amber-300">

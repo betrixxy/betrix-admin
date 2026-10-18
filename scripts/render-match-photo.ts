@@ -26,9 +26,7 @@ import { buildMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { mvpLineName } from "@/lib/dashboard/match-result-featured";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
-import { buildStatsBackgroundFromResult } from "@/lib/dashboard/match-stats-background";
-import { buildMatchStatsCard } from "@/lib/dashboard/match-stats-card";
-import { renderMatchStatsOverlay } from "@/lib/dashboard/match-stats-overlay";
+import { renderMatchStatsImage } from "@/lib/dashboard/match-stats-render";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
@@ -186,11 +184,15 @@ async function main() {
 
     const resultA = cards.FULL_FRAME;
     if (!resultA) continue;
-    const statsCard = buildMatchStatsCard(stats, "SUMMARY", images, SET_PAGE_LABELS.STATS);
-    const statsLayout = await checkLayout(frame, (only) => renderMatchStatsOverlay(statsCard, frame, { side, only }));
-    layoutFailures += statsLayout.issues.length > 0 ? 1 : 0;
-    entry.STATS = statsLayout.issues.length ? describeLayoutIssues(statsLayout.issues) : "OK";
-    const statsPng = await finalizeSetImage(await buildStatsBackgroundFromResult(frame, resultA), await renderMatchStatsOverlay(statsCard, frame, { side }), frame, stats.fixtureId);
+    // 02 üretimle AYNI yoldan (Maç Sonucu carousel'i): 01'in bulanık zemini, aynı sütun tarafı, yerleşim kapısı.
+    const statsRendered = await renderMatchStatsImage({ stats, frame, page: "SUMMARY", side, resultImage: resultA, pageLabel: SET_PAGE_LABELS.STATS, images });
+    layoutFailures += statsRendered.ok ? 0 : 1;
+    entry.STATS = statsRendered.ok ? "OK" : statsRendered.error.message;
+    if (!statsRendered.ok) {
+      report[id] = entry;
+      continue;
+    }
+    const statsPng = statsRendered.data;
     await writeFile(path.join(out, `${prefix}02-${id}.png`), statsPng);
     await writeFile(path.join(out, `${prefix}set-${id}.png`), await row([resultA, statsPng], frame));
     await writeFile(path.join(out, `${prefix}templates-${id}.png`), await row(MATCH_RESULT_TEMPLATE_IDS.map((t) => cards[t] ?? resultA), frame));

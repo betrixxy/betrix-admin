@@ -1,3 +1,4 @@
+import type { MatchDayFormatId } from "./match-day";
 import type { SetCard } from "./checkmatch-set";
 import type { Competition, MatchOutcome, ResultTeam } from "./match-result";
 
@@ -137,4 +138,18 @@ export interface MatchStatsCard extends SetCard {
   sections: StatCardSection[];
   /** Özette xG satırı varsa panelin altındaki açıklama; yoksa null. */
   footnote: string | null;
+}
+
+/** Stüdyo üretim sonucu (tek başına 02). */
+export interface MatchStatsGenerationResult {
+  id: string;
+  resultImageUrl: string;
+  format: MatchDayFormatId;
+  /** Kaynak çelişkisi, zemin kaynağı, Sportmonks eşleşmesi… */
+  notes: string[];
+}
+
+export interface MatchStatsActionState {
+  error?: string;
+  result?: MatchStatsGenerationResult;
 }
