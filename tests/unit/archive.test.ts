@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { planLegacyMigration, type LegacyAsset } from "@/lib/archive/migrate-plan";
-import { compareTr, displayPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
+import { ARCHIVE_TEAM_NAMES, cardTeamName, compareTr, displayPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
 import { archiveUpscaleFactor } from "@/lib/archive/storage";
 import { ARCHIVE_GROUPS, ARCHIVE_GROUP_LABELS, clubTeamDecision, currentCoach, domesticLeague, groupPeople, positionFromApi } from "@/lib/archive/structure";
 
@@ -10,10 +10,24 @@ describe("arşiv — isim disiplini", () => {
     assert.equal(officialLeagueName(203, "Süper Lig"), "Trendyol Süper Lig");
     assert.equal(officialLeagueName(78, "Bundesliga"), "Bundesliga");
     assert.equal(officialLeagueName(0, ""), NATIONAL_ROOT_NAME);
-    assert.equal(officialTeamName(549, "Besiktas"), "Beşiktaş JK");
+    assert.equal(officialTeamName(549, "Beşiktaş"), "Beşiktaş JK");
     assert.equal(officialTeamName(167, "1899 Hoffenheim"), "TSG Hoffenheim");
     assert.equal(officialTeamName(999_001, "Fatih Karagumruk"), "Fatih Karagümrük");
     assert.equal(officialTeamName(999_002, "Some FC"), "Some FC");
+  });
+
+  it("arşiv adı ≠ kart adı: arşiv resmi kısa ad, kart mevcut Türkçe eşleme (tablo kartı etkilemez)", () => {
+    assert.deepEqual([officialTeamName(549, "Beşiktaş"), cardTeamName("Beşiktaş")], ["Beşiktaş JK", "Beşiktaş"]);
+    assert.deepEqual([officialTeamName(645, "Galatasaray"), cardTeamName("Galatasaray")], ["Galatasaray SK", "Galatasaray"]);
+    assert.equal(cardTeamName("Gençlerbirliği S.K."), "Gençlerbirliği");
+  });
+
+  it("arşiv adlarında sponsor yok; Trendyol Süper Lig (18) ve 1. Lig (20) tam kapsanır", () => {
+    const sponsors = /trendyol|rams|tümosan|reeder|sipay|net global|corendon|atakaş|ikas|zecorner|hesap.com|bitexen|siltaş|onvo|kasımpaşa spor a.ş/i;
+    for (const [id, entry] of Object.entries(ARCHIVE_TEAM_NAMES)) assert.ok(!sponsors.test(entry.archiveName), `${id}: ${entry.archiveName}`);
+    const superLig = [996, 3579, 564, 549, 6343, 1009, 3588, 611, 645, 3573, 997, 994, 1004, 7411, 607, 1007, 3603, 998];
+    const firstLeague = [1005, 3584, 7395, 3583, 3569, 1003, 7402, 3589, 17259, 3578, 1001, 3595, 3597, 6533, 7414, 3601, 3605, 1002, 3577, 6342];
+    for (const id of [...superLig, ...firstLeague]) assert.ok(ARCHIVE_TEAM_NAMES[id], `eksik takım ${id}`);
   });
 
   it("kısaltılmış kadro adı sezon verisindeki adla açılır; Türkçe karakterler korunur", () => {

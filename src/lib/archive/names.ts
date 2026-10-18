@@ -11,34 +11,70 @@ export const NATIONAL_ROOT_ID = 0;
 export const NATIONAL_ROOT_NAME = "Milli Takımlar";
 
 /**
- * Kulüplerin resmi tam adları — anahtar API-Football takım kimliği (`club-colors.ts` ile aynı).
- * Tabloda olmayan takım: Türkçe eşleme (`TEAM_NAMES_TR`) → API adı. Sponsor değişirse yalnızca
- * burası güncellenir.
+ * Kulüp adları — anahtar API-Football takım kimliği (`club-colors.ts` ile aynı).
+ *
+ *   - `archiveName`: arşiv klasörünün adı — resmi kısa ad, SPONSORSUZ ("Beşiktaş JK"; sponsorlu
+ *     adlar sezonluk değişir, arşivde kullanılmaz).
+ *   - Kart adı (`displayName`) buraya YAZILMAZ: kartlar mevcut Türkçe eşleme tablosunu kullanmaya
+ *     devam eder (`teamNameTr(apiName)` → "Beşiktaş"); tek kaynak orası.
+ *   - `apiName`: API-Football'un döndürdüğü ad (2026-10-19) — kart adı bununla türetilir.
+ *   - `verified: false`: resmi kısa ad kullanıcı onayı bekliyor.
+ *
+ * Tabloda olmayan takım: Türkçe eşleme → API adı.
  */
-export const OFFICIAL_TEAM_NAMES: Readonly<Record<number, string>> = {
-  // Trendyol Süper Lig 2026-27
-  549: "Beşiktaş JK",
-  645: "Galatasaray SK",
-  611: "Fenerbahçe SK",
-  998: "Trabzonspor",
-  564: "İstanbul Başakşehir FK",
-  607: "Konyaspor",
-  994: "Göztepe SK",
-  996: "Alanyaspor",
-  997: "Gençlerbirliği SK",
-  1004: "Kasımpaşa SK",
-  1007: "Çaykur Rizespor",
-  1009: "Erzurumspor FK",
-  3573: "Gaziantep FK",
-  3579: "Amed SK",
-  3588: "Eyüpspor",
-  3603: "Samsunspor",
-  6343: "Çorum FK",
-  7411: "Kocaelispor",
-  // Milli takım
-  777: "Türkiye",
-  // Avrupa kupalarında sık rakipler
-  167: "TSG Hoffenheim",
+export interface TeamNameEntry {
+  archiveName: string;
+  apiName: string;
+  verified: boolean;
+}
+
+const team = (archiveName: string, apiName: string, verified = true): TeamNameEntry => ({ archiveName, apiName, verified });
+
+export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
+  // ---- Trendyol Süper Lig 2026-27 (18) ----
+  996: team("Alanyaspor", "Alanyaspor"),
+  3579: team("Amed SFK", "Amed", false),
+  564: team("İstanbul Başakşehir FK", "Başakşehir"),
+  549: team("Beşiktaş JK", "Beşiktaş"),
+  6343: team("Çorum FK", "Çorum FK"),
+  1009: team("Erzurumspor FK", "Erzurumspor FK"),
+  3588: team("Eyüpspor", "Eyüpspor"),
+  611: team("Fenerbahçe SK", "Fenerbahçe"),
+  645: team("Galatasaray SK", "Galatasaray"),
+  3573: team("Gaziantep FK", "Gaziantep FK"),
+  997: team("Gençlerbirliği SK", "Gençlerbirliği S.K."),
+  994: team("Göztepe SK", "Göztepe", false),
+  1004: team("Kasımpaşa SK", "Kasımpaşa"),
+  7411: team("Kocaelispor", "Kocaelispor"),
+  607: team("Konyaspor", "Konyaspor"),
+  1007: team("Çaykur Rizespor", "Rizespor", false),
+  3603: team("Samsunspor", "Samsunspor"),
+  998: team("Trabzonspor", "Trabzonspor"),
+  // ---- Trendyol 1. Lig 2026-27 (20) ----
+  1005: team("Antalyaspor", "Antalyaspor"),
+  3584: team("Bandırmaspor", "Bandırmaspor"),
+  7395: team("Batman Petrolspor", "Batman Petrolspor"),
+  3583: team("Bodrum FK", "Bodrum FK", false),
+  3569: team("Boluspor", "Boluspor"),
+  1003: team("Bursaspor", "Bursaspor"),
+  7402: team("Esenler Erokspor", "Esenler Erokspor", false),
+  3589: team("Fatih Karagümrük SK", "Fatih Karagümrük", false),
+  17259: team("Iğdır FK", "Iğdır FK"),
+  3578: team("İstanbulspor", "İstanbulspor"),
+  1001: team("Kayserispor", "Kayserispor"),
+  3595: team("Ankara Keçiörengücü SK", "Keçiörengücü", false),
+  3597: team("Manisa FK", "Manisa F.K."),
+  6533: team("Mardin 1969 SK", "Mardin 1969", false),
+  7414: team("Muğlaspor", "Muğlaspor"),
+  3601: team("Pendikspor", "Pendikspor"),
+  3605: team("Sarıyer SK", "Sarıyer", false),
+  1002: team("Sivasspor", "Sivasspor"),
+  3577: team("Ümraniyespor", "Ümraniyespor"),
+  6342: team("Vanspor FK", "Vanspor FK"),
+  // ---- Milli takım ----
+  777: team("Türkiye", "Turkey"),
+  // ---- Avrupa kupalarında sık rakipler ----
+  167: team("TSG Hoffenheim", "1899 Hoffenheim"),
 };
 
 /** Lig resmi adı: tablo (`OFFICIAL_COMPETITION_NAMES`) → API adı. */
@@ -47,9 +83,14 @@ export function officialLeagueName(leagueId: number, apiName: string): string {
   return OFFICIAL_COMPETITION_NAMES[leagueId] ?? apiName;
 }
 
-/** Takım resmi adı: resmi tablo → Türkçe eşleme → API adı. */
+/** Arşiv klasörü adı: arşiv tablosu (sponsorsuz resmi kısa ad) → Türkçe eşleme → API adı. */
 export function officialTeamName(teamId: number, apiName: string): string {
-  return OFFICIAL_TEAM_NAMES[teamId] ?? teamNameTr(apiName);
+  return ARCHIVE_TEAM_NAMES[teamId]?.archiveName ?? teamNameTr(apiName);
+}
+
+/** Kartlardaki kısa ad — kartlarla aynı kaynak (`teamNameTr`); arşiv tablosu kartı etkilemez. */
+export function cardTeamName(apiName: string): string {
+  return teamNameTr(apiName);
 }
 
 const ABBREVIATED = /^(\p{Lu})\.\s*(.+)$/u;
