@@ -1,0 +1,28 @@
+# Satır sonları: depoda ve çalışma kopyasında her metin dosyası LF.
+# Üretim Linux konteynerinde (Alpine) çalışır; Dockerfile, Caddyfile ve script'ler CRLF ile bozulur.
+# `eol=lf`, Windows'taki `core.autocrlf=true` ayarını metin dosyaları için ezer — checkout'ta CRLF'ye
+# çevrilmez, "LF will be replaced by CRLF" uyarısı çıkmaz.
+* text=auto eol=lf
+
+# Windows'a özgü script'ler (şu an yok) CRLF kalır.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# İkili dosyalar — satır sonu dönüşümü ve metin diff'i yapılmaz.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.gif   binary
+*.ico   binary
+*.ttf   binary
+*.otf   binary
+*.woff  binary
+*.woff2 binary
+*.onnx  binary
+*.wasm  binary
+*.pdf   binary
+*.dump  binary
+*.gz    binary
+*.zip   binary
