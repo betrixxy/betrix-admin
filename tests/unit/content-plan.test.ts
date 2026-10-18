@@ -105,6 +105,37 @@ describe("İçerik paketi ilerlemesi", () => {
     assert.equal(formatProductionSummary(summary), `1/${summary.total} hazır · 1 onay bekliyor`);
     assert.equal(formatProductionSummary({ approved: 3, draft: 0, total: 6 }), "3/6 hazır");
   });
+
+  const carousel = {
+    kind: "MATCH_RESULT",
+    imageUrl: "/api/files/renders/a.png",
+    carousel: [
+      { url: "/api/files/renders/a.png", label: "01 · Maç Sonucu" },
+      { url: "/api/files/renders/b.png", label: "02 · İstatistikler" },
+    ],
+  };
+
+  it("carousel'li Maç Sonucu taslağı Maç İstatistikleri'ni de aynı durumla sayar (taslak → taslak, onaylı → onaylı)", () => {
+    const draft = buildFixtureProduction([{ ...row("r", "MATCH_RESULT", "DRAFT"), renderOptions: carousel }]).get("f1") ?? {};
+    assert.deepEqual([draft.MATCH_RESULT?.status, draft.MATCH_STATS?.status], ["draft", "draft"]);
+    assert.equal(draft.MATCH_STATS?.status === "draft" ? draft.MATCH_STATS.draftId : null, "r");
+    const approved = buildFixtureProduction([{ ...row("r", "MATCH_RESULT", "APPROVED"), renderOptions: carousel }]).get("f1") ?? {};
+    assert.deepEqual([approved.MATCH_RESULT?.status, approved.MATCH_STATS?.status], ["approved", "approved"]);
+  });
+
+  it("tek kartlı Maç Sonucu İstatistikleri saymaz; ayrı onaylı 02 taslak carousel'e yenilmez", () => {
+    const single = buildFixtureProduction([{ ...row("r", "MATCH_RESULT", "DRAFT"), renderOptions: { kind: "MATCH_RESULT", imageUrl: "/x.png" } }]).get("f1") ?? {};
+    assert.equal(single.MATCH_STATS, undefined);
+    const mixed = buildFixtureProduction([{ ...row("r", "MATCH_RESULT", "DRAFT"), renderOptions: carousel }, row("s", "MATCH_STATS", "APPROVED")]).get("f1") ?? {};
+    assert.equal(mixed.MATCH_STATS?.status, "approved");
+  });
+
+  it("02 için planlanmış yayın zamanı carousel taslağına geçince korunur", () => {
+    const planned = { ...row("p", "MATCH_STATS", "DRAFT", null), publishAt: new Date("2026-10-18T20:00:00Z") };
+    const production = buildFixtureProduction([{ ...row("r", "MATCH_RESULT", "DRAFT"), renderOptions: carousel }, planned]).get("f1") ?? {};
+    assert.equal(production.MATCH_STATS?.status, "draft");
+    assert.equal(production.MATCH_STATS?.publishAt, "2026-10-18T20:00:00.000Z");
+  });
 });
 
 describe("Plan imleci", () => {

@@ -15,7 +15,7 @@ export async function getFixtureProduction(fixtureIds: string[]): Promise<Map<st
   if (fixtureIds.length === 0) return new Map();
   const contents = await prisma.aiContent.findMany({
     where: { fixtureId: { in: fixtureIds }, status: { in: ["DRAFT", ...APPROVED_STATUSES] } },
-    select: { id: true, fixtureId: true, status: true, contentType: true, resultImageUrl: true, publishAt: true },
+    select: { id: true, fixtureId: true, status: true, contentType: true, resultImageUrl: true, publishAt: true, renderOptions: true },
     orderBy: { createdAt: "desc" },
   });
   return buildFixtureProduction(contents);
