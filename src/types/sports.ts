@@ -10,6 +10,18 @@ export type FixtureStatus =
 
 export type DerbyIntensity = "NONE" | "RIVALRY" | "DERBY" | "ELITE_DERBY";
 
+/**
+ * "Maç önemi" — formlardaki TEK KAYNAK (Maç Günü, taslak inceleme). Değerler ve arka plan atmosfer
+ * prompt'ları (CLAUDE.md 3.2.3) değişmedi; yalnızca etiketler (kurucu kararı, 2026-10-19):
+ * RIVALRY (gergin, keskin kontrast) artık "Final-kritik" olarak seçilir.
+ */
+export const MATCH_IMPORTANCE_OPTIONS: readonly { value: DerbyIntensity; label: string }[] = [
+  { value: "NONE", label: "Normal" },
+  { value: "DERBY", label: "Derbi" },
+  { value: "ELITE_DERBY", label: "Büyük derbi" },
+  { value: "RIVALRY", label: "Final-kritik" },
+];
+
 export type MatchResultLetter = "W" | "D" | "L";
 
 export interface TeamRef {

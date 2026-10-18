@@ -7,6 +7,7 @@ import { ImageUploadField } from "@/components/features/dashboard/image-upload-f
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { SearchCombobox, type ComboboxGroup } from "@/components/ui/search-combobox";
 import { cn } from "@/lib/utils";
 import { PHOTO_KINDS, PHOTO_KIND_LABELS, type ArchivePickerData, type PickerBucket, type PickerPhoto, type PickerSubject } from "@/types/archive";
 
@@ -80,6 +81,19 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   }, [teamKey, fixtureId, defaultSubject]);
 
   const subjects = useMemo(() => data?.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects)) ?? [], [data]);
+  // Aramalı kutunun grupları: takım fotoğrafı, teknik direktör, mevkiler (takım adıyla); sağda fotoğraf sayısı.
+  const subjectGroups = useMemo<ComboboxGroup[]>(
+    () =>
+      data?.teams.flatMap((team) =>
+        team.groups
+          .filter((group) => group.subjects.length > 0)
+          .map((group) => ({
+            label: `${team.name} · ${group.label}`,
+            items: group.subjects.map((entry) => ({ value: entry.key, label: entry.label, meta: `${team.photos[entry.key]?.length ?? 0} foto`, keywords: team.name })),
+          })),
+      ) ?? [],
+    [data],
+  );
   const subject = subjects.find((entry) => entry.key === subjectKey) ?? null;
   const subjectTeam = data?.teams.find((team) => team.groups.some((group) => group.subjects.some((entry) => entry.key === subjectKey)));
   const photos = useMemo(() => subjectTeam?.photos[subjectKey] ?? [], [subjectTeam, subjectKey]);
@@ -104,22 +118,15 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
       <Label htmlFor={`${name}-subject`}>{label}</Label>
       <input type="hidden" name={`${name}Subject`} value={subjectKey} />
       <input type="hidden" name={`${name}PhotoId`} value={upload ? "" : (photoId ?? "")} />
-      <NativeSelect id={`${name}-subject`} value={subjectKey} onChange={(event) => selectSubject(event.target.value, data)} disabled={isLoading || !data} className="h-8 text-xs">
-        {!data ? <option value="">Arşiv yükleniyor…</option> : null}
-        {data?.teams.map((team) =>
-          team.groups.map((group) =>
-            group.subjects.length === 0 ? null : (
-              <optgroup key={`${team.teamId}-${group.group}`} label={group.group === "TEAM" ? team.name : `${team.name} · ${group.label}`}>
-                {group.subjects.map((entry) => (
-                  <option key={entry.key} value={entry.key}>
-                    {entry.label} ({team.photos[entry.key]?.length ?? 0})
-                  </option>
-                ))}
-              </optgroup>
-            ),
-          ),
-        )}
-      </NativeSelect>
+      <SearchCombobox
+        id={`${name}-subject`}
+        groups={subjectGroups}
+        value={subjectKey}
+        onChange={(key) => selectSubject(key, data)}
+        placeholder={data ? "Kişi ara (ör. kokcu)…" : "Arşiv yükleniyor…"}
+        emptyText="Bu adla kişi yok"
+        disabled={isLoading || !data}
+      />
       {isLoading ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><LoaderCircle className="size-3.5 animate-spin" />Arşiv yükleniyor (gerekirse kadro senkronlanır)…</p>
       ) : null}

@@ -8,25 +8,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PlayerUploadDropzone } from "@/components/features/studio/player-upload-dropzone";
-
-const DERBY_INTENSITY_OPTIONS = [
-  { value: "NONE", label: "Yok — Standart Lig Maçı" },
-  { value: "RIVALRY", label: "Rekabet — Bölgesel Rekabet" },
-  { value: "DERBY", label: "Derbi — Şehir Derbisi" },
-  { value: "ELITE_DERBY", label: "Üst Düzey Derbi — Dev Maç" },
-] as const;
+import { MATCH_IMPORTANCE_OPTIONS } from "@/types/sports";
 
 export function MatchDayForm() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="derby-intensity">Derbi Tansiyonu</Label>
+        <Label htmlFor="derby-intensity">Maç önemi</Label>
         <Select defaultValue="NONE">
           <SelectTrigger id="derby-intensity" className="w-full">
-            <SelectValue placeholder="Derbi tansiyonunu seç" />
+            <SelectValue placeholder="Maç önemini seç" />
           </SelectTrigger>
           <SelectContent>
-            {DERBY_INTENSITY_OPTIONS.map((option) => (
+            {MATCH_IMPORTANCE_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
                 {option.label}
               </SelectItem>
