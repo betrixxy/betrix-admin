@@ -24,6 +24,19 @@ export interface ResultGeometry {
   /** Ana oyuncu (MVP) kesimi; beraberlik varyantında iki oyuncu `pair`'den okunur. */
   hero: PlayerSlot;
   pair: [PlayerSlot, PlayerSlot];
+  /**
+   * Tam kadraj maç fotoğrafında yüzlerin durması gereken yazısız bölge (kart pikseli): dikeyde
+   * başlık satırının altı ile gradyan başlangıcı arası, yatayda yazı sütununun solu. Akıllı
+   * kırpma (`match-photo/crop.ts`) bu kutuyu okur.
+   */
+  photoSafe: FrameBox;
+}
+
+export interface FrameBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
 }
 
 function vertical(frame: MatchDayFrame): ResultGeometry {
@@ -52,6 +65,7 @@ function vertical(frame: MatchDayFrame): ResultGeometry {
     shadeSolid,
     hero: { centerX: frame.width / 2, top: playerTop, maxWidth: frame.width - 80, maxHeight: playerHeight },
     pair: [half(-1), half(1)],
+    photoSafe: { left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: top + Math.round(40 * k), bottom: shadeStart },
   };
 }
 
@@ -70,6 +84,7 @@ function landscape(frame: MatchDayFrame): ResultGeometry {
     hero: slot(300),
     // Split: iki oyuncu sol yarıda kalır, sağdaki yazı sütununa (x ≥ 560) taşmaz.
     pair: [slot(150, 420), slot(380, 420)],
+    photoSafe: { left: SAFE_MARGIN, right: 380, top: SAFE_MARGIN + 40, bottom: frame.height - SAFE_MARGIN },
   };
 }
 

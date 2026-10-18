@@ -103,6 +103,19 @@ export async function getPlayerPhotoOptions(playerIds: number[]): Promise<Record
   return byPlayer;
 }
 
+/** Turnuva logosunun kütüphane etiketi (`MediaAsset.teamId`) — "league-203". */
+export const leagueLogoTag = (leagueId: number) => `league-${leagueId}`;
+
+/** Kütüphanedeki en yeni şeffaf turnuva logosu (set rozeti) — yoksa null. */
+export async function findLeagueLogoUrl(leagueId: number): Promise<string | null> {
+  const row = await prisma.mediaAsset.findFirst({
+    where: { category: "LOGO", teamId: leagueLogoTag(leagueId), hasAlpha: true },
+    orderBy: { createdAt: "desc" },
+    select: { fileUrl: true },
+  });
+  return row?.fileUrl ?? null;
+}
+
 /** Seçilen kütüphane görseli bu oyuncuya mı ait — sunucu, formdan gelen kimliğe güvenmez. */
 export async function isPlayerPhoto(assetId: string, playerId: number): Promise<boolean> {
   const row = await prisma.mediaAsset.findUnique({ where: { id: assetId }, select: { category: true, playerId: true } });

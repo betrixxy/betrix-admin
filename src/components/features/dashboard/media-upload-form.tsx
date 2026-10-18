@@ -46,8 +46,8 @@ export function MediaUploadForm({ defaultCategory }: { defaultCategory: MediaCat
               <Input id="teamName" name="teamName" maxLength={120} placeholder="Galatasaray" />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="teamId">API-Football takım ID</Label>
-              <Input id="teamId" name="teamId" inputMode="numeric" pattern="\d*" placeholder="645" />
+              <Label htmlFor="teamId">API-Football takım / lig ID</Label>
+              <Input id="teamId" name="teamId" pattern="\d*|league-\d+" placeholder="645 · lig: league-203" />
             </div>
           </div>
           <ImageUploadField name="file" label="Görsel" hint="JPEG/PNG/WebP · en fazla 8 MB · oyuncular için ≥256px (küçükler üretimde AI ile büyütülür)" />

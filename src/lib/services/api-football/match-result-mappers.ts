@@ -39,15 +39,16 @@ export function countedGoals(events: ApiFootballEventRaw[]): ApiFootballEventRaw
 }
 
 /**
- * Bir tarafın golcü satırları, oluş sırasıyla. Kendi kalesine gol (KK) golü kazanan tarafa yazılır
- * (API olayı oyuncunun kendi takımıyla verir); aynı oyuncunun golleri tek satırda birleşir.
+ * Bir tarafın golcü satırları, oluş sırasıyla. Kendi kalesine gol (KK) golün yaradığı tarafa yazılır.
+ * API-Football KK olayında `team` alanını zaten golün yaradığı takımla verir (oyuncu rakipten
+ * olsa da — bkz. Gençlerbirliği 0-1 Galatasaray fixture'ı), bu yüzden taraf çevrilmez. Aynı
+ * oyuncunun golleri tek satırda birleşir.
  */
 export function scorerLines(goals: ApiFootballEventRaw[], teamId: number): ScorerLine[] {
   const lines = new Map<string, ScorerLine>();
   for (const goal of goals) {
+    if (goal.team.id !== teamId) continue;
     const ownGoal = goal.detail === "Own Goal";
-    const creditedToTeam = ownGoal ? goal.team.id !== teamId : goal.team.id === teamId;
-    if (!creditedToTeam) continue;
     const name = goal.player.name?.trim() || "Bilinmeyen oyuncu";
     const suffix = ownGoal ? " (KK)" : goal.detail === "Penalty" ? " (P)" : "";
     const key = `${goal.player.id ?? name}:${ownGoal ? "og" : "g"}`;

@@ -12,7 +12,7 @@ import { Shade } from "./shared";
  * Beraberlik varyantında aynı yazı katmanı iki oyunculu split kompozisyonun üstüne basılır.
  */
 
-function MvpLine({ card, size }: { card: MatchResultCard; size: number }) {
+export function MvpLine({ card, size }: { card: MatchResultCard; size: number }) {
   if (!card.mvpName) return null;
   return (
     <div tw="flex items-center justify-center">

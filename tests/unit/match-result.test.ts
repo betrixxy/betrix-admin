@@ -4,7 +4,7 @@ import { competitionKind, competitionName, resultRoundLabel, teamNameTr, upperTr
 import { contrastRatio, readableOnDark, resultAccentHex, RESULT_SHADE_HEX } from "@/lib/dashboard/match-result-theme";
 import { countedGoals, formatMinute, pickMvp, scorerLines, toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballEventRaw, ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
-import { RAW_HOFFENHEIM_BESIKTAS } from "../fixtures/api-football/match-result";
+import { RAW_GENCLERBIRLIGI_GALATASARAY, RAW_HOFFENHEIM_BESIKTAS } from "../fixtures/api-football/match-result";
 
 const HOME = 167;
 const AWAY = 549;
@@ -53,10 +53,11 @@ describe("Maç Sonucu — gerçek maç (Hoffenheim 2-3 Beşiktaş)", () => {
 });
 
 describe("gol satırları", () => {
-  it("uzatma dakikası, penaltı (P), kendi kalesine (KK) rakibe yazılır", () => {
+  it("uzatma dakikası, penaltı (P), kendi kalesine (KK) olayın takımına (golün yaradığı taraf) yazılır", () => {
     assert.equal(formatMinute(90, 2), "90+2'");
     assert.equal(formatMinute(45, null), "45'");
-    const goals = [goal(HOME, 1, "A", 12, "Penalty"), goal(HOME, 2, "B", 34, "Own Goal"), goal(AWAY, 3, "C", 90, "Normal Goal", 4)];
+    // B ev sahibi oyuncusu; API KK olayını golün yaradığı takımla (AWAY) verir.
+    const goals = [goal(HOME, 1, "A", 12, "Penalty"), goal(AWAY, 2, "B", 34, "Own Goal"), goal(AWAY, 3, "C", 90, "Normal Goal", 4)];
     assert.deepEqual(
       scorerLines(goals, HOME).map((line) => [line.name, line.minutes]),
       [["A", ["12' (P)"]]],
@@ -65,6 +66,19 @@ describe("gol satırları", () => {
       scorerLines(goals, AWAY).map((line) => [line.name, line.minutes]),
       [["B", ["34' (KK)"]], ["C", ["90+4'"]]],
     );
+  });
+
+  it("gerçek maç: Gençlerbirliği 0-1 Galatasaray — Eğribayat KK'sı Galatasaray tarafında", () => {
+    const facts = toMatchResultFacts(RAW_GENCLERBIRLIGI_GALATASARAY);
+    assert.ok(facts);
+    assert.deepEqual([facts.home.goals, facts.away.goals, facts.outcome], [0, 1, "AWAY"]);
+    assert.deepEqual(facts.home.scorers, []);
+    assert.deepEqual(
+      facts.away.scorers.map((line) => [line.name, line.minutes]),
+      [["İrfan Can Eğribayat", ["88' (KK)"]]],
+    );
+    // KK golü MVP önerisine gol olarak sayılmaz; MVP kazanan taraftan.
+    assert.equal(facts.mvp?.side, "AWAY");
   });
 
   it("kaçan penaltı, penaltı atışları ve VAR iptali sayılmaz", () => {

@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import { logoSilhouette } from "@/lib/dashboard/logo-silhouette";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
@@ -51,38 +51,46 @@ export function buildSetCard(facts: SetFacts, images: SetImages, pageLabel: stri
   };
 }
 
-/** Şeffaf alanı bundan azsa logo düz zeminlidir (JPEG vb.) — beyaz siluet kutuya dönüşür, orijinal kullanılır. */
-const MIN_TRANSPARENT_SHARE = 0.1;
-
 /**
- * Turnuva logosu → beyaz siluet (alfa kanalından). Set rozeti şeffaf olduğu için koyu renkli
- * logolar (UEFA Avrupa Ligi) koyu zeminde kaybolur; yayın grafiğindeki gibi tek renk beyaz çizilir.
+ * Turnuva logosu → beyaz siluet (bkz. `logo-silhouette.ts`). Set rozeti şeffaf olduğu için koyu
+ * renkli logolar (UEFA Avrupa Ligi) koyu zeminde kaybolur; yayın grafiğindeki gibi tek renk beyaz
+ * çizilir. Düz zemini temizlenemeyen logo null döner — rozet çizilmez, beyaz kutu asla çıkmaz.
  */
 export async function monochromeLogo(dataUri: string | null): Promise<string | null> {
-  if (!dataUri) return null;
-  const base64 = dataUri.split(",")[1];
-  if (!base64) return dataUri;
+  const base64 = dataUri?.split(",")[1];
+  if (!base64) return null;
   try {
-    const image = sharp(Buffer.from(base64, "base64")).ensureAlpha();
-    const alpha = await image.clone().extractChannel(3).raw().toBuffer({ resolveWithObject: true });
-    const transparent = alpha.data.reduce((count, value) => count + (value < 16 ? 1 : 0), 0) / alpha.data.length;
-    if (transparent < MIN_TRANSPARENT_SHARE) return dataUri;
-    const { width, height } = alpha.info;
-    const white = await sharp({ create: { width, height, channels: 3, background: { r: 255, g: 255, b: 255 } } })
-      .joinChannel(alpha.data, { raw: { width, height, channels: 1 } })
-      .png()
-      .toBuffer();
-    return `data:image/png;base64,${white.toString("base64")}`;
+    return await logoSilhouette(Buffer.from(base64, "base64"));
   } catch {
-    return dataUri;
+    return null;
   }
 }
 
-export async function resolveSetImages(facts: SetFacts): Promise<SetImages> {
+/** Kütüphanedeki şeffaf turnuva logosunun URL'i (yoksa null) — testte/offline'da DB'siz yedek verilir. */
+export type LeagueLogoLookup = (leagueId: number) => Promise<string | null>;
+
+/** DB yalnızca çağrıldığında yüklenir: set kartlarını DB'siz çizen testler/scriptler etkilenmez. */
+const libraryLeagueLogo: LeagueLogoLookup = async (leagueId) => {
+  try {
+    const { findLeagueLogoUrl } = await import("@/lib/dashboard/media-library");
+    return await findLeagueLogoUrl(leagueId);
+  } catch {
+    return null;
+  }
+};
+
+/** Rozet sırası: kütüphanedeki şeffaf PNG → sağlayıcı logosu (gerekirse zemini temizlenir) → rozetsiz. */
+async function resolveLeagueLogo(facts: SetFacts, lookup: LeagueLogoLookup): Promise<string | null> {
+  const library = await lookup(facts.competition.leagueId);
+  const fromLibrary = library ? await monochromeLogo(await resolveImage(library, 200)) : null;
+  return fromLibrary ?? monochromeLogo(await resolveImage(facts.competition.logoUrl || undefined, 200));
+}
+
+export async function resolveSetImages(facts: SetFacts, leagueLogoLookup: LeagueLogoLookup = libraryLeagueLogo): Promise<SetImages> {
   const [homeLogo, awayLogo, leagueLogo, brandLogo] = await Promise.all([
     resolveImage(facts.home.logoUrl, 300),
     resolveImage(facts.away.logoUrl, 300),
-    resolveImage(facts.competition.logoUrl || undefined, 200).then(monochromeLogo),
+    resolveLeagueLogo(facts, leagueLogoLookup),
     loadBrandLogo(),
   ]);
   return { homeLogo, awayLogo, leagueLogo, brandLogo };

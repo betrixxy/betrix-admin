@@ -75,6 +75,7 @@ const TEAM_NAMES_TR: Record<string, string> = {
   "Igdir FK": "Iğdır FK",
   Keciorengucu: "Keçiörengücü",
   Umraniyespor: "Ümraniyespor",
+  "Gençlerbirliği S.K.": "Gençlerbirliği",
   Turkey: "Türkiye",
   "1899 Hoffenheim": "Hoffenheim",
   "Bayern Munich": "Bayern Münih",

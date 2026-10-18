@@ -12,7 +12,8 @@ const uploadSchema = z.object({
   category: z.enum(MEDIA_CATEGORIES, "Bir klasör seçin."),
   label: z.string().trim().min(1, "Bir ad girin.").max(120, "Ad en fazla 120 karakter olabilir."),
   teamName: z.string().trim().max(120),
-  teamId: z.string().trim().regex(/^\d*$/, "Takım kimliği yalnızca rakam olmalı (API-Football)."),
+  // Takım: "645"; turnuva logosu: "league-203" — set rozeti şeffaf logoyu bununla bulur (`findLeagueLogoUrl`).
+  teamId: z.string().trim().regex(/^(\d*|league-\d+)$/, "Kimlik rakam (takım) ya da league-<id> (turnuva) olmalı — API-Football."),
 });
 
 /** Kütüphaneye görsel ekler — içerik-adresli; aynı dosya aynı klasöre ikinci kez eklenmez. */
