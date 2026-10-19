@@ -1,6 +1,6 @@
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
-import { isSimilarColor } from "@/lib/dashboard/color-math";
-import { distinctTeamColor, readableTeamColors, teamColorHex } from "@/lib/dashboard/match-result-theme";
+import { clubColors } from "@/lib/dashboard/club-colors";
+import { isReadableOnCard, isSimilarColor } from "@/lib/dashboard/color-math";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { openBoxLines, scenarioTitle, type MatchSides } from "@/lib/prediction/catalog";
@@ -14,7 +14,6 @@ import type { VitrinCard, VitrinOpenBox, VitrinSelection, VitrinWinBar } from "@
  */
 
 export const VITRIN_PAGE_LABELS: [string, string] = ["01 · MAÇ ÖNÜ", "02 · ANALİZ"];
-const FALLBACK_ACCENT = "#F5C518";
 /** Beraberlik segmentinin nötr grisi — takım renkleri buna benzememeli. */
 export const DRAW_HEX = "#5B606B";
 const FALLBACK_SIDE_HEX: [string, string] = ["#E8E8EA", "#9AA3B5"];
@@ -54,21 +53,26 @@ function scenarioOf(prediction: PredictionSet, id: ScenarioId): Scenario {
   return scenario;
 }
 
-/** Vurgu: modelin favorisinin okunur kulüp rengi (rakibe benzemeyen), yoksa set altını. */
-export function vitrinAccentHex(prediction: PredictionSet, meta: Pick<VitrinMeta, "homeTeamId" | "awayTeamId">): string {
-  const result = prediction.scenarios.find((entry) => entry.id === "RESULT_1X2");
-  const homeFavourite = (result?.outcomeProbabilities.HOME ?? 0) >= (result?.outcomeProbabilities.AWAY ?? 0);
-  const [fav, other] = homeFavourite ? [meta.homeTeamId, meta.awayTeamId] : [meta.awayTeamId, meta.homeTeamId];
-  const rival = readableTeamColors({ id: other, colorHex: "" })[0] ?? null;
-  return distinctTeamColor({ id: fav, colorHex: "" }, rival) ?? FALLBACK_ACCENT;
+/**
+ * Kartın takım rengi (2026-10-19 kararı): ana renk koyu zeminde OLDUĞU GİBİ okunuyorsa o, değilse
+ * ikincil — açıklık yükseltilmez (bordo → pembe yok). Beraberlik grisine ve rakibin rengine benzeyen
+ * aday atlanır. Çubuk, manşet, vurgu ve fotoğraf tonu bu tek rengi kullanır.
+ */
+export function cardTeamColor(teamId: number, avoid: string[]): string | null {
+  const club = clubColors(teamId);
+  return [club?.primary, club?.secondary].find((hex): hex is string => isReadableOnCard(hex) && avoid.every((other) => !isSimilarColor(hex, other))) ?? null;
 }
 
-/** Kulüp renkleri (birincil → ikincil): okunur, beraberlik grisine ve birbirine benzemeyen ilk aday. */
 export function sideColors(homeTeamId: number, awayTeamId: number): [string, string] {
-  const pick = (id: number, avoid: string[]) => readableTeamColors({ id, colorHex: teamColorHex(id) }).find((hex) => avoid.every((other) => !isSimilarColor(hex, other))) ?? null;
-  const home = pick(homeTeamId, [DRAW_HEX]) ?? FALLBACK_SIDE_HEX[0];
-  const away = pick(awayTeamId, [DRAW_HEX, home]) ?? (isSimilarColor(FALLBACK_SIDE_HEX[1], home) ? FALLBACK_SIDE_HEX[0] : FALLBACK_SIDE_HEX[1]);
+  const home = cardTeamColor(homeTeamId, [DRAW_HEX]) ?? FALLBACK_SIDE_HEX[0];
+  const away = cardTeamColor(awayTeamId, [DRAW_HEX, home]) ?? (isSimilarColor(FALLBACK_SIDE_HEX[1], home) ? FALLBACK_SIDE_HEX[0] : FALLBACK_SIDE_HEX[1]);
   return [home, away];
+}
+
+/** Vurgu: favorinin kart rengi (çubuktaki ve manşetteki renkle aynı); favori yoksa ev sahibininki. */
+export function vitrinAccentHex(bar: Pick<VitrinWinBar, "favourite" | "home" | "away">, colors: [string, string]): string {
+  const homeSide = bar.favourite ? bar.favourite === "HOME" : bar.home >= bar.away;
+  return homeSide ? colors[0] : colors[1];
 }
 
 /** 0–1 olasılıklar → toplamı 100 olan tamsayılar (en büyük kalan yöntemi). */
@@ -106,21 +110,22 @@ export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSele
     return { title: scenarioTitle(id, meta.sides, scenario.outcome), lines: openBoxLines(scenario, meta.sides), reason: scenario.reason.trim() };
   }) as [VitrinOpenBox, VitrinOpenBox];
   const locked = selection.locked.map((id) => scenarioTitle(id, meta.sides, scenarioOf(prediction, id).outcome)) as [string, string, string];
-  const [homeHex, awayHex] = sideColors(meta.homeTeamId, meta.awayTeamId);
+  const colors = sideColors(meta.homeTeamId, meta.awayTeamId);
+  const bar = winBar(prediction, meta.sides);
   return {
     pageLabels: VITRIN_PAGE_LABELS,
     dateLabel: setDateLabel(meta.kickoffUtc),
     competitionLabel: upperTr(meta.competitionName),
     roundLabel: upperTr(meta.roundLabel),
-    accentHex: vitrinAccentHex(prediction, meta),
+    accentHex: vitrinAccentHex(bar, colors),
     homeTeam: upperTr(meta.sides.home),
     awayTeam: upperTr(meta.sides.away),
-    homeHex,
-    awayHex,
+    homeHex: colors[0],
+    awayHex: colors[1],
     homeForm: meta.homeForm,
     awayForm: meta.awayForm,
     ...images,
-    winBar: winBar(prediction, meta.sides),
+    winBar: bar,
     open,
     locked,
     hiddenCount: Math.max(0, prediction.scenarioCount - selection.open.length),

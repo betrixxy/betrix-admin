@@ -3,7 +3,7 @@ import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { hexAlpha } from "../checkmatch-set/set-parts";
 import { BODY, fitFontSize, px } from "../match-day/shared";
 import type { AnalysisGeometry } from "./geometry";
-import { LockIcon, MUTED, tight } from "./parts";
+import { LockIcon, MUTED } from "./parts";
 
 /**
  * Kilitli bölüm — "bilet": koyu zemin, üst/alt kenar tırtıklı (perforasyon), solda kilitli koçan,
@@ -56,13 +56,13 @@ export function LockedTicket({ card, g, only }: { card: VitrinCard; g: AnalysisG
         <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: px(15, k), letterSpacing: px(3, k), color: MUTED, marginTop: px(14, k) }}>KİLİTLİ</span>
       </div>
       <div tw="absolute flex flex-col" style={{ left: stub + pad, top: pad, width: mainWidth }}>
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: px(17, k), lineHeight: 1, letterSpacing: px(3, k), color: MUTED, height: px(40, k) }}>{tight("KİLİTLİ SENARYOLAR")}</span>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: px(17, k), lineHeight: 1, letterSpacing: px(3, k), color: MUTED, height: px(40, k) }}>KİLİTLİ SENARYOLAR</span>
         {card.locked.map((title, index) => {
           // Geist Bold küçük harf ≈ 0,55 em; NBSP satırı bölünmediği için tahmin bir pay daha geniş tutulur.
           const size = fitFontSize(title, mainWidth - answerWidth - px(16, k), px(27, k), 0.62, px(14, k));
           return (
             <div key={title} tw="flex items-center justify-between" style={{ height: rowHeight, borderTop: index === 0 ? "none" : "1px solid rgba(255,255,255,0.08)" }}>
-              <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1.15, color: "#fff", maxWidth: mainWidth - answerWidth - px(16, k) }}>{tight(title)}</span>
+              <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1.15, color: "#fff", maxWidth: mainWidth - answerWidth - px(16, k) }}>{title}</span>
               <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: px(26, k), lineHeight: 1, color: card.accentHex, width: answerWidth, textAlign: "right" }}>{LOCKED_ANSWER}</span>
             </div>
           );
@@ -73,7 +73,7 @@ export function LockedTicket({ card, g, only }: { card: VitrinCard; g: AnalysisG
           tw="absolute flex items-center"
           style={{ right: px(26, k), top: -Math.round(badgeSize * 0.9), height: Math.round(badgeSize * 1.9), padding: `0 ${px(16, k)}px`, borderRadius: badgeSize, backgroundColor: card.accentHex, boxShadow: `0 0 ${px(18, k)}px ${hexAlpha(card.accentHex, 0.4)}` }}
         >
-          <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: badgeSize, lineHeight: 1, color: "#0B0C12" }}>{tight(`+${card.hiddenCount} senaryo`)}</span>
+          <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: badgeSize, lineHeight: 1, color: "#0B0C12" }}>+{card.hiddenCount} senaryo</span>
         </div>
       ) : null}
     </div>

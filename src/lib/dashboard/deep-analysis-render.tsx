@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { DeepAnalysisCard } from "@/skills/render-engine/templates/deep-analysis/deep-analysis-card";
@@ -52,7 +52,7 @@ async function sanitize(team: TeamAnalysisDraft): Promise<TeamAnalysisDraft> {
 export async function renderDeepAnalysisCard(input: { team: TeamAnalysisDraft; opponentName: string; format: SocialFormatId }): Promise<Buffer> {
   const [fonts, brandLogo, team] = await Promise.all([loadDeepAnalysisFonts(), loadBrandLogo(), sanitize(input.team)]);
   const { width, height } = SOCIAL_FORMATS[input.format];
-  const response = new ImageResponse(<DeepAnalysisCard team={team} opponentName={input.opponentName} format={input.format} brandLogo={brandLogo} />, {
+  const response = renderSatori(<DeepAnalysisCard team={team} opponentName={input.opponentName} format={input.format} brandLogo={brandLogo} />, {
     width,
     height,
     fonts,

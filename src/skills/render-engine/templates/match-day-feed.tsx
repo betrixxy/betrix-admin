@@ -100,6 +100,7 @@ function Team({ logo, name }: { logo: string | null; name: string }) {
     <div tw="flex flex-col items-center" style={{ width: 340 }}>
       <TeamLogo src={logo} name={name} />
       <span
+        data-wrap
         tw="mt-8 text-white font-black text-center"
         style={{ fontSize: 44, lineHeight: 1.1, textShadow: "0 4px 18px rgba(0,0,0,0.6)" }}
       >
@@ -119,6 +120,7 @@ function InfoCell({ label, value, last = false }: { label: string; value: string
         {label}
       </span>
       <span
+        data-wrap
         tw="mt-3 text-white font-bold text-center"
         style={{ fontSize: value.length > 16 ? 24 : 30, lineHeight: 1.2 }}
       >

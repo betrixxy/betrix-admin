@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import sharp from "sharp";
 import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
@@ -35,7 +35,7 @@ export async function renderMatchResultOverlay(card: MatchResultCard, frame: Mat
   const fonts = await loadMatchDayFonts();
   const Template = TEMPLATES[options.template];
   const g = matchResultGeometry(frame, options.side, options.template);
-  const response = new ImageResponse(<Template card={card} g={g} shadeStrength={options.shadeStrength} only={options.only} />, {
+  const response = renderSatori(<Template card={card} g={g} shadeStrength={options.shadeStrength} only={options.only} />, {
     width: frame.width,
     height: frame.height,
     fonts,

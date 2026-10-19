@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { embedLogo } from "@/lib/dashboard/weekly-fixtures-render";
@@ -19,7 +19,7 @@ export async function renderStandingsCard(input: StandingsCardInput): Promise<Bu
     Promise.all(rows.map(async (row) => [row.teamId, await embedLogo(row.logoUrl, TEAM_LOGO_SIDE)] as const)),
   ]);
   const { width, height } = SOCIAL_FORMATS[input.format];
-  const response = new ImageResponse(<StandingsCard {...input} leagueLogoUrl={leagueLogoUrl} brandLogo={brandLogo} teamLogos={Object.fromEntries(teamLogoEntries)} />, {
+  const response = renderSatori(<StandingsCard {...input} leagueLogoUrl={leagueLogoUrl} brandLogo={brandLogo} teamLogos={Object.fromEntries(teamLogoEntries)} />, {
     width,
     height,
     fonts,

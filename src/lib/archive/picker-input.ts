@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PHOTO_KINDS } from "@/types/archive";
 import type { Result } from "@/types/result";
 import { createArchivePhoto } from "./mutations";
+import { kitTeamOf } from "./picker-order";
 import { photoForCard } from "./storage";
 
 /**
@@ -26,6 +27,7 @@ export interface ResolvedArchivePhoto {
 
 type Fail = { ok: false; error: { code: string; message: string } };
 const fail = (code: string, message: string): Fail => ({ ok: false, error: { code, message } });
+const KIT_MISMATCH_MESSAGE = "Fotoğraftaki forma bu takımın değil — posterin bu yarısına yalnızca takımın kendi formalı fotoğrafı girer.";
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -52,6 +54,8 @@ export async function resolveArchivePhoto(
   field: string,
   teamIds: readonly number[],
   fixtureId: string | null,
+  /** Yalnızca forması o takımın olan fotoğraf (vitrin posteri); seçilen ya da yüklenen. */
+  options: { kitOnly?: boolean } = {},
 ): Promise<Result<ResolvedArchivePhoto | null>> {
   const photoId = text(formData, `${field}PhotoId`);
   if (photoId) {
@@ -59,6 +63,7 @@ export async function resolveArchivePhoto(
     if (!photo || photo.hiddenAt) return fail("PHOTO_NOT_FOUND", "Seçilen arşiv fotoğrafı bulunamadı.");
     const teamId = photo.person ? memberOf(photo.person, teamIds) : teamIds.includes(photo.teamId) ? photo.teamId : null;
     if (teamId === null) return fail("PHOTO_NOT_FOR_MATCH", "Seçilen fotoğraf bu maçtaki takımlara ait değil.");
+    if (options.kitOnly && kitTeamOf(photo) !== teamId) return fail("KIT_MISMATCH", KIT_MISMATCH_MESSAGE);
     const card = await forCard(photo);
     if (!card.ok) return card;
     return { ok: true, data: { image: card.data.image, fileUrl: card.data.url, photoId: photo.id, playerApiId: photo.person?.role === "PLAYER" ? photo.person.apiId : null, teamId } };
@@ -88,6 +93,7 @@ export async function resolveArchivePhoto(
 
   const kind = z.enum(PHOTO_KINDS).safeParse(text(formData, `${field}Kind`) || "CELEBRATION");
   const kitTeamId = Number(text(formData, `${field}KitTeamId`)) || teamId;
+  if (options.kitOnly && kitTeamId !== teamId) return fail("KIT_MISMATCH", KIT_MISMATCH_MESSAGE);
   if (!(await prisma.team.findUnique({ where: { id: kitTeamId }, select: { id: true } }))) return fail("KIT_TEAM_UNKNOWN", "Forma takımı arşivde yok.");
   const inspected = await inspectImageUpload(file, "Fotoğraf");
   if (!inspected.ok) return inspected;

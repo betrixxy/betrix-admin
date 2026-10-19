@@ -4,7 +4,8 @@ import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { VITRIN_SIZES, type AnalysisColumn, type AnalysisGeometry } from "./geometry";
-import { MUTED, Percent, SectionLabel, percentValue, tight, wrapLines } from "./parts";
+import { wrapLines } from "../../satori-text";
+import { MUTED, Percent, SectionLabel, percentValue } from "./parts";
 import { LockedTicket } from "./ticket";
 
 /**
@@ -61,7 +62,7 @@ function FormGuide({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; o
     <div tw="absolute flex flex-col" style={{ left: column.left, top: g.form.top, width, height: g.form.height, opacity: blockOpacity(only, "form") }}>
       <div tw="flex items-center justify-between" style={{ height: px(s.sectionLabel, k), marginBottom: px(s.sectionLabelGap, k) }}>
         <SectionLabel text="Form · son 5 maç" color={card.accentHex} size={px(19, k)} maxWidth={width / 2} />
-        <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(15, k), letterSpacing: px(2, k), color: MUTED }}>{tight("ESKİ → YENİ")}</span>
+        <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(15, k), letterSpacing: px(2, k), color: MUTED }}>ESKİ → YENİ</span>
       </div>
       <FormRow name={card.homeTeam} logo={card.homeLogo} form={card.homeForm} k={k} width={width} />
       <div tw="flex" style={{ height: px(s.formRowGap, k) }} />
@@ -138,7 +139,7 @@ function ReasonLine({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; 
   return (
     <div tw="absolute flex items-center" style={{ left: column.left, top: g.reasonLine.top, width, height: g.reasonLine.height, opacity: blockOpacity(only, "open-1") }}>
       <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: labelSize, letterSpacing: labelSize * 0.16, color: card.accentHex, width: labelWidth }}>{label}</span>
-      <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: size, lineHeight: 1, color: "rgba(255,255,255,0.86)" }}>{tight(card.open[0].reason)}</span>
+      <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: size, lineHeight: 1, color: "rgba(255,255,255,0.86)" }}>{card.open[0].reason}</span>
     </div>
   );
 }
@@ -149,7 +150,7 @@ function Hook({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; only: 
   const size = fitFontSize(card.hookLine, width, px(27, g.k), 0.52, px(14, g.k));
   return (
     <div tw="absolute flex items-center" style={{ left: column.left, top: g.hook.top, width, height: g.hook.height, opacity: blockOpacity(only, "hook") }}>
-      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, color: card.accentHex }}>{tight(card.hookLine)}</span>
+      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, color: card.accentHex }}>{card.hookLine}</span>
     </div>
   );
 }

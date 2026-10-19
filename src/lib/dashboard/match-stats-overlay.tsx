@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import sharp from "sharp";
 import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
@@ -18,7 +18,7 @@ export interface StatsOverlayOptions {
 /** Maç İstatistikleri tipografi + çubuk + marka katmanını şeffaf PNG olarak çizer (Satori, CLAUDE.md 3.4). */
 export async function renderMatchStatsOverlay(card: MatchStatsCard, frame: MatchDayFrame, options: StatsOverlayOptions = {}): Promise<Buffer> {
   const fonts = await loadMatchDayFonts();
-  const response = new ImageResponse(<MatchStatsTemplate card={card} g={matchStatsGeometry(frame, options.side ?? "right")} only={options.only} />, {
+  const response = renderSatori(<MatchStatsTemplate card={card} g={matchStatsGeometry(frame, options.side ?? "right")} only={options.only} />, {
     width: frame.width,
     height: frame.height,
     fonts,

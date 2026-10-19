@@ -12,6 +12,7 @@ import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { internalSource } from "@/lib/prediction/internal-source";
+import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
 import { roundLabel } from "@/lib/services/api-football/weekly-mappers";
@@ -90,6 +91,11 @@ export interface VitrinRenderRequest {
   prediction: PredictionSet;
   selection: VitrinSelection;
   format: MatchDayFormatId;
+  /**
+   * Yalnızca offline tasarım aracı (`--allow-past`): başlamış maçı da çizer. Stüdyo ve kayıt bunu
+   * vermez — kayıt yolu (`createVitrinDraft`) her zaman zaman kapısından geçer.
+   */
+  allowPast?: boolean;
   /** Posterin iki tarafı (ev sahibi solda, deplasman sağda). */
   photos: VitrinPhotos;
 }
@@ -98,6 +104,8 @@ export interface VitrinRenderRequest {
 const SLIDE_LABELS = ["01 Poster", "02 Analiz"] as const;
 
 export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ pages: [Buffer, Buffer]; card: VitrinCard }>> {
+  const late = request.allowPast ? null : kickoffGate(request.stats.fixture, new Date());
+  if (late) return fail("MATCH_STARTED", late);
   const card = buildVitrinCard(request.prediction, request.selection, vitrinMeta(request.stats), await vitrinImages(request.stats));
   const rendered = await renderVitrinImages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
   return rendered.ok ? { ok: true, data: { pages: rendered.data, card } } : rendered;
@@ -105,7 +113,7 @@ export async function renderVitrin(request: VitrinRenderRequest): Promise<Result
 
 /** Carousel'i çizer, kalıcı depoya yazar ve tek DRAFT açar (planlanmış placeholder'ı devralır). */
 export async function createVitrinDraft(request: VitrinRenderRequest & { fixtureId: string; photoIds: { home: string | null; away: string | null } }): Promise<Result<{ id: string }>> {
-  const rendered = await renderVitrin(request);
+  const rendered = await renderVitrin({ ...request, allowPast: false });
   if (!rendered.ok) return rendered;
   const caption = buildVitrinCaption(rendered.data.card);
   const language = bannedWordsGate({ "gönderi metni": caption });
@@ -133,6 +141,7 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
           locked: request.selection.locked,
           photoId: request.photoIds.home,
           awayPhotoId: request.photoIds.away,
+          kickoffUtc: meta.kickoffUtc,
           imageUrl,
           carousel: urls.map((url, index) => ({ url, label: SLIDE_LABELS[index] ?? `${index + 1}` })),
           title: `${meta.sides.home} – ${meta.sides.away}`,

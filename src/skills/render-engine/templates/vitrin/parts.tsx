@@ -24,29 +24,6 @@ export function Percent({ value, size, color }: { value: number; size: number; c
   );
 }
 
-/**
- * Satori sözcüğü kerning'siz ölçüp kerning'li çiziyor; fark sözcükten sonraki boşluğa eklenip
- * "Trabzonspor  son" gibi çift boşluk görünüyor. Satır tek "sözcük" (bölünmez boşluk) olunca fark
- * yalnızca satır sonunda kalır — tek satırlık metinler böyle çizilir.
- */
-export const tight = (text: string): string => text.replace(/ /g, " ");
-
-/** Çok satırlı metin: tahmini genişliğe göre açgözlü satır bölme, her satır `tight`. */
-export function wrapLines(text: string, maxWidth: number, size: number, emPerChar = 0.52): string[] {
-  const perLine = Math.max(8, Math.floor(maxWidth / (size * emPerChar)));
-  const lines: string[] = [];
-  let line = "";
-  for (const word of text.split(/\s+/u).filter(Boolean)) {
-    const next = line ? `${line} ${word}` : word;
-    if (line && next.length > perLine) {
-      lines.push(line);
-      line = word;
-    } else line = next;
-  }
-  if (line) lines.push(line);
-  return lines.map(tight);
-}
-
 /** "%64" → 64 (kart alanları yüzdeyi metin taşır). */
 export const percentValue = (text: string): number => Number(text.replace("%", "")) || 0;
 
@@ -54,7 +31,7 @@ export const percentValue = (text: string): number => Number(text.replace("%", "
 export function SectionLabel({ text, color, size, maxWidth }: { text: string; color: string; size: number; maxWidth: number }) {
   const upper = text.toLocaleUpperCase("tr-TR");
   const fitted = fitFontSize(upper, maxWidth, size, 0.7, Math.round(size * 0.7));
-  return <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: fitted, lineHeight: 1, letterSpacing: fitted * 0.16, color }}>{tight(upper)}</span>;
+  return <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: fitted, lineHeight: 1, letterSpacing: fitted * 0.16, color }}>{upper}</span>;
 }
 
 export function LockIcon({ size, color }: { size: number; color: string }) {

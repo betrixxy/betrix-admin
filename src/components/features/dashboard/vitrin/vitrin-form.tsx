@@ -106,8 +106,8 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
                 </p>
                 <VitrinScenarioTable rows={data.rows} roles={roles} reasons={reasons} onRole={(id, role) => setRoles((current) => ({ ...current, [id]: role }))} onReason={(id, reason) => setReasons((current) => ({ ...current, [id]: reason }))} />
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <ArchivePhotoPicker name="photoHome" label={`Poster · sol: ${data.homeName} fotoğrafı`} teams={homeTeams} fixtureId={fixtureId || null} />
-                  <ArchivePhotoPicker name="photoAway" label={`Poster · sağ: ${data.awayName} fotoğrafı`} teams={awayTeams} fixtureId={fixtureId || null} />
+                  <ArchivePhotoPicker name="photoHome" label={`Poster · sol: ${data.homeName} fotoğrafı`} teams={homeTeams} fixtureId={fixtureId || null} kitOnly />
+                  <ArchivePhotoPicker name="photoAway" label={`Poster · sağ: ${data.awayName} fotoğrafı`} teams={awayTeams} fixtureId={fixtureId || null} kitOnly />
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="vitrin-format">Format</Label>
                     <NativeSelect id="vitrin-format" value={format} onChange={(event) => setFormat(event.target.value as MatchDayFormatId)}>

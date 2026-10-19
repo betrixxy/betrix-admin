@@ -55,6 +55,8 @@ const SCENARIO_NUMBERS: Partial<Record<ScenarioId, string[]>> = { GOALS_3PLUS: [
 /** Cümlecik sınırı: noktalı virgül/iki nokta, ardından boşluk gelen virgül/nokta (ondalık "2,4" bölünmez), bağlaçlar. */
 const CLAUSE_SPLIT = /[;:]|[,.](?=\s|$)|\s(?:ve|ama|fakat|ancak|oysa|iken|buna karşın)\s/u;
 const lower = (text: string) => text.toLocaleLowerCase("tr-TR");
+/** Rakam.rakam — Türkçe metinde ondalık nokta (binlik ayırıcı da noktadır ama gerekçelerde binlik sayı yok). */
+const DECIMAL_POINT = /\d+\.\d+/gu;
 
 /** Cümleciğin takımı: yalnızca birinin adı geçiyorsa o; ikisi ya da hiçbiri → null (birleşik kapsam). */
 function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
@@ -64,7 +66,7 @@ function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
   return home === away ? null : home ? "home" : "away";
 }
 
-/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
 export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
@@ -72,6 +74,8 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   if (text.length > REASON_MAX_LENGTH) issues.push(`${text.length} karakter (en fazla ${REASON_MAX_LENGTH})`);
   const words = wordCount(text);
   if (words > REASON_MAX_WORDS) issues.push(`${words} sözcük (en fazla ${REASON_MAX_WORDS})`);
+  // Türkçe ondalık ayırıcı virgül: "2.2" reddedilir ("2,2").
+  for (const match of text.matchAll(DECIMAL_POINT)) issues.push(`"${match[0]}" ondalık ayırıcı virgül olmalı ("${match[0].replace(".", ",")}")`);
   const banned = findBannedWords(text);
   if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);

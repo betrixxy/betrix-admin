@@ -6,6 +6,7 @@ import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createVitrinDraft, predictWithRuleReasons, renderVitrin, vitrinMeta, vitrinPrediction } from "@/lib/dashboard/vitrin-engine";
+import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
 import { openBoxLines, scenarioTitle } from "@/lib/prediction/catalog";
 import { isAnthropicConfigured } from "@/lib/services/anthropic";
@@ -51,7 +52,10 @@ async function loadStats(fixtureId: string): Promise<Result<DeepAnalysisStats>> 
   const apiId = parseFixtureId(fixtureId);
   if (apiId === null) return fail("INVALID_INPUT", "Geçersiz maç.");
   const stats = await getDeepAnalysisStats(apiId);
-  return stats.ok ? stats : fail(stats.error.code, stats.error.message);
+  if (!stats.ok) return fail(stats.error.code, stats.error.message);
+  // Zaman kapısı: başlamış maçta yükleme, AI gerekçe, önizleme ve kayıt yok.
+  const late = kickoffGate(stats.data.fixture, new Date());
+  return late ? fail("MATCH_STARTED", late) : stats;
 }
 
 /** Tahmin + gerekçeler (verilmezse kural tabanlı) → stüdyo tablosu, denetim sonuçlarıyla. */
@@ -123,13 +127,13 @@ function readRequest(formData: FormData) {
   return requestSchema.safeParse({ fixtureId: formData.get("fixtureId"), format: formData.get("format"), open: json("open"), locked: json("locked"), reasons: json("reasons") });
 }
 
-/** Posterin iki tarafı: ev sahibi fotoğrafı yalnızca ev sahibinden, deplasmanınki yalnızca deplasmandan. */
+/** Posterin iki tarafı: ev sahibi fotoğrafı yalnızca ev sahibinin formasıyla, deplasmanınki yalnızca deplasmanınkiyle. */
 const PHOTO_FIELDS = { home: "photoHome", away: "photoAway" } as const;
 
 async function resolvePhotos(formData: FormData, meta: ReturnType<typeof vitrinMeta>, fixtureId: string) {
   const [home, away] = await Promise.all([
-    resolveArchivePhoto(formData, PHOTO_FIELDS.home, [meta.homeTeamId], fixtureId),
-    resolveArchivePhoto(formData, PHOTO_FIELDS.away, [meta.awayTeamId], fixtureId),
+    resolveArchivePhoto(formData, PHOTO_FIELDS.home, [meta.homeTeamId], fixtureId, { kitOnly: true }),
+    resolveArchivePhoto(formData, PHOTO_FIELDS.away, [meta.awayTeamId], fixtureId, { kitOnly: true }),
   ]);
   if (!home.ok) return home;
   if (!away.ok) return away;

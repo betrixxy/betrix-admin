@@ -36,6 +36,8 @@ interface ArchivePhotoPickerProps {
   fixtureId: string | null;
   /** Açılışta seçili konu: "team" takım fotoğrafı; yoksa listedeki ilk konu. */
   defaultSubject?: "team" | "player";
+  /** Yalnızca forması o takımın olan fotoğraflar; yeni yüklemede forma takımı sabit (vitrin posteri). */
+  kitOnly?: boolean;
   onChange?: (selection: PickerSelection) => void;
 }
 
@@ -53,7 +55,7 @@ function Thumb({ photo, selected, onSelect }: { photo: PickerPhoto; selected: bo
   );
 }
 
-export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", onChange }: ArchivePhotoPickerProps) {
+export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", kitOnly = false, onChange }: ArchivePhotoPickerProps) {
   const [data, setData] = useState<ArchivePickerData | null>(null);
   const [subjectKey, setSubjectKey] = useState("");
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -72,13 +74,13 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   useEffect(() => {
     if (!teamKey) return;
     startLoading(async () => {
-      const loaded = await loadArchivePickerAction(teamKey.split(",").map(Number), fixtureId);
+      const loaded = await loadArchivePickerAction(teamKey.split(",").map(Number), fixtureId, kitOnly);
       setData(loaded);
       const subjects = loaded.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects));
       const first = defaultSubject === "team" ? subjects.find((subject) => subject.key.startsWith("team:")) : subjects.find((subject) => subject.isPlayer && (loaded.teams.find((team) => team.photos[subject.key]?.length)?.photos[subject.key]?.length ?? 0) > 0) ?? subjects.find((subject) => subject.isPlayer);
       selectSubject(first?.key ?? subjects[0]?.key ?? "", loaded);
     });
-  }, [teamKey, fixtureId, defaultSubject]);
+  }, [teamKey, fixtureId, defaultSubject, kitOnly]);
 
   const subjects = useMemo(() => data?.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects)) ?? [], [data]);
   // Aramalı kutunun grupları: takım fotoğrafı, teknik direktör, mevkiler (takım adıyla); sağda fotoğraf sayısı.

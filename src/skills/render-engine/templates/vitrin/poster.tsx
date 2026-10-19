@@ -4,7 +4,7 @@ import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, fitFontSize, px } from "../match-day/shared";
 import type { PosterGeometry } from "./geometry";
-import { MUTED, Percent, SHADE_RGB, TEXT_SHADOW, percentWidth, tight } from "./parts";
+import { MUTED, Percent, SHADE_RGB, TEXT_SHADOW, percentWidth } from "./parts";
 import { VITRIN_SIZES } from "./geometry";
 
 /**
@@ -129,12 +129,12 @@ function Headline({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only
     <div tw="absolute flex items-center justify-center" style={{ left: g.column.left, top: g.headline.top, width, height: g.headline.height, opacity: blockOpacity(only, "headline") }}>
       {parts ? (
         <>
-          <span style={text}>{tight((parts[1] ?? "").trim())}</span>
-          <span style={{ ...text, fontWeight: 800, color: favourite === "HOME" ? card.homeHex : card.awayHex, margin: `0 ${Math.round(size * 0.28)}px` }}>{tight(parts[2] ?? "")}</span>
-          <span style={text}>{tight((parts[3] ?? "").trim())}</span>
+          <span style={text}>{(parts[1] ?? "").trim()}</span>
+          <span style={{ ...text, fontWeight: 800, color: favourite === "HOME" ? card.homeHex : card.awayHex, margin: `0 ${Math.round(size * 0.28)}px` }}>{parts[2]}</span>
+          <span style={text}>{(parts[3] ?? "").trim()}</span>
         </>
       ) : (
-        <span style={text}>{tight(headline)}</span>
+        <span style={text}>{headline}</span>
       )}
     </div>
   );

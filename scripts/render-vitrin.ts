@@ -4,9 +4,11 @@
  * yok). `--ai` verilirse Çelik Kasa analisti tek çağrıyla yazar (ücretli — yalnızca onayla).
  * Fotoğraflar: `--photo-home <yol>` / `--photo-away <yol>` (repo dışında; telifli fotoğraflar git'e girmez),
  * verilmeyen taraf sentetik. Fal yok. Her format için 01 Poster, 02 Analiz ve ikisi yan yana (`-pair`).
+ * Başlamış maç zaman kapısına takılır; yalnızca tasarım için `--allow-past` ile çizilir (DB'ye hiçbir
+ * şey yazılmaz — tahmin kaydı yalnızca stüdyo onayında, kickoff'tan önce).
  * Çıktılar `--out` klasörüne (scratchpad önerilir, repoya YAZMAYIN).
  *
- *   npx tsx --env-file=.env --env-file=.env.local scripts/render-vitrin.ts --out C:\...\scratchpad\vitrin [--fixture api-football-123] [--formats IG_PORTRAIT|all] [--photo-home C:\...\ev.jpg] [--photo-away C:\...\dep.jpg] [--ai]
+ *   npx tsx --env-file=.env --env-file=.env.local scripts/render-vitrin.ts --out C:\...\scratchpad\vitrin [--fixture api-football-123] [--formats IG_PORTRAIT|all] [--photo-home C:\...\ev.jpg] [--photo-away C:\...\dep.jpg] [--ai] [--allow-past]
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -17,6 +19,7 @@ import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { predictWithRuleReasons, renderVitrin, vitrinImages, vitrinMeta } from "@/lib/dashboard/vitrin-engine";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
 import { buildVitrinCard } from "@/lib/dashboard/vitrin-card";
+import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
 import { getDeepAnalysisStats, parseFixtureId } from "@/lib/services/api-football";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
@@ -32,6 +35,7 @@ const { values } = parseArgs({
     "photo-home": { type: "string" },
     "photo-away": { type: "string" },
     ai: { type: "boolean", default: false },
+    "allow-past": { type: "boolean", default: false },
   },
 });
 
@@ -57,6 +61,9 @@ async function main() {
   if (apiId === null) throw new Error(`Geçersiz maç kimliği: ${fixtureId}`);
   const stats = await getDeepAnalysisStats(apiId);
   if (!stats.ok) throw new Error(`Maç verisi alınamadı: ${stats.error.message}`);
+  // Zaman kapısı AI çağrısından ÖNCE: başlamış maç için ücretli gerekçe yazdırılmaz (bayrak yoksa).
+  const late = kickoffGate(stats.data.fixture, new Date());
+  if (late && !values["allow-past"]) throw new Error(`${late} Tasarım için --allow-past verin (kayıt yazılmaz).`);
 
   const predicted = await predictWithRuleReasons(stats.data);
   if (!predicted.ok) throw new Error(predicted.error.message);
@@ -80,7 +87,7 @@ async function main() {
   const formats = values.formats === "all" ? [...MATCH_DAY_FORMAT_IDS] : (values.formats.split(",") as MatchDayFormatId[]);
   const files: string[] = [];
   for (const format of formats) {
-    const rendered = await renderVitrin({ stats: stats.data, prediction, selection: SELECTION, format, photos });
+    const rendered = await renderVitrin({ stats: stats.data, prediction, selection: SELECTION, format, photos, allowPast: values["allow-past"] });
     if (!rendered.ok) {
       console.log(`${format}: KART ÜRETİLMEDİ — ${rendered.error.message}`);
       continue;

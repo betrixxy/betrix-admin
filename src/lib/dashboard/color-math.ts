@@ -65,6 +65,9 @@ export function contrastRatio(a: string, b: string): number {
 /** Kartın koyu gradyan zemini — kontrast bu renge göre ölçülür. */
 export const CARD_SHADE_HEX = "#07080C";
 export const MIN_CONTRAST = 4.5;
+
+/** Renk OLDUĞU GİBİ koyu kart zemininde okunuyor mu (açıklık yükseltmeden). */
+export const isReadableOnCard = (hex: string | null | undefined): hex is string => isHex(hex) && contrastRatio(hex, CARD_SHADE_HEX) >= MIN_CONTRAST;
 /**
  * Açıklık bunun üstüne çıkarılmaz: doygun kırmızı L≈0,62'den sonra mercana/pembeye, lacivert
  * pastel maviye döner — renk kimliği kaybolur. Bu sınırda okunmayan renk ikincile bırakılır.

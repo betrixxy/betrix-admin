@@ -49,7 +49,7 @@ export function PointColumn({ title, color, points, glyph, s = 1, stacked = fals
         {points.map((point, index) => (
           <div key={index} tw="flex" style={{ position: "relative", paddingLeft: 26 }}>
             {glyph}
-            <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: 18.5 * s, lineHeight: 1.3, color: "white" }}>{point}</span>
+            <span data-wrap style={{ fontFamily: BODY, fontWeight: 600, fontSize: 18.5 * s, lineHeight: 1.3, color: "white" }}>{point}</span>
           </div>
         ))}
       </div>
@@ -73,7 +73,7 @@ export function KeyPlayer({ name, role, photoUrl, s = 1, stacked = false }: Team
       ) : null}
       <div tw="flex flex-col" style={{ flex: 1 }}>
         <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5 * s, color: "white", marginBottom: 3 }}>{upper(name)}</span>
-        {role ? <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: 14.5 * s, lineHeight: 1.32, color: GRAY }}>{role}</span> : null}
+        {role ? <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 14.5 * s, lineHeight: 1.32, color: GRAY }}>{role}</span> : null}
       </div>
     </div>
   );

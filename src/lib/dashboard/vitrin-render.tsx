@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import sharp from "sharp";
 import { layoutGate } from "@/lib/dashboard/layout-check";
 import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
@@ -29,7 +29,7 @@ export function vitrinGeometries(frame: MatchDayFrame) {
 
 export async function renderVitrinLayer(card: VitrinCard, g: VitrinGeometry, only?: BlockFilter): Promise<Buffer> {
   const fonts = await loadMatchDayFonts();
-  const response = new ImageResponse(<VitrinTemplate card={card} g={g} only={only} />, { width: g.frame.width, height: g.frame.height, fonts });
+  const response = renderSatori(<VitrinTemplate card={card} g={g} only={only} />, { width: g.frame.width, height: g.frame.height, fonts });
   return sharp(Buffer.from(await response.arrayBuffer())).ensureAlpha().png().toBuffer();
 }
 

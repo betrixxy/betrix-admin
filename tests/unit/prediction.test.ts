@@ -183,6 +183,19 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.deepEqual(auditReason(`Galatasaray üst üste ${homeWins} maç kazandı.`, "RESULT_1X2", facts, sides), []);
   });
 
+  it("ondalık ayırıcı virgül: 'rakam.rakam' reddedilir; kural tabanlı gerekçe virgül kullanır", () => {
+    const result = predictInternal(stats);
+    assert.ok(result.ok);
+    const btts = result.data.scenarios.find((s) => s.id === "BTTS");
+    assert.ok(btts);
+    const reason = ruleReason({ ...btts, outcome: { scenario: "BTTS", pick: "YES" } }, facts, sides);
+    assert.match(reason, /\d,\d/, reason);
+    assert.doesNotMatch(reason, /\d\.\d/, reason);
+    assert.deepEqual(auditReason(reason, "BTTS", facts, sides), [], reason);
+    const dotted = reason.replace(/(\d),(\d)/u, "$1.$2");
+    assert.ok(auditReason(dotted, "BTTS", facts, sides).some((issue) => issue.includes("ondalık ayırıcı virgül")), dotted);
+  });
+
   it("senaryonun kendi sayısı (3+ gol) serbest", () => {
     assert.deepEqual(auditReason("Galatasaray maçlarında 3+ gol sık görülüyor.", "GOALS_3PLUS", facts, sides), []);
   });
