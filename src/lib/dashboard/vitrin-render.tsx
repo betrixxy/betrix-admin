@@ -5,63 +5,56 @@ import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import type { PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
-import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { vitrinTextGate } from "@/lib/dashboard/vitrin-card";
-import { prepareVitrinArt } from "@/lib/dashboard/vitrin-photo";
+import { analysisArt, preparePosterArt, type VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import type { BlockFilter, LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
-import { vitrinGeometry, type VitrinGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
-import type { VitrinLayer } from "@/skills/render-engine/templates/vitrin/parts";
+import { analysisGeometry, posterGeometry, type VitrinGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
 import { VitrinTemplate } from "@/skills/render-engine/templates/vitrin/vitrin-card";
 import type { Result } from "@/types/result";
 import type { VitrinCard } from "@/types/vitrin";
 
 /**
- * Vitrin kartının çizimi — DB'siz (motor, önizleme, görsel test ve offline script ortak). Sıra:
- * dil kapısı → yerleşim kapısı (bloklar tek tek ölçülür) → sanat (fotoğraf ya da programatik) →
- * ana yazı katmanı + bulanıklaştırılmış yer tutucu katmanı → gren/vinyet (`finalizeSetImage`).
- * Kapılardan biri geçmezse kart üretilmez, sebep yazılır.
+ * Vitrin carousel'inin çizimi — DB'siz (motor, önizleme, görsel test ve offline script ortak). Sıra:
+ * dil kapısı → iki sayfanın yerleşim kapısı (bloklar tek tek ölçülür) → poster sanatı (iki fotoğraf,
+ * çapraz) → analiz zemini (posterin bulanık/koyu hâli) → yazı katmanları → gren/vinyet
+ * (`finalizeSetImage`, iki sayfa aynı tohum). Kapılardan biri geçmezse carousel üretilmez, sebep yazılır.
  */
 
-export const VITRIN_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "teams", "open-1", "open-2", "locked", "hook", "footer-text", "footer-logo"];
+export const POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "teams", "win-bar", "headline", "footer-text", "footer-logo"];
+export const ANALYSIS_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "form", "open-2", "open-1", "locked", "hook", "footer-text", "footer-logo"];
 
-/** Kilitli kutu yer tutucusunun bulanıklığı (sigma, k = 1). */
-const LOCKED_BLUR = 9;
-
-export function geometryFor(card: VitrinCard, frame: MatchDayFrame): VitrinGeometry {
-  return vitrinGeometry(frame, [card.open[0].lines.length === 3, card.open[1].lines.length === 3]);
+export function vitrinGeometries(frame: MatchDayFrame) {
+  return { poster: posterGeometry(frame), analysis: analysisGeometry(frame) };
 }
 
-export async function renderVitrinLayer(card: VitrinCard, g: VitrinGeometry, layer: VitrinLayer, only?: BlockFilter): Promise<Buffer> {
+export async function renderVitrinLayer(card: VitrinCard, g: VitrinGeometry, only?: BlockFilter): Promise<Buffer> {
   const fonts = await loadMatchDayFonts();
-  const response = new ImageResponse(<VitrinTemplate card={card} g={g} layer={layer} only={only} />, { width: g.frame.width, height: g.frame.height, fonts });
+  const response = new ImageResponse(<VitrinTemplate card={card} g={g} only={only} />, { width: g.frame.width, height: g.frame.height, fonts });
   return sharp(Buffer.from(await response.arrayBuffer())).ensureAlpha().png().toBuffer();
-}
-
-/** Ana katman + bulanık yer tutucu (kilitli kutuların cevap alanı) tek şeffaf katmanda. */
-export async function renderVitrinOverlay(card: VitrinCard, g: VitrinGeometry): Promise<Buffer> {
-  const [main, placeholder] = await Promise.all([renderVitrinLayer(card, g, "main"), renderVitrinLayer(card, g, "placeholder")]);
-  const blurred = await sharp(placeholder).blur(Math.max(4, LOCKED_BLUR * g.k)).png().toBuffer();
-  return sharp(main).composite([{ input: blurred }]).png().toBuffer();
 }
 
 export interface VitrinImageInput {
   card: VitrinCard;
   frame: MatchDayFrame;
-  /** Kart için hazırlanmış fotoğraf (arşivin büyütülmüş sürümü); yoksa programatik zemin. */
-  image: UploadedImage | null;
+  /** İki takımın kart için hazırlanmış fotoğrafı (arşivin büyütülmüş sürümü); yoksa programatik yarı. */
+  photos: VitrinPhotos;
   /** Gren tohumu — aynı maç aynı greni alır. */
   seedKey: string;
   upscale?: PhotoUpscaler | undefined;
 }
 
-export async function renderVitrinImage(input: VitrinImageInput): Promise<Result<Buffer>> {
+/** [01 Poster, 02 Analiz] PNG'leri. */
+export async function renderVitrinImages(input: VitrinImageInput): Promise<Result<[Buffer, Buffer]>> {
   const language = vitrinTextGate(input.card);
   if (language) return { ok: false, error: { code: "BANNED_LANGUAGE", message: `${language} — kart üretilmedi.` } };
-  const g = geometryFor(input.card, input.frame);
-  const gate = await layoutGate("Vitrin", input.frame, (only) => renderVitrinLayer(input.card, g, "main", only), VITRIN_BLOCKS);
-  if (!gate.ok) return gate;
-  const art = await prepareVitrinArt({ image: input.image, g, accentHex: input.card.accentHex, upscale: input.upscale });
+  const { poster, analysis } = vitrinGeometries(input.frame);
+  const posterGate = await layoutGate("Vitrin 01 Poster", input.frame, (only) => renderVitrinLayer(input.card, poster, only), POSTER_BLOCKS);
+  if (!posterGate.ok) return posterGate;
+  const analysisGate = await layoutGate("Vitrin 02 Analiz", input.frame, (only) => renderVitrinLayer(input.card, analysis, only), ANALYSIS_BLOCKS);
+  if (!analysisGate.ok) return analysisGate;
+  const art = await preparePosterArt({ photos: input.photos, g: poster, homeHex: input.card.homeHex, awayHex: input.card.awayHex, upscale: input.upscale });
   if (!art.ok) return art;
-  const overlay = await renderVitrinOverlay(input.card, g);
-  return { ok: true, data: await finalizeSetImage(art.data, overlay, input.frame, input.seedKey) };
+  const [posterOverlay, analysisOverlay, analysisBase] = await Promise.all([renderVitrinLayer(input.card, poster), renderVitrinLayer(input.card, analysis), analysisArt(art.data, analysis.k)]);
+  const pages = await Promise.all([finalizeSetImage(art.data, posterOverlay, input.frame, input.seedKey), finalizeSetImage(analysisBase, analysisOverlay, input.frame, input.seedKey)]);
+  return { ok: true, data: pages };
 }

@@ -2,14 +2,16 @@
  * Maç önü vitrin kartı offline render — DB'ye yazmaz, deploy'suz tasarım aracı. Maç verisi
  * API-Football'dan okunur (yalnızca okuma); tahmin iç modelden, gerekçeler KURAL TABANLI (AI çağrısı
  * yok). `--ai` verilirse Çelik Kasa analisti tek çağrıyla yazar (ücretli — yalnızca onayla).
- * Fotoğraf: `--photo <yol>` (repo dışında; telifli fotoğraflar git'e girmez) ya da sentetik. Fal yok.
+ * Fotoğraflar: `--photo-home <yol>` / `--photo-away <yol>` (repo dışında; telifli fotoğraflar git'e girmez),
+ * verilmeyen taraf sentetik. Fal yok. Her format için 01 Poster, 02 Analiz ve ikisi yan yana (`-pair`).
  * Çıktılar `--out` klasörüne (scratchpad önerilir, repoya YAZMAYIN).
  *
- *   npx tsx --env-file=.env --env-file=.env.local scripts/render-vitrin.ts --out C:\...\scratchpad\vitrin [--fixture api-football-123] [--formats IG_PORTRAIT|all] [--photo C:\...\foto.jpg]
+ *   npx tsx --env-file=.env --env-file=.env.local scripts/render-vitrin.ts --out C:\...\scratchpad\vitrin [--fixture api-football-123] [--formats IG_PORTRAIT|all] [--photo-home C:\...\ev.jpg] [--photo-away C:\...\dep.jpg] [--ai]
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import sharp from "sharp";
 import { getSelectableFixtures } from "@/lib/dashboard/fixtures";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { predictWithRuleReasons, renderVitrin, vitrinImages, vitrinMeta } from "@/lib/dashboard/vitrin-engine";
@@ -27,7 +29,8 @@ const { values } = parseArgs({
     out: { type: "string" },
     fixture: { type: "string" },
     formats: { type: "string", default: "IG_PORTRAIT" },
-    photo: { type: "string" },
+    "photo-home": { type: "string" },
+    "photo-away": { type: "string" },
     ai: { type: "boolean", default: false },
   },
 });
@@ -66,21 +69,28 @@ async function main() {
   }
   const audits = auditReasons(prediction.scenarios, vitrinFacts(stats.data), matchSides(stats.data));
 
-  const bytes = values.photo ? await readFile(values.photo) : await syntheticPhoto();
-  const image = await inspectImageBytes(bytes, values.photo ? path.basename(values.photo) : "sentetik");
-  if (!image.ok) throw new Error(image.error.message);
+  async function photo(file: string | undefined) {
+    const bytes = file ? await readFile(file) : await syntheticPhoto();
+    const image = await inspectImageBytes(bytes, file ? path.basename(file) : "sentetik");
+    if (!image.ok) throw new Error(image.error.message);
+    return image.data;
+  }
+  const photos = { home: await photo(values["photo-home"]), away: await photo(values["photo-away"]) };
 
   const formats = values.formats === "all" ? [...MATCH_DAY_FORMAT_IDS] : (values.formats.split(",") as MatchDayFormatId[]);
   const files: string[] = [];
   for (const format of formats) {
-    const rendered = await renderVitrin({ stats: stats.data, prediction, selection: SELECTION, format, image: image.data });
+    const rendered = await renderVitrin({ stats: stats.data, prediction, selection: SELECTION, format, photos });
     if (!rendered.ok) {
       console.log(`${format}: KART ÜRETİLMEDİ — ${rendered.error.message}`);
       continue;
     }
-    const file = path.join(outDir, `vitrin-${apiId}-${format}.png`);
-    await writeFile(file, rendered.data.png);
-    files.push(file);
+    const [poster, analysis] = rendered.data.pages;
+    const base = path.join(outDir, `vitrin-${apiId}-${format}`);
+    await writeFile(`${base}-01-poster.png`, poster);
+    await writeFile(`${base}-02-analiz.png`, analysis);
+    await writeFile(`${base}-pair.png`, await sideBySide(poster, analysis));
+    files.push(`${base}-01-poster.png`, `${base}-02-analiz.png`, `${base}-pair.png`);
   }
 
   const meta = vitrinMeta(stats.data);
@@ -93,14 +103,25 @@ async function main() {
     source: `${prediction.sourceId} ${prediction.sourceVersion}`,
     scenarioCount: prediction.scenarioCount,
     surprisePct: prediction.surprisePct,
+    winBar: card.winBar,
     scenarios: prediction.scenarios.map((s) => ({ id: s.id, outcome: s.outcome, probability: Number(s.probability.toFixed(4)), reason: s.reason, audit: audits[s.id] })),
     caption: buildVitrinCaption(card),
     reasons: values.ai ? "AI analist (Çelik Kasa)" : "kural tabanlı (AI çağrısı yok)",
-    photo: values.photo ? "verilen dosya (repo dışında)" : "sentetik",
+    photos: { home: values["photo-home"] ? "verilen dosya (repo dışında)" : "sentetik", away: values["photo-away"] ? "verilen dosya (repo dışında)" : "sentetik" },
     files,
   };
   await writeFile(path.join(outDir, `report-${apiId}.json`), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));
+}
+
+/** İki sayfa yan yana, aralarında ince koyu boşluk (inceleme görseli). */
+async function sideBySide(left: Buffer, right: Buffer): Promise<Buffer> {
+  const { width = 0, height = 0 } = await sharp(left).metadata();
+  const gap = 24;
+  return sharp({ create: { width: width * 2 + gap, height, channels: 3, background: "#1a1b20" } })
+    .composite([{ input: left, left: 0, top: 0 }, { input: right, left: width + gap, top: 0 }])
+    .png()
+    .toBuffer();
 }
 
 main().catch((error: unknown) => {

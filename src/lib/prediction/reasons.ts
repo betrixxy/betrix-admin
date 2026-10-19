@@ -1,7 +1,7 @@
 import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
 import { teamNameTr } from "@/lib/dashboard/match-result-labels";
 import type { DeepAnalysisStats } from "@/types/deep-analysis";
-import { REASON_MAX_LENGTH, type Scenario, type ScenarioId } from "@/types/prediction";
+import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId } from "@/types/prediction";
 import { findBannedWords } from "./banned-words";
 import type { MatchSides } from "./catalog";
 
@@ -64,12 +64,14 @@ function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
   return home === away ? null : home ? "home" : "away";
 }
 
-/** Gerekçe denetimi: boş değil, ≤160, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
 export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
   const issues: string[] = [];
   if (text.length > REASON_MAX_LENGTH) issues.push(`${text.length} karakter (en fazla ${REASON_MAX_LENGTH})`);
+  const words = wordCount(text);
+  if (words > REASON_MAX_WORDS) issues.push(`${words} sözcük (en fazla ${REASON_MAX_WORDS})`);
   const banned = findBannedWords(text);
   if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);
@@ -95,14 +97,14 @@ export function auditReasons(scenarios: Scenario[], facts: VitrinFacts, sides: M
 
 const decimal = (value: number | null) => (value === null ? null : String(value).replace(".", ","));
 
-/** Parçaları sığdığı kadar birleştirir (≤160); ilk parça her zaman alınır. */
+/** Parçaları sığdığı kadar birleştirir (≤160 karakter, ≤10 sözcük); ilk parça her zaman alınır. */
 function compose(parts: (string | null)[]): string {
   let out = "";
   for (const part of parts) {
     if (!part) continue;
     // Parçalar takım adıyla başlar — özel ad küçültülmez.
     const next = out ? `${out}; ${part}` : part;
-    if (next.length + 1 > REASON_MAX_LENGTH) break;
+    if (next.length + 1 > REASON_MAX_LENGTH || wordCount(next) > REASON_MAX_WORDS) break;
     out = next;
   }
   return out ? `${out}.` : "";

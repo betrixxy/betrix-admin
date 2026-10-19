@@ -3,109 +3,222 @@ import { px } from "../match-day/shared";
 import { SAFE_MARGIN, type FrameBox } from "../match-result/geometry";
 
 /**
- * Vitrin kartı geometrisi — TEK KAYNAK: Satori şablonu, kilitli kutu yer tutucu katmanı ve tam
- * kadraj fotoğrafın akıllı kırpması (`photoSafe`) aynı sayıları okur.
+ * Vitrin carousel'inin geometrisi — TEK KAYNAK: iki sayfanın Satori şablonları, yerleşim kapısı ve
+ * posterin çapraz bölünmüş fotoğraf katmanı (`vitrin-photo.ts`) aynı sayıları okur.
  *
- * Dikey (4:5, 1:1, 9:16): üstte sayfa etiketi + tarih ve fotoğraf; alttan yukarı sabitlenmiş yığın:
- * künye ← kanca ← kilitli kutular ← 2. açık kutu ← 1. açık kutu ← takımlar. Temel ölçüler 4:5'te
- * k = 1; 9:16 platform bantlarını boş bırakır (kalan alan 4:5 ile aynı), 1:1 `k` ile küçülür.
- * 16:9: fotoğraf solda, yığın sağ sütunda (`k` sütuna sığacak kadar).
+ * 01 Poster — dikeyde (4:5, 1:1, 9:16) üstte iki takımın fotoğrafı çapraz bölünmüş tam kadraj, alttan
+ * yukarı: künye ← manşet ← kazanma çubuğu ← takım adları. 16:9'da fotoğraflar solda, yığın sağda.
+ * 02 Analiz — dikeyde üstten: form ← açık kutu 2 (gösterge) ← 1. kutunun gerekçe satırı ← kilitli
+ * bilet ← kanca; boşluk bloklar arasına eşit dağılır. 16:9'da iki sütun.
+ * Temel ölçüler 4:5'te k = 1; 9:16 platform bantlarını boş bırakır (kalan alan 4:5 ile aynı).
  */
 
-/** Temel (k = 1) blok yükseklikleri ve boşluklar. Üç taraflı açık kutu (1X2, ilk yarı) daha yüksek. */
 export const VITRIN_SIZES = {
   header: 18,
-  headerGap: 36,
-  teams: 60,
-  openTriple: 236,
-  openSingle: 214,
-  locked: 160,
-  hook: 66,
-  gap: 22,
+  headerGap: 40,
   footerSize: 23,
   logoHeight: 34,
-  footerGap: 30,
-  /** Dikeyde fotoğrafa kalan asgari yükseklik (k hesabı). */
-  minPhoto: 220,
+  footerGap: 40,
+  // Poster
+  teams: 104,
+  bar: 60,
+  barPercent: 92,
+  barLabel: 22,
+  barGap: 40,
+  headline: 44,
+  headlineGap: 44,
+  // Analiz
+  sectionLabel: 20,
+  sectionLabelGap: 18,
+  formRow: 56,
+  formRowGap: 16,
+  gauge: 220,
+  reasonLine: 30,
+  ticket: 330,
+  hook: 34,
+  gap: 40,
 } as const;
 
-/** 16:9 sütununun başladığı yer (kart genişliğinin oranı) ve kenar boşlukları. */
-const LANDSCAPE_COLUMN_START = 0.47;
-const LANDSCAPE_MARGIN = { x: SAFE_MARGIN, y: SAFE_MARGIN } as const;
+/** 4:5 içerik kutusunun yüksekliği — k bu yüksekliğe göre (1:1 küçülür, 9:16 aynı). */
+const BASE_BOX_HEIGHT = 1350 - 2 * SAFE_MARGIN;
 
 export interface BlockSlot {
   top: number;
   height: number;
 }
 
-export interface VitrinGeometry {
+/** Çapraz bölünmüş fotoğraf bölgesi: ev sahibi solda, deplasman sağda; ayrım çizgisi üstte `topX`, altta `bottomX`. */
+export interface PhotoSplit {
+  /** Fotoğrafların kapladığı bölge (çerçeve koordinatı). */
+  region: FrameBox;
+  topX: number;
+  bottomX: number;
+  /** Her tarafın kırpılacağı panel (bölgenin bir dilimi, çapraz çizgiyi kapsar). */
+  panels: { home: FrameBox; away: FrameBox };
+  /** Yüzlerin duracağı yazısız bölge — panel koordinatında. */
+  safe: { home: FrameBox; away: FrameBox };
+}
+
+export interface PosterGeometry {
+  page: "poster";
   frame: MatchDayFrame;
   k: number;
-  /** Başlık (etiket + tarih) ve künyenin kutusu; dikeyde içerik kutusu, yatayda sağ sütun. */
+  /** Başlık (etiket + tarih) ve künyenin kutusu. */
   box: FrameBox;
-  /** Takımlar · açık kutular · kilitli kutular · kanca bu yatay aralıkta. */
-  stackLeft: number;
-  stackRight: number;
+  /** Takımlar · çubuk · manşet bu yatay aralıkta. */
+  column: { left: number; right: number };
   teams: BlockSlot;
-  open: [BlockSlot, BlockSlot];
-  locked: BlockSlot;
-  hook: BlockSlot;
+  bar: BlockSlot;
+  headline: BlockSlot;
+  photo: PhotoSplit;
   /** Koyu gradyan: dikeyde üstten y, yatayda soldan x — `start` şeffaf, `solid` tam koyu. */
   shade: { direction: "down" | "right"; start: number; solid: number };
-  /** Fotoğrafta yüzlerin durması gereken yazısız bölge. */
-  photoSafe: FrameBox;
 }
 
-/** Açık kutunun temel yüksekliği: üç taraflı mı (1X2/ilk yarı) tek sonuçlu mu. */
-const openHeight = (triple: boolean) => (triple ? VITRIN_SIZES.openTriple : VITRIN_SIZES.openSingle);
-
-/** Yığının (takımlar → künye) temel yüksekliği. */
-function stackHeight(triples: [boolean, boolean]): number {
-  const s = VITRIN_SIZES;
-  return s.teams + openHeight(triples[0]) + openHeight(triples[1]) + s.locked + s.hook + 4 * s.gap + s.gap + s.logoHeight + s.footerGap;
+export interface AnalysisColumn {
+  left: number;
+  right: number;
 }
 
-/** Alttan yukarı blok yerleşimi (künye → kanca → kilitli → açık 2 → açık 1 → takımlar). */
-function placeStack(bottom: number, k: number, triples: [boolean, boolean]) {
-  const s = VITRIN_SIZES;
-  const hookBottom = bottom - px(s.logoHeight, k) - px(s.footerGap, k);
-  const hook = { top: hookBottom - px(s.hook, k), height: px(s.hook, k) };
-  const locked = { top: hook.top - px(s.gap, k) - px(s.locked, k), height: px(s.locked, k) };
-  const open2 = { top: locked.top - px(s.gap, k) - px(openHeight(triples[1]), k), height: px(openHeight(triples[1]), k) };
-  const open1 = { top: open2.top - px(s.gap, k) - px(openHeight(triples[0]), k), height: px(openHeight(triples[0]), k) };
-  const teams = { top: open1.top - px(s.gap, k) - px(s.teams, k), height: px(s.teams, k) };
-  return { teams, open: [open1, open2] as [BlockSlot, BlockSlot], locked, hook };
+export interface AnalysisGeometry {
+  page: "analysis";
+  frame: MatchDayFrame;
+  k: number;
+  box: FrameBox;
+  /** Bloğun yatay aralığı (16:9'da iki sütun). */
+  columns: { form: AnalysisColumn; open: AnalysisColumn; reasonLine: AnalysisColumn; locked: AnalysisColumn; hook: AnalysisColumn };
+  form: BlockSlot;
+  open: BlockSlot;
+  reasonLine: BlockSlot;
+  locked: BlockSlot;
+  hook: BlockSlot;
+  /** 16:9'da göstergenin altına gerekçe (dar sütun); dikeyde yan yana. */
+  openStacked: boolean;
 }
 
-export function vitrinGeometry(frame: MatchDayFrame, triples: [boolean, boolean]): VitrinGeometry {
+export type VitrinGeometry = PosterGeometry | AnalysisGeometry;
+
+const safeBox = (frame: MatchDayFrame): FrameBox => ({ left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN });
+
+/** Başlıktan sonra, künyeden önce kalan dikey aralık. */
+function bodyRange(box: FrameBox, k: number) {
   const s = VITRIN_SIZES;
+  return { top: box.top + px(s.header + s.headerGap, k), bottom: box.bottom - px(s.logoHeight + s.footerGap, k) };
+}
+
+/**
+ * Yukarıdan aşağı yığın: bloklar sırayla, aralarındaki temel boşluklar `k` ile; kalan dikey alan
+ * blok aralarına eşit dağıtılır (ilk bloktan önce ve son bloktan sonra boşluk yok).
+ */
+function stackDown(top: number, bottom: number, k: number, heights: number[], gaps: number[]): BlockSlot[] {
+  const scaled = heights.map((height) => px(height, k));
+  const scaledGaps = gaps.map((gap) => px(gap, k));
+  const used = scaled.reduce((sum, h) => sum + h, 0) + scaledGaps.reduce((sum, g) => sum + g, 0);
+  const extra = gaps.length > 0 ? Math.max(0, bottom - top - used) / gaps.length : 0;
+  let y = top;
+  return scaled.map((height, index) => {
+    const slot = { top: Math.round(y), height };
+    y += height + (index < gaps.length ? (scaledGaps[index] ?? 0) + extra : 0);
+    return slot;
+  });
+}
+
+/** Panel ve yazısız bölgeler: çizginin iki yanı, kenarlardan `pad` içeride. */
+function photoSplit(region: FrameBox, topX: number, bottomX: number, safeTop: number, safeBottom: number, pad: number): PhotoSplit {
+  const split = Math.max(topX, bottomX);
+  const awayStart = Math.min(topX, bottomX);
+  const home = { left: region.left, right: split, top: region.top, bottom: region.bottom };
+  const away = { left: awayStart, right: region.right, top: region.top, bottom: region.bottom };
+  const toPanel = (panel: FrameBox, left: number, right: number): FrameBox => ({ left: left - panel.left, right: right - panel.left, top: safeTop - panel.top, bottom: safeBottom - panel.top });
+  return {
+    region,
+    topX,
+    bottomX,
+    panels: { home, away },
+    safe: { home: toPanel(home, region.left + pad, awayStart - pad), away: toPanel(away, split + pad, region.right - pad) },
+  };
+}
+
+export function posterGeometry(frame: MatchDayFrame): PosterGeometry {
+  const s = VITRIN_SIZES;
+  const box = safeBox(frame);
   if (frame.orientation === "landscape") {
-    const box = { left: Math.round(frame.width * LANDSCAPE_COLUMN_START), right: frame.width - LANDSCAPE_MARGIN.x, top: LANDSCAPE_MARGIN.y, bottom: frame.height - LANDSCAPE_MARGIN.y };
-    const k = Math.min(1, (box.bottom - box.top) / (s.header + s.headerGap + stackHeight(triples)));
+    const column = { left: Math.round(frame.width * 0.53), right: box.right };
+    const stack = s.teams + s.barGap + s.bar + 16 + s.barPercent + 6 + s.barLabel + s.headlineGap + s.headline;
+    const body = bodyRange(box, 1);
+    const k = Math.min(1, (body.bottom - body.top) / (stack + 2 * s.gap));
+    const range = bodyRange(box, k);
+    const middle = (range.top + range.bottom) / 2;
+    const top = Math.round(middle - px(stack, k) / 2);
+    const [teams, bar, headline] = stackDown(top, top + px(stack, k), k, [s.teams, s.bar + 16 + s.barPercent + 6 + s.barLabel, s.headline], [s.barGap, s.headlineGap]) as [BlockSlot, BlockSlot, BlockSlot];
+    const region = { left: 0, right: Math.round(frame.width * 0.5), top: 0, bottom: frame.height };
     return {
+      page: "poster",
       frame,
       k,
-      box,
-      stackLeft: box.left,
-      stackRight: box.right,
-      ...placeStack(box.bottom, k, triples),
-      shade: { direction: "right", start: box.left - 260, solid: box.left - 36 },
-      photoSafe: { left: LANDSCAPE_MARGIN.x, right: box.left - 120, top: LANDSCAPE_MARGIN.y, bottom: frame.height - LANDSCAPE_MARGIN.y },
+      box: { ...box, left: column.left },
+      column,
+      teams,
+      bar,
+      headline,
+      photo: photoSplit(region, Math.round(frame.width * 0.3), Math.round(frame.width * 0.2), box.top, box.bottom, px(28, k)),
+      shade: { direction: "right", start: Math.round(frame.width * 0.36), solid: column.left - px(24, k) },
     };
   }
-  const box = { left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN };
-  const k = Math.min(1, (box.bottom - box.top) / (s.header + s.headerGap + s.minPhoto + stackHeight(triples)));
-  const placed = placeStack(box.bottom, k, triples);
-  const solid = placed.teams.top - px(14, k);
-  const start = Math.max(box.top + px(s.header + s.headerGap, k), solid - px(230, k));
+  const k = Math.min(1, (box.bottom - box.top) / BASE_BOX_HEIGHT);
+  const footerTop = box.bottom - px(s.logoHeight + s.footerGap, k);
+  const headline = { top: footerTop - px(s.headline, k), height: px(s.headline, k) };
+  const barHeight = px(s.bar + 16 + s.barPercent + 6 + s.barLabel, k);
+  const bar = { top: headline.top - px(s.headlineGap, k) - barHeight, height: barHeight };
+  const teams = { top: bar.top - px(s.barGap, k) - px(s.teams, k), height: px(s.teams, k) };
+  const photoBottom = teams.top + px(70, k);
+  const region = { left: 0, right: frame.width, top: 0, bottom: photoBottom };
+  const start = Math.max(box.top + px(s.header + s.headerGap, k), teams.top - px(330, k));
   return {
+    page: "poster",
     frame,
     k,
     box,
-    stackLeft: box.left,
-    stackRight: box.right,
-    ...placed,
-    shade: { direction: "down", start, solid },
-    photoSafe: { left: box.left, right: box.right, top: box.top + px(s.header + s.headerGap, k), bottom: start },
+    column: { left: box.left, right: box.right },
+    teams,
+    bar,
+    headline,
+    photo: photoSplit(region, Math.round(frame.width * 0.58), Math.round(frame.width * 0.42), box.top + px(s.header + s.headerGap, k), start + px(80, k), px(24, k)),
+    shade: { direction: "down", start, solid: teams.top + px(24, k) },
   };
+}
+
+const formHeight = () => {
+  const s = VITRIN_SIZES;
+  return s.sectionLabel + s.sectionLabelGap + 2 * s.formRow + s.formRowGap;
+};
+const openHeight = (stacked: boolean) => {
+  const s = VITRIN_SIZES;
+  // Yan yana: gösterge satırı; alt alta: gösterge + iki satırlık gerekçe.
+  return s.sectionLabel + s.sectionLabelGap + s.gauge + (stacked ? 16 + 92 : 0);
+};
+
+export function analysisGeometry(frame: MatchDayFrame): AnalysisGeometry {
+  const s = VITRIN_SIZES;
+  const box = safeBox(frame);
+  if (frame.orientation === "landscape") {
+    const gutter = 56;
+    const mid = Math.round((box.left + box.right) / 2);
+    const left = { left: box.left, right: mid - gutter / 2 };
+    const right = { left: mid + gutter / 2, right: box.right };
+    const leftStack = [formHeight(), s.reasonLine, s.ticket];
+    const rightStack = [openHeight(true), s.hook];
+    const body = bodyRange(box, 1);
+    const height = body.bottom - body.top;
+    const k = Math.min(1, height / (leftStack.reduce((a, b) => a + b, 0) + 2 * 24), height / (rightStack.reduce((a, b) => a + b, 0) + 24));
+    const range = bodyRange(box, k);
+    const [form, reasonLine, locked] = stackDown(range.top, range.bottom, k, leftStack, [24, 24]) as [BlockSlot, BlockSlot, BlockSlot];
+    const [open, hook] = stackDown(range.top, range.bottom, k, rightStack, [24]) as [BlockSlot, BlockSlot];
+    return { page: "analysis", frame, k, box, columns: { form: left, reasonLine: left, locked: left, open: right, hook: right }, form, open, reasonLine, locked, hook, openStacked: true };
+  }
+  const k = Math.min(1, (box.bottom - box.top) / BASE_BOX_HEIGHT);
+  const range = bodyRange(box, k);
+  const [form, open, reasonLine, locked, hook] = stackDown(range.top, range.bottom, k, [formHeight(), openHeight(false), s.reasonLine, s.ticket, s.hook], [s.gap, 20, s.gap, 32]) as [BlockSlot, BlockSlot, BlockSlot, BlockSlot, BlockSlot];
+  const full = { left: box.left, right: box.right };
+  return { page: "analysis", frame, k, box, columns: { form: full, open: full, reasonLine: full, locked: full, hook: full }, form, open, reasonLine, locked, hook, openStacked: false };
 }

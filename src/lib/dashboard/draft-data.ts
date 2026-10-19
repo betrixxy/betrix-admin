@@ -28,7 +28,15 @@ const marketAnalysisOptionsSchema = z.object({
 });
 
 /** `AiContent.renderOptions` — maç önü vitrin kaydı (inceleme ekranı yalnızca görseli ve başlığı okur). */
-const vitrinViewSchema = z.object({ kind: z.literal("VITRIN"), format: z.enum(MATCH_DAY_FORMAT_IDS), imageUrl: z.string(), title: z.string(), subtitle: z.string() });
+const vitrinViewSchema = z.object({
+  kind: z.literal("VITRIN"),
+  format: z.enum(MATCH_DAY_FORMAT_IDS),
+  imageUrl: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  // 01 Poster + 02 Analiz (2026-10-19 tasarımı); eski tek kartlı kayıtlarda yok.
+  carousel: z.array(z.object({ url: z.string(), label: z.string() })).optional(),
+});
 const VITRIN_SOCIAL_FORMAT: Record<MatchDayFormatId, SocialFormatId> = { IG_PORTRAIT: "post", IG_SQUARE: "square", STORY: "story", X_LANDSCAPE: "landscape" };
 
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
@@ -111,7 +119,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "AI_MARKET_PREDICTION") {
     const vitrin = vitrinViewSchema.safeParse(record.renderOptions);
     if (vitrin.success) {
-      const { imageUrl, title, subtitle, format } = vitrin.data;
+      const { imageUrl, title, subtitle, format, carousel } = vitrin.data;
       return {
         kind: "match-result",
         draft: {
@@ -127,7 +135,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           kindLabel: "Maç Önü Analiz",
           mvpName: null,
           imageUrl,
-          slides: [{ url: imageUrl, label: "Maç Önü Analiz" }],
+          slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Maç Önü Analiz" }],
           format: VITRIN_SOCIAL_FORMAT[format],
           vitrin: true,
         },

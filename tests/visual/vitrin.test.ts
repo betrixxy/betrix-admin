@@ -8,7 +8,7 @@ import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { buildVitrinCard } from "@/lib/dashboard/vitrin-card";
-import { geometryFor, renderVitrinImage, renderVitrinLayer, VITRIN_BLOCKS } from "@/lib/dashboard/vitrin-render";
+import { ANALYSIS_BLOCKS, POSTER_BLOCKS, renderVitrinImages, renderVitrinLayer, vitrinGeometries } from "@/lib/dashboard/vitrin-render";
 import { scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source";
 import { matchProbabilities } from "@/lib/prediction/poisson";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
@@ -17,8 +17,8 @@ import { diffPng } from "./image-diff";
 import { syntheticPhoto } from "./synthetic-photo";
 
 /**
- * Maç önü vitrin kartı görsel regresyon testi (bkz. CLAUDE.md 5.3). SENTETİK fotoğraf + SENTETİK
- * tahmin seti (sabit λ, sabit gerekçeler, sabit zaman) — ağ, Fal ve AI yok. 4 format; her birinde
+ * Maç önü vitrin carousel'i (01 Poster + 02 Analiz) görsel regresyon testi (bkz. CLAUDE.md 5.3). SENTETİK fotoğraf + SENTETİK
+ * tahmin seti (sabit λ, sabit ≤10 sözcük gerekçeler, sabit zaman) — ağ, Fal ve AI yok. 4 format × 2 sayfa; her birinde
  * yerleşim çakışma kontrolü. Baseline güncellemesi yalnızca kullanıcı onayıyla (tasarım kararı).
  */
 
@@ -29,8 +29,8 @@ const UPDATE = process.env.npm_lifecycle_event === "test:visual:update" || proce
 const MAX_DIFF_RATIO = 0.002;
 
 const REASONS: Record<string, string> = {
-  RESULT_1X2: "Galatasaray son 5 maçında 4 galibiyet aldı; Kasımpaşa maç başı 2,4 gol yiyor.",
-  BTTS: "Galatasaray maç başı 2,2 gol atıyor; Kasımpaşa maç başı 1,4 gol atıyor.",
+  RESULT_1X2: "Galatasaray son 5 maçında 4 galibiyet aldı.",
+  BTTS: "Kasımpaşa maç başı 1,4 gol atıyor.",
 };
 
 function syntheticPrediction(): PredictionSet {
@@ -43,20 +43,23 @@ async function card() {
   return buildVitrinCard(
     syntheticPrediction(),
     { open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] },
-    { sides: { home: "Galatasaray", away: "Kasımpaşa" }, homeTeamId: 645, awayTeamId: 3563, kickoffUtc: "2026-10-24T17:00:00Z", competitionName: "Trendyol Süper Lig", roundLabel: "9. Hafta" },
+    { sides: { home: "Galatasaray", away: "Kasımpaşa" }, homeTeamId: 645, awayTeamId: 3563, kickoffUtc: "2026-10-24T17:00:00Z", competitionName: "Trendyol Süper Lig", roundLabel: "9. Hafta", homeForm: ["W", "W", "D", "W", "W"], awayForm: ["L", "D", "L", "W", "L"] },
     { homeLogo: null, awayLogo: null, brandLogo: await loadBrandLogo() },
   );
 }
 
-async function render(id: MatchDayFormatId): Promise<Buffer> {
+/** [01 Poster, 02 Analiz] — iki sayfanın da yerleşim kontrolüyle. İki taraf aynı sentetik fotoğraf. */
+async function render(id: MatchDayFormatId): Promise<[Buffer, Buffer]> {
   const frame = MATCH_DAY_FRAMES[id];
   const vitrin = await card();
-  const g = geometryFor(vitrin, frame);
-  const { issues } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, g, "main", only), VITRIN_BLOCKS);
-  assert.equal(issues.length, 0, `${id}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  const { poster, analysis } = vitrinGeometries(frame);
+  for (const [g, blocks] of [[poster, POSTER_BLOCKS], [analysis, ANALYSIS_BLOCKS]] as const) {
+    const { issues } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, g, only), blocks);
+    assert.equal(issues.length, 0, `${id} ${g.page}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  }
   const image = await inspectImageBytes(await syntheticPhoto(), "sentetik");
   assert.ok(image.ok);
-  const result = await renderVitrinImage({ card: vitrin, frame, image: image.data, seedKey: "api-football-vitrin-test" });
+  const result = await renderVitrinImages({ card: vitrin, frame, photos: { home: image.data, away: image.data }, seedKey: "api-football-vitrin-test" });
   assert.ok(result.ok, result.ok ? "" : result.error.message);
   return result.data;
 }
@@ -77,15 +80,20 @@ async function compare(file: string, actual: Buffer) {
   assert.ok(result.diffRatio <= MAX_DIFF_RATIO, `${file}: piksellerin %${(result.diffRatio * 100).toFixed(2)}'si farklı — bkz. tests/visual/__output__/vitrin-diff/`);
 }
 
-describe("Maç önü vitrin kartı — görsel regresyon + yerleşim", async () => {
+describe("Maç önü vitrin carousel'i — görsel regresyon + yerleşim", async () => {
   await rm(OUTPUT_DIR, { recursive: true, force: true });
   await mkdir(UPDATE ? BASELINE_DIR : OUTPUT_DIR, { recursive: true });
 
   for (const id of MATCH_DAY_FORMAT_IDS) {
-    test(`gs-kas ${id}`, async () => compare(`gs-kas_${id}`, await render(id)));
+    test(`gs-kas ${id}`, async () => {
+      const [poster, analysis] = await render(id);
+      await compare(`gs-kas_${id}_01-poster`, poster);
+      await compare(`gs-kas_${id}_02-analiz`, analysis);
+    });
   }
 
   test("aynı kart iki kez çizilince birebir aynı (tohumlu gren)", async () => {
-    assert.ok((await render("IG_PORTRAIT")).equals(await render("IG_PORTRAIT")));
+    const [first, second] = [await render("IG_PORTRAIT"), await render("IG_PORTRAIT")];
+    assert.ok(first[0].equals(second[0]) && first[1].equals(second[1]));
   });
 });

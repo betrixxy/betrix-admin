@@ -15,6 +15,11 @@ export const OPEN_BOX_COUNT = 2;
 export const LOCKED_BOX_COUNT = 3;
 /** Gerekçe üst sınırı (karakter). */
 export const REASON_MAX_LENGTH = 160;
+/** Kartta gerekçe en fazla bu kadar sözcük (vitrin analiz sayfası, 2026-10-19 tasarımı). */
+export const REASON_MAX_WORDS = 10;
+
+/** Gerekçenin sözcük sayısı (boşlukla ayrılan parçalar). */
+export const wordCount = (text: string): number => text.trim().split(/\s+/u).filter(Boolean).length;
 
 /**
  * Makine okunur sonuç — maç bitince tuttu/tutmadı bununla hesaplanır. Taraf bu maçın ev sahibine
@@ -35,7 +40,7 @@ export interface Scenario {
   probability: number;
   /** Senaryonun bütün sonuçları ("HOME"/"DRAW"/"AWAY" ya da "YES"/"NO") → olasılık, 0–1. */
   outcomeProbabilities: Record<string, number>;
-  /** ≤ REASON_MAX_LENGTH; boşsa henüz yazılmadı. */
+  /** ≤ REASON_MAX_LENGTH karakter ve ≤ REASON_MAX_WORDS sözcük; boşsa henüz yazılmadı. */
   reason: string;
 }
 
