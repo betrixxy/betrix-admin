@@ -11,6 +11,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useActionForm } from "@/hooks/use-action-form";
 import { RANDOM_TEMPLATE } from "@/lib/dashboard/match-day-templates";
+import { MATCH_IMPORTANCE_OPTIONS } from "@/types/sports";
 import type { MatchDayActionState, MatchDayFixtureOption, MatchDayFormatId } from "@/types/match-day";
 import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { MatchDayAiSettings } from "./match-day-ai-settings";
@@ -28,13 +29,6 @@ interface MatchDayFormProps {
 }
 
 const INITIAL_STATE: MatchDayActionState = {};
-
-const DERBY_OPTIONS = [
-  { value: "NONE", label: "Normal maç" },
-  { value: "RIVALRY", label: "Rekabet" },
-  { value: "DERBY", label: "Derbi" },
-  { value: "ELITE_DERBY", label: "Büyük derbi" },
-] as const;
 
 function toInfo(fixture: MatchDayFixtureOption): MatchDayInfoValues {
   return {
@@ -140,12 +134,12 @@ export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = fal
                 <Input id="awayColorHex" name="awayColorHex" type="color" defaultValue="#1d4ed8" className="h-9 p-1" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="derbyIntensity">Maç tansiyonu</Label>
+                <Label htmlFor="derbyIntensity">Maç önemi</Label>
                 <NativeSelect id="derbyIntensity" name="derbyIntensity" required defaultValue="">
                   <option value="" disabled>
                     Seçin…
                   </option>
-                  {DERBY_OPTIONS.map((option) => (
+                  {MATCH_IMPORTANCE_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
                       {option.label}
                     </option>

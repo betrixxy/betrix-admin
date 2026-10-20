@@ -96,14 +96,14 @@ export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quo
           <GearGlyph />
           <Eyebrow color={YELLOW} size={14 * s}>{`${opponentName} Karşısında Önerilen Yaklaşım`}</Eyebrow>
         </div>
-        <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: 17.5 * s, lineHeight: 1.4 }}>{approach}</span>
+        <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 17.5 * s, lineHeight: 1.4 }}>{approach}</span>
       </div>
     ) : null,
 
     quote: quote ? (
       <div tw="flex flex-col" style={{ ...block, borderLeft: `4px solid ${GREEN}`, borderRadius: 4, padding: `2px 0 2px ${Math.round(24 * s)}px` }}>
         <span style={{ fontFamily: SCORE, fontSize: 40 * s, color: GREEN_BR, lineHeight: 0.8, height: Math.round(22 * s), marginBottom: 4 }}>&quot;</span>
-        <span style={{ fontFamily: BODY, fontWeight: 500, fontSize: 19 * s, lineHeight: 1.38, color: GRAY, transform: "skewX(-9deg)" }}>{quote}</span>
+        <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 19 * s, lineHeight: 1.38, color: GRAY, transform: "skewX(-9deg)" }}>{quote}</span>
         <div tw="flex" style={{ marginTop: Math.round(8 * s) }}>
           <Eyebrow color={GREEN_BR} size={13 * s} spacing={1.5}>
             {quoteAttribution}

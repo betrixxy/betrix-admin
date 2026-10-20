@@ -70,7 +70,7 @@ export function MatchDayAiSettings({ template, maxCalls }: MatchDayAiSettingsPro
         <span>
           Aynı ayarlar için önceki arka planı yeniden kullan
           <span className="block text-[11px] text-muted-foreground">
-            Aynı şablon, format, renk ve tansiyonla daha önce üretilmiş sahne varsa Fal.ai&apos;ye gidilmez. Yeni bir sahne
+            Aynı şablon, format, renk ve maç önemiyle daha önce üretilmiş sahne varsa Fal.ai&apos;ye gidilmez. Yeni bir sahne
             için kapatın ya da ek yönerge yazın.
           </span>
         </span>

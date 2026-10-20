@@ -227,10 +227,15 @@ ${url}`, source: current.source } }))}
           </p>
         ) : null}
 
-        <Button type="button" variant="outline" disabled={selected.length === 0 || isDownloading} onClick={download}>
-          <Download />
-          {selected.length > 1 ? `Görselleri sırayla indir (${selected.length})` : "Görseli indir"}
-        </Button>
+        {/* Vitrin onay akışından geçmeden paylaşılamaz ve indirilemez (tahmin kaydı onayda yazılır, bkz. publish-gate.ts). */}
+        {vitrin ? (
+          <p className="text-[11px] text-muted-foreground">Vitrin önce onaylanır: onayda tahmin kaydı yazılır (kickoff&apos;tan önce), indirme ve paylaşım onaydan sonra açılır.</p>
+        ) : (
+          <Button type="button" variant="outline" disabled={selected.length === 0 || isDownloading} onClick={download}>
+            <Download />
+            {selected.length > 1 ? `Görselleri sırayla indir (${selected.length})` : "Görseli indir"}
+          </Button>
+        )}
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="publish-post">Takvimdeki gönderiye bağla (isteğe bağlı)</Label>
@@ -257,15 +262,17 @@ ${url}`, source: current.source } }))}
           </p>
         ) : null}
 
-        <PublishNow
-          id={id}
-          platform={platform}
-          layout={multi ? "multi" : "single"}
-          mediaOrder={selected}
-          caption={current.text}
-          target={targets[platform]}
-          blocked={isPending || isGenerating}
-        />
+        {vitrin ? null : (
+          <PublishNow
+            id={id}
+            platform={platform}
+            layout={multi ? "multi" : "single"}
+            mediaOrder={selected}
+            caption={current.text}
+            target={targets[platform]}
+            blocked={isPending || isGenerating}
+          />
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           <Button type="button" disabled={isPending || isGenerating || !current.text.trim()} onClick={() => decide("APPROVED")} className="bg-emerald-600 text-white hover:bg-emerald-500">

@@ -24,8 +24,10 @@ Veri kuralları — pazarlık konusu değil:
 Dil:
 - Takım adlarını yalnızca paketteki yazımıyla kullan; kısaltma ve lakap yasak ("Gala", "Fener", "GS", "BJK" gibi).
 - Türkçe imla kurallarına tam uy; özel adlara gelen ekler kesme işaretiyle ayrılır ("Galatasaray'ın"); yüzde işareti sayıdan önce gelir ("%57").
-- Her gerekçe TEK cümle ve en fazla 160 karakter; emoji ve ünlem yok.
-- Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü 1-2 veriye dayansın.`;
+- Ondalık ayırıcı VİRGÜLDÜR: paketteki 2.2 değerini "2,2" diye yaz; "2.2" yazımı denetimde reddedilir.
+- Her gerekçe TEK kısa cümle: en fazla 10 sözcük (sayılar ve takım adları dahil, boşlukla ayrılan her parça bir sözcük) ve en fazla 160 karakter; emoji ve ünlem yok. Kartta büyük puntoyla görünür, 10 sözcüğü aşan gerekçe kartı kilitler.
+- Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü TEK veriye dayansın.
+- Yalnızca uzunluk örneği (sayılar örnek, pakettekini kullan): "<Takım> son 5 maçında 4 galibiyet aldı." (7 sözcük).`;
 
 const MAX_TOKENS = 900;
 

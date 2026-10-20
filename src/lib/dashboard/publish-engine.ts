@@ -5,6 +5,7 @@ import { captionFacts, captionLength, captionWarnings, publishMediaOf, validMedi
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { signPublicMediaUrl } from "@/lib/dashboard/public-media";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
+import { vitrinPublishCheck } from "@/lib/prediction/approval";
 import { prisma } from "@/lib/prisma";
 import { generateCaption, isAnthropicConfigured } from "@/lib/services/anthropic";
 import { publishToPlatform, type PublishMediaFile } from "@/lib/services/social/publish";
@@ -80,6 +81,9 @@ export async function publishDraftNow(id: string, decision: PublishDecision): Pr
     const record = await prisma.aiContent.findUnique({ where: { id }, select: { id: true, status: true, renderOptions: true, resultImageUrl: true } });
     if (!record || !record.resultImageUrl) return { ok: false, error: { code: "NOT_FOUND", message: "Taslak bulunamadı." } };
     if (record.status !== "DRAFT" && record.status !== "APPROVED") return { ok: false, error: { code: "NOT_EDITABLE", message: "Bu taslak zaten yayınlandı ya da reddedildi." } };
+    // Vitrin: yalnızca onaylı + tahmin kaydı yazılmış + kickoff öncesi — platform çağrısından ÖNCE.
+    const vitrin = await vitrinPublishCheck(id, new Date());
+    if (!vitrin.ok) return vitrin;
 
     const { settings, caption } = decision;
     if (!validMediaOrder(settings.mediaOrder, await allowedMediaUrls(record, settings.mediaOrder), settings.layout, settings.platform)) {

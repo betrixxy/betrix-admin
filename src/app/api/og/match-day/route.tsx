@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { loadMatchDayFonts, resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
 import { parseMatchDayParams } from "@/lib/dashboard/match-day-params";
@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const [card, fonts] = await Promise.all([resolveMatchDayCard(params.data), loadMatchDayFonts()]);
 
-  return new ImageResponse(<MatchDayFeedCard card={card} />, {
+  return renderSatori(<MatchDayFeedCard card={card} />, {
     ...MATCH_DAY_FEED_SIZE,
     fonts,
     headers: { "Cache-Control": "private, max-age=300" },

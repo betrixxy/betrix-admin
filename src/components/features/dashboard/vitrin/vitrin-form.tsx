@@ -30,15 +30,17 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const [roles, setRoles] = useState<Record<ScenarioId, BoxRole>>(DEFAULT_ROLES);
   const [reasons, setReasons] = useState<Record<ScenarioId, string>>({} as Record<ScenarioId, string>);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<[string, string] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"load" | "ai" | "preview" | "save" | null>(null);
   const [, startTransition] = useTransition();
 
   const open = byRole(roles, "open");
   const locked = byRole(roles, "locked");
-  const selectionOk = open.length === OPEN_BOX_COUNT && locked.length === LOCKED_BOX_COUNT;
-  const teams = useMemo(() => (data ? [{ id: data.homeTeamId, name: data.homeName }, { id: data.awayTeamId, name: data.awayName }] : []), [data]);
+  // 1. açık kutu her zaman kazanma olasılıkları (posterin kazanma çubuğu).
+  const selectionOk = open.length === OPEN_BOX_COUNT && locked.length === LOCKED_BOX_COUNT && open[0] === "RESULT_1X2";
+  const homeTeams = useMemo(() => (data ? [{ id: data.homeTeamId, name: data.homeName }] : []), [data]);
+  const awayTeams = useMemo(() => (data ? [{ id: data.awayTeamId, name: data.awayName }] : []), [data]);
 
   function apply(result: Awaited<ReturnType<typeof loadVitrinAction>>) {
     if (!result.ok) return setError(result.error.message);
@@ -100,11 +102,12 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
             {data ? (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Model {data.scenarioCount} senaryo hesapladı · en sürpriz %{data.surprisePct}. Tam 2 açık + 3 kilitli kutu seçin ({open.length}/2 açık, {locked.length}/3 kilitli).
+                  Model {data.scenarioCount} senaryo hesapladı · en sürpriz %{data.surprisePct}. Tam 2 açık + 3 kilitli kutu seçin ({open.length}/2 açık, {locked.length}/3 kilitli); kazanma olasılıkları her zaman açık (posterin çubuğu).
                 </p>
                 <VitrinScenarioTable rows={data.rows} roles={roles} reasons={reasons} onRole={(id, role) => setRoles((current) => ({ ...current, [id]: role }))} onReason={(id, reason) => setReasons((current) => ({ ...current, [id]: reason }))} />
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <ArchivePhotoPicker name="photo" label="Kapak fotoğrafı (Fotoğraf Arşivi)" teams={teams} fixtureId={fixtureId || null} defaultSubject="team" />
+                  <ArchivePhotoPicker name="photoHome" label={`Poster · sol: ${data.homeName} fotoğrafı`} teams={homeTeams} fixtureId={fixtureId || null} kitOnly />
+                  <ArchivePhotoPicker name="photoAway" label={`Poster · sağ: ${data.awayName} fotoğrafı`} teams={awayTeams} fixtureId={fixtureId || null} kitOnly />
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="vitrin-format">Format</Label>
                     <NativeSelect id="vitrin-format" value={format} onChange={(event) => setFormat(event.target.value as MatchDayFormatId)}>
@@ -122,7 +125,7 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
             <div className="flex gap-2">
               <Button type="button" variant="secondary" disabled={!data || !selectionOk || busy !== null} onClick={() => run("preview", async () => {
                 const result = await previewVitrinAction(formData());
-                if (result.ok) { setPreview(result.data.dataUrl); setError(null); } else setError(result.error.message);
+                if (result.ok) { setPreview(result.data.dataUrls); setError(null); } else setError(result.error.message);
               })}>
                 {busy === "preview" ? <LoaderCircle className="animate-spin" /> : <Eye />} Önizle
               </Button>
@@ -139,12 +142,16 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
       <Card className="xl:col-span-2">
         <CardHeader>
           <CardTitle className="text-base">Önizleme</CardTitle>
-          <CardDescription>Kaydedilmez; arşivden seçilen fotoğrafla çizilir (yeni yükleme kayıtta arşive girer).</CardDescription>
+          <CardDescription>Kaydedilmez; arşivden seçilen fotoğraflarla çizilir (yeni yükleme kayıtta arşive girer). Carousel: 01 Poster · 02 Analiz.</CardDescription>
         </CardHeader>
         <CardContent>
           {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- data: URL önizleme
-            <img src={preview} alt="Vitrin kartı önizlemesi" className="w-full rounded-md ring-1 ring-border" />
+            <div className="grid grid-cols-2 gap-2">
+              {preview.map((url, index) => (
+                // eslint-disable-next-line @next/next/no-img-element -- data: URL önizleme
+                <img key={index} src={url} alt={index === 0 ? "Vitrin 01 Poster önizlemesi" : "Vitrin 02 Analiz önizlemesi"} className="w-full rounded-md ring-1 ring-border" />
+              ))}
+            </div>
           ) : (
             <p className="py-16 text-center text-xs text-muted-foreground">Veriyi yükleyip &quot;Önizle&quot;ye basın.</p>
           )}

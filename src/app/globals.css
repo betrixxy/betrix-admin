@@ -127,4 +127,23 @@
   html {
     @apply font-sans;
   }
+  /*
+   * Yerel <select> açılır listesi işletim sisteminin çizdiği bir pencere: Windows Chrome/Brave koyu
+   * temada açık zemin + açık gri yazı gösteriyordu. color-scheme listeyi koyu çizdirir; seçenek ve
+   * grup başlıkları tema token'larıyla (popover zemini + popover yazısı) açık kontrast alır.
+   */
+  .dark select {
+    color-scheme: dark;
+  }
+  select option,
+  select optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
+  }
+  select optgroup {
+    font-weight: 600;
+  }
+  select option:disabled {
+    color: var(--muted-foreground);
+  }
 }

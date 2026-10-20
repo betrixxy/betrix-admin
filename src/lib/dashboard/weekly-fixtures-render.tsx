@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { WeeklyFixturesCard } from "@/skills/render-engine/templates/weekly-fixtures/weekly-fixtures";
@@ -43,7 +43,7 @@ export async function renderWeeklyFixturesCard(input: WeeklyFixturesCardInput): 
       }),
     ),
   ]);
-  const response = new ImageResponse(
+  const response = renderSatori(
     <WeeklyFixturesCard {...input} leagueLogoUrl={leagueLogoUrl} brandLogo={brandLogo} teamLogos={Object.fromEntries(teamLogoEntries)} />,
     { width: SOCIAL_FORMATS[input.format].width, height: SOCIAL_FORMATS[input.format].height, fonts },
   );

@@ -164,7 +164,7 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
   });
 
   it("doğru takımın sayısı geçer", () => {
-    assert.deepEqual(auditReason(`Galatasaray son 5 maçında ${homeWins} galibiyet aldı, Kasımpaşa maç başı 2,4 gol yiyor.`, "RESULT_1X2", facts, sides), []);
+    assert.deepEqual(auditReason(`Galatasaray 5 maçta ${homeWins} galibiyet aldı, Kasımpaşa 2,4 gol yiyor.`, "RESULT_1X2", facts, sides), []);
   });
 
   it("rakibin sayısı takım karışması; uydurma sayı veride yok", () => {
@@ -174,7 +174,8 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.ok(invented.some((issue) => issue.includes("veride yok")), invented.join());
   });
 
-  it("160 karakter, bahis dili, kısaltma ve boş gerekçe yakalanır; üst üste serbest", () => {
+  it("160 karakter, 10 sözcük, bahis dili, kısaltma ve boş gerekçe yakalanır; üst üste serbest", () => {
+    assert.ok(auditReason("Galatasaray son maçlarında çok etkili ve istikrarlı bir oyun ortaya koydu.", "BTTS", facts, sides).some((issue) => issue.includes("11 sözcük")));
     assert.ok(auditReason("x".repeat(161), "BTTS", facts, sides).some((issue) => issue.includes("161 karakter")));
     assert.ok(auditReason("Bu maçta KG var.", "BTTS", facts, sides).some((issue) => issue.includes("bahis dili")));
     assert.ok(auditReason("Gala son maçlarda formda.", "BTTS", facts, sides).some((issue) => issue.includes("kısaltma")));
@@ -182,11 +183,24 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.deepEqual(auditReason(`Galatasaray üst üste ${homeWins} maç kazandı.`, "RESULT_1X2", facts, sides), []);
   });
 
+  it("ondalık ayırıcı virgül: 'rakam.rakam' reddedilir; kural tabanlı gerekçe virgül kullanır", () => {
+    const result = predictInternal(stats);
+    assert.ok(result.ok);
+    const btts = result.data.scenarios.find((s) => s.id === "BTTS");
+    assert.ok(btts);
+    const reason = ruleReason({ ...btts, outcome: { scenario: "BTTS", pick: "YES" } }, facts, sides);
+    assert.match(reason, /\d,\d/, reason);
+    assert.doesNotMatch(reason, /\d\.\d/, reason);
+    assert.deepEqual(auditReason(reason, "BTTS", facts, sides), [], reason);
+    const dotted = reason.replace(/(\d),(\d)/u, "$1.$2");
+    assert.ok(auditReason(dotted, "BTTS", facts, sides).some((issue) => issue.includes("ondalık ayırıcı virgül")), dotted);
+  });
+
   it("senaryonun kendi sayısı (3+ gol) serbest", () => {
     assert.deepEqual(auditReason("Galatasaray maçlarında 3+ gol sık görülüyor.", "GOALS_3PLUS", facts, sides), []);
   });
 
-  it("kural tabanlı gerekçeler denetimden geçer ve ≤160", () => {
+  it("kural tabanlı gerekçeler denetimden geçer: ≤160 karakter, ≤10 sözcük", () => {
     const result = predictInternal(stats);
     assert.ok(result.ok);
     for (const scenario of result.data.scenarios) {
@@ -198,22 +212,23 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
 });
 
 describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
-  const { buildVitrinCard, hookLines, validSelection, vitrinTextGate } = await import("@/lib/dashboard/vitrin-card");
+  const { buildVitrinCard, hookLine, hookLines, validSelection, vitrinTextGate, wholePercents, winBar } = await import("@/lib/dashboard/vitrin-card");
   const { buildVitrinCaption, hashtagCount, hasLink, MAX_HASHTAGS, VITRIN_QUESTION } = await import("@/lib/dashboard/vitrin-caption");
   const { parseVitrinOptions, predictionRecordsFor } = await import("@/lib/prediction/record");
-  const { LOCKED_PLACEHOLDER } = await import("@/skills/render-engine/templates/vitrin/parts");
+  const { LOCKED_ANSWER } = await import("@/skills/render-engine/templates/vitrin/ticket");
 
   const p = matchProbabilities({ home: 1.75, away: 0.95 });
   const scenarios = scenariosFrom(p).map((s) => ({ ...s, reason: `Gerekçe ${s.id}` }));
   const prediction = { sourceId: "internal", sourceVersion: "poisson-v1", computedAtUtc: "2026-10-20T10:00:00.000Z", scenarios, ...scenarioSummary(scenarios, p) };
   const selection = { open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] } as const;
-  const meta = { sides: { home: "Galatasaray", away: "Kasımpaşa" }, homeTeamId: 645, awayTeamId: 3563, kickoffUtc: "2026-10-24T17:00:00Z", competitionName: "Trendyol Süper Lig", roundLabel: "9. Hafta" };
+  const meta = { sides: { home: "Galatasaray", away: "Kasımpaşa" }, homeTeamId: 645, awayTeamId: 3563, kickoffUtc: "2026-10-24T17:00:00Z", competitionName: "Trendyol Süper Lig", roundLabel: "9. Hafta", homeForm: ["W", "D", "W", "L", "W"] as ("W" | "D" | "L")[], awayForm: ["L", "L", "D"] as ("W" | "D" | "L")[] };
   const card = buildVitrinCard(prediction, { open: [...selection.open], locked: [...selection.locked] } as never, meta, { homeLogo: null, awayLogo: null, brandLogo: "" });
 
   it("kilitli kutulara yalnızca başlık geçer — sonuç ya da yüzde yok", () => {
     assert.deepEqual(card.locked, ["İlk yarı kimin?", "Gol yağmuru var mı?", "Senaryo: Galatasaray kazanır ve maçta 3+ gol olur"]);
     for (const title of card.locked) assert.doesNotMatch(title, /%\d/);
-    assert.doesNotMatch(LOCKED_PLACEHOLDER, /%[1-9]/, "yer tutucu gerçek değere benzemez");
+    assert.doesNotMatch(LOCKED_ANSWER, /d/, "kilitli cevap yerine sabit nokta — rakam yok");
+    assert.equal(card.hiddenCount, prediction.scenarioCount - 2);
   });
 
   it("açık kutular: 1X2 üç yüzde, iki takım gol tek satır; gerekçe kaynaktan", () => {
@@ -227,6 +242,26 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
     assert.match(card.hook[0], new RegExp(`${prediction.scenarioCount} senaryo`));
     assert.match(card.hook[1], new RegExp(`%${prediction.surprisePct} ihtimalle`));
     assert.equal(hasLink(card.hook.join(" ")), false);
+    assert.equal(card.hookLine, hookLine(prediction));
+    assert.equal(hasLink(card.hookLine), false);
+  });
+
+  it("poster çubuğu: yüzdeler toplam 100, manşet kurala dayalı (fark < 8 puan → kararsız)", () => {
+    assert.deepEqual(wholePercents([0.4312, 0.2201, 0.3487]), [43, 22, 35]);
+    assert.equal(wholePercents([1 / 3, 1 / 3, 1 / 3]).reduce((a, b) => a + b, 0), 100);
+    const bar = card.winBar;
+    assert.equal(bar.home + bar.draw + bar.away, 100);
+    assert.equal(bar.favourite, "HOME");
+    assert.equal(bar.headline, "Modelimiz Galatasaray diyor");
+    const close = scenarios.map((s) => (s.id === "RESULT_1X2" ? { ...s, outcomeProbabilities: { HOME: 0.38, DRAW: 0.31, AWAY: 0.31 } } : s));
+    assert.deepEqual(winBar({ ...prediction, scenarios: close }, meta.sides), { home: 38, draw: 31, away: 31, favourite: null, headline: "Model kararsız: dengeli bir maç" });
+    const drawLeads = scenarios.map((s) => (s.id === "RESULT_1X2" ? { ...s, outcomeProbabilities: { HOME: 0.25, DRAW: 0.5, AWAY: 0.25 } } : s));
+    assert.equal(winBar({ ...prediction, scenarios: drawLeads }, meta.sides).favourite, null);
+  });
+
+  it("form: eskiden yeniye, kaynaktan aynen", () => {
+    assert.deepEqual(card.homeForm, ["W", "D", "W", "L", "W"]);
+    assert.deepEqual(card.awayForm, ["L", "L", "D"]);
   });
 
   it("kart dil kapısı: temiz kart geçer, bahis sözcüğü kartı durdurur", () => {
@@ -238,6 +273,7 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
   it("seçim: tekrar eden senaryo geçersiz", () => {
     assert.equal(validSelection({ open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] }), true);
     assert.equal(validSelection({ open: ["RESULT_1X2", "BTTS"], locked: ["BTTS", "GOALS_4PLUS", "COMBO"] }), false);
+    assert.equal(validSelection({ open: ["BTTS", "RESULT_1X2"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] }), false, "1. kutu kazanma olasılıkları");
   });
 
   it("gönderi metni: analiz dili, ≤5 hashtag, link yok, etkileşim sorusuyla", () => {

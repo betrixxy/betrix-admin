@@ -45,6 +45,7 @@ function Matchup({ card, logo, nameSize, columnWidth, gap }: { card: MatchDayCar
     <div tw="flex flex-col items-center" style={{ width: columnWidth }}>
       <TeamLogo src={src} name={name} size={logo} />
       <span
+        data-wrap
         style={{
           fontFamily: BODY,
           fontWeight: 900,

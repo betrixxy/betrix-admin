@@ -53,7 +53,7 @@ const matchDaySchema = z.object({
   homeColorHex: hexColor,
   awayColorHex: hexColor,
   // Bkz. CLAUDE.md 3.2.3 — derbi tansiyonu sınıflandırılmadan render tetiklenmez.
-  derbyIntensity: z.enum(["NONE", "RIVALRY", "DERBY", "ELITE_DERBY"], "Maç tansiyonunu seçin."),
+  derbyIntensity: z.enum(["NONE", "RIVALRY", "DERBY", "ELITE_DERBY"], "Maç önemini seçin."),
   format: z.enum(MATCH_DAY_FORMAT_IDS, "Bir platform formatı seçin."),
   quality: z.enum(MATCH_DAY_QUALITY_MODES, "Kalite modunu seçin."),
   strength: z.coerce.number().min(0.15).max(0.6),

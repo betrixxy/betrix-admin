@@ -17,12 +17,14 @@ export const LAYOUT_BLOCKS = [
   "title",
   "footer-text",
   "footer-logo",
-  // Maç önü vitrin kartı (bkz. templates/vitrin/).
+  // Maç önü vitrin carousel'i (bkz. templates/vitrin/).
   "teams",
   "open-1",
   "open-2",
   "locked",
   "hook",
+  "win-bar",
+  "form",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -40,10 +42,12 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   "footer-text": "künye",
   "footer-logo": "CheckMatch logosu",
   teams: "takımlar",
-  "open-1": "1. açık kutu",
+  "open-1": "1. açık kutu (gerekçe satırı)",
   "open-2": "2. açık kutu",
   locked: "kilitli kutular",
   hook: "alt kanca",
+  "win-bar": "kazanma çubuğu",
+  form: "form rehberi",
 };
 
 /** `only` verilmişse yalnızca o blok görünür; verilmemişse (normal çizim) hepsi. */

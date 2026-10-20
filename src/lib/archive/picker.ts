@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ArchivePickerTeam, PickerPhoto } from "@/types/archive";
 import { displayPersonName } from "./names";
-import { orderPickerPhotos, photoBucket } from "./picker-order";
+import { orderPickerPhotos, ownKitOnly, photoBucket } from "./picker-order";
 import { groupPeople } from "./structure";
 import { syncTeam } from "./sync";
 
@@ -25,7 +25,8 @@ async function ensureSynced(teamId: number): Promise<string | null> {
   return synced.ok ? null : synced.error.message;
 }
 
-export async function loadPickerTeams(teamIds: number[], fixtureId: string | null): Promise<{ teams: ArchivePickerTeam[]; warnings: string[] }> {
+/** `kitOnly`: yalnızca forması o takımın olan fotoğraflar (vitrin posterinin ev/deplasman yarısı). */
+export async function loadPickerTeams(teamIds: number[], fixtureId: string | null, options: { kitOnly?: boolean } = {}): Promise<{ teams: ArchivePickerTeam[]; warnings: string[] }> {
   const warnings: string[] = [];
   const teams: ArchivePickerTeam[] = [];
   for (const teamId of [...new Set(teamIds)]) {
@@ -38,11 +39,12 @@ export async function loadPickerTeams(teamIds: number[], fixtureId: string | nul
       select: { id: true, apiId: true, role: true, position: true, officialName: true, nameOverride: true },
     });
     const personIds = people.map((person) => person.id);
-    const rows = await prisma.photo.findMany({
+    const all = await prisma.photo.findMany({
       where: { ...VISIBLE, OR: [{ teamId, personId: null }, { personId: { in: personIds } }] },
       include: { kitTeam: { select: { officialName: true } } },
       orderBy: { uploadedAt: "desc" },
     });
+    const rows = options.kitOnly ? ownKitOnly(all, teamId) : all;
     const toPicker = (row: (typeof rows)[number]): PickerPhoto => ({
       id: row.id,
       url: row.originalUrl,

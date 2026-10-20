@@ -1,5 +1,6 @@
 import type { MatchDayCard } from "@/types/match-day";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
+import { wrapLines } from "../../satori-text";
 
 /**
  * Maç Günü şablonlarının ortak yapı taşları (Satori). Satori yalnızca flexbox ve CSS alt
@@ -78,10 +79,26 @@ export function BrandLogo({ card, height }: { card: MatchDayCard; height: number
   );
 }
 
+/**
+ * Harf aralıklı büyük harf Geist Bold'un tahmini genişliği, em/karakter: glif ≈ 0,64 + aralık 0,32;
+ * boşluk ≈ 0,10 + 0,32 (mevcut baseline'lardaki satır kırılımlarıyla ayarlandı). `maxWidth` verilirse
+ * künye bu genişliğe göre satırlara bölünür (kutudan taşmaz, bkz. satori-text).
+ */
+const EYEBROW_EM_PER_CHAR = 0.96;
+const EYEBROW_SPACE_EM = 0.42;
+
 /** Açık harf aralıklı küçük başlık — "4. HAFTA · UEFA ULUSLAR LİGİ" gibi künye satırları. */
-export function Eyebrow({ children, size, color = "rgba(255,255,255,0.86)" }: { children: string; size: number; color?: string }) {
+export function Eyebrow({ children, size, color = "rgba(255,255,255,0.86)", maxWidth }: { children: string; size: number; color?: string; maxWidth?: number }) {
+  const style = { fontFamily: BODY, fontWeight: 700, fontSize: size, letterSpacing: size * 0.32, color };
+  if (maxWidth === undefined) return <span style={style}>{children}</span>;
   return (
-    <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, letterSpacing: size * 0.32, color }}>{children}</span>
+    <div tw="flex flex-col">
+      {wrapLines(children, maxWidth, size, EYEBROW_EM_PER_CHAR, EYEBROW_SPACE_EM).map((line) => (
+        <span key={line} style={style}>
+          {line}
+        </span>
+      ))}
+    </div>
   );
 }
 

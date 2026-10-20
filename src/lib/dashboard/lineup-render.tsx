@@ -1,4 +1,4 @@
-import { ImageResponse } from "next/og";
+import { renderSatori } from "@/skills/render-engine/satori-text";
 import sharp from "sharp";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { lineupPalette } from "@/lib/dashboard/lineup-palette";
@@ -64,7 +64,7 @@ export async function renderLineupCard(input: LineupCardInput): Promise<Rendered
   ]);
   const swatches = logoUrl ? await logoSwatches(input.team.logoUrl, logoUrl) : null;
   const card = hero ? { templateStyle: "hero_list" as const, hero } : { templateStyle: "pitch" as const, hero: null };
-  const response = new ImageResponse(
+  const response = renderSatori(
     <LineupCard
       {...input}
       {...card}

@@ -6,42 +6,104 @@ import { detectFaces } from "@/lib/dashboard/match-photo/faces";
 import { cropAndGrade } from "@/lib/dashboard/match-photo/grade";
 import { checkPhotoQuality, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
-import type { VitrinGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
+import type { FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
+import type { PosterGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
 import type { Result } from "@/types/result";
 
 /**
- * Vitrin kartının sanat katmanı: arşiv fotoğrafı Maç Sonucu hattının yapı taşlarıyla (kalite kapısı,
- * yerel yüz tespiti, akıllı kırpma, split-tone) vitrin geometrisinin yazısız bölgesine (`photoSafe`)
- * yerleştirilir. Fotoğraf yoksa programatik koyu zemin (vurgu renginde hafif parıltı). Kart için
- * arşivin büyütülmüş sürümü gelir; büyütücü verilmezse Fal'a gidilmez (offline/test).
+ * Vitrin carousel'inin sanat katmanları. 01 Poster: iki takımın arşiv fotoğrafı Maç Sonucu hattının
+ * yapı taşlarıyla (kalite kapısı, yerel yüz tespiti, akıllı kırpma, split-tone) kendi yarısına
+ * yerleştirilir, her yarı kendi takım renginde hafif ışık alır, deplasman yarısı çapraz çizgiden
+ * maskelenir. Fotoğrafı olmayan taraf programatik (takım renginde parıltılı koyu zemin).
+ * 02 Analiz: posterin sanatının bulanık/koyu hâli (set ailesi). Büyütücü verilmezse Fal'a gidilmez.
  */
 
-export interface VitrinPhotoInput {
-  image: UploadedImage | null;
-  g: VitrinGeometry;
-  accentHex: string;
+export interface VitrinPhotos {
+  home: UploadedImage | null;
+  away: UploadedImage | null;
+}
+
+export interface PosterArtInput {
+  photos: VitrinPhotos;
+  g: PosterGeometry;
+  homeHex: string;
+  awayHex: string;
   upscale?: PhotoUpscaler | undefined;
 }
+
+/** Takım rengi ışığının gücü (soft-light) — "hafif": fotoğrafın kimliği kalır. */
+const TEAM_LIGHT_OPACITY = 0.6;
+/** Analiz sayfası zemini: bulanıklık (k = 1) ve karartma. */
+const ANALYSIS_BLUR = 42;
+const ANALYSIS_BRIGHTNESS = 0.42;
 
 /** Fal'sız büyütücü — büyütme gerekiyorsa hata (offline render ve testler). */
 export const noUpscale: PhotoUpscaler = async () => ({ ok: false, error: { code: "UPSCALE_DISABLED", message: "Fotoğraf küçük; offline çizimde büyütme kapalı (kısa kenar ≥ 1080 olmalı)." } });
 
-export async function programmaticArt(frame: MatchDayFrame, accentHex: string): Promise<Buffer> {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${frame.width}" height="${frame.height}">
-    <defs><radialGradient id="glow" cx="72%" cy="18%" r="70%"><stop offset="0" stop-color="${accentHex}" stop-opacity="0.32"/><stop offset="1" stop-color="${CARD_SHADE_HEX}" stop-opacity="0"/></radialGradient></defs>
-    <rect width="100%" height="100%" fill="${CARD_SHADE_HEX}"/><rect width="100%" height="100%" fill="url(#glow)"/></svg>`;
+const size = (box: FrameBox) => ({ width: box.right - box.left, height: box.bottom - box.top });
+
+/** Takım rengi ışık: panelin dış kenarından içe doğru sönen renk (soft-light ile basılır). */
+function teamLightSvg(width: number, height: number, hex: string, side: "home" | "away"): Buffer {
+  const cx = side === "home" ? "0%" : "100%";
+  return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <defs><radialGradient id="l" cx="${cx}" cy="20%" r="95%"><stop offset="0" stop-color="${hex}" stop-opacity="${TEAM_LIGHT_OPACITY}"/><stop offset="1" stop-color="${hex}" stop-opacity="0.12"/></radialGradient></defs>
+    <rect width="100%" height="100%" fill="url(#l)"/></svg>`);
+}
+
+async function programmaticPanel(width: number, height: number, hex: string, side: "home" | "away"): Promise<Buffer> {
+  const cx = side === "home" ? "30%" : "70%";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+    <defs><radialGradient id="g" cx="${cx}" cy="35%" r="75%"><stop offset="0" stop-color="${hex}" stop-opacity="0.42"/><stop offset="1" stop-color="${CARD_SHADE_HEX}" stop-opacity="0"/></radialGradient></defs>
+    <rect width="100%" height="100%" fill="${CARD_SHADE_HEX}"/><rect width="100%" height="100%" fill="url(#g)"/></svg>`;
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-export async function prepareVitrinArt(input: VitrinPhotoInput): Promise<Result<Buffer>> {
-  const { g } = input;
-  if (!input.image) return { ok: true, data: await programmaticArt(g.frame, input.accentHex) };
-  const quality = await checkPhotoQuality(input.image, input.upscale ?? noUpscale);
+async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler): Promise<Result<Buffer>> {
+  const { width, height } = size(panel);
+  if (!image) return { ok: true, data: await programmaticPanel(width, height, hex, side) };
+  const quality = await checkPhotoQuality(image, upscale);
   if (!quality.ok) return quality;
-  const { image } = quality.data;
-  const faces = await detectFaces(image.bytes, image.hash);
-  const source = { width: image.width, height: image.height };
-  const saliency = faces.length > 0 ? null : await saliencyPoint(image.bytes, source);
-  const plan = planCrop({ source, frame: g.frame, safe: g.photoSafe, faces, saliency });
-  return { ok: true, data: await cropAndGrade(image.bytes, plan.box, g.frame, input.accentHex, undefined) };
+  const source = quality.data.image;
+  const faces = await detectFaces(source.bytes, source.hash);
+  const dims = { width: source.width, height: source.height };
+  const saliency = faces.length > 0 ? null : await saliencyPoint(source.bytes, dims);
+  const plan = planCrop({ source: dims, frame: { width, height }, safe, faces, saliency });
+  const graded = await cropAndGrade(source.bytes, plan.box, { ...frame, width, height }, hex, undefined);
+  const lit = await sharp(graded).composite([{ input: teamLightSvg(width, height, hex, side), blend: "soft-light" }]).png().toBuffer();
+  return { ok: true, data: lit };
+}
+
+/** Deplasman panelini çapraz çizgiden keser (çizginin solu şeffaf). */
+async function maskDiagonal(panelPng: Buffer, panel: FrameBox, g: PosterGeometry): Promise<Buffer> {
+  const { width, height } = size(panel);
+  const top = g.photo.topX - panel.left;
+  const bottom = g.photo.bottomX - panel.left;
+  const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><polygon points="${top},0 ${width},0 ${width},${height} ${bottom},${height}" fill="#fff"/></svg>`);
+  return sharp(panelPng).ensureAlpha().composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
+}
+
+export async function preparePosterArt(input: PosterArtInput): Promise<Result<Buffer>> {
+  const { g } = input;
+  const upscale = input.upscale ?? noUpscale;
+  const { home: homePanel, away: awayPanel } = g.photo.panels;
+  const [home, away] = await Promise.all([
+    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale),
+    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale),
+  ]);
+  if (!home.ok) return { ok: false, error: { ...home.error, message: `Ev sahibi fotoğrafı: ${home.error.message}` } };
+  if (!away.ok) return { ok: false, error: { ...away.error, message: `Deplasman fotoğrafı: ${away.error.message}` } };
+  const awayMasked = await maskDiagonal(away.data, awayPanel, g);
+  const art = await sharp({ create: { width: g.frame.width, height: g.frame.height, channels: 3, background: CARD_SHADE_HEX } })
+    .composite([
+      { input: home.data, left: homePanel.left, top: homePanel.top },
+      { input: awayMasked, left: awayPanel.left, top: awayPanel.top },
+    ])
+    .png()
+    .toBuffer();
+  return { ok: true, data: art };
+}
+
+/** Analiz sayfasının zemini: posterin sanatı, güçlü bulanık ve karartılmış. */
+export async function analysisArt(posterArt: Buffer, k: number): Promise<Buffer> {
+  return sharp(posterArt).blur(Math.max(12, ANALYSIS_BLUR * k)).modulate({ brightness: ANALYSIS_BRIGHTNESS }).png().toBuffer();
 }

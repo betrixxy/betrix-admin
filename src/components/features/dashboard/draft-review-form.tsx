@@ -9,17 +9,10 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import type { DraftActionState, DraftRenderOptions } from "@/types/draft";
-import type { DerbyIntensity } from "@/types/sports";
+import { MATCH_IMPORTANCE_OPTIONS } from "@/types/sports";
 import { StatSelectionFields } from "./stat-selection-fields";
 
 const INITIAL_STATE: DraftActionState = {};
-
-const DERBY_OPTIONS: { value: DerbyIntensity; label: string }[] = [
-  { value: "NONE", label: "Standart maç — sakin, dengeli ışık" },
-  { value: "RIVALRY", label: "Rekabet — gergin, keskin kontrast" },
-  { value: "DERBY", label: "Derbi — neon, elektrikli atmosfer" },
-  { value: "ELITE_DERBY", label: "Büyük maç — sinematik, dramatik" },
-];
 
 type Intent = "save" | "regenerate";
 
@@ -31,7 +24,7 @@ interface DraftReviewFormProps {
 }
 
 /**
- * Taslak düzenleme: metin + istatistik seçimi + derbi tansiyonu. İki yol:
+ * Taslak düzenleme: metin + istatistik seçimi + maç önemi. İki yol:
  * "Kaydet" görseli depodaki katmanlardan yeniden çizer (ücretsiz); "Arka planı yeniden üret"
  * Fal.ai'ye gider (ücretli). Formu tek tutmak, iki yolda da admin'in düzenlemelerini korur.
  */
@@ -73,9 +66,9 @@ export function DraftReviewForm({ id, caption, renderOptions, falConfigured }: D
           <StatSelectionFields defaults={renderOptions.selection} disabled={isPending} />
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="derbyIntensity">Maç tansiyonu (arka plan atmosferi)</Label>
+            <Label htmlFor="derbyIntensity">Maç önemi (arka plan atmosferi)</Label>
             <NativeSelect id="derbyIntensity" name="derbyIntensity" defaultValue={renderOptions.derbyIntensity}>
-              {DERBY_OPTIONS.map((option) => (
+              {MATCH_IMPORTANCE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

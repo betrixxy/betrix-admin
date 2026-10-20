@@ -11,8 +11,7 @@ import { computePostFeaturesSafe } from "@/lib/metrics/feature-store";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
-import { parseVitrinOptions, predictionRecordsFor, type PredictionRecordInput } from "@/lib/prediction/record";
+import { vitrinApproval, vitrinPublishCheck } from "@/lib/prediction/approval";
 import { prisma } from "@/lib/prisma";
 import { getMatchStats, parseFixtureId, type ApiFootballError } from "@/lib/services/api-football";
 import { generateStadiumBackground, removePlayerBackground } from "@/lib/services/fal";
@@ -205,19 +204,6 @@ export async function regenerateDraftBackground(
   }
 }
 
-/**
- * Vitrin onayı: kayıt vitrin değilse boş dizi. Gönderi metni (kayıttaki ya da Yayın Merkezi'nden
- * gelen son metin) bahis dili içeriyorsa onay reddedilir; yoksa açık 2 senaryonun kayıt satırları.
- */
-async function vitrinApproval(id: string, publishCaption: string | null): Promise<Result<PredictionRecordInput[], EngineError>> {
-  const record = await prisma.aiContent.findUnique({ where: { id }, select: { contentType: true, fixtureId: true, caption: true, renderOptions: true } });
-  const options = record?.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
-  if (!record || !options) return { ok: true, data: [] };
-  const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — onaylanmadı.`);
-  return { ok: true, data: predictionRecordsFor(id, record.fixtureId, options) };
-}
-
 /** Onayda Yayın Merkezi'nden gelen platform seçimi ve son metin. */
 export interface PublishDecision {
   settings: PublishSettings;
@@ -246,15 +232,16 @@ export async function decideDraft(
     const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
     publishData = { caption: publish.caption, renderOptions: JSON.parse(JSON.stringify({ ...current, publish: settings })) as Prisma.InputJsonObject };
   }
-  // Maç önü vitrin kartı: gönderi metninde bahis dili yok; onayda açık 2 senaryo değiştirilemez kayda geçer.
-  const vitrin = decision === "APPROVED" ? await vitrinApproval(id, publishData?.caption ?? null) : null;
+  // Maç önü vitrin: gönderi metninde bahis dili yok; onay anı kickoff'tan önce; açık 2 senaryo değiştirilemez kayda geçer.
+  const decidedAt = new Date();
+  const vitrin = decision === "APPROVED" ? await vitrinApproval(id, publishData?.caption ?? null, decidedAt) : null;
   if (vitrin && !vitrin.ok) return vitrin;
   try {
     const approved = await prisma.$transaction(async (tx) => {
       const { count } = await tx.aiContent.updateMany({
         // Görseli olmayan planlama placeholder'ı (bkz. content-schedule.ts) karara bağlanamaz.
         where: { id, status: "DRAFT", resultImageUrl: { not: null } },
-        data: { status: decision, reviewedAt: new Date(), ...(postId !== undefined ? { postId: postId || null } : {}), ...(publishData ?? {}) },
+        data: { status: decision, reviewedAt: decidedAt, ...(postId !== undefined ? { postId: postId || null } : {}), ...(publishData ?? {}) },
       });
       if (count === 1 && vitrin?.ok && vitrin.data.length > 0) await tx.predictionRecord.createMany({ data: vitrin.data });
       return count === 1;
@@ -269,7 +256,8 @@ export async function decideDraft(
 
 /**
  * Yayın Merkezi'nden API ile paylaşıldı: statü PUBLISHED, gönderi bağlantısı/kimliği, son metin ve yayın
- * ayarları kayda yazılır. Yalnızca DRAFT/APPROVED kayıt yayınlanmış sayılabilir. Paylaşım KOŞULSUZ bir
+ * ayarları kayda yazılır. Yalnızca DRAFT/APPROVED kayıt yayınlanmış sayılabilir (vitrin: yalnızca APPROVED +
+ * tahmin kaydı + kickoff öncesi, `vitrinPublishCheck`). Paylaşım KOŞULSUZ bir
  * SocialPost'a dönüşür (`post-registry.ts`) — metrik toplama ve analiz yalnızca SocialPost'ları tarar.
  */
 export async function markDraftPublished(id: string, published: PublishedInfo, publish: PublishDecision): Promise<Result<null, EngineError>> {
@@ -277,6 +265,9 @@ export async function markDraftPublished(id: string, published: PublishedInfo, p
   if (!record) return fail("NOT_FOUND", "Taslak bulunamadı.");
   const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
   const publishedAt = new Date(published.at);
+  // Vitrin: onay akışından geçmemiş (kaydı yazılmamış) ya da kickoff sonrası yayın kayda geçmez.
+  const vitrin = await vitrinPublishCheck(id, publishedAt);
+  if (!vitrin.ok) return vitrin;
   const saved = await prisma.$transaction(async (tx) => {
     const { count } = await tx.aiContent.updateMany({
       where: { id, status: { in: ["DRAFT", "APPROVED"] } },

@@ -26,3 +26,14 @@ export function orderPickerPhotos<T extends OrderablePhoto>(photos: T[], teamId:
   const time = (photo: T) => new Date(photo.uploadedAt).getTime();
   return [...photos].sort((a, b) => RANK[photoBucket(a, teamId, fixtureId)] - RANK[photoBucket(b, teamId, fixtureId)] || time(b) - time(a));
 }
+
+/** Fotoğraftaki formanın takımı; forma takımı yoksa klasörün takımı. */
+export const kitTeamOf = (photo: { kitTeamId: number | null; teamId: number }): number => photo.kitTeamId ?? photo.teamId;
+
+/**
+ * "Yalnızca kendi forması" süzgeci (vitrin posteri: ev/deplasman yarısı o takımın formasıyla) — saf.
+ * Eski forma (transfer öncesi kulüp, milli takım) ve başka takımın forması elenir.
+ */
+export function ownKitOnly<T extends { kitTeamId: number | null; teamId: number }>(photos: T[], teamId: number): T[] {
+  return photos.filter((photo) => kitTeamOf(photo) === teamId);
+}

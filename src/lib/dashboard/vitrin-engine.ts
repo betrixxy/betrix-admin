@@ -6,12 +6,13 @@ import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
-import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
 import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
-import { renderVitrinImage } from "@/lib/dashboard/vitrin-render";
+import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
+import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { internalSource } from "@/lib/prediction/internal-source";
+import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
 import { roundLabel } from "@/lib/services/api-football/weekly-mappers";
@@ -45,6 +46,8 @@ export function vitrinMeta(stats: DeepAnalysisStats): VitrinMeta {
     kickoffUtc: fixture.kickoffUtc,
     competitionName: OFFICIAL_COMPETITION_NAMES[leagueId] ?? fixture.competition.name,
     roundLabel: fixture.details?.round ? roundLabel(fixture.details.round) : "",
+    homeForm: stats.home.form.last5,
+    awayForm: stats.away.form.last5,
   };
 }
 
@@ -68,7 +71,7 @@ export async function predictWithRuleReasons(stats: DeepAnalysisStats): Promise<
  * görünmez; kayda girmez.
  */
 export async function vitrinPrediction(stats: DeepAnalysisStats, reasons: Partial<Record<ScenarioId, string>>, selection: VitrinSelection): Promise<Result<PredictionSet>> {
-  if (!validSelection(selection)) return fail("INVALID_SELECTION", "Kutular tekrarsız olmalı: 2 açık + 3 kilitli.");
+  if (!validSelection(selection)) return fail("INVALID_SELECTION", "Kutular tekrarsız olmalı: 2 açık (1. kutu kazanma olasılıkları) + 3 kilitli.");
   const base = await predictWithRuleReasons(stats);
   if (!base.ok) return base;
   const facts = vitrinFacts(stats);
@@ -88,32 +91,44 @@ export interface VitrinRenderRequest {
   prediction: PredictionSet;
   selection: VitrinSelection;
   format: MatchDayFormatId;
-  image: UploadedImage | null;
+  /**
+   * Yalnızca offline tasarım aracı (`--allow-past`): başlamış maçı da çizer. Stüdyo ve kayıt bunu
+   * vermez — kayıt yolu (`createVitrinDraft`) her zaman zaman kapısından geçer.
+   */
+  allowPast?: boolean;
+  /** Posterin iki tarafı (ev sahibi solda, deplasman sağda). */
+  photos: VitrinPhotos;
 }
 
-export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ png: Buffer; card: VitrinCard }>> {
+/** Carousel sayfa etiketleri (inceleme ve Yayın Merkezi). */
+const SLIDE_LABELS = ["01 Poster", "02 Analiz"] as const;
+
+export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ pages: [Buffer, Buffer]; card: VitrinCard }>> {
+  const late = request.allowPast ? null : kickoffGate(request.stats.fixture, new Date());
+  if (late) return fail("MATCH_STARTED", late);
   const card = buildVitrinCard(request.prediction, request.selection, vitrinMeta(request.stats), await vitrinImages(request.stats));
-  const rendered = await renderVitrinImage({ card, frame: MATCH_DAY_FRAMES[request.format], image: request.image, seedKey: request.stats.fixture.id });
-  return rendered.ok ? { ok: true, data: { png: rendered.data, card } } : rendered;
+  const rendered = await renderVitrinImages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
+  return rendered.ok ? { ok: true, data: { pages: rendered.data, card } } : rendered;
 }
 
-/** Kartı çizer, kalıcı depoya yazar ve tek DRAFT açar (planlanmış placeholder'ı devralır). */
-export async function createVitrinDraft(request: VitrinRenderRequest & { fixtureId: string; photoId: string | null }): Promise<Result<{ id: string }>> {
-  const rendered = await renderVitrin(request);
+/** Carousel'i çizer, kalıcı depoya yazar ve tek DRAFT açar (planlanmış placeholder'ı devralır). */
+export async function createVitrinDraft(request: VitrinRenderRequest & { fixtureId: string; photoIds: { home: string | null; away: string | null } }): Promise<Result<{ id: string }>> {
+  const rendered = await renderVitrin({ ...request, allowPast: false });
   if (!rendered.ok) return rendered;
   const caption = buildVitrinCaption(rendered.data.card);
   const language = bannedWordsGate({ "gönderi metni": caption });
   if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
 
-  let imageUrl: string | null = null;
+  const urls: string[] = [];
   try {
-    imageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, rendered.data.png);
+    for (const page of rendered.data.pages) urls.push(await saveStoredFile("renders", `${randomUUID()}.png`, page));
+    const [imageUrl] = urls;
     const meta = vitrinMeta(request.stats);
     const record = await createScheduledContent({
       fixtureId: request.fixtureId,
       contentType: "AI_MARKET_PREDICTION" satisfies ContentTypeId,
       prompt: "",
-      resultImageUrl: imageUrl,
+      resultImageUrl: imageUrl ?? null,
       status: "DRAFT",
       format: DB_FORMAT[request.format],
       caption,
@@ -124,8 +139,11 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
           prediction: request.prediction,
           open: request.selection.open,
           locked: request.selection.locked,
-          photoId: request.photoId,
+          photoId: request.photoIds.home,
+          awayPhotoId: request.photoIds.away,
+          kickoffUtc: meta.kickoffUtc,
           imageUrl,
+          carousel: urls.map((url, index) => ({ url, label: SLIDE_LABELS[index] ?? `${index + 1}` })),
           title: `${meta.sides.home} – ${meta.sides.away}`,
           subtitle: [meta.competitionName, meta.roundLabel].filter(Boolean).join(" · "),
         }),
@@ -133,7 +151,7 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
     });
     return { ok: true, data: record };
   } catch (cause) {
-    if (imageUrl) await deleteStoredUrl(imageUrl);
+    await Promise.all(urls.map((url) => deleteStoredUrl(url)));
     console.error("[vitrin] kaydedilemedi:", cause);
     return fail("STORAGE_FAILED", "Vitrin kartı kaydedilemedi — depolamaya ya da veritabanına yazılamadı.");
   }

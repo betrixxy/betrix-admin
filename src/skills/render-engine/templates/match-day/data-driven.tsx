@@ -56,14 +56,14 @@ function StatBox({ caption, label, value, accent, size, width }: StatBoxData & {
       style={{ width, padding: `${size * 0.35}px ${size * 0.4}px`, border: `2px solid ${accent}`, borderRadius: size * 0.22, marginRight: size * 0.3 }}
     >
       {caption ? (
-        <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size * 0.24, letterSpacing: size * 0.05, color: "rgba(255,255,255,0.5)" }}>
+        <span data-wrap style={{ fontFamily: BODY, fontWeight: 700, fontSize: size * 0.24, letterSpacing: size * 0.05, color: "rgba(255,255,255,0.5)" }}>
           {caption}
         </span>
       ) : null}
-      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size * 0.3, letterSpacing: size * 0.06, color: "rgba(255,255,255,0.8)" }}>
+      <span data-wrap style={{ fontFamily: BODY, fontWeight: 700, fontSize: size * 0.3, letterSpacing: size * 0.06, color: "rgba(255,255,255,0.8)" }}>
         {label}
       </span>
-      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1.05, color: accent, marginTop: size * 0.1 }}>{value}</span>
+      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1.05, color: accent, marginTop: size * 0.1 }}>{value}</span>
     </div>
   );
 }
@@ -131,7 +131,7 @@ function Headline({ card, width, k }: { card: MatchDayCard; width: number; k: nu
   const line = (name: string, logo: string | null) => (
     <div tw="flex items-center" style={{ marginTop: px(6, k) }}>
       <TeamLogo src={logo} name={name} size={px(52, k)} />
-      <span style={{ fontFamily: DISPLAY, fontSize: fitFontSize(name, width - px(70, k), px(74, k)), lineHeight: 1.05, color: "white", marginLeft: px(16, k) }}>
+      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: fitFontSize(name, width - px(70, k), px(74, k)), lineHeight: 1.05, color: "white", marginLeft: px(16, k) }}>
         {name}
       </span>
     </div>
@@ -174,7 +174,7 @@ function DateBlock({ card, accent, k }: { card: MatchDayCard; accent: string; k:
       {date ? <DateLine date={date} weekday={card.weekdayLabel} accent={accent} k={k} /> : null}
       {time ? <span style={{ fontFamily: DISPLAY, fontSize: px(60, k), lineHeight: 1.1, color: "white" }}>{time}</span> : null}
       {stadium ? (
-        <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: px(20, k), color: "rgba(255,255,255,0.72)", marginTop: px(6, k), maxWidth: px(440, k) }}>
+        <span data-wrap style={{ fontFamily: BODY, fontWeight: 600, fontSize: px(20, k), color: "rgba(255,255,255,0.72)", marginTop: px(6, k), maxWidth: px(440, k) }}>
           {stadium}
         </span>
       ) : null}
@@ -232,7 +232,7 @@ function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: 420 }}>
-        <Eyebrow size={12} color={accent}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        <Eyebrow size={12} color={accent} maxWidth={420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
         <div tw="flex" style={{ marginTop: 12 }}>
           <Headline card={card} width={420} k={0.72} />
         </div>
