@@ -25,7 +25,6 @@ import { getDeepAnalysisStats, parseFixtureId } from "@/lib/services/api-footbal
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import type { ScenarioId } from "@/types/prediction";
 import type { VitrinSelection } from "@/types/vitrin";
-import { syntheticPhoto } from "../tests/visual/synthetic-photo";
 
 const { values } = parseArgs({
   options: {
@@ -40,6 +39,17 @@ const { values } = parseArgs({
 });
 
 const SELECTION: VitrinSelection = { open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] };
+
+/**
+ * Sentetik fotoğraf (görsel testlerin üreticisi) yalnızca gerektiğinde, çalışma anında yüklenir: Docker
+ * derleme bağlamı `tests/`'i dışarıda bırakır (.dockerignore) ve `next build` script'lerin de tip
+ * kontrolünü yapar — statik içe aktarma prod derlemesini kırıyordu.
+ */
+async function syntheticPhoto(): Promise<Buffer> {
+  const modulePath = "../tests/visual/synthetic-photo";
+  const loaded = (await import(modulePath)) as { syntheticPhoto: () => Promise<Buffer> };
+  return loaded.syntheticPhoto();
+}
 
 /** Verilmediyse önümüzdeki ilk Trendyol Süper Lig maçı. */
 async function pickFixture(): Promise<string> {
