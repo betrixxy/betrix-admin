@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { planLegacyMigration, type LegacyAsset } from "@/lib/archive/migrate-plan";
-import { ARCHIVE_TEAM_NAMES, cardTeamName, compareTr, displayPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
+import { apiSearchTerm } from "@/lib/services/api-football/search-term";
+import { ARCHIVE_TEAM_NAMES, cardTeamName, compareTr, displayPersonName, isManualPerson, manualPersonName, NATIONAL_ROOT_NAME, officialLeagueName, officialPersonName, officialTeamName } from "@/lib/archive/names";
 import { archiveUpscaleFactor } from "@/lib/archive/storage";
 import { isOldKit, planTransfer } from "@/lib/archive/transfer";
 import { orderPickerPhotos, photoBucket } from "@/lib/archive/picker-order";
@@ -229,5 +230,28 @@ describe("arşiv — stüdyo seçici sırası", () => {
     assert.equal(photoBucket(photo("x", 549, "2026-01-01", "api-football-1"), 549, null), "CURRENT_KIT");
     assert.equal(photoBucket(photo("x", 645, "2026-01-01", "api-football-1"), 549, "api-football-2"), "OLD_KIT");
     assert.equal(photoBucket(photo("x", 645, "2026-01-01", "api-football-2"), 549, "api-football-2"), "THIS_MATCH");
+  });
+});
+
+describe("arşiv — dizin ekleme kuralları", () => {
+  it("elle teknik direktör adı: tam ad, kısaltma yok, boşluklar temizlenir", () => {
+    assert.equal(manualPersonName("  Vincenzo   Italiano "), "Vincenzo Italiano");
+    assert.equal(manualPersonName("Şenol Güneş"), "Şenol Güneş");
+    assert.equal(manualPersonName("V. Italiano"), null);
+    assert.equal(manualPersonName("Vincenzo I."), null);
+    assert.equal(manualPersonName("ab"), null);
+    assert.equal(manualPersonName("123"), null);
+  });
+
+  it("elle eklenen kişi negatif kimlik taşır (senkron dokunmaz)", () => {
+    assert.equal(isManualPerson(-1), true);
+    assert.equal(isManualPerson(2283), false);
+  });
+
+  it("API arama terimi: en az 3 karakter, işaretler temizlenir", () => {
+    assert.equal(apiSearchTerm("Man. United!"), "Man United");
+    assert.equal(apiSearchTerm("  Beşiktaş "), "Beşiktaş");
+    assert.equal(apiSearchTerm("ab"), null);
+    assert.equal(apiSearchTerm("..."), null);
   });
 });

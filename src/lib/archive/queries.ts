@@ -240,11 +240,12 @@ export interface InboxAsset {
 }
 
 /** Etiket bekleyenler: arşive taşınmamış eski oyuncu/maç fotoğrafları (`MediaAsset`). */
-export async function getInbox(): Promise<InboxAsset[]> {
+/** `hidden`: arşive alınmadan gizlenenler ("Gizlenenler" görünümü, geri getirilebilir). */
+export async function getInbox(hidden = false): Promise<InboxAsset[]> {
   const migrated = await prisma.photo.findMany({ where: { legacyAssetId: { not: null } }, select: { legacyAssetId: true } });
   const ids = migrated.flatMap((row) => (row.legacyAssetId ? [row.legacyAssetId] : []));
   const rows = await prisma.mediaAsset.findMany({
-    where: { category: { in: ["PLAYER", "MATCH_PHOTO"] }, id: { notIn: ids } },
+    where: { category: { in: ["PLAYER", "MATCH_PHOTO"] }, id: { notIn: ids }, archiveDismissedAt: hidden ? { not: null } : null },
     orderBy: { createdAt: "desc" },
     select: { id: true, label: true, fileUrl: true, width: true, height: true, createdAt: true },
   });

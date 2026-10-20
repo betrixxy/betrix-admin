@@ -124,3 +124,17 @@ export function displayPersonName(person: { officialName: string; nameOverride: 
 
 /** tr-TR alfabetik karşılaştırma (Ç, Ğ, İ, Ö, Ş, Ü doğru yerde). */
 export const compareTr = (a: string, b: string): number => a.localeCompare(b, "tr-TR", { sensitivity: "base" });
+
+/** Elle eklenen kişi (API-Football'da bulunamayan teknik direktör) negatif kimlik taşır — senkron ona dokunmaz. */
+export const isManualPerson = (apiId: number): boolean => apiId < 0;
+
+/**
+ * Elle girilen kişi adı — resmi ad kuralı: tam ad (kısaltma "V. Italiano" kabul edilmez), fazla boşluk
+ * temizlenir, 3–80 karakter. Geçersizse null; ad sonradan "resmi adı düzelt" ile değiştirilebilir.
+ */
+export function manualPersonName(input: string): string | null {
+  const name = input.normalize("NFC").replace(/\s+/g, " ").trim();
+  if (name.length < 3 || name.length > 80 || !/\p{L}/u.test(name)) return null;
+  if (ABBREVIATED.test(name) || /(^|\s)\p{Lu}\.(\s|$)/u.test(name)) return null;
+  return name;
+}

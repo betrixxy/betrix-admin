@@ -202,7 +202,8 @@ export const apiFootballCoachRawSchema = z.object({
   name: z.string().nullable(),
   firstname: z.string().nullable(),
   lastname: z.string().nullable(),
-  career: z.array(z.object({ team: z.object({ id: z.number() }), start: z.string().nullable(), end: z.string().nullable() })).default([]),
+  nationality: z.string().nullish(),
+  career: z.array(z.object({ team: z.object({ id: z.number(), name: z.string().nullish() }), start: z.string().nullable(), end: z.string().nullable() })).default([]),
 });
 
 export type ApiFootballCoachRaw = z.infer<typeof apiFootballCoachRawSchema>;
