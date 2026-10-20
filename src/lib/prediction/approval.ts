@@ -1,17 +1,20 @@
 import { z } from "zod";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { kickoffGate } from "@/lib/prediction/kickoff";
+import { vitrinPublishGate } from "@/lib/prediction/publish-gate";
 import { parseVitrinOptions, predictionRecordsFor, type PredictionRecordInput } from "@/lib/prediction/record";
 import { prisma } from "@/lib/prisma";
 import { getFixtureById, parseFixtureId } from "@/lib/services/api-football";
+import { OPEN_BOX_COUNT } from "@/types/prediction";
 import type { Fixture } from "@/types/sports";
 import type { Result } from "@/types/result";
 
 /**
- * Vitrin onayı (`draft-engine.ts::decideDraft` çağırır): kayıt vitrin değilse boş dizi. Onay
+ * Vitrin onayı ve yayını. Onay (`draft-engine.ts::decideDraft`): kayıt vitrin değilse boş dizi. Onay
  * reddedilir ve kayıt YAZILMAZ: gönderi metninde bahis dili varsa ya da onay anı kickoff'tan önce
  * değilse (`kickoff.ts`). Kickoff önce API'den (erteleme/saat değişikliği görülsün), API'ye
- * ulaşılamazsa kayıttaki anlık görüntüden okunur; ikisi de yoksa onay reddedilir.
+ * ulaşılamazsa kayıttaki anlık görüntüden okunur; ikisi de yoksa onay reddedilir. Yayın
+ * (`vitrinPublishCheck`): yalnızca onaylı, kaydı yazılmış ve kickoff öncesi.
  */
 
 type Fail = { ok: false; error: { code: string; message: string } };
@@ -40,4 +43,20 @@ export async function vitrinApproval(id: string, publishCaption: string | null, 
   const late = kickoffGate(fixture, approvedAt);
   if (late) return fail("MATCH_STARTED", `${late} Tahmin kaydı yazılmadı.`);
   return { ok: true, data: predictionRecordsFor(id, record.fixtureId, options).map((row) => ({ ...row, recordedAt: approvedAt })) };
+}
+
+/** VITRIN türü: içerik türü + `renderOptions.kind` (bozuk kayıt da vitrin sayılır ve kapıya takılır). */
+const vitrinKindSchema = z.object({ kind: z.literal("VITRIN") });
+
+/**
+ * Yayın kapısının veritabanı sarmalayıcısı (`publish-gate.ts`): vitrin değilse geçer. `at` — yayın anı
+ * (Hemen Paylaş'ta platform çağrısından önceki an, yayın kaydında gönderinin yayın anı).
+ */
+export async function vitrinPublishCheck(id: string, at: Date): Promise<Result<null, Fail["error"]>> {
+  const record = await prisma.aiContent.findUnique({ where: { id }, select: { contentType: true, status: true, fixtureId: true, renderOptions: true } });
+  if (!record || record.contentType !== "AI_MARKET_PREDICTION" || !vitrinKindSchema.safeParse(record.renderOptions).success) return { ok: true, data: null };
+  const [recordCount, fixture] = await Promise.all([prisma.predictionRecord.count({ where: { aiContentId: id } }), approvalFixture(record.fixtureId, record.renderOptions)]);
+  const requiredRecords = parseVitrinOptions(record.renderOptions)?.open.length ?? OPEN_BOX_COUNT;
+  const blocked = vitrinPublishGate({ status: record.status, recordCount, requiredRecords, fixture }, at);
+  return blocked ? fail("VITRIN_NOT_PUBLISHABLE", blocked) : { ok: true, data: null };
 }

@@ -92,3 +92,40 @@ describe("Satori metin katmanı (çift boşluk düzeltmesi)", () => {
     assert.equal(tight("a b"), `a${NBSP}b`);
   });
 });
+
+describe("vitrin yayın kapısı: onaysız, kayıtsız ya da kickoff sonrası yayın yok", async () => {
+  const { vitrinPublishGate } = await import("@/lib/prediction/publish-gate");
+  const { readFile } = await import("node:fs/promises");
+  const fixture = { kickoffUtc: "2026-10-24T17:00:00Z", status: "SCHEDULED" as const };
+  const before = new Date("2026-10-24T12:00:00Z");
+  const ready = { status: "APPROVED", recordCount: 2, requiredRecords: 2, fixture };
+
+  it("onaylı + kaydı yazılmış + kickoff öncesi → yayınlanır", () => {
+    assert.equal(vitrinPublishGate(ready, before), null);
+  });
+
+  it("onay akışından geçmemiş taslak (DRAFT) reddedilir", () => {
+    assert.match(vitrinPublishGate({ ...ready, status: "DRAFT" }, before) ?? "", /onay akışından geçmeden/);
+  });
+
+  it("tahmin kaydı yoksa ya da eksikse reddedilir", () => {
+    assert.match(vitrinPublishGate({ ...ready, recordCount: 0 }, before) ?? "", /tahmin kaydı eksik \(0\/2\)/);
+    assert.match(vitrinPublishGate({ ...ready, recordCount: 1 }, before) ?? "", /eksik \(1\/2\)/);
+  });
+
+  it("kickoff anı/sonrası ya da saat doğrulanamazsa reddedilir", () => {
+    assert.match(vitrinPublishGate(ready, new Date("2026-10-24T17:00:00Z")) ?? "", /Maç başladı.*Yayın reddedildi/);
+    assert.match(vitrinPublishGate({ ...ready, fixture: null }, before) ?? "", /doğrulanamadı/);
+    assert.match(vitrinPublishGate({ ...ready, fixture: { ...fixture, status: "POSTPONED" } }, before) ?? "", /planlı değil/);
+  });
+
+  it("bağlantı: Hemen Paylaş kapıyı platform çağrısından ÖNCE, yayın kaydı da kayıttan önce çalıştırır", async () => {
+    const engine = await readFile("src/lib/dashboard/publish-engine.ts", "utf8");
+    const gate = engine.indexOf("await vitrinPublishCheck(id, new Date())");
+    assert.ok(gate > 0 && gate < engine.indexOf("await publishToPlatform("), "kapı platform çağrısından önce");
+    const drafts = await readFile("src/lib/dashboard/draft-engine.ts", "utf8");
+    const mark = drafts.slice(drafts.indexOf("export async function markDraftPublished"));
+    const markGate = mark.indexOf("await vitrinPublishCheck(id, publishedAt)");
+    assert.ok(markGate > 0 && markGate < mark.indexOf("prisma.$transaction"), "yayın kaydı kapıdan sonra");
+  });
+});
