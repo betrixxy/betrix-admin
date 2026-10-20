@@ -14,22 +14,29 @@ import { ImageResponse } from "next/og";
  * çözülüp dönüştürülür.
  */
 
-const NBSP = " ";
+const NBSP = String.fromCharCode(0xa0);
 
 /** Tek satırlık metin: boşluklar bölünmez. */
 export const tight = (text: string): string => text.replace(/ /g, NBSP);
 
-/** Çok satırlı metin: tahmini genişliğe göre açgözlü satır bölme, her satır `tight`. */
-export function wrapLines(text: string, maxWidth: number, size: number, emPerChar = 0.52): string[] {
-  const perLine = Math.max(8, Math.floor(maxWidth / (size * emPerChar)));
+/**
+ * Çok satırlı metin: tahmini genişliğe göre açgözlü satır bölme, her satır `tight`. Genişlik em
+ * cinsinden: boşluk olmayan karakter `emPerChar`, boşluk `spaceEm` (verilmezse aynı).
+ */
+export function wrapLines(text: string, maxWidth: number, size: number, emPerChar = 0.52, spaceEm = emPerChar): string[] {
+  const em = (value: string) => [...value].reduce((sum, char) => sum + (/\s/u.test(char) ? spaceEm : emPerChar), 0);
+  const limit = Math.max(8 * emPerChar, maxWidth / size);
   const lines: string[] = [];
   let line = "";
-  for (const word of text.split(/\s+/u).filter(Boolean)) {
-    const next = line ? `${line} ${word}` : word;
-    if (line && next.length > perLine) {
+  let gap = "";
+  // Boşluk dizileri korunur ("  ·  " künye ayıracı); satır sonuna düşen boşluk atılır.
+  for (const [, word = "", space = ""] of text.trim().matchAll(/(\S+)(\s*)/gu)) {
+    const next = line ? `${line}${gap}${word}` : word;
+    if (line && em(next) > limit) {
       lines.push(line);
       line = word;
     } else line = next;
+    gap = space;
   }
   if (line) lines.push(line);
   return lines.map(tight);

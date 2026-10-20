@@ -63,7 +63,7 @@ function StatBox({ caption, label, value, accent, size, width }: StatBoxData & {
       <span data-wrap style={{ fontFamily: BODY, fontWeight: 700, fontSize: size * 0.3, letterSpacing: size * 0.06, color: "rgba(255,255,255,0.8)" }}>
         {label}
       </span>
-      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1.05, color: accent, marginTop: size * 0.1 }}>{value}</span>
+      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1.05, color: accent, marginTop: size * 0.1 }}>{value}</span>
     </div>
   );
 }
@@ -232,7 +232,7 @@ function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: 420 }}>
-        <Eyebrow size={12} color={accent}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        <Eyebrow size={12} color={accent} maxWidth={420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
         <div tw="flex" style={{ marginTop: 12 }}>
           <Headline card={card} width={420} k={0.72} />
         </div>

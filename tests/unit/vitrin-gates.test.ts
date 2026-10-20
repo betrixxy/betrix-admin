@@ -74,7 +74,7 @@ describe("arşiv seçicisi: yalnızca kendi forması", () => {
 });
 
 describe("Satori metin katmanı (çift boşluk düzeltmesi)", () => {
-  const NBSP = " ";
+  const NBSP = String.fromCharCode(0xa0);
 
   it("tek satırlık metin bölünmez boşlukla; data-wrap paragrafı dokunulmaz", () => {
     const Name = ({ text }: { text: string }) => createElement("span", null, text);
