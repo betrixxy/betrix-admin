@@ -13,13 +13,15 @@ interface DraftPublishPanelProps {
   format: SocialFormatId | null;
   postOptions: StudioPostOption[];
   downloadName: string;
+  /** Maç önü vitrin taslağı (kısa link yok, bahis dili uyarısı). */
+  vitrin?: boolean;
 }
 
 /**
  * Taslak türünden bağımsız yayın paneli: karar bekleyen taslakta Yayın Merkezi, karara bağlanmış (onaylı,
  * reddedilmiş, yayınlanmış) taslakta özet. "Hemen Paylaş" durumu (bağlantı/izin) sunucuda hesaplanır.
  */
-export async function DraftPublishPanel({ draft, format, postOptions, downloadName }: DraftPublishPanelProps) {
+export async function DraftPublishPanel({ draft, format, postOptions, downloadName, vitrin = false }: DraftPublishPanelProps) {
   if (draft.status !== "DRAFT") {
     // Onaylanmış ama henüz paylaşılmamış taslak, onaydaki platform/dizilim/metinle doğrudan paylaşılabilir.
     const publishLater = draft.status === "APPROVED" && draft.publish;
@@ -62,6 +64,7 @@ export async function DraftPublishPanel({ draft, format, postOptions, downloadNa
       aiAvailable={isAnthropicConfigured()}
       downloadName={downloadName}
       targets={await getPublishTargets()}
+      vitrin={vitrin}
     />
   );
 }

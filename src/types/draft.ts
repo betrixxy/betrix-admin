@@ -137,6 +137,8 @@ export interface MatchResultDraftView extends PublishableDraft {
   /** Yayın sırasıyla görseller (carousel); tek kartta tek öğe. */
   slides: { url: string; label: string }[];
   format: SocialFormatId;
+  /** Maç önü vitrin kartı (AI_MARKET_PREDICTION) — yayında kısa link yok, bahis dili denetimi. */
+  vitrin: boolean;
 }
 
 /** Puan Durumu taslağı — tek kart (bkz. standings-engine.ts). */

@@ -30,3 +30,16 @@ export interface AnthropicError {
   code: "NOT_CONFIGURED" | "REFUSED" | "INVALID_RESPONSE" | "TRUNCATED" | "RATE_LIMITED" | "API_ERROR";
   message: string;
 }
+
+/** Vitrin kartı senaryo gerekçeleri — senaryo başına tek cümle (≤160 karakter, istemde ve denetimde). */
+const reason = (what: string) => z.string().describe(`${what} — tek cümle, en fazla 160 karakter`);
+export const scenarioReasonsSchema = z.object({
+  RESULT_1X2: reason("Kazanma olasılıklarının gerekçesi"),
+  BTTS: reason("İki takımın da gol bulup bulmayacağının gerekçesi"),
+  GOALS_3PLUS: reason("Maçta 3 ya da daha fazla gol olup olmayacağının gerekçesi"),
+  GOALS_4PLUS: reason("Maçta 4 ya da daha fazla gol olup olmayacağının gerekçesi"),
+  HT_RESULT: reason("İlk yarıyı kimin önde kapatacağının gerekçesi"),
+  COMBO: reason("Senaryonun (takım kazanır ve maçta 3+ gol) gerekçesi"),
+});
+
+export type ScenarioReasonsOutput = z.infer<typeof scenarioReasonsSchema>;

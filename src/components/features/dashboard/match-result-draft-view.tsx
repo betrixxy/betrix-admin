@@ -42,7 +42,7 @@ export function MatchResultDraftView({ draft, postOptions }: { draft: MatchResul
         </CardContent>
       </Card>
 
-      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-mac-sonucu-${draft.id}`} />
+      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-${draft.vitrin ? "mac-onu" : "mac-sonucu"}-${draft.id}`} vitrin={draft.vitrin} />
     </div>
   );
 }

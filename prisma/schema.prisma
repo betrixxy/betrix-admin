@@ -752,3 +752,31 @@ model Photo {
   @@index([fixtureId])
   @@index([kitTeamId])
 }
+
+/// Maç önü vitrin kartının onaylanan tahmini — "Tahmin Karnesi"nin kaynağı (bkz. CLAUDE.md 1.10).
+/// DEĞİŞTİRİLEMEZ: kart onaylanınca açık 2 senaryo yazılır; UPDATE/DELETE veritabanı trigger'ıyla
+/// reddedilir (migration 20261019200000). İçerik silinse bile kayıt kalır — bu yüzden AiContent'e
+/// yabancı anahtar YOK. Tuttu/tutmadı ayrı bir tabloda hesaplanacak (bu tablo değişmez).
+model PredictionRecord {
+  id                   String   @id @default(cuid())
+  aiContentId          String
+  fixtureId            String
+  /// ScenarioId: RESULT_1X2 | BTTS | GOALS_3PLUS | GOALS_4PLUS | HT_RESULT | COMBO
+  scenarioId           String
+  /// Makine okunur seçilen sonuç (ScenarioOutcome) — maç skoru / ilk yarı skoruyla hesaplanır.
+  outcome              Json
+  /// Seçilen sonucun olasılığı, 0–1.
+  probability          Decimal  @db.Decimal(5, 4)
+  /// Senaryonun bütün sonuçlarının olasılıkları.
+  outcomeProbabilities Json
+  sourceId             String
+  sourceVersion        String
+  /// Kartta yazan gerekçe.
+  reason               String
+  /// Tahminin hesaplandığı an (kaynak) ve kaydın yazıldığı an (onay).
+  computedAt           DateTime
+  recordedAt           DateTime @default(now())
+
+  @@unique([aiContentId, scenarioId])
+  @@index([fixtureId])
+}

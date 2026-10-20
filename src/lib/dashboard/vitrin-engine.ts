@@ -1,0 +1,140 @@
+import { randomUUID } from "node:crypto";
+import type { Prisma } from "@/generated/prisma/client";
+import { createScheduledContent } from "@/lib/calendar/content-schedule";
+import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
+import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
+import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
+import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
+import { saveStoredFile } from "@/lib/dashboard/storage";
+import type { UploadedImage } from "@/lib/dashboard/studio-images";
+import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
+import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
+import { renderVitrinImage } from "@/lib/dashboard/vitrin-render";
+import { bannedWordsGate } from "@/lib/prediction/banned-words";
+import { internalSource } from "@/lib/prediction/internal-source";
+import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
+import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
+import { roundLabel } from "@/lib/services/api-football/weekly-mappers";
+import type { ContentTypeId } from "@/types/content-type";
+import type { DeepAnalysisStats } from "@/types/deep-analysis";
+import type { MatchDayFormatId } from "@/types/match-day";
+import type { PredictionSet, ScenarioId } from "@/types/prediction";
+import type { Result } from "@/types/result";
+import type { VitrinCard, VitrinSelection } from "@/types/vitrin";
+
+/**
+ * Maç önü vitrin kartının motoru (AI_MARKET_PREDICTION). Tahmin kaynaktan SUNUCUDA hesaplanır —
+ * istemciden yalnızca gerekçeler ve kutu seçimi gelir; yüzdeler formdan alınmaz (tahmin kaydının
+ * bütünlüğü). Gerekçeler her kayıt/önizlemede yeniden denetlenir; geçemeyen kartı kilitler.
+ * Fal yok (arşiv fotoğrafı kart için zaten büyütülmüş gelir).
+ */
+
+/** `AiContent.format` — Maç Sonucu/İstatistik kayıtlarıyla aynı eşleme (`match-stats-engine.ts`). */
+const DB_FORMAT: Record<MatchDayFormatId, string> = { IG_PORTRAIT: "IG_FEED", IG_SQUARE: "IG_SQUARE", STORY: "STORY", X_LANDSCAPE: "X_CARD" };
+
+type Fail = { ok: false; error: { code: string; message: string } };
+const fail = (code: string, message: string): Fail => ({ ok: false, error: { code, message } });
+
+export function vitrinMeta(stats: DeepAnalysisStats): VitrinMeta {
+  const { fixture } = stats;
+  const leagueId = SUPPORTED_LEAGUES.find((league) => league.id === fixture.competition.id)?.apiFootballId ?? Number(fixture.competition.id);
+  return {
+    sides: matchSides(stats),
+    homeTeamId: Number(fixture.homeTeam.id),
+    awayTeamId: Number(fixture.awayTeam.id),
+    kickoffUtc: fixture.kickoffUtc,
+    competitionName: OFFICIAL_COMPETITION_NAMES[leagueId] ?? fixture.competition.name,
+    roundLabel: fixture.details?.round ? roundLabel(fixture.details.round) : "",
+  };
+}
+
+export async function vitrinImages(stats: DeepAnalysisStats): Promise<VitrinImages> {
+  const [homeLogo, awayLogo, brandLogo] = await Promise.all([resolveImage(stats.fixture.homeTeam.logoUrl, 300), resolveImage(stats.fixture.awayTeam.logoUrl, 300), loadBrandLogo()]);
+  return { homeLogo, awayLogo, brandLogo };
+}
+
+/** Kaynaktan tahmin + kural tabanlı gerekçeler (AI yazmadan önceki başlangıç). */
+export async function predictWithRuleReasons(stats: DeepAnalysisStats): Promise<Result<PredictionSet>> {
+  const prediction = await internalSource.predict({ stats });
+  if (!prediction.ok) return prediction;
+  const facts = vitrinFacts(stats);
+  const sides = matchSides(stats);
+  return { ok: true, data: { ...prediction.data, scenarios: prediction.data.scenarios.map((scenario) => ({ ...scenario, reason: ruleReason(scenario, facts, sides) })) } };
+}
+
+/**
+ * Sunucuda yeniden hesaplanan tahmine istemcinin gerekçelerini işler ve denetler. Açık kutuların
+ * gerekçesi denetimden geçmezse kart kilitlenir (sebep yazılır). Kilitli kutuların gerekçesi kartta
+ * görünmez; kayda girmez.
+ */
+export async function vitrinPrediction(stats: DeepAnalysisStats, reasons: Partial<Record<ScenarioId, string>>, selection: VitrinSelection): Promise<Result<PredictionSet>> {
+  if (!validSelection(selection)) return fail("INVALID_SELECTION", "Kutular tekrarsız olmalı: 2 açık + 3 kilitli.");
+  const base = await predictWithRuleReasons(stats);
+  if (!base.ok) return base;
+  const facts = vitrinFacts(stats);
+  const sides = matchSides(stats);
+  const scenarios = base.data.scenarios.map((scenario) => ({ ...scenario, reason: (reasons[scenario.id] ?? scenario.reason).trim() }));
+  const problems = selection.open.flatMap((id) => {
+    const scenario = scenarios.find((entry) => entry.id === id);
+    const issues = scenario ? auditReason(scenario.reason, id, facts, sides) : ["senaryo yok"];
+    return issues.length ? [`${id}: ${issues.join(", ")}`] : [];
+  });
+  if (problems.length) return fail("REASON_AUDIT", `Gerekçe denetimi geçmedi — kart üretilmedi: ${problems.join(" · ")}`);
+  return { ok: true, data: { ...base.data, scenarios } };
+}
+
+export interface VitrinRenderRequest {
+  stats: DeepAnalysisStats;
+  prediction: PredictionSet;
+  selection: VitrinSelection;
+  format: MatchDayFormatId;
+  image: UploadedImage | null;
+}
+
+export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ png: Buffer; card: VitrinCard }>> {
+  const card = buildVitrinCard(request.prediction, request.selection, vitrinMeta(request.stats), await vitrinImages(request.stats));
+  const rendered = await renderVitrinImage({ card, frame: MATCH_DAY_FRAMES[request.format], image: request.image, seedKey: request.stats.fixture.id });
+  return rendered.ok ? { ok: true, data: { png: rendered.data, card } } : rendered;
+}
+
+/** Kartı çizer, kalıcı depoya yazar ve tek DRAFT açar (planlanmış placeholder'ı devralır). */
+export async function createVitrinDraft(request: VitrinRenderRequest & { fixtureId: string; photoId: string | null }): Promise<Result<{ id: string }>> {
+  const rendered = await renderVitrin(request);
+  if (!rendered.ok) return rendered;
+  const caption = buildVitrinCaption(rendered.data.card);
+  const language = bannedWordsGate({ "gönderi metni": caption });
+  if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
+
+  let imageUrl: string | null = null;
+  try {
+    imageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, rendered.data.png);
+    const meta = vitrinMeta(request.stats);
+    const record = await createScheduledContent({
+      fixtureId: request.fixtureId,
+      contentType: "AI_MARKET_PREDICTION" satisfies ContentTypeId,
+      prompt: "",
+      resultImageUrl: imageUrl,
+      status: "DRAFT",
+      format: DB_FORMAT[request.format],
+      caption,
+      renderOptions: JSON.parse(
+        JSON.stringify({
+          kind: "VITRIN",
+          format: request.format,
+          prediction: request.prediction,
+          open: request.selection.open,
+          locked: request.selection.locked,
+          photoId: request.photoId,
+          imageUrl,
+          title: `${meta.sides.home} – ${meta.sides.away}`,
+          subtitle: [meta.competitionName, meta.roundLabel].filter(Boolean).join(" · "),
+        }),
+      ) as Prisma.InputJsonObject,
+    });
+    return { ok: true, data: record };
+  } catch (cause) {
+    if (imageUrl) await deleteStoredUrl(imageUrl);
+    console.error("[vitrin] kaydedilemedi:", cause);
+    return fail("STORAGE_FAILED", "Vitrin kartı kaydedilemedi — depolamaya ya da veritabanına yazılamadı.");
+  }
+}

@@ -239,7 +239,7 @@ const HEADER_SHADOW = "0 2px 12px rgba(0,0,0,0.6)";
  * Üst satır: solda sayfa etiketi ("01" vurgu renginde, "· MAÇ SONUCU" beyaz — kart tek başına
  * paylaşılırken çizilmez), sağda simetrik maç tarihi ("23.07.2026", aynı stil).
  */
-export function SetHeader({ card, box, k, only }: { card: SetCard; box: SetBox; k: number; only?: BlockFilter }) {
+export function SetHeader({ card, box, k, only }: { card: Pick<SetCard, "pageLabel" | "dateLabel" | "accentHex">; box: SetBox; k: number; only?: BlockFilter }) {
   const size = px(18, k);
   const text = { fontFamily: BODY, fontWeight: 700, fontSize: size, lineHeight: 1, letterSpacing: size * 0.24, color: "rgba(255,255,255,0.88)", textShadow: HEADER_SHADOW };
   const [number, ...rest] = card.pageLabel?.split(" · ") ?? [];
@@ -276,7 +276,7 @@ export function footerFontSize(line: string, boxWidth: number, size: number, log
  * Künye (sol: resmi turnuva adı · tur, %85 beyaz) + CheckMatch logosu (sağ alt köşe, tüm set
  * kartlarında aynı yer). Uzun turnuva/tur adı logoya çarpmasın diye boyut sığdırılır.
  */
-export function SetFooter({ card, box, size, logoHeight, only }: { card: SetCard; box: SetBox; size: number; logoHeight: number; only?: BlockFilter }) {
+export function SetFooter({ card, box, size, logoHeight, only }: { card: Pick<SetCard, "competitionLabel" | "roundLabel" | "brandLogo">; box: SetBox; size: number; logoHeight: number; only?: BlockFilter }) {
   const line = footerLine(card);
   const fontSize = footerFontSize(line, box.right - box.left, size, logoHeight);
   return (

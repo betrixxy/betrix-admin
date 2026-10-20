@@ -116,7 +116,10 @@ export interface NumberScopes {
   shared: Set<string>;
 }
 
-export function allowedNumbersBySide(facts: AnalysisFacts): NumberScopes {
+/** Yapısal: AI Market olgu paketi ve vitrin paketi (`lib/prediction/reasons.ts`) aynı dört bloğu taşır. */
+export type ScopedFacts = Pick<AnalysisFacts, "mac" | "aralarindaki_son_maclar"> & { ev_sahibi: unknown; deplasman: unknown };
+
+export function allowedNumbersBySide(facts: ScopedFacts): NumberScopes {
   return {
     home: numbersIn(facts.ev_sahibi),
     away: numbersIn(facts.deplasman),

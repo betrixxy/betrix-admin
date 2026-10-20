@@ -91,14 +91,20 @@ export interface LayoutReport {
   issues: LayoutIssue[];
 }
 
-export async function checkLayout(frame: MatchDayFrame, render: (only: LayoutBlockId) => Promise<Buffer>): Promise<LayoutReport> {
-  const boxes = await measureBlocks(render);
+export async function checkLayout(frame: MatchDayFrame, render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS): Promise<LayoutReport> {
+  const boxes = await measureBlocks(render, blocks);
   return { boxes, issues: findLayoutIssues(boxes, layoutSafeArea(frame)) };
 }
 
 /** Üretim kapısı: çakışma varsa kart üretilmez, sebep yazılır. */
-export async function layoutGate(label: string, frame: MatchDayFrame, render: (only: LayoutBlockId) => Promise<Buffer>): Promise<Result<LayoutReport>> {
-  const report = await checkLayout(frame, render);
+export async function layoutGate(
+  label: string,
+  frame: MatchDayFrame,
+  render: (only: LayoutBlockId) => Promise<Buffer>,
+  /** Kartın blokları (verilmezse hepsi; olmayan blok boş çizilir ve atlanır). */
+  blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS,
+): Promise<Result<LayoutReport>> {
+  const report = await checkLayout(frame, render, blocks);
   if (report.issues.length === 0) return { ok: true, data: report };
   return {
     ok: false,
