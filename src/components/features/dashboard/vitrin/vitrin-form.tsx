@@ -10,13 +10,11 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFixtureOption, type MatchDayFormatId } from "@/types/match-day";
-import { LOCKED_BOX_COUNT, OPEN_BOX_COUNT, SCENARIO_IDS, type ScenarioId } from "@/types/prediction";
-import { VitrinScenarioTable, type BoxRole } from "./vitrin-scenario-table";
+import { assignRole, byRole, DEFAULT_ROLE_STATE, selectionIssues, type RoleState } from "@/lib/prediction/vitrin-roles";
+import type { ScenarioId } from "@/types/prediction";
+import { VitrinScenarioTable } from "./vitrin-scenario-table";
 
-/** Varsayılan roller: 1X2 + iki takım gol açık; ilk yarı, gol yağmuru, senaryo kilitli; "gollü maç" kartta yok. */
-const DEFAULT_ROLES: Record<ScenarioId, BoxRole> = { RESULT_1X2: "open", BTTS: "open", GOALS_3PLUS: "none", GOALS_4PLUS: "locked", HT_RESULT: "locked", COMBO: "locked" };
 
-const byRole = (roles: Record<ScenarioId, BoxRole>, role: BoxRole) => SCENARIO_IDS.filter((id) => roles[id] === role);
 
 /**
  * Maç önü vitrin stüdyosu (AI_MARKET_PREDICTION). Maç seçilir → tahmin + kural tabanlı gerekçeler →
@@ -27,7 +25,8 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const formRef = useRef<HTMLFormElement>(null);
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [data, setData] = useState<VitrinLoadResult | null>(null);
-  const [roles, setRoles] = useState<Record<ScenarioId, BoxRole>>(DEFAULT_ROLES);
+  const [roleState, setRoleState] = useState<RoleState>(DEFAULT_ROLE_STATE);
+  const { roles } = roleState;
   const [reasons, setReasons] = useState<Record<ScenarioId, string>>({} as Record<ScenarioId, string>);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
   const [preview, setPreview] = useState<[string, string] | null>(null);
@@ -37,8 +36,19 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
 
   const open = byRole(roles, "open");
   const locked = byRole(roles, "locked");
-  // 1. açık kutu her zaman kazanma olasılıkları (posterin kazanma çubuğu).
-  const selectionOk = open.length === OPEN_BOX_COUNT && locked.length === LOCKED_BOX_COUNT && open[0] === "RESULT_1X2";
+  // Pasif butonun bütün nedenleri — butonun yanında listelenir (bkz. vitrin-roles.ts).
+  const blockers = useMemo(() => {
+    const rows = data?.rows ?? [];
+    return selectionIssues({
+      loaded: data !== null,
+      busy: busy !== null,
+      roles,
+      titles: Object.fromEntries(rows.map((row) => [row.id, row.title])) as Record<ScenarioId, string>,
+      reasons,
+      serverIssues: Object.fromEntries(rows.map((row) => [row.id, row.issues])) as Record<ScenarioId, string[]>,
+      edited: Object.fromEntries(rows.map((row) => [row.id, (reasons[row.id] ?? "") !== row.reason])) as Record<ScenarioId, boolean>,
+    });
+  }, [data, busy, roles, reasons]);
   const homeTeams = useMemo(() => (data ? [{ id: data.homeTeamId, name: data.homeName }] : []), [data]);
   const awayTeams = useMemo(() => (data ? [{ id: data.awayTeamId, name: data.awayName }] : []), [data]);
 
@@ -102,9 +112,9 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
             {data ? (
               <>
                 <p className="text-xs text-muted-foreground">
-                  Model {data.scenarioCount} senaryo hesapladı · en sürpriz %{data.surprisePct}. Tam 2 açık + 3 kilitli kutu seçin ({open.length}/2 açık, {locked.length}/3 kilitli); kazanma olasılıkları her zaman açık (posterin çubuğu).
+                  Model {data.scenarioCount} senaryo hesapladı · en sürpriz %{data.surprisePct}. 2 açık + 3 kilitli kutu ({open.length}/2 açık, {locked.length}/3 kilitli); kazanma olasılıkları her zaman açık (posterin çubuğu). Dolu bir rol seçilince o roldeki en eski seçim yer değiştirir.
                 </p>
-                <VitrinScenarioTable rows={data.rows} roles={roles} reasons={reasons} onRole={(id, role) => setRoles((current) => ({ ...current, [id]: role }))} onReason={(id, reason) => setReasons((current) => ({ ...current, [id]: reason }))} />
+                <VitrinScenarioTable rows={data.rows} roles={roles} reasons={reasons} onRole={(id, role) => setRoleState((current) => assignRole(current, id, role))} onReason={(id, reason) => setReasons((current) => ({ ...current, [id]: reason }))} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <ArchivePhotoPicker name="photoHome" label={`Poster · sol: ${data.homeName} fotoğrafı`} teams={homeTeams} fixtureId={fixtureId || null} kitOnly />
                   <ArchivePhotoPicker name="photoAway" label={`Poster · sağ: ${data.awayName} fotoğrafı`} teams={awayTeams} fixtureId={fixtureId || null} kitOnly />
@@ -123,19 +133,30 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
             {error ? <p className="flex items-start gap-1.5 text-xs text-destructive" role="alert"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{error}</p> : null}
 
             <div className="flex gap-2">
-              <Button type="button" variant="secondary" disabled={!data || !selectionOk || busy !== null} onClick={() => run("preview", async () => {
+              <Button type="button" variant="secondary" disabled={blockers.length > 0} onClick={() => run("preview", async () => {
                 const result = await previewVitrinAction(formData());
                 if (result.ok) { setPreview(result.data.dataUrls); setError(null); } else setError(result.error.message);
               })}>
                 {busy === "preview" ? <LoaderCircle className="animate-spin" /> : <Eye />} Önizle
               </Button>
-              <Button type="button" disabled={!data || !selectionOk || busy !== null} onClick={() => run("save", async () => {
+              <Button type="button" disabled={blockers.length > 0} onClick={() => run("save", async () => {
                 const result = await saveVitrinAction(formData());
                 if (!result.ok) setError(result.error.message);
               })}>
                 {busy === "save" ? <LoaderCircle className="animate-spin" /> : <Save />} Kaydet (taslak)
               </Button>
             </div>
+            {/* Pasif butonun nedeni her zaman görünür — her neden tek satır. */}
+            {blockers.length > 0 ? (
+              <ul className="flex flex-col gap-0.5 text-xs text-amber-300" aria-live="polite">
+                {blockers.map((blocker) => (
+                  <li key={blocker} className="flex items-start gap-1.5">
+                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                    {blocker}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </form>
         </CardContent>
       </Card>

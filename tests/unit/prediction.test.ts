@@ -196,6 +196,21 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.ok(auditReason(dotted, "BTTS", facts, sides).some((issue) => issue.includes("ondalık ayırıcı virgül")), dotted);
   });
 
+  it("senaryoyla ilgi: 'İlk yarı kimin?' için yalnızca xG ilgisiz, gol/galibiyet ilgili", () => {
+    const xg = facts.ev_sahibi.xg_ort;
+    assert.ok(xg !== null, "fixture'da xG olmalı");
+    const xgOnly = `${sides.home} maç başına ${String(xg).replace(".", ",")} xG üretiyor.`;
+    assert.ok(auditReason(xgOnly, "HT_RESULT", facts, sides).some((issue) => issue.startsWith("senaryoyla ilgisiz")), xgOnly);
+    assert.ok(!auditReason(xgOnly, "GOALS_3PLUS", facts, sides).some((issue) => issue.startsWith("senaryoyla ilgisiz")), "gollü maç için xG ilgili");
+    assert.deepEqual(auditReason(`${sides.home} son 5 maçında ${homeWins} galibiyet aldı.`, "HT_RESULT", facts, sides), []);
+    assert.ok(auditReason(`${sides.home} topla oynamada üstün.`, "BTTS", facts, sides).some((issue) => issue.includes("gol atma ya da gol yeme")));
+  });
+
+  it("olgu paketi xG örneklemini taşır (xG'li maç sayısı)", () => {
+    assert.equal(facts.ev_sahibi.xg_ornek_mac, stats.home.form.xgMatchesSampled);
+    assert.equal(facts.deplasman.xg_ornek_mac, stats.away.form.xgMatchesSampled);
+  });
+
   it("senaryonun kendi sayısı (3+ gol) serbest", () => {
     assert.deepEqual(auditReason("Galatasaray maçlarında 3+ gol sık görülüyor.", "GOALS_3PLUS", facts, sides), []);
   });

@@ -26,7 +26,9 @@ Dil:
 - Türkçe imla kurallarına tam uy; özel adlara gelen ekler kesme işaretiyle ayrılır ("Galatasaray'ın"); yüzde işareti sayıdan önce gelir ("%57").
 - Ondalık ayırıcı VİRGÜLDÜR: paketteki 2.2 değerini "2,2" diye yaz; "2.2" yazımı denetimde reddedilir.
 - Her gerekçe TEK kısa cümle: en fazla 10 sözcük (sayılar ve takım adları dahil, boşlukla ayrılan her parça bir sözcük) ve en fazla 160 karakter; emoji ve ünlem yok. Kartta büyük puntoyla görünür, 10 sözcüğü aşan gerekçe kartı kilitler.
-- Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü TEK veriye dayansın.
+- Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü TEK veriye dayansın ve senaryonun konusuyla doğrudan ilgili olsun (denetlenir): kazanma → galibiyet/form/gol; iki takım da gol bulur mu → gol atma/yeme; gollü maç / gol yağmuru → gol sayısı ya da xG; ilk yarı kimin → gol atma/yeme, galibiyet ya da form; senaryo (kazanır ve 3+ gol) → galibiyet ya da gol.
+- Pakette ilk yarı verisi YOKTUR: ilk yarı istatistiği uydurma. "İlk yarı kimin?" için xG, topla oynama ya da pas isabeti tek başına gerekçe olamaz.
+- xG ortalaması yalnızca xG verisi olan maçlardan gelir ("xg_ornek_mac"; "ornek_mac"tan az olabilir). xG yazarsan örneklemi bu sayıyla ver ("son 4 maçta"); gol verisi varken xG'yi tercih etme.
 - Yalnızca uzunluk örneği (sayılar örnek, pakettekini kullan): "<Takım> son 5 maçında 4 galibiyet aldı." (7 sözcük).`;
 
 const MAX_TOKENS = 900;

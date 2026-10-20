@@ -27,7 +27,7 @@ const tally = (letters: string, letter: string) => [...letters].filter((value) =
 export function vitrinFacts(stats: DeepAnalysisStats) {
   const base = buildAnalysisFacts(stats);
   const sides = matchSides(stats);
-  const team = (facts: typeof base.ev_sahibi, name: string) => {
+  const team = (facts: typeof base.ev_sahibi, name: string, xgSampled: number) => {
     const { kg_var_mac, ust_2_5_mac, ...rest } = facts;
     return {
       ...rest,
@@ -37,12 +37,14 @@ export function vitrinFacts(stats: DeepAnalysisStats) {
       maglubiyet: tally(facts.form_eskiden_yeniye, "M"),
       iki_takimin_da_gol_buldugu_mac: kg_var_mac,
       uc_veya_daha_fazla_gollu_mac: ust_2_5_mac,
+      // xG ortalaması yalnızca xG verisi olan maçlardan (hazırlık/kupa maçlarında yok) — örneklem bağlamı.
+      xg_ornek_mac: xgSampled,
     };
   };
   return {
     mac: { ...base.mac, ev_sahibi: sides.home, deplasman: sides.away },
-    ev_sahibi: team(base.ev_sahibi, sides.home),
-    deplasman: team(base.deplasman, sides.away),
+    ev_sahibi: team(base.ev_sahibi, sides.home, stats.home.form.xgMatchesSampled),
+    deplasman: team(base.deplasman, sides.away, stats.away.form.xgMatchesSampled),
     aralarindaki_son_maclar: base.aralarindaki_son_maclar,
   };
 }
@@ -51,6 +53,20 @@ export type VitrinFacts = ReturnType<typeof vitrinFacts>;
 
 /** Senaryonun kendi sayıları ("3+ gol", "4+ gol") gerekçede serbesttir. */
 const SCENARIO_NUMBERS: Partial<Record<ScenarioId, string[]>> = { GOALS_3PLUS: ["3"], GOALS_4PLUS: ["4"], COMBO: ["3"] };
+
+/**
+ * Senaryoyla ilgi: gerekçe senaryonun konusuna ait bir veriye dayanmalı (konu sözcüğü geçmeli).
+ * Olgu paketinde ilk yarı verisi YOK — "İlk yarı kimin?" gol atma/yeme, galibiyet ya da form verisiyle
+ * gerekçelendirilir; yalnızca xG, topla oynama ya da pas isabeti bu senaryoyla ilgisiz sayılır.
+ */
+export const SCENARIO_TOPICS: Record<ScenarioId, { pattern: RegExp; label: string }> = {
+  RESULT_1X2: { pattern: /galibiyet|beraberlik|mağlubiyet|yenil|kazan|kaybet|puan|form|gol|xg|seri/u, label: "galibiyet, form ya da gol" },
+  BTTS: { pattern: /gol/u, label: "gol atma ya da gol yeme" },
+  GOALS_3PLUS: { pattern: /gol|xg/u, label: "gol sayısı ya da gol beklentisi" },
+  GOALS_4PLUS: { pattern: /gol|xg/u, label: "gol sayısı ya da gol beklentisi" },
+  HT_RESULT: { pattern: /ilk yarı|gol|galibiyet|öne geç|form/u, label: "gol atma/yeme, galibiyet ya da form" },
+  COMBO: { pattern: /galibiyet|kazan|form|gol/u, label: "galibiyet ya da gol" },
+};
 
 /** Cümlecik sınırı: noktalı virgül/iki nokta, ardından boşluk gelen virgül/nokta (ondalık "2,4" bölünmez), bağlaçlar. */
 const CLAUSE_SPLIT = /[;:]|[,.](?=\s|$)|\s(?:ve|ama|fakat|ancak|oysa|iken|buna karşın)\s/u;
@@ -66,7 +82,7 @@ function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
   return home === away ? null : home ? "home" : "away";
 }
 
-/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
 export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
@@ -76,6 +92,8 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   if (words > REASON_MAX_WORDS) issues.push(`${words} sözcük (en fazla ${REASON_MAX_WORDS})`);
   // Türkçe ondalık ayırıcı virgül: "2.2" reddedilir ("2,2").
   for (const match of text.matchAll(DECIMAL_POINT)) issues.push(`"${match[0]}" ondalık ayırıcı virgül olmalı ("${match[0].replace(".", ",")}")`);
+  const topic = SCENARIO_TOPICS[scenarioId];
+  if (!topic.pattern.test(lower(text))) issues.push(`senaryoyla ilgisiz — ${topic.label} verisine dayanmalı`);
   const banned = findBannedWords(text);
   if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);
