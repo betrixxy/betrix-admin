@@ -17,6 +17,11 @@ export function matchSides(stats: DeepAnalysisStats): MatchSides {
   return { home: teamNameTr(stats.fixture.homeTeam.name), away: teamNameTr(stats.fixture.awayTeam.name) };
 }
 
+/** xG ortalaması en az bu kadar xG'li maçtan gelmeli; azsa paketten çıkar ve xG'li gerekçe reddedilir. */
+export const XG_MIN_SAMPLE = 4;
+/** Gerekçede xG'ye dayanma: "xG", "beklenen gol", "gol beklentisi". */
+const XG_MENTION = /xg|beklenen gol|gol beklentisi/u;
+
 const tally = (letters: string, letter: string) => [...letters].filter((value) => value === letter).length;
 
 /**
@@ -28,9 +33,11 @@ export function vitrinFacts(stats: DeepAnalysisStats) {
   const base = buildAnalysisFacts(stats);
   const sides = matchSides(stats);
   const team = (facts: typeof base.ev_sahibi, name: string, xgSampled: number) => {
-    const { kg_var_mac, ust_2_5_mac, ...rest } = facts;
+    const { kg_var_mac, ust_2_5_mac, xg_ort, xg_izin_ort, sut_basi_xg, ...rest } = facts;
     return {
       ...rest,
+      // xG < XG_MIN_SAMPLE maçtan geliyorsa pakette hiç yok — model göremez, gerekçede yazamaz.
+      ...(xgSampled >= XG_MIN_SAMPLE ? { xg_ort, xg_izin_ort, sut_basi_xg } : {}),
       takim: name,
       galibiyet: tally(facts.form_eskiden_yeniye, "G"),
       beraberlik: tally(facts.form_eskiden_yeniye, "B"),
@@ -82,7 +89,7 @@ function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
   return home === away ? null : home ? "home" : "away";
 }
 
-/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, xG örneklemi ≥4 maç, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
 export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
@@ -98,6 +105,16 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);
   if (short.length) issues.push(`takım kısaltması: ${short.join(", ")}`);
+
+  // xG örneklemi: cümleciğin takımının (takım adı yoksa iki takımın da) xG'si ≥ XG_MIN_SAMPLE maçtan gelmeli.
+  for (const clause of text.split(CLAUSE_SPLIT)) {
+    if (!XG_MENTION.test(lower(clause))) continue;
+    const side = clauseSide(clause, sides);
+    const teams = side === "home" ? [facts.ev_sahibi] : side === "away" ? [facts.deplasman] : [facts.ev_sahibi, facts.deplasman];
+    for (const team of teams) {
+      if (team.xg_ornek_mac < XG_MIN_SAMPLE) issues.push(`${team.takim} xG'si ${team.xg_ornek_mac} maçtan (en az ${XG_MIN_SAMPLE}) — xG gerekçesi yazılamaz`);
+    }
+  }
 
   const scopes = allowedNumbersBySide(facts);
   const free = new Set(SCENARIO_NUMBERS[scenarioId] ?? []);
