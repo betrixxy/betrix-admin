@@ -21,7 +21,9 @@ function row(key: H2HStatKey, left: Side, right: Side, mode: H2HMode): H2HRow | 
   const leftText = formatStat(key, l, mode);
   const rightText = formatStat(key, r, mode);
   const winner = leftText === rightText ? "TIE" : l > r ? "LEFT" : "RIGHT";
-  return { key, label: STAT_META[key].label, group: STAT_META[key].group, left: l, right: r, leftText, rightText, winner };
+  const counted = STAT_META[key].kind === "count" || STAT_META[key].kind === "xg";
+  const totals = mode === "PER90" && counted ? { left: formatStat(key, leftTotal, "TOTAL"), right: formatStat(key, rightTotal, "TOTAL") } : null;
+  return { key, label: STAT_META[key].label, group: STAT_META[key].group, left: l, right: r, leftText, rightText, winner, totals };
 }
 
 function missing(key: H2HStatKey, left: Side, right: Side): H2HDropped["reason"] | null {

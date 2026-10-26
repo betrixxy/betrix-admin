@@ -16,11 +16,12 @@ import { LOSER_BAR, StatValue, TIE_BAR, upperLabel, valueColor } from "./parts";
 
 function Face({ player, k, align }: { player: H2HPlayerCard; k: number; align: "left" | "right" }) {
   const size = px(H2H_SIZES.face, k);
-  const ring = Math.max(2, px(3, k));
+  // İnce halka, takım renginde.
+  const ring = Math.max(2, px(2.5, k));
   const nameSize = fitFontSize(player.name, px(330, k), px(46, k), 0.47, px(24, k));
   const photo = player.face ? (
     // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
-    <img src={player.face} alt="" width={size - 2 * ring} height={size - 2 * ring} style={{ borderRadius: size, objectFit: "cover" }} />
+    <img src={player.face} alt="" width={size - 2 * ring - 2} height={size - 2 * ring - 2} style={{ borderRadius: size, objectFit: "cover" }} />
   ) : (
     <TeamLogo src={player.teamLogo} name={player.name} size={Math.round(size * 0.62)} />
   );

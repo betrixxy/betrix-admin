@@ -1,5 +1,5 @@
 import { officialPersonName } from "@/lib/archive/names";
-import { currentCoach } from "@/lib/archive/structure";
+import { currentCoach, isCalendarYear } from "@/lib/archive/structure";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { apiSearchTerm } from "@/lib/services/api-football/search-term";
 import {
@@ -46,6 +46,8 @@ export interface TeamLeague {
   logo: string | null;
   /** Güncel sezon yılı (`seasons[].current`) — yoksa null. */
   season: number | null;
+  /** Güncel sezon tek takvim yılında mı (başlangıç ve bitiş aynı yıl: MLS, Brezilya…) — etiket "2026". */
+  calendarYear: boolean;
 }
 
 /** Takımın bu sezon oynadığı ligler/kupalar (`current=true`) — yurt içi lig `domesticLeague` ile seçilir. */
@@ -63,6 +65,7 @@ export async function getTeamCurrentLeagues(teamId: number): Promise<Result<Team
       country: entry.country.name,
       logo: entry.league.logo ?? null,
       season: entry.seasons.find((season) => season.current)?.year ?? null,
+      calendarYear: isCalendarYear(entry.seasons.find((season) => season.current)),
     })),
   };
 }

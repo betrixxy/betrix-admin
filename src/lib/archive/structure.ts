@@ -73,6 +73,11 @@ export interface TeamLeagueEntry {
   country: string | null;
 }
 
+/** Sezonun başlangıcı ve bitişi aynı takvim yılında mı ("2026-03-01" → "2026-11-30"). */
+export function isCalendarYear(season: { start?: string | null; end?: string | null } | undefined): boolean {
+  return !!season?.start && !!season.end && season.start.slice(0, 4) === season.end.slice(0, 4);
+}
+
 /**
  * Takımın o sezonki yurt içi ligi: `type = "League"` (kupa ve UEFA turnuvaları `Cup`). Küme düşen
  * ya da çıkan takım yeni sezonda yeni ligiyle döner → ağaçta kendiliğinden yeni ligin altına geçer.

@@ -5,13 +5,13 @@ import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { PosterShade } from "../vitrin/poster";
 import { MUTED, TEXT_SHADOW } from "../vitrin/parts";
-import { H2H_SIZES, type H2HPosterGeometry } from "./geometry";
-import { LOSER_TEXT, StatValue, upperLabel, valueColor } from "./parts";
+import { H2H_SIZES, heroRow, type H2HPosterGeometry } from "./geometry";
+import { StatValue, upperLabel, valueColor } from "./parts";
 
 /**
  * 01 KARŞILAŞTIRMA — vitrin posteriyle aynı dil: iki oyuncunun arşiv fotoğrafı çapraz bölünmüş
  * (sanat katmanı, motor), takım renginde ışık. Alttan yukarı: künye ← tek satır olgu ← 3 kahraman
- * (dev rakamlar karşılıklı; önde olan takım renginde, geride olan soluk) ← adalet etiketi ← adlar
+ * (dev rakamlar karşılıklı; önde olan takım renginde, geride olan soluk; 90 dk modunda altında gerçek toplam) ← adalet etiketi ← adlar
  * (logo · küçük ilk ad · büyük soyad · takım · mevki). Hiyerarşi: kahraman > ad > etiket.
  */
 
@@ -43,25 +43,29 @@ function Players({ card, g, only }: { card: H2HCard; g: H2HPosterGeometry; only:
   );
 }
 
-function HeroRow({ row, card, width, height, k, note }: { row: H2HRow; card: H2HCard; width: number; height: number; k: number; note: string }) {
+function HeroRow({ row, card, width, height, k }: { row: H2HRow; card: H2HCard; width: number; height: number; k: number }) {
   const labelWidth = px(260, k);
   const valueWidth = Math.floor((width - labelWidth) / 2);
   const longest = Math.max(row.leftText.length, row.rightText.length);
   const size = Math.min(px(H2H_SIZES.hero, k), fitFontSize("0".repeat(longest), valueWidth - px(16, k), px(H2H_SIZES.hero, k), 0.5, px(48, k)));
-  const value = (text: string, color: string, align: "flex-start" | "flex-end") => (
-    <div tw="flex items-center" style={{ width: valueWidth, height, justifyContent: align }}>
-      <StatValue text={text} size={size} color={color} shadow={TEXT_SHADOW} />
+  const captionSize = px(H2H_SIZES.heroCaption, k);
+  const value = (text: string, total: string | null, color: string, align: "flex-start" | "flex-end") => (
+    <div tw="flex flex-col" style={{ width: valueWidth, height, alignItems: align, justifyContent: "flex-start" }}>
+      <div tw="flex items-center" style={{ height: px(H2H_SIZES.hero, k) }}>
+        <StatValue text={text} size={size} color={color} shadow={TEXT_SHADOW} />
+      </div>
+      {/* 90 dk modunda gerçek sezon toplamı — skor gibi okunmasın diye her değerin kendi altında. */}
+      {total ? <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: captionSize, lineHeight: 1, letterSpacing: captionSize * 0.16, color: MUTED, marginTop: px(H2H_SIZES.heroCaptionGap, k) }}>{`TOPLAM ${total}`}</span> : null}
     </div>
   );
   const labelSize = px(H2H_SIZES.heroLabel, k);
   return (
     <div tw="flex items-center" style={{ width, height }}>
-      {value(row.leftText, valueColor(row, "LEFT", card.left.hex), "flex-start")}
-      <div tw="flex flex-col items-center justify-center" style={{ width: labelWidth, height }}>
+      {value(row.leftText, row.totals?.left ?? null, valueColor(row, "LEFT", card.left.hex), "flex-start")}
+      <div tw="flex flex-col items-center justify-center" style={{ width: labelWidth, height: px(H2H_SIZES.hero, k), alignSelf: "flex-start" }}>
         <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: labelSize, lineHeight: 1, letterSpacing: labelSize * 0.16, color: "#fff" }}>{upperLabel(STAT_META[row.key].short)}</span>
-        {note ? <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(15, k), lineHeight: 1, letterSpacing: px(15, k) * 0.14, color: LOSER_TEXT, marginTop: px(10, k) }}>{note}</span> : null}
       </div>
-      {value(row.rightText, valueColor(row, "RIGHT", card.right.hex), "flex-end")}
+      {value(row.rightText, row.totals?.right ?? null, valueColor(row, "RIGHT", card.right.hex), "flex-end")}
     </div>
   );
 }
@@ -70,7 +74,7 @@ function Hero({ card, g, only }: { card: H2HCard; g: H2HPosterGeometry; only: Bl
   const { k } = g;
   const s = H2H_SIZES;
   const width = g.column.right - g.column.left;
-  const rowHeight = px(s.hero, k);
+  const rowHeight = px(heroRow(), k);
   const labelSize = px(s.modeLabel, k);
   return (
     <div tw="absolute flex flex-col items-center" style={{ left: g.column.left, top: g.modeLabel.top, width, opacity: blockOpacity(only, "hero") }}>
@@ -78,7 +82,7 @@ function Hero({ card, g, only }: { card: H2HCard; g: H2HPosterGeometry; only: Bl
       <div tw="flex flex-col" style={{ marginTop: g.hero.top - g.modeLabel.top - g.modeLabel.height }}>
         {card.hero.map((row, index) => (
           <div key={row.key} tw="flex" style={{ marginTop: index === 0 ? 0 : px(s.heroGap, k) }}>
-            <HeroRow row={row} card={card} width={width} height={rowHeight} k={k} note={row.key === "goals" ? card.goalNote : ""} />
+            <HeroRow row={row} card={card} width={width} height={rowHeight} k={k} />
           </div>
         ))}
       </div>

@@ -27,7 +27,10 @@ export const H2H_SIZES = {
   modeLabel: 18,
   modeGap: 22,
   hero: 140,
-  heroGap: 22,
+  /** 90 dk modunda değerin altındaki gerçek toplam ("TOPLAM 8"); toplam modunda boş kalır (yerleşim sabit). */
+  heroCaption: 18,
+  heroCaptionGap: 8,
+  heroGap: 14,
   heroLabel: 26,
   factGap: 36,
   fact: 32,
@@ -75,17 +78,20 @@ export interface H2HCompareGeometry {
 
 export type H2HGeometry = H2HPosterGeometry | H2HCompareGeometry;
 
+/** Kahraman satırı: değer + toplam satırı. */
+export const heroRow = () => H2H_SIZES.hero + H2H_SIZES.heroCaptionGap + H2H_SIZES.heroCaption;
+
 /** Posterin yığını (künye hariç): adlar · adalet · kahramanlar · olgu. */
 function posterStack(): number {
   const s = H2H_SIZES;
-  return s.players + s.playersGap + s.modeLabel + s.modeGap + 3 * s.hero + 2 * s.heroGap + s.factGap + s.fact;
+  return s.players + s.playersGap + s.modeLabel + s.modeGap + 3 * heroRow() + 2 * s.heroGap + s.factGap + s.fact;
 }
 
 /** Yığın alttan yukarı, künyenin üstünden; `bottom` künye bloğunun üst kenarı. */
 function posterSlots(bottom: number, k: number) {
   const s = H2H_SIZES;
   const fact = { top: bottom - px(s.fact, k), height: px(s.fact, k) };
-  const heroHeight = px(3 * s.hero + 2 * s.heroGap, k);
+  const heroHeight = px(3 * heroRow() + 2 * s.heroGap, k);
   const hero = { top: fact.top - px(s.factGap, k) - heroHeight, height: heroHeight };
   const modeLabel = { top: hero.top - px(s.modeGap + s.modeLabel, k), height: px(s.modeLabel, k) };
   const players = { top: modeLabel.top - px(s.playersGap + s.players, k), height: px(s.players, k) };

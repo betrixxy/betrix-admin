@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { h2hColors } from "@/lib/dashboard/player-h2h-card";
+import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
+import { buildH2HCard, h2hColors } from "@/lib/dashboard/player-h2h-card";
+import { portraitCrop } from "@/lib/dashboard/player-h2h-photo";
 import { comparisonPosition, comparisonWarnings, DIFFERENT_LEAGUES_WARNING, scopeLabel } from "@/lib/player-h2h/checks";
 import { factLine } from "@/lib/player-h2h/facts";
 import { firstNameOf, fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
@@ -191,5 +193,43 @@ describe("renk kuralı", () => {
     const [left, right] = h2hColors(998, 998);
     assert.equal(left.toUpperCase(), "#5AB4E5");
     assert.ok(["#E8E8EA", "#9AA3B5"].includes(right.toUpperCase()));
+  });
+});
+
+describe("2026-10-27 tasarım düzeltmeleri", () => {
+  it("gerçek 0 her modda '0' (90 dk'da '0,00' değil); yüzde '%0'", () => {
+    assert.equal(formatStat("assists", 0, "PER90"), "0");
+    assert.equal(formatStat("xg", 0, "TOTAL"), "0");
+    assert.equal(formatStat("passAccuracy", 0, "TOTAL"), "%0");
+    const { rows } = buildRows(player({ values: { assists: 3 } }), player({ values: { assists: 0 } }), "FWD", "PER90");
+    assert.equal(rows[0]?.rightText, "0");
+  });
+
+  it("ortalama puan tabloda yok (boşalan yere sıradaki satır); 2. sayfa künyesinde", () => {
+    for (const position of ["FWD", "MID", "DEF", "GK"] as const) assert.ok(!POSITION_PRIORITY[position].includes("rating"), position);
+    const { rows } = buildRows(H2H_LEFT, H2H_RIGHT, "FWD", "TOTAL");
+    assert.ok(!rows.some((r) => r.key === "rating"));
+    const built = buildH2HCard({ left: H2H_LEFT, right: H2H_RIGHT, mode: "TOTAL", match: null, images: { leftLogo: null, rightLogo: null, leftFace: null, rightFace: null, brandLogo: "" }, frame: MATCH_DAY_FRAMES.IG_PORTRAIT });
+    assert.ok(built.ok);
+    assert.equal(built.data.card.left.sampleLine, "9 MAÇ · 742 DK · PUAN 7,52");
+  });
+
+  it("kahraman altında gerçek toplam yalnızca 90 dk modunda, sayı/xG satırında", () => {
+    const per90 = buildHero(H2H_LEFT, H2H_RIGHT, "FWD", "PER90");
+    assert.deepEqual(per90[0]?.totals, { left: "7", right: "6" });
+    assert.deepEqual(per90.find((r) => r.key === "xg")?.totals, { left: "5,62", right: "7,30" });
+    assert.equal(buildHero(H2H_LEFT, H2H_RIGHT, "FWD", "TOTAL")[0]?.totals, null);
+    assert.equal(buildHero(H2H_LEFT, H2H_RIGHT, "DEF", "PER90")[0]?.totals, null, "yüzde satırında toplam yok");
+  });
+
+  it("vesikalık kırpma: yüz yatayda ortada, göz hizası üst üçte birde, baş + omuz (yüz × 2,6)", () => {
+    const face = { x: 900, y: 400, width: 200, height: 260, score: 0.9 };
+    const crop = portraitCrop(face, { width: 2000, height: 2600 });
+    assert.equal(crop.side, Math.round(260 * 2.6));
+    assert.equal(crop.left + crop.side / 2, 1000);
+    assert.ok(Math.abs(crop.top + crop.side / 3 - (400 + 260 * 0.4)) <= 1);
+    const edge = portraitCrop({ ...face, x: 10, y: 5 }, { width: 2000, height: 2600 });
+    assert.equal(edge.left, 0, "görüntü sınırına kıstırılır");
+    assert.equal(edge.top, 0);
   });
 });

@@ -39,14 +39,14 @@ export const STAT_META: Record<H2HStatKey, StatMeta> = {
 export const GROUP_ORDER: readonly H2HGroup[] = ["KALECİLİK", "HÜCUM", "YARATICILIK", "PAS", "TOP KAZANMA"];
 
 /**
- * Mevkiye göre öncelik: listenin başı en önemli. Satır sınırı aşılınca SONDAN düşer. Ortalama puan
- * PAS grubunda (genel performans göstergesi; ayrı grup açılmadı).
+ * Mevkiye göre öncelik (kelebek tablosu): listenin başı en önemli. Satır sınırı aşılınca SONDAN düşer.
+ * Ortalama puan tabloda YOK — 2. sayfada oyuncu adının altındaki künyede ("9 MAÇ · 734 DK · PUAN 7,86").
  */
 export const POSITION_PRIORITY: Record<H2HPosition, readonly H2HStatKey[]> = {
-  FWD: ["goals", "xg", "assists", "shots", "shotsOnTarget", "bigChancesCreated", "xa", "keyPasses", "dribbles", "rating", "duelsWonPct", "passAccuracy", "tackles", "interceptions"],
-  MID: ["assists", "keyPasses", "bigChancesCreated", "xa", "goals", "xg", "passAccuracy", "dribbles", "rating", "shots", "shotsOnTarget", "duelsWonPct", "tackles", "interceptions"],
-  DEF: ["duelsWonPct", "interceptions", "tackles", "passAccuracy", "rating", "keyPasses", "assists", "goals", "dribbles", "bigChancesCreated", "xg", "shots", "xa", "shotsOnTarget"],
-  GK: ["saves", "rating", "passAccuracy", "duelsWonPct", "interceptions", "tackles"],
+  FWD: ["goals", "xg", "assists", "shots", "shotsOnTarget", "bigChancesCreated", "xa", "keyPasses", "dribbles", "duelsWonPct", "passAccuracy", "tackles", "interceptions"],
+  MID: ["assists", "keyPasses", "bigChancesCreated", "xa", "goals", "xg", "passAccuracy", "dribbles", "shots", "shotsOnTarget", "duelsWonPct", "tackles", "interceptions"],
+  DEF: ["duelsWonPct", "interceptions", "tackles", "passAccuracy", "keyPasses", "assists", "goals", "dribbles", "bigChancesCreated", "xg", "shots", "xa", "shotsOnTarget"],
+  GK: ["saves", "passAccuracy", "duelsWonPct", "interceptions", "tackles"],
 };
 
 /** Posterin 3 kahraman istatistiği: listedeki ilk 3 (iki oyuncuda da olan). */
@@ -101,6 +101,8 @@ const decimal = (value: number, digits: number) => value.toFixed(digits).replace
 /** Türkçe yazım: ondalık virgül, yüzde işareti önde ("%78"). */
 export function formatStat(key: H2HStatKey, value: number, mode: H2HMode): string {
   const { kind } = STAT_META[key];
+  // Gerçek 0 her modda "0" ("0,00" değil).
+  if (value === 0 && kind !== "pct") return "0";
   if (kind === "pct") return `%${Math.round(value)}`;
   if (kind === "rating") return decimal(value, 2);
   if (kind === "xg") return decimal(value, 2);

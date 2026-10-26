@@ -95,6 +95,8 @@ export interface H2HRow {
   leftText: string;
   rightText: string;
   winner: "LEFT" | "RIGHT" | "TIE";
+  /** 90 dk modunda sayı/xG satırının gerçek sezon toplamı (kahraman altı: "TOPLAM 8"); diğerlerinde null. */
+  totals: { left: string; right: string } | null;
 }
 
 /** Satırı düşen istatistikler ve nedeni (rapor + stüdyo). */
@@ -128,8 +130,6 @@ export interface H2HCard {
   /** "SEZON TOPLAMI" / "90 DAKİKA BAŞINA" — kahramanların üstünde ve dipnotta. */
   modeLabel: string;
   hero: H2HRow[];
-  /** Kahraman GOL satırının alt etiketi: "PENALTI 1 – 2"; bilinmiyorsa boş. */
-  goalNote: string;
   rows: H2HRow[];
   /** Tek satır olgu (kural tabanlı); kural yoksa boş. */
   fact: string;

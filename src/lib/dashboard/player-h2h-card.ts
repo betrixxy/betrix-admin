@@ -8,11 +8,11 @@ import { comparisonPosition, comparisonWarnings, freshnessLabel, scopeLabel } fr
 import { factLine } from "@/lib/player-h2h/facts";
 import { firstNameOf } from "@/lib/player-h2h/names";
 import { buildHero, buildRows, groupRows } from "@/lib/player-h2h/rows";
-import { MAX_ROWS, POSITION_LABELS } from "@/lib/player-h2h/stats";
+import { formatStat, MAX_ROWS, POSITION_LABELS, STAT_META } from "@/lib/player-h2h/stats";
 import { numberPossessive } from "@/lib/player-h2h/turkish";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { chartRowHeight, h2hCompareGeometry } from "@/skills/render-engine/templates/player-h2h/geometry";
-import type { H2HCard, H2HDropped, H2HMode, H2HPlayerCard, H2HPosition, H2HRow, PlayerSeasonStats } from "@/types/player-h2h";
+import type { H2HCard, H2HDropped, H2HMode, H2HPlayerCard, H2HPosition, H2HRow, H2HStatKey, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
 
 /**
@@ -75,7 +75,8 @@ function playerCard(player: PlayerSeasonStats, hex: string, logo: string | null,
     name: upperName(player.shortName, player.nameOrigin),
     firstName: upperName(firstNameOf(player.fullName), player.nameOrigin),
     subtitle: `${upperName(player.teamName, player.teamOrigin)} · ${upperTr(POSITION_LABELS[player.position])}`,
-    sampleLine: `${player.appearances} MAÇ · ${player.minutes} DK`,
+    // Ortalama puan tabloda değil, künyede (2026-10-27 kararı).
+    sampleLine: [`${player.appearances} MAÇ`, `${player.minutes} DK`, player.values.rating === undefined ? null : `PUAN ${formatStat("rating", player.values.rating, "TOTAL")}`].filter(Boolean).join(" · "),
     teamLogo: logo,
     hex,
     face,
@@ -92,10 +93,20 @@ function goalLine(player: PlayerSeasonStats): string | null {
 
 const SOURCE_NAMES = { "api-football": "API-Football", sportmonks: "Sportmonks" } as const;
 
-/** Kaynak satırı: oyuncu başına tek kaynak (karışım yok) — aynıysa bir kez. */
-function sourceLine(left: PlayerSeasonStats, right: PlayerSeasonStats): string {
+/** Oyuncunun API-Football yolunda Sportmonks'tan gelen (gösterilen) satırları — koşullu xG/büyük fırsat. */
+function sportmonksKeys(player: PlayerSeasonStats, shown: Set<H2HStatKey>): H2HStatKey[] {
+  return player.freshness.source === "api-football" ? [...shown].filter((key) => player.sources[key] === "sportmonks") : [];
+}
+
+/**
+ * Kaynak satırı: oyuncunun ana kaynağı (aynıysa bir kez) + koşullu Sportmonks satırları ("xG, Büyük fırsat
+ * yaratma: Sportmonks" — yalnızca iki kaynağın maç ve dakikası birebir tuttuğunda gelir).
+ */
+function sourceLine(left: PlayerSeasonStats, right: PlayerSeasonStats, shown: Set<H2HStatKey>): string {
   const [a, b] = [left.freshness.source, right.freshness.source];
-  return a === b ? `Veri: ${SOURCE_NAMES[a]}.` : `Veri: ${left.shortName} ${SOURCE_NAMES[a]} · ${right.shortName} ${SOURCE_NAMES[b]}.`;
+  const main = a === b ? `Veri: ${SOURCE_NAMES[a]}` : `Veri: ${left.shortName} ${SOURCE_NAMES[a]} · ${right.shortName} ${SOURCE_NAMES[b]}`;
+  const filled = [...new Set([...sportmonksKeys(left, shown), ...sportmonksKeys(right, shown)])].map((key) => STAT_META[key].label);
+  return filled.length ? `${main} · ${filled.join(", ")}: Sportmonks.` : `${main}.`;
 }
 
 function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
@@ -105,7 +116,7 @@ function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
   if (explain) notes.push(explain);
   const goals = [goalLine(input.left), goalLine(input.right)];
   if (goals.every(Boolean)) notes.push(`Gol (sezon toplamı): ${goals.join(" · ")}.`);
-  notes.push(`${sourceLine(input.left, input.right)}${input.mode === "PER90" ? " Değerler 90 dakika başına." : ""}`);
+  notes.push(`${sourceLine(input.left, input.right, keys)}${input.mode === "PER90" ? " Değerler 90 dakika başına." : ""}`);
   return notes;
 }
 
@@ -116,7 +127,6 @@ export function buildH2HCard(input: H2HCardInput): Result<H2HCardResult> {
   const [leftHex, rightHex] = h2hColors(left.teamId, right.teamId);
   const { rows, dropped } = fittedRows(input, position.data);
   const hero = buildHero(left, right, position.data, mode);
-  const penalties = left.penaltyGoals !== null && right.penaltyGoals !== null && hero.some((row) => row.key === "goals");
   const card: H2HCard = {
     pageLabels: H2H_PAGE_LABELS,
     dateLabel: input.match ? setDateLabel(input.match.kickoffUtc) : left.seasonLabel,
@@ -125,7 +135,6 @@ export function buildH2HCard(input: H2HCardInput): Result<H2HCardResult> {
     right: playerCard(right, rightHex, input.images.rightLogo, input.images.rightFace),
     modeLabel: mode === "PER90" ? "90 DAKİKA BAŞINA" : "SEZON TOPLAMI",
     hero,
-    goalNote: penalties ? `PENALTI ${left.penaltyGoals} – ${right.penaltyGoals}` : "",
     rows,
     fact: factLine(left, right, position.data, mode),
     scopeLabel: [scopeLabel(left, right), freshnessLabel(left, right)].filter(Boolean).join(" · "),

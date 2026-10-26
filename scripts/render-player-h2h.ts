@@ -15,9 +15,9 @@ import { parseArgs } from "node:util";
 import sharp from "sharp";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
-import { buildH2HCard } from "@/lib/dashboard/player-h2h-card";
+import { buildH2HCard, h2hColors } from "@/lib/dashboard/player-h2h-card";
 import { loadPlayerSeasonStats } from "@/lib/dashboard/player-h2h-data";
-import { faceThumb } from "@/lib/dashboard/player-h2h-photo";
+import { FACE_NOT_FOUND_WARNING, facePortrait } from "@/lib/dashboard/player-h2h-photo";
 import { renderH2HImages } from "@/lib/dashboard/player-h2h-render";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { defaultMode } from "@/lib/player-h2h/stats";
@@ -83,14 +83,16 @@ async function main() {
   const mode = (values.mode as H2HMode | undefined) ?? defaultMode(left.data.minutes, right.data.minutes);
 
   const photos = { home: await photo(values["photo-left"]), away: await photo(values["photo-right"]) };
+  const [leftHex, rightHex] = h2hColors(left.data.teamId, right.data.teamId);
   const [leftLogo, rightLogo, brandLogo, leftFace, rightFace] = await Promise.all([
     resolveImage(left.data.teamLogo ?? undefined, 300),
     resolveImage(right.data.teamLogo ?? undefined, 300),
     loadBrandLogo(),
-    faceThumb(photos.home),
-    faceThumb(photos.away),
+    facePortrait(photos.home, leftHex),
+    facePortrait(photos.away, rightHex),
   ]);
   const images = { leftLogo, rightLogo, leftFace, rightFace, brandLogo };
+  for (const [face, name] of [[leftFace, left.data.fullName], [rightFace, right.data.fullName]] as const) if (!face) console.log(`${name}: ${FACE_NOT_FOUND_WARNING}`);
 
   const formats = values.formats === "all" ? [...MATCH_DAY_FORMAT_IDS] : (values.formats.split(",") as MatchDayFormatId[]);
   const files: string[] = [];

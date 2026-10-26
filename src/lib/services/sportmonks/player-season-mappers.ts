@@ -43,8 +43,8 @@ export function nameMatches(candidate: string, fullName: string, surname: string
   return !first || !candidateFirst || first[0] === candidateFirst[0];
 }
 
-/** "2026" → "2026/2027" (Sportmonks sezon adı). */
-export const sportmonksSeasonName = (season: number) => `${season}/${season + 1}`;
+/** "2026" → "2026/2027" (Sportmonks sezon adı); takvim yılı sezonunda "2026". */
+export const sportmonksSeasonName = (season: number, calendarYear = false) => (calendarYear ? String(season) : `${season}/${season + 1}`);
 
 /** Lig adları eşleşiyor mu ("Süper Lig" ↔ "Super Lig", "UEFA Europa League" ↔ "Europa League"). */
 export function isSameLeague(a: string, b: string): boolean {
@@ -54,13 +54,14 @@ export function isSameLeague(a: string, b: string): boolean {
 
 export interface SportmonksScope {
   season: number;
+  calendarYear?: boolean;
   teamName: string;
   /** Lig kapsamında ligin adı; tüm turnuvalarda null. */
   leagueName: string | null;
 }
 
 export function scopedRecords(stats: SportmonksPlayerStat[], scope: SportmonksScope): SportmonksPlayerStat[] {
-  const seasonName = sportmonksSeasonName(scope.season);
+  const seasonName = sportmonksSeasonName(scope.season, scope.calendarYear);
   return stats.filter(
     (stat) =>
       stat.season?.name === seasonName &&
@@ -130,3 +131,6 @@ export function sportmonksSeasonValues(stats: SportmonksPlayerStat[]): Sportmonk
   if (duels !== undefined && won !== undefined && duels > 0) values.duelsWonPct = (won / duels) * 100;
   return { minutes: sum(stats, "MINUTES_PLAYED"), appearances: sum(stats, "APPEARANCES"), values, penaltyGoals: sum(stats, "PENALTIES", "scored") };
 }
+
+/** İki kaynak aynı örneklemi mi gösteriyor: maç sayısı ve dakika birebir (koşullu xG dolgusu). */
+export const sameSample = (sm: Pick<SportmonksSeasonValues, "appearances" | "minutes">, af: { appearances: number; minutes: number }): boolean => sm.appearances === af.appearances && sm.minutes === af.minutes;

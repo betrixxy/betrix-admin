@@ -6,6 +6,9 @@ import { comparisonWarnings, freshnessLabel } from "@/lib/player-h2h/checks";
 import { fixtureEntry, missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
 import { aggregateSeason } from "@/lib/services/api-football/player-season-mappers";
 import type { ApiFootballFixturePlayers, ApiFootballPlayerSeasonEntry } from "@/lib/services/api-football/player-season-types";
+import { seasonLabel } from "@/lib/player-h2h/names";
+import { isCalendarYear } from "@/lib/archive/structure";
+import { sameSample, sportmonksSeasonName } from "@/lib/services/sportmonks/player-season-mappers";
 import type { PlayerSeasonStats } from "@/types/player-h2h";
 import { H2H_LEFT, H2H_RIGHT } from "../fixtures/player-h2h";
 
@@ -121,6 +124,28 @@ describe("künye ve uyarılar: güncellik", () => {
     const built = buildH2HCard({ left, right, mode: "TOTAL", match: null, images: { leftLogo: null, rightLogo: null, leftFace: null, rightFace: null, brandLogo: "" }, frame: MATCH_DAY_FRAMES.IG_PORTRAIT });
     assert.ok(built.ok);
     assert.equal(built.data.card.scopeLabel, "2026/27 · SÜPER LİG / BUNDESLIGA · 26.10 İTİBARIYLA");
-    assert.ok(built.data.card.footnotes.includes("Veri: Aktürkoğlu API-Football · Pléa Sportmonks."));
+    // Sol oyuncunun xG/xA/büyük fırsatı koşullu Sportmonks (fixture: aynı örneklem) — dipnotta adıyla.
+    const source = built.data.card.footnotes.at(-1) ?? "";
+    assert.ok(source.startsWith("Veri: Aktürkoğlu API-Football · Pléa Sportmonks · "), source);
+    assert.ok(source.includes("xG") && source.includes(": Sportmonks."), source);
+  });
+});
+
+describe("koşullu Sportmonks (xG, büyük fırsat, xA) ve sezon etiketi", () => {
+  it("yalnızca maç sayısı ve dakika birebir aynıysa", () => {
+    assert.equal(sameSample({ appearances: 9, minutes: 734 }, { appearances: 9, minutes: 734 }), true);
+    assert.equal(sameSample({ appearances: 9, minutes: 734 }, { appearances: 8, minutes: 648 }), false, "bir maç geride — xG gelmez");
+    assert.equal(sameSample({ appearances: 9, minutes: 735 }, { appearances: 9, minutes: 734 }), false, "1 dk fark da yeter");
+    assert.equal(sameSample({ appearances: undefined, minutes: undefined }, { appearances: 9, minutes: 734 }), false);
+  });
+
+  it("takvim yılı sezonu: '2026'; iki yıllı: '2026/27'; Sportmonks adı da", () => {
+    assert.equal(isCalendarYear({ start: "2026-03-28", end: "2026-12-06" }), true);
+    assert.equal(isCalendarYear({ start: "2026-08-14", end: "2027-05-23" }), false);
+    assert.equal(isCalendarYear(undefined), false);
+    assert.equal(seasonLabel(2026, true), "2026");
+    assert.equal(seasonLabel(2026), "2026/27");
+    assert.equal(sportmonksSeasonName(2026, true), "2026");
+    assert.equal(sportmonksSeasonName(2026), "2026/2027");
   });
 });

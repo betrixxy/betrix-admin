@@ -38,5 +38,5 @@ export function leagueDisplay(id: number, providerName: string, country: string 
   return { id, name, label: upperName(name, originFromCountry(country) ?? "intl") };
 }
 
-/** "2026" → "2026/27". */
-export const seasonLabel = (season: number) => `${season}/${String((season + 1) % 100).padStart(2, "0")}`;
+/** "2026" → "2026/27"; takvim yılı sezonunda (MLS, Brezilya…) "2026". */
+export const seasonLabel = (season: number, calendarYear = false) => (calendarYear ? String(season) : `${season}/${String((season + 1) % 100).padStart(2, "0")}`);
