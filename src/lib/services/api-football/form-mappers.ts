@@ -1,5 +1,6 @@
 import { isFinishedStatus } from "@/lib/services/api-football/mappers";
 import type { ApiFootballFixtureDetailRaw, ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
+import type { SeasonLeagueXg } from "@/types/deep-analysis";
 import type { HeadToHeadSummary, MatchResultLetter, TeamRecentForm } from "@/types/sports";
 
 /** Saf form/xG/H2H hesaplamaları — ağ yok, side-effect yok (bkz. CLAUDE.md 1.4, 5.2). */
@@ -60,19 +61,7 @@ export function computeRecentForm(
   team: { id: number; name: string; logoUrl: string },
 ): TeamRecentForm {
   const goals = fixtures.map((raw) => goalsFor(raw, team.id)).filter((g): g is TeamGoals => g !== null);
-
-  const xgFor: number[] = [];
-  const xgAgainst: number[] = [];
-  for (const raw of fixtures) {
-    const opponentId = raw.teams.home.id === team.id ? raw.teams.away.id : raw.teams.home.id;
-    const own = readExpectedGoals(raw, team.id);
-    const opponent = readExpectedGoals(raw, opponentId);
-    // Bir maç ancak iki taraf için de xG varsa ortalamaya girer — xG/xGA aynı örneklemden gelir.
-    if (own !== null && opponent !== null) {
-      xgFor.push(own);
-      xgAgainst.push(opponent);
-    }
-  }
+  const xg = computeXgAverages(fixtures, team.id);
 
   return {
     teamId: String(team.id),
@@ -82,10 +71,45 @@ export function computeRecentForm(
     matchesSampled: goals.length,
     goalsForAvg: average(goals.map((g) => g.scored)),
     goalsAgainstAvg: average(goals.map((g) => g.conceded)),
-    xgForAvg: average(xgFor),
-    xgAgainstAvg: average(xgAgainst),
-    xgMatchesSampled: xgFor.length,
+    xgForAvg: xg.xgForAvg,
+    xgAgainstAvg: xg.xgAgainstAvg,
+    xgMatchesSampled: xg.matchesSampled,
   };
+}
+
+/** Maç listesinden xG/xGA ortalaması. Bir maç ancak iki taraf için de xG varsa girer — xG/xGA aynı örneklemden. */
+export function computeXgAverages(
+  fixtures: ApiFootballFixtureDetailRaw[],
+  teamId: number,
+): { xgForAvg: number | null; xgAgainstAvg: number | null; matchesSampled: number } {
+  const xgFor: number[] = [];
+  const xgAgainst: number[] = [];
+  for (const raw of fixtures) {
+    const opponentId = raw.teams.home.id === teamId ? raw.teams.away.id : raw.teams.home.id;
+    const own = readExpectedGoals(raw, teamId);
+    const opponent = readExpectedGoals(raw, opponentId);
+    if (own !== null && opponent !== null) {
+      xgFor.push(own);
+      xgAgainst.push(opponent);
+    }
+  }
+  return { xgForAvg: average(xgFor), xgAgainstAvg: average(xgAgainst), matchesSampled: xgFor.length };
+}
+
+/**
+ * Bu sezonun lig xG'si: yalnızca verilen ligin o sezonki, `beforeUtc`'den önce bitmiş maçları
+ * (istek zaten lig+sezonla süzülür; burada da süzülür — kupa/hazırlık maçı sızmaz).
+ */
+export function computeSeasonLeagueXg(
+  fixtures: ApiFootballFixtureDetailRaw[],
+  teamId: number,
+  league: { id: number; name: string; season: number },
+  beforeUtc: string,
+): SeasonLeagueXg {
+  const inLeague = fixtures.filter((raw) => raw.league.id === league.id && raw.league.season === league.season);
+  const finished = selectFinishedBefore(inLeague, beforeUtc, inLeague.length);
+  const xg = computeXgAverages(finished, teamId);
+  return { leagueId: league.id, leagueName: league.name, season: league.season, ...xg };
 }
 
 /** Son karşılaşmaları, bu maçın ev sahibi (`homeTeamId`) açısından özetler. */

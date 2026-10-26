@@ -71,6 +71,23 @@ export interface TeamDeepStats {
 
   /** Sportmonks'tan gelen ek metrikler — maç eşleşmezse veya anahtar yoksa null. */
   sportmonks: SportmonksAdvancedMetrics | null;
+
+  /** Bu sezonun yurt içi LİG maçlarından xG (vitrin gerekçesinin xG kaynağı) — lig bulunamazsa null. */
+  seasonLeagueXg: SeasonLeagueXg | null;
+}
+
+/**
+ * Takımın bu sezonki yurt içi lig maçlarından xG ortalamaları. Form (`form`, son 5 maç tüm kulvarlar)
+ * ayrıdır; bu yalnızca vitrin gerekçesine xG kaynağıdır (bkz. `lib/prediction/reasons.ts`).
+ */
+export interface SeasonLeagueXg {
+  leagueId: number;
+  leagueName: string;
+  season: number;
+  /** İki taraf için de xG olan, maçtan önce bitmiş lig maçı sayısı. */
+  matchesSampled: number;
+  xgForAvg: number | null;
+  xgAgainstAvg: number | null;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
 import { teamNameTr } from "@/lib/dashboard/match-result-labels";
-import type { DeepAnalysisStats } from "@/types/deep-analysis";
+import type { DeepAnalysisStats, SeasonLeagueXg } from "@/types/deep-analysis";
 import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId } from "@/types/prediction";
 import { findBannedWords } from "./banned-words";
 import type { MatchSides } from "./catalog";
@@ -17,41 +17,56 @@ export function matchSides(stats: DeepAnalysisStats): MatchSides {
   return { home: teamNameTr(stats.fixture.homeTeam.name), away: teamNameTr(stats.fixture.awayTeam.name) };
 }
 
-/** xG ortalaması en az bu kadar xG'li maçtan gelmeli; azsa paketten çıkar ve xG'li gerekçe reddedilir. */
-export const XG_MIN_SAMPLE = 4;
+/**
+ * Gerekçenin xG kaynağı: bu sezonun yurt içi LİG maçları (`TeamDeepStats.seasonLeagueXg`), en az bu
+ * kadar xG'li maç. Azsa (ya da lig bulunamazsa) xG paketten çıkar ve xG'li gerekçe reddedilir.
+ * Son 5 maç (tüm kulvarlar) xG'si gerekçeye girmez — tek maçlık sapmalar ortalamayı şişiriyordu.
+ */
+export const XG_MIN_SAMPLE = 5;
+/** xG gerekçesinde örneklem bu ifadeyle yazılır. */
+export const XG_SCOPE_PHRASE = "bu sezon ligde";
 /** Gerekçede xG'ye dayanma: "xG", "beklenen gol", "gol beklentisi". */
 const XG_MENTION = /xg|beklenen gol|gol beklentisi/u;
 
 const tally = (letters: string, letter: string) => [...letters].filter((value) => value === letter).length;
+/** Son 5 maçtan (tüm kulvarlar) gelen xG anahtarları — gerekçe paketine girmez. */
+type RecentXgKey = "xg_ort" | "xg_izin_ort" | "sut_basi_xg";
+const RECENT_XG_KEYS = new Set<string>(["xg_ort", "xg_izin_ort", "sut_basi_xg"] satisfies RecentXgKey[]);
+const round2 = (value: number | null) => (value === null ? null : Number(value.toFixed(2)));
 
 /**
  * Vitrin olgu paketi: mevcut paket, takım adları kart adıyla ve bahis dili taşıyan anahtarlar analiz
  * diliyle ("kg_var_mac" → "iki_takimin_da_gol_buldugu_mac"); sayılar aynı. Galibiyet/beraberlik/
  * mağlubiyet sayıları formdan eklenir (gerekçelerin "son 5 maçta 4 galibiyet" diyebilmesi için).
+ * Form (son 5 maç) aynen kalır; xG yalnızca bu sezonun lig maçlarından gelir.
  */
 export function vitrinFacts(stats: DeepAnalysisStats) {
   const base = buildAnalysisFacts(stats);
   const sides = matchSides(stats);
-  const team = (facts: typeof base.ev_sahibi, name: string, xgSampled: number) => {
-    const { kg_var_mac, ust_2_5_mac, xg_ort, xg_izin_ort, sut_basi_xg, ...rest } = facts;
+  const team = (facts: typeof base.ev_sahibi, name: string, seasonXg: SeasonLeagueXg | null) => {
+    const { kg_var_mac, ust_2_5_mac, ...rest } = facts;
+    // Son 5 maçın xG'si gerekçe paketine girmez.
+    const recent = Object.fromEntries(Object.entries(rest).filter(([key]) => !RECENT_XG_KEYS.has(key))) as Omit<typeof rest, RecentXgKey>;
+    const sampled = seasonXg?.matchesSampled ?? 0;
     return {
-      ...rest,
-      // xG < XG_MIN_SAMPLE maçtan geliyorsa pakette hiç yok — model göremez, gerekçede yazamaz.
-      ...(xgSampled >= XG_MIN_SAMPLE ? { xg_ort, xg_izin_ort, sut_basi_xg } : {}),
+      ...recent,
       takim: name,
       galibiyet: tally(facts.form_eskiden_yeniye, "G"),
       beraberlik: tally(facts.form_eskiden_yeniye, "B"),
       maglubiyet: tally(facts.form_eskiden_yeniye, "M"),
       iki_takimin_da_gol_buldugu_mac: kg_var_mac,
       uc_veya_daha_fazla_gollu_mac: ust_2_5_mac,
-      // xG ortalaması yalnızca xG verisi olan maçlardan (hazırlık/kupa maçlarında yok) — örneklem bağlamı.
-      xg_ornek_mac: xgSampled,
+      // xG'li lig maçı sayısı (bu sezon) — < XG_MIN_SAMPLE ise xG anahtarları pakette hiç yok.
+      xg_ornek_mac: sampled,
+      ...(seasonXg && sampled >= XG_MIN_SAMPLE
+        ? { xg_kapsam: XG_SCOPE_PHRASE, xg_ort: round2(seasonXg.xgForAvg), xg_izin_ort: round2(seasonXg.xgAgainstAvg) }
+        : {}),
     };
   };
   return {
     mac: { ...base.mac, ev_sahibi: sides.home, deplasman: sides.away },
-    ev_sahibi: team(base.ev_sahibi, sides.home, stats.home.form.xgMatchesSampled),
-    deplasman: team(base.deplasman, sides.away, stats.away.form.xgMatchesSampled),
+    ev_sahibi: team(base.ev_sahibi, sides.home, stats.home.seasonLeagueXg),
+    deplasman: team(base.deplasman, sides.away, stats.away.seasonLeagueXg),
     aralarindaki_son_maclar: base.aralarindaki_son_maclar,
   };
 }
@@ -89,7 +104,7 @@ function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
   return home === away ? null : home ? "home" : "away";
 }
 
-/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, xG örneklemi ≥4 maç, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
+/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, xG yalnızca bu sezon ≥5 lig maçından ve "bu sezon ligde" diye, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
 export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
@@ -106,15 +121,17 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);
   if (short.length) issues.push(`takım kısaltması: ${short.join(", ")}`);
 
-  // xG örneklemi: cümleciğin takımının (takım adı yoksa iki takımın da) xG'si ≥ XG_MIN_SAMPLE maçtan gelmeli.
+  // xG örneklemi: cümleciğin takımının (takım adı yoksa iki takımın da) xG'si bu sezon ≥ XG_MIN_SAMPLE lig maçından gelmeli.
   for (const clause of text.split(CLAUSE_SPLIT)) {
     if (!XG_MENTION.test(lower(clause))) continue;
     const side = clauseSide(clause, sides);
     const teams = side === "home" ? [facts.ev_sahibi] : side === "away" ? [facts.deplasman] : [facts.ev_sahibi, facts.deplasman];
     for (const team of teams) {
-      if (team.xg_ornek_mac < XG_MIN_SAMPLE) issues.push(`${team.takim} xG'si ${team.xg_ornek_mac} maçtan (en az ${XG_MIN_SAMPLE}) — xG gerekçesi yazılamaz`);
+      if (team.xg_ornek_mac < XG_MIN_SAMPLE) issues.push(`${team.takim} xG'si bu sezon ligde ${team.xg_ornek_mac} maçtan (en az ${XG_MIN_SAMPLE}) — xG gerekçesi yazılamaz`);
     }
   }
+  // Örneklem cümlede açıkça yazılır ("bu sezon ligde"); cümlecik ayrılsa da cümle düzeyinde aranır.
+  if (XG_MENTION.test(lower(text)) && !lower(text).includes(XG_SCOPE_PHRASE)) issues.push(`xG örneklemi "${XG_SCOPE_PHRASE}" diye yazılmalı`);
 
   const scopes = allowedNumbersBySide(facts);
   const free = new Set(SCENARIO_NUMBERS[scenarioId] ?? []);

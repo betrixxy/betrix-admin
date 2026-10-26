@@ -1,6 +1,7 @@
 import { computeTeamDeepStats } from "@/lib/services/api-football/deep-analysis-mappers";
 import { getFixtureById } from "@/lib/services/api-football/fixtures";
 import { getHeadToHead, getRecentFixtureDetails } from "@/lib/services/api-football/match-stats";
+import { getSeasonLeagueXg } from "@/lib/services/api-football/season-xg";
 import type { ApiFootballError } from "@/lib/services/api-football/types";
 import { getSportmonksAdvancedMetrics, isSportmonksConfigured } from "@/lib/services/sportmonks";
 import type { DeepAnalysisStats, TeamDeepStats } from "@/types/deep-analysis";
@@ -8,9 +9,11 @@ import type { Result } from "@/types/result";
 import type { TeamRef } from "@/types/sports";
 
 async function getTeamDeepStats(team: TeamRef, beforeUtc: string): Promise<Result<TeamDeepStats, ApiFootballError>> {
-  const details = await getRecentFixtureDetails(team, beforeUtc);
+  const [details, seasonXg] = await Promise.all([getRecentFixtureDetails(team, beforeUtc), getSeasonLeagueXg(Number(team.id), beforeUtc)]);
   if (!details.ok) return details;
-  return { ok: true, data: computeTeamDeepStats(details.data, { id: Number(team.id), name: team.name, logoUrl: team.logoUrl }) };
+  const stats = computeTeamDeepStats(details.data, { id: Number(team.id), name: team.name, logoUrl: team.logoUrl });
+  // Sezon lig xG'si yalnızca gerekçe kaynağıdır — alınamazsa analiz xG'siz gerekçeyle sürer.
+  return { ok: true, data: { ...stats, seasonLeagueXg: seasonXg.ok ? seasonXg.data : null } };
 }
 
 /**

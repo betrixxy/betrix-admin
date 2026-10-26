@@ -44,6 +44,8 @@ export interface TeamLeague {
   type: string;
   country: string | null;
   logo: string | null;
+  /** Güncel sezon yılı (`seasons[].current`) — yoksa null. */
+  season: number | null;
 }
 
 /** Takımın bu sezon oynadığı ligler/kupalar (`current=true`) — yurt içi lig `domesticLeague` ile seçilir. */
@@ -60,6 +62,7 @@ export async function getTeamCurrentLeagues(teamId: number): Promise<Result<Team
       type: entry.league.type ?? "",
       country: entry.country.name,
       logo: entry.league.logo ?? null,
+      season: entry.seasons.find((season) => season.current)?.year ?? null,
     })),
   };
 }
