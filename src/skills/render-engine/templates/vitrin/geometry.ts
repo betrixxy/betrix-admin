@@ -98,7 +98,7 @@ export interface AnalysisGeometry {
 
 export type VitrinGeometry = PosterGeometry | AnalysisGeometry;
 
-const safeBox = (frame: MatchDayFrame): FrameBox => ({ left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN });
+export const safeBox = (frame: MatchDayFrame): FrameBox => ({ left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN });
 
 /** Başlıktan sonra, künyeden önce kalan dikey aralık. */
 function bodyRange(box: FrameBox, k: number) {
@@ -124,7 +124,7 @@ function stackDown(top: number, bottom: number, k: number, heights: number[], ga
 }
 
 /** Panel ve yazısız bölgeler: çizginin iki yanı, kenarlardan `pad` içeride. */
-function photoSplit(region: FrameBox, topX: number, bottomX: number, safeTop: number, safeBottom: number, pad: number): PhotoSplit {
+export function photoSplit(region: FrameBox, topX: number, bottomX: number, safeTop: number, safeBottom: number, pad: number): PhotoSplit {
   const split = Math.max(topX, bottomX);
   const awayStart = Math.min(topX, bottomX);
   const home = { left: region.left, right: split, top: region.top, bottom: region.bottom };

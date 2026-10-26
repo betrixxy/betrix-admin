@@ -17,7 +17,8 @@ import { VITRIN_SIZES } from "./geometry";
 /** Çok küçük segment de görünsün diye asgari pay (çubuk genişliğinin oranı). */
 const MIN_SEGMENT = 0.06;
 
-function PosterShade({ g, only }: { g: PosterGeometry; only: BlockFilter }) {
+/** Fotoğraf gradyanı + ortadaki çapraz çizgi — oyuncu karşılaştırma posteri de kullanır. */
+export function PosterShade({ g, only }: { g: Pick<PosterGeometry, "frame" | "shade" | "photo" | "k">; only: BlockFilter }) {
   if (only) return null;
   const { width, height } = g.frame;
   const span = g.shade.direction === "down" ? height : width;

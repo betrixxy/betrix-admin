@@ -23,9 +23,12 @@ export interface VitrinPhotos {
   away: UploadedImage | null;
 }
 
+export type PosterArtGeometry = Pick<PosterGeometry, "photo" | "frame">;
+
 export interface PosterArtInput {
   photos: VitrinPhotos;
-  g: PosterGeometry;
+  /** Yalnızca fotoğraf bölgesi ve çerçeve okunur — oyuncu karşılaştırma posteri de aynı hattı kullanır. */
+  g: PosterArtGeometry;
   homeHex: string;
   awayHex: string;
   upscale?: PhotoUpscaler | undefined;
@@ -74,7 +77,7 @@ async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: Fr
 }
 
 /** Deplasman panelini çapraz çizgiden keser (çizginin solu şeffaf). */
-async function maskDiagonal(panelPng: Buffer, panel: FrameBox, g: PosterGeometry): Promise<Buffer> {
+async function maskDiagonal(panelPng: Buffer, panel: FrameBox, g: PosterArtGeometry): Promise<Buffer> {
   const { width, height } = size(panel);
   const top = g.photo.topX - panel.left;
   const bottom = g.photo.bottomX - panel.left;
