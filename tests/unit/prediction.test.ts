@@ -116,7 +116,7 @@ describe("senaryo seti — iç kaynak", () => {
   });
 
   it("yetersiz veride kart yok (sessiz tahmin yok)", () => {
-    const stats = { home: { form: form({ matchesSampled: 1 }) }, away: { form: form() } } as unknown as DeepAnalysisStats;
+    const stats = { home: { form: form({ matchesSampled: 1 }), seasonLeagueXg: null }, away: { form: form(), seasonLeagueXg: null } } as unknown as DeepAnalysisStats;
     const result = predictInternal(stats);
     assert.equal(result.ok, false);
     assert.equal(!result.ok && result.error.code, "INSUFFICIENT_DATA");
@@ -352,6 +352,7 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
     assert.deepEqual(records[0]!.outcome, { scenario: "RESULT_1X2", pick: "HOME" });
     assert.match(records[0]!.probability, /^0\.\d{4}$/);
     assert.equal(records[0]!.sourceVersion, "poisson-v1");
+    assert.equal(records[0]!.modelVersion, null, "v1 ile hesaplanan tahmin: modelVersion null (= v1)");
     assert.equal(records[0]!.computedAt.toISOString(), "2026-10-20T10:00:00.000Z");
   });
 

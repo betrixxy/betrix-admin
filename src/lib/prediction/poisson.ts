@@ -5,9 +5,13 @@ import type { TeamRecentForm } from "@/types/sports";
  * beklenen gol = takımın attığı ile rakibin yediğinin ortalaması (xG varsa gerçek gol ile 50/50
  * harmanlanır), iç saha katsayısı, λ sınırları, ilk yarı payı. Sürüm değişince `MODEL_VERSION` artar
  * (tahmin kaydında saklanır — karnede hangi modelin tuttuğu ayrılır).
+ *
+ * Sürümler: "poisson-v1" — xG son 5 maçtan (tüm kulvarlar); "v2-season-xg" — xG bu sezonun lig
+ * maçlarından (≥5 maç, yoksa yalnızca gol; girdi `season-xg.ts::modelForm`). Hesap aynı.
  */
 
-export const MODEL_VERSION = "poisson-v1";
+export const LEGACY_MODEL_VERSION = "poisson-v1";
+export const MODEL_VERSION = "v2-season-xg";
 export const HOME_FACTOR = 1.1;
 export const AWAY_FACTOR = 0.92;
 export const LAMBDA_MIN = 0.2;

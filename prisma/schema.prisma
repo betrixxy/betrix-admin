@@ -771,6 +771,9 @@ model PredictionRecord {
   outcomeProbabilities Json
   sourceId             String
   sourceVersion        String
+  /// İç modelin sürümü — karne sürüme göre ayırır. null = v1 ("poisson-v1", bu sütundan önceki
+  /// kayıtlar ve v1 ile hesaplanmış taslaklar); "v2-season-xg" = xG bu sezonun lig maçlarından.
+  modelVersion         String?
   /// Kartta yazan gerekçe.
   reason               String
   /// Tahminin hesaplandığı an (kaynak) ve kaydın yazıldığı an (onay).

@@ -4,6 +4,7 @@ import type { DeepAnalysisStats, SeasonLeagueXg } from "@/types/deep-analysis";
 import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId } from "@/types/prediction";
 import { findBannedWords } from "./banned-words";
 import type { MatchSides } from "./catalog";
+import { differentLeagues, SEASON_XG_MIN_MATCHES } from "./season-xg";
 
 /**
  * Vitrin gerekçeleri — Çelik Kasa denetimi (bkz. CLAUDE.md 1.10 AI Analist) + kural tabanlı yedek.
@@ -21,12 +22,15 @@ export function matchSides(stats: DeepAnalysisStats): MatchSides {
  * Gerekçenin xG kaynağı: bu sezonun yurt içi LİG maçları (`TeamDeepStats.seasonLeagueXg`), en az bu
  * kadar xG'li maç. Azsa (ya da lig bulunamazsa) xG paketten çıkar ve xG'li gerekçe reddedilir.
  * Son 5 maç (tüm kulvarlar) xG'si gerekçeye girmez — tek maçlık sapmalar ortalamayı şişiriyordu.
+ * Eşik modelle ortak (`season-xg.ts`).
  */
-export const XG_MIN_SAMPLE = 5;
+export const XG_MIN_SAMPLE = SEASON_XG_MIN_MATCHES;
 /** xG gerekçesinde örneklem bu ifadeyle yazılır. */
 export const XG_SCOPE_PHRASE = "bu sezon ligde";
 /** Gerekçede xG'ye dayanma: "xG", "beklenen gol", "gol beklentisi". */
 const XG_MENTION = /xg|beklenen gol|gol beklentisi/u;
+/** Takım adı geçmeden kıyas: "iki takım", "rakibinden", "daha fazla/yüksek/düşük/az", "üstün"... */
+const XG_COMPARISON = /iki takım|rakib|daha (?:fazla|yüksek|düşük|az)|üstün|geride|önde|kıyas/u;
 
 const tally = (letters: string, letter: string) => [...letters].filter((value) => value === letter).length;
 /** Son 5 maçtan (tüm kulvarlar) gelen xG anahtarları — gerekçe paketine girmez. */
@@ -64,7 +68,8 @@ export function vitrinFacts(stats: DeepAnalysisStats) {
     };
   };
   return {
-    mac: { ...base.mac, ev_sahibi: sides.home, deplasman: sides.away },
+    // Farklı yurt içi ligler (Avrupa kupaları vb.): iki takımın xG'si kıyaslanamaz (denetlenir).
+    mac: { ...base.mac, ev_sahibi: sides.home, deplasman: sides.away, farkli_ligler: differentLeagues(stats) },
     ev_sahibi: team(base.ev_sahibi, sides.home, stats.home.seasonLeagueXg),
     deplasman: team(base.deplasman, sides.away, stats.away.seasonLeagueXg),
     aralarindaki_son_maclar: base.aralarindaki_son_maclar,
@@ -132,6 +137,11 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   }
   // Örneklem cümlede açıkça yazılır ("bu sezon ligde"); cümlecik ayrılsa da cümle düzeyinde aranır.
   if (XG_MENTION.test(lower(text)) && !lower(text).includes(XG_SCOPE_PHRASE)) issues.push(`xG örneklemi "${XG_SCOPE_PHRASE}" diye yazılmalı`);
+  // Farklı liglerde iki takımın xG'si aynı cümlede kıyaslanamaz: iki ad birlikte ya da kıyas sözcüğüyle.
+  if (facts.mac.farkli_ligler && XG_MENTION.test(lower(text))) {
+    const bothNames = lower(text).includes(lower(sides.home)) && lower(text).includes(lower(sides.away));
+    if (bothNames || XG_COMPARISON.test(lower(text))) issues.push("farklı ligler: iki takımın xG'si kıyaslanamaz");
+  }
 
   const scopes = allowedNumbersBySide(facts);
   const free = new Set(SCENARIO_NUMBERS[scenarioId] ?? []);

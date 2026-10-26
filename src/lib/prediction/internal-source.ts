@@ -2,6 +2,7 @@ import type { DeepAnalysisStats } from "@/types/deep-analysis";
 import type { PredictionError, PredictionSet, PredictionSource, Scenario, SideOutcome, YesNo } from "@/types/prediction";
 import type { Result } from "@/types/result";
 import { expectedGoals, matchProbabilities, MIN_MATCHES, MODEL_VERSION, type MatchProbabilities } from "./poisson";
+import { modelForm } from "./season-xg";
 
 /**
  * İç tahmin kaynağı — mevcut AI Market veri türetimi (`getDeepAnalysisStats`) + Poisson modeli
@@ -55,7 +56,8 @@ export function scenarioSummary(scenarios: Scenario[], p: MatchProbabilities): {
 }
 
 export function predictInternal(stats: DeepAnalysisStats, now = new Date()): Result<PredictionSet, PredictionError> {
-  const goals = expectedGoals(stats.home.form, stats.away.form);
+  // Gol/form son 5 maçtan, xG bu sezonun lig maçlarından (≥5; yoksa yalnızca gol).
+  const goals = expectedGoals(modelForm(stats.home), modelForm(stats.away));
   if (!goals) {
     return { ok: false, error: { code: "INSUFFICIENT_DATA", message: `Tahmin için iki takımın da en az ${MIN_MATCHES} maçlık gol verisi gerekiyor — kart üretilmedi.` } };
   }

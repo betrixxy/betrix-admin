@@ -114,6 +114,12 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
                 <p className="text-xs text-muted-foreground">
                   Model {data.scenarioCount} senaryo hesapladı · en sürpriz %{data.surprisePct}. 2 açık + 3 kilitli kutu ({open.length}/2 açık, {locked.length}/3 kilitli); kazanma olasılıkları her zaman açık (posterin çubuğu). Dolu bir rol seçilince o roldeki en eski seçim yer değiştirir.
                 </p>
+                {data.warnings.map((warning) => (
+                  <p key={warning} className="flex items-start gap-1.5 text-xs text-amber-300" role="note">
+                    <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                    {warning}
+                  </p>
+                ))}
                 <VitrinScenarioTable rows={data.rows} roles={roles} reasons={reasons} onRole={(id, role) => setRoleState((current) => assignRole(current, id, role))} onReason={(id, reason) => setReasons((current) => ({ ...current, [id]: reason }))} />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <ArchivePhotoPicker name="photoHome" label={`Poster · sol: ${data.homeName} fotoğrafı`} teams={homeTeams} fixtureId={fixtureId || null} kitOnly />

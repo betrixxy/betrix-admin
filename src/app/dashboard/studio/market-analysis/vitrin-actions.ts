@@ -8,6 +8,7 @@ import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-u
 import { createVitrinDraft, predictWithRuleReasons, renderVitrin, vitrinMeta, vitrinPrediction } from "@/lib/dashboard/vitrin-engine";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
+import { DIFFERENT_LEAGUES_WARNING, differentLeagues } from "@/lib/prediction/season-xg";
 import { openBoxLines, scenarioTitle } from "@/lib/prediction/catalog";
 import { isAnthropicConfigured } from "@/lib/services/anthropic";
 import { generateScenarioReasons } from "@/lib/services/anthropic/scenario-reasons";
@@ -42,6 +43,8 @@ export interface VitrinLoadResult {
   surprisePct: number;
   rows: VitrinScenarioRow[];
   analystAvailable: boolean;
+  /** Stüdyoda tek satır uyarılar (ör. farklı ligler — xG karşılaştırılamaz). */
+  warnings: string[];
 }
 
 type Fail = { ok: false; error: { code: string; message: string } };
@@ -78,6 +81,7 @@ async function buildRows(fixtureId: string, stats: DeepAnalysisStats, reasons: P
       scenarioCount: base.data.scenarioCount,
       surprisePct: base.data.surprisePct,
       analystAvailable: isAnthropicConfigured(),
+      warnings: differentLeagues(stats) ? [DIFFERENT_LEAGUES_WARNING] : [],
       rows: scenarios.map((scenario) => ({
         id: scenario.id,
         title: scenarioTitle(scenario.id, sides, scenario.outcome),
