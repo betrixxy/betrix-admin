@@ -4,7 +4,7 @@ import { BANNED_WORDS, bannedWordsGate, findBannedWords } from "@/lib/prediction
 import { openBoxLines, outcomeLabel, scenarioTitle } from "@/lib/prediction/catalog";
 import { predictInternal, scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source";
 import { expectedGoals, matchProbabilities, scoreMatrix, sumWhere } from "@/lib/prediction/poisson";
-import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
+import { auditReason, matchSides, ruleReason, vitrinFacts, XG_MIN_SAMPLE } from "@/lib/prediction/reasons";
 import { computeTeamDeepStats } from "@/lib/services/api-football/deep-analysis-mappers";
 import type { DeepAnalysisStats, TeamDeepStats } from "@/types/deep-analysis";
 import { DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM } from "../fixtures/api-football/deep-analysis";
@@ -194,6 +194,58 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.deepEqual(auditReason(reason, "BTTS", facts, sides), [], reason);
     const dotted = reason.replace(/(\d),(\d)/u, "$1.$2");
     assert.ok(auditReason(dotted, "BTTS", facts, sides).some((issue) => issue.includes("ondalık ayırıcı virgül")), dotted);
+  });
+
+  it("senaryoyla ilgi: 'İlk yarı kimin?' için yalnızca xG ilgisiz, gol/galibiyet ilgili", () => {
+    const xg = facts.ev_sahibi.xg_ort;
+    assert.ok(xg !== null, "fixture'da xG olmalı");
+    const xgOnly = `${sides.home} maç başına ${String(xg).replace(".", ",")} xG üretiyor.`;
+    assert.ok(auditReason(xgOnly, "HT_RESULT", facts, sides).some((issue) => issue.startsWith("senaryoyla ilgisiz")), xgOnly);
+    assert.ok(!auditReason(xgOnly, "GOALS_3PLUS", facts, sides).some((issue) => issue.startsWith("senaryoyla ilgisiz")), "gollü maç için xG ilgili");
+    assert.deepEqual(auditReason(`${sides.home} son 5 maçında ${homeWins} galibiyet aldı.`, "HT_RESULT", facts, sides), []);
+    assert.ok(auditReason(`${sides.home} topla oynamada üstün.`, "BTTS", facts, sides).some((issue) => issue.includes("gol atma ya da gol yeme")));
+  });
+
+  it("olgu paketi xG örneklemini taşır (xG'li maç sayısı)", () => {
+    assert.equal(facts.ev_sahibi.xg_ornek_mac, stats.home.form.xgMatchesSampled);
+    assert.equal(facts.deplasman.xg_ornek_mac, stats.away.form.xgMatchesSampled);
+  });
+
+  describe("xG örneklemi (XG_MIN_SAMPLE)", () => {
+    const withSample = (homeSample: number, awaySample: number) => {
+      const sampled = {
+        ...stats,
+        home: { ...home, form: { ...home.form, xgForAvg: 2.9, xgAgainstAvg: 0.8, xgMatchesSampled: homeSample } },
+        away: { ...away, form: { ...away.form, xgForAvg: 1.1, xgAgainstAvg: 1.7, xgMatchesSampled: awaySample } },
+      } as DeepAnalysisStats;
+      return vitrinFacts(sampled);
+    };
+    const xgKeys = ["xg_ort", "xg_izin_ort", "sut_basi_xg"];
+
+    it(`< ${XG_MIN_SAMPLE} xG'li maç: xG anahtarları paketten tamamen çıkar; ≥ ${XG_MIN_SAMPLE}: kalır`, () => {
+      const thin = withSample(XG_MIN_SAMPLE - 1, XG_MIN_SAMPLE);
+      for (const key of xgKeys) {
+        assert.ok(!(key in thin.ev_sahibi), `ev sahibinde ${key} olmamalı`);
+        assert.ok(key in thin.deplasman, `deplasmanda ${key} olmalı`);
+      }
+      assert.ok(!JSON.stringify(thin.ev_sahibi).includes("2.9"), "2,9 xG pakette görünmemeli");
+      assert.equal(thin.ev_sahibi.xg_ornek_mac, XG_MIN_SAMPLE - 1);
+    });
+
+    it("az örneklemli takımın xG gerekçesi reddedilir (sayılı ya da sayısız)", () => {
+      const thin = withSample(2, 5);
+      for (const reason of ["Galatasaray maç başına 2,9 xG üretiyor.", "Galatasaray yüksek gol beklentisi yaratıyor."]) {
+        const issues = auditReason(reason, "GOALS_3PLUS", thin, sides);
+        assert.ok(issues.some((issue) => issue.includes("xG'si 2 maçtan")), `${reason} → ${issues.join(" | ")}`);
+      }
+    });
+
+    it("yeterli örneklemli takımın xG gerekçesi geçer; takım adı yoksa iki takım da sınanır", () => {
+      const mixed = withSample(5, 3);
+      assert.deepEqual(auditReason("Galatasaray maç başına 2,9 xG üretiyor.", "GOALS_3PLUS", mixed, sides), []);
+      assert.ok(auditReason("Kasımpaşa maç başına 1,1 xG üretiyor.", "GOALS_3PLUS", mixed, sides).some((issue) => issue.includes("Kasımpaşa xG'si 3 maçtan")));
+      assert.ok(auditReason("İki takım da yüksek xG üretiyor.", "GOALS_3PLUS", mixed, sides).some((issue) => issue.includes("Kasımpaşa xG'si 3 maçtan")));
+    });
   });
 
   it("senaryonun kendi sayısı (3+ gol) serbest", () => {

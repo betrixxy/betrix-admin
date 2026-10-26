@@ -5,9 +5,10 @@ import type { VitrinScenarioRow } from "@/app/dashboard/studio/market-analysis/v
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FIXED_OPEN, type BoxRole } from "@/lib/prediction/vitrin-roles";
 import { REASON_MAX_LENGTH, type ScenarioId } from "@/types/prediction";
 
-export type BoxRole = "open" | "locked" | "none";
+export type { BoxRole };
 
 export const ROLE_LABELS: Record<BoxRole, string> = { open: "Açık kutu", locked: "Kilitli kutu", none: "Kartta yok" };
 
@@ -22,7 +23,8 @@ interface VitrinScenarioTableProps {
 /**
  * Senaryo tablosu: başlık · modelin seçtiği sonuç ve yüzdeler (DÜZENLENEMEZ — kaynaktan) · gerekçe
  * (düzenlenebilir, ≤160) · kartta rolü. Denetim sonuçları sunucudan; düzenlenen gerekçe kayıtta
- * yeniden denetlenir. Kilitli kutunun gerekçesi kartta görünmez.
+ * yeniden denetlenir. Kilitli kutunun gerekçesi kartta görünmez. Rol kapasitesi sabit: dolu bir rol
+ * seçilince o roldeki en eski seçim yer değiştirir (bkz. `vitrin-roles.ts`).
  */
 export function VitrinScenarioTable({ rows, roles, reasons, onRole, onReason }: VitrinScenarioTableProps) {
   return (
@@ -41,7 +43,8 @@ export function VitrinScenarioTable({ rows, roles, reasons, onRole, onReason }: 
                 </span>
                 <span className="text-xs text-muted-foreground">{row.summary}</span>
               </div>
-              <NativeSelect value={role} onChange={(event) => onRole(row.id, event.target.value as BoxRole)} className="h-8 w-36 text-xs" aria-label={`${row.title} rolü`}>
+              {/* Kazanma olasılıkları posterin çubuğu — her zaman açık; dolu rol seçilince en eski seçim yer değiştirir. */}
+              <NativeSelect value={role} onChange={(event) => onRole(row.id, event.target.value as BoxRole)} disabled={row.id === FIXED_OPEN} title={row.id === FIXED_OPEN ? "Posterin kazanma çubuğu — her zaman açık" : undefined} className="h-8 w-36 text-xs" aria-label={`${row.title} rolü`}>
                 {(Object.keys(ROLE_LABELS) as BoxRole[]).map((value) => (
                   <option key={value} value={value}>{ROLE_LABELS[value]}</option>
                 ))}
