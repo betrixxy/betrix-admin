@@ -3,14 +3,17 @@ import { BODY, DISPLAY } from "../match-day/shared";
 
 /**
  * Oyuncu karşılaştırmasının ortak yapı taşları. Önde olan değer takım renginde ve dolu, geride olan
- * soluk; eşitlikte iki taraf beyaz.
+ * soluk; eşitlikte iki taraf yarı soluk (beyaz takım rengiyle karışmasın).
  */
 
 export const LOSER_TEXT = "rgba(255,255,255,0.38)";
 export const LOSER_BAR = "rgba(255,255,255,0.2)";
+/** Eşitlik: kazanandan (beyaz takım rengi dahil — Beşiktaş) ayrışsın diye yarı soluk. */
+export const TIE_TEXT = "rgba(255,255,255,0.7)";
+export const TIE_BAR = "rgba(255,255,255,0.4)";
 
 export function valueColor(row: H2HRow, side: "LEFT" | "RIGHT", hex: string): string {
-  if (row.winner === "TIE") return "#fff";
+  if (row.winner === "TIE") return TIE_TEXT;
   return row.winner === side ? hex : LOSER_TEXT;
 }
 

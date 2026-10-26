@@ -3,20 +3,27 @@ import { nameOrigin, originFromCountry } from "@/lib/dashboard/name-case";
 import { teamNameTr } from "@/lib/dashboard/match-result-labels";
 import { fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
 import { positionFromApi } from "@/lib/player-h2h/stats";
+import { getFixturePlayers, getTeamFinishedFixtures } from "@/lib/services/api-football/player-recency";
+import { missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
 import { getPlayerSeason } from "@/lib/services/api-football/player-season";
-import { aggregateSeason } from "@/lib/services/api-football/player-season-mappers";
+import { aggregateSeason, type SeasonAggregate } from "@/lib/services/api-football/player-season-mappers";
+import type { ApiFootballPlayerSeasonEntry } from "@/lib/services/api-football/player-season-types";
 import { getTeamCurrentLeagues, getTeamInfo } from "@/lib/services/api-football/team-directory";
 import { isSportmonksConfigured } from "@/lib/services/sportmonks";
 import { getSportmonksPlayerRecords } from "@/lib/services/sportmonks/player-season";
-import { minutesAgree, sportmonksSeasonValues } from "@/lib/services/sportmonks/player-season-mappers";
-import type { H2HScope, H2HStatKey, PlayerSeasonStats } from "@/types/player-h2h";
+import { sportmonksSeasonValues } from "@/lib/services/sportmonks/player-season-mappers";
+import type { H2HFreshness, H2HScope, H2HStatKey, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
 
 /**
- * Oyuncu karşılaştırmasının verisi (yalnızca okuma): sezon = oyuncunun takımının yurt içi liginin
- * güncel sezonu. API-Football birincil; boş kalanları Sportmonks doldurur — ancak Sportmonks'un aynı
- * kapsamdaki dakikası API-Football'unkiyle tutuyorsa (yoksa hiç kullanılmaz, notu düşülür). Eksik
- * veri 0 yazılmaz: değer yoksa alan yok, kart o satırı düşürür.
+ * Oyuncu karşılaştırmasının verisi (yalnızca okuma). Kaynaklar SATIR BAZINDA KARIŞMAZ (kurucu kararı,
+ * 2026-10-27):
+ *  1. API-Football sezon toplamı + toplama henüz girmemiş bitmiş maçlar (aynı sağlayıcının maç bazlı
+ *     oyuncu istatistiği; eksikler toplamdaki maç sayısı ile süre alınan maç listesi karşılaştırılarak
+ *     bulunur, bkz. `player-recency-mappers.ts`).
+ *  2. Bu yapılamazsa (maç verisi eksik/alınamadı) o oyuncu için BÜTÜN satırlar Sportmonks'tan; orada
+ *     olmayan istatistik düşer. İkisi de yoksa kart üretilmez.
+ * Sezon = oyuncunun takımının yurt içi liginin güncel sezonu. Eksik veri 0 yazılmaz.
  */
 
 export interface PlayerSeasonRequest {
@@ -26,12 +33,50 @@ export interface PlayerSeasonRequest {
   scope: H2HScope;
   /** Arşivin resmi adı (admin düzeltmesi dahil); verilmezse API adı. */
   fullName?: string | null;
+  /** Bu andan önce bitmiş maçlar (varsayılan şimdi). */
+  now?: Date;
 }
 
 type Fail = { ok: false; error: { code: string; message: string } };
 const fail = (code: string, message: string): Fail => ({ ok: false, error: { code, message } });
 
+interface Current {
+  aggregate: SeasonAggregate;
+  values: PlayerSeasonStats["values"];
+  sources: PlayerSeasonStats["sources"];
+  freshness: H2HFreshness;
+}
+
+const allFrom = (values: PlayerSeasonStats["values"], source: "api-football" | "sportmonks"): PlayerSeasonStats["sources"] =>
+  Object.fromEntries(Object.keys(values).map((key) => [key as H2HStatKey, source]));
+
+/** 1. yol: sezon toplamı + eksik maçlar (API-Football). Yapılamazsa sebep. */
+async function apiFootballCurrent(entries: ApiFootballPlayerSeasonEntry[], request: PlayerSeasonRequest, season: number, leagueId: number | null, domesticId: number, team: { id: number; name: string }, beforeMs: number): Promise<Result<Current>> {
+  const seasonAggregate = aggregateSeason(entries, () => true);
+  const list = await getTeamFinishedFixtures(team.id, season, leagueId);
+  if (!list.ok) return fail(list.error.code, `Maç listesi alınamadı: ${list.error.message}`);
+  // Tüm turnuvalar: yalnızca sezon toplamında olan turnuvalar (hazırlık maçları toplamda yok).
+  const leagues = new Set([domesticId, ...entries.map((entry) => entry.league.id)]);
+  const finished = list.data.filter((fixture) => fixture.fixture.timestamp * 1000 < beforeMs && leagues.has(fixture.league.id));
+  const details = await getFixturePlayers(finished.map((fixture) => fixture.fixture.id));
+  if (!details.ok) return fail(details.error.code, `Maç bazlı veri alınamadı: ${details.error.message}`);
+  const missing = missingAppearances(seasonAggregate.appearances, playerAppearances(details.data, request.playerId, team));
+  if (!missing.ok) return missing;
+  const aggregate = aggregateSeason([...entries, ...missing.data.map((appearance) => appearance.entry)], () => true);
+  const last = finished.at(-1);
+  return {
+    ok: true,
+    data: {
+      aggregate: { ...aggregate, position: seasonAggregate.position ?? aggregate.position, competitions: seasonAggregate.competitions },
+      values: aggregate.values,
+      sources: allFrom(aggregate.values, "api-football"),
+      freshness: { source: "api-football", asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, addedMatches: missing.data.length, note: null },
+    },
+  };
+}
+
 export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promise<Result<PlayerSeasonStats>> {
+  const beforeMs = (request.now ?? new Date()).getTime();
   const [info, leagues] = await Promise.all([getTeamInfo(request.teamId), getTeamCurrentLeagues(request.teamId)]);
   if (!info.ok) return fail(info.error.code, info.error.message);
   if (!leagues.ok) return fail(leagues.error.code, leagues.error.message);
@@ -43,39 +88,38 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
   if (!raw.ok) return fail(raw.error.code, raw.error.message);
   const { player, statistics } = raw.data;
   const inScope = (entry: (typeof statistics)[number]) => entry.team.id === request.teamId && entry.league.season === season && (request.scope === "ALL" || entry.league.id === domestic.id);
-  const aggregate = aggregateSeason(statistics, inScope);
+  const entries = statistics.filter((entry) => inScope(entry) && (entry.games.minutes ?? 0) > 0);
   const fullName = request.fullName?.trim() || fullNameFromApi(player.name, player.firstname);
   const shortName = shortNameOf(fullName);
+  const teamEntry = statistics.find(inScope);
+  const team = { id: request.teamId, name: teamEntry?.team.name ?? info.data?.name ?? "", logo: teamEntry?.team.logo ?? info.data?.logo ?? null };
+
+  let current = await apiFootballCurrent(entries, request, season, request.scope === "LEAGUE" ? domestic.id : null, domestic.id, team, beforeMs);
+  if (!current.ok) {
+    // 2. yol: bütün satırlar Sportmonks'tan (karışım yok).
+    const reason = current.error.message;
+    const records = isSportmonksConfigured() ? await getSportmonksPlayerRecords(fullName, shortName, { season, teamName: team.name, leagueName: request.scope === "LEAGUE" ? domestic.name : null }) : null;
+    if (!records) return fail("NO_CURRENT_DATA", `${fullName}: güncel veri yok — ${reason}; Sportmonks'ta da kapsamda kayıt yok.`);
+    const sm = sportmonksSeasonValues(records.records);
+    if (!sm.minutes) return fail("NO_CURRENT_DATA", `${fullName}: güncel veri yok — ${reason}; Sportmonks kaydında dakika yok.`);
+    const list = await getTeamFinishedFixtures(team.id, season, request.scope === "LEAGUE" ? domestic.id : null);
+    const last = list.ok ? list.data.filter((fixture) => fixture.fixture.timestamp * 1000 < beforeMs).at(-1) : undefined;
+    current = {
+      ok: true,
+      data: {
+        aggregate: { appearances: sm.appearances ?? 0, minutes: sm.minutes, values: sm.values, penaltyGoals: sm.penaltyGoals ?? null, position: aggregateSeason(entries, () => true).position, competitions: entries.map((e) => ({ id: e.league.id, name: e.league.name })) },
+        values: sm.values,
+        sources: allFrom(sm.values, "sportmonks"),
+        freshness: { source: "sportmonks", asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, addedMatches: 0, note: `Sportmonks kullanıldı: ${reason}` },
+      },
+    };
+  }
+  const { aggregate, values, sources, freshness } = current.data;
   const scopeText = request.scope === "LEAGUE" ? domestic.name : "tüm turnuvalar";
   if (aggregate.minutes <= 0) return fail("NO_MINUTES", `${fullName} bu sezon ${scopeText} kapsamında forma giymedi.`);
   const position = positionFromApi(aggregate.position);
   if (!position) return fail("NO_POSITION", `${fullName} için mevki bilinmiyor.`);
 
-  const values = { ...aggregate.values };
-  const sources: PlayerSeasonStats["sources"] = Object.fromEntries(Object.keys(values).map((key) => [key, "api-football"]));
-  let penaltyGoals = aggregate.penaltyGoals;
-  let sportmonksNote: string | null = "Sportmonks anahtarı yok";
-  const teamEntry = statistics.find(inScope);
-  if (isSportmonksConfigured() && teamEntry) {
-    const records = await getSportmonksPlayerRecords(fullName, shortName, { season, teamName: teamEntry.team.name, leagueName: request.scope === "LEAGUE" ? domestic.name : null });
-    if (!records) sportmonksNote = "Sportmonks'ta bu kapsamda eşleşen oyuncu kaydı yok";
-    else {
-      const sm = sportmonksSeasonValues(records.records);
-      if (!minutesAgree(sm.minutes, aggregate.minutes)) {
-        sportmonksNote = `Sportmonks dakikası tutmadı (API-Football ${aggregate.minutes}, Sportmonks ${sm.minutes ?? "yok"}) — kullanılmadı`;
-      } else {
-        sportmonksNote = null;
-        for (const [key, value] of Object.entries(sm.values) as [H2HStatKey, number][]) {
-          if (values[key] !== undefined) continue;
-          values[key] = value;
-          sources[key] = "sportmonks";
-        }
-        if (penaltyGoals === null && sm.penaltyGoals !== undefined) penaltyGoals = sm.penaltyGoals;
-      }
-    }
-  }
-
-  const team = teamEntry?.team ?? { id: request.teamId, name: info.data?.name ?? "", logo: info.data?.logo ?? null };
   return {
     ok: true,
     data: {
@@ -86,7 +130,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       teamId: team.id,
       teamName: teamNameTr(team.name),
       teamOrigin: originFromCountry(info.data?.country),
-      teamLogo: team.logo ?? null,
+      teamLogo: team.logo,
       position,
       season,
       seasonLabel: seasonLabel(season),
@@ -97,8 +141,8 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       minutes: aggregate.minutes,
       values,
       sources,
-      penaltyGoals,
-      sportmonksNote,
+      penaltyGoals: aggregate.penaltyGoals,
+      freshness,
     },
   };
 }

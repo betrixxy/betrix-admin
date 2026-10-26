@@ -4,7 +4,7 @@ import { isSimilarColor } from "@/lib/dashboard/color-math";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
-import { comparisonPosition, comparisonWarnings, scopeLabel } from "@/lib/player-h2h/checks";
+import { comparisonPosition, comparisonWarnings, freshnessLabel, scopeLabel } from "@/lib/player-h2h/checks";
 import { factLine } from "@/lib/player-h2h/facts";
 import { firstNameOf } from "@/lib/player-h2h/names";
 import { buildHero, buildRows, groupRows } from "@/lib/player-h2h/rows";
@@ -90,6 +90,14 @@ function goalLine(player: PlayerSeasonStats): string | null {
   return player.penaltyGoals > 0 ? `${player.shortName} ${goals}, ${numberPossessive(player.penaltyGoals)} penaltı` : `${player.shortName} ${goals}, penaltı golü yok`;
 }
 
+const SOURCE_NAMES = { "api-football": "API-Football", sportmonks: "Sportmonks" } as const;
+
+/** Kaynak satırı: oyuncu başına tek kaynak (karışım yok) — aynıysa bir kez. */
+function sourceLine(left: PlayerSeasonStats, right: PlayerSeasonStats): string {
+  const [a, b] = [left.freshness.source, right.freshness.source];
+  return a === b ? `Veri: ${SOURCE_NAMES[a]}.` : `Veri: ${left.shortName} ${SOURCE_NAMES[a]} · ${right.shortName} ${SOURCE_NAMES[b]}.`;
+}
+
 function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
   const keys = new Set(shown.map((row) => row.key));
   const notes: string[] = [];
@@ -97,8 +105,7 @@ function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
   if (explain) notes.push(explain);
   const goals = [goalLine(input.left), goalLine(input.right)];
   if (goals.every(Boolean)) notes.push(`Gol (sezon toplamı): ${goals.join(" · ")}.`);
-  const sportmonks = [input.left, input.right].some((player) => [...keys].some((key) => player.sources[key] === "sportmonks"));
-  notes.push(`Veri: API-Football${sportmonks ? " · Sportmonks" : ""}.${input.mode === "PER90" ? " Değerler 90 dakika başına." : ""}`);
+  notes.push(`${sourceLine(input.left, input.right)}${input.mode === "PER90" ? " Değerler 90 dakika başına." : ""}`);
   return notes;
 }
 
@@ -121,7 +128,7 @@ export function buildH2HCard(input: H2HCardInput): Result<H2HCardResult> {
     goalNote: penalties ? `PENALTI ${left.penaltyGoals} – ${right.penaltyGoals}` : "",
     rows,
     fact: factLine(left, right, position.data, mode),
-    scopeLabel: scopeLabel(left, right),
+    scopeLabel: [scopeLabel(left, right), freshnessLabel(left, right)].filter(Boolean).join(" · "),
     matchLabel: input.match ? `${upperName(input.match.homeTeam, input.match.homeOrigin)} – ${upperName(input.match.awayTeam, input.match.awayOrigin)}` : "",
     footnotes: footnotes(input, [...hero, ...rows]),
     brandLogo: input.images.brandLogo,

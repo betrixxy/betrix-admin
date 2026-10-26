@@ -130,9 +130,3 @@ export function sportmonksSeasonValues(stats: SportmonksPlayerStat[]): Sportmonk
   if (duels !== undefined && won !== undefined && duels > 0) values.duelsWonPct = (won / duels) * 100;
   return { minutes: sum(stats, "MINUTES_PLAYED"), appearances: sum(stats, "APPEARANCES"), values, penaltyGoals: sum(stats, "PENALTIES", "scored") };
 }
-
-/** Sportmonks dakikası API-Football'unkiyle tutarlı mı (aynı kapsam, gecikmesiz): ≤ 45 dk ya da ≤ %5 fark. */
-export function minutesAgree(sportmonks: number | undefined, apiFootball: number): boolean {
-  if (sportmonks === undefined) return false;
-  return Math.abs(sportmonks - apiFootball) <= Math.max(45, apiFootball * 0.05);
-}

@@ -5,7 +5,7 @@ import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { MUTED } from "../vitrin/parts";
 import { H2H_SIZES, chartContentHeight, chartRowHeight, type H2HCompareGeometry } from "./geometry";
-import { LOSER_BAR, StatValue, upperLabel, valueColor } from "./parts";
+import { LOSER_BAR, StatValue, TIE_BAR, upperLabel, valueColor } from "./parts";
 
 /**
  * 02 İSTATİSTİKLER — yayıncı "kelebek" grafiği: ortada istatistik adı, solda/sağda değer, çubuklar
@@ -77,7 +77,7 @@ function ButterflyRow({ row, card, width, height, k }: { row: H2HRow; card: H2HC
       </div>
     );
   };
-  const barColor = (side: "LEFT" | "RIGHT", hex: string) => (row.winner === side ? hex : row.winner === "TIE" ? "rgba(255,255,255,0.7)" : LOSER_BAR);
+  const barColor = (side: "LEFT" | "RIGHT", hex: string) => (row.winner === side ? hex : row.winner === "TIE" ? TIE_BAR : LOSER_BAR);
   const labelSize = fitFontSize(upperLabel(row.label), label - px(12, k), px(19, k), 0.72, px(13, k));
   return (
     <div tw="flex items-center" style={{ width, height }}>

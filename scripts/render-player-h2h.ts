@@ -117,7 +117,7 @@ async function main() {
     perFormat[format] = { rows: card.rows.map((r) => `${r.label}: ${r.leftText} – ${r.rightText}`), hero: card.hero.map((r) => r.label), fact: card.fact, warnings, dropped };
   }
 
-  const summary = (p: typeof left.data) => ({ name: p.fullName, team: p.teamName, position: p.position, scope: `${p.seasonLabel} ${p.scope}`, competitions: p.competitions.map((c) => c.name), appearances: p.appearances, minutes: p.minutes, penaltyGoals: p.penaltyGoals, values: p.values, sources: p.sources, sportmonks: p.sportmonksNote ?? "kullanıldı", faceFound: p === left.data ? leftFace !== null : rightFace !== null });
+  const summary = (p: typeof left.data) => ({ name: p.fullName, team: p.teamName, position: p.position, scope: `${p.seasonLabel} ${p.scope}`, competitions: p.competitions.map((c) => c.name), appearances: p.appearances, minutes: p.minutes, penaltyGoals: p.penaltyGoals, values: p.values, sources: p.sources, freshness: p.freshness, faceFound: p === left.data ? leftFace !== null : rightFace !== null });
   const report = { mode, left: summary(left.data), right: summary(right.data), formats: perFormat, photos: { left: values["photo-left"] ? "verilen dosya (repo dışında)" : "sentetik", right: values["photo-right"] ? "verilen dosya (repo dışında)" : "sentetik" }, files };
   await writeFile(path.join(outDir, `report-${left.data.playerId}-${right.data.playerId}.json`), JSON.stringify(report, null, 2));
   console.log(JSON.stringify(report, null, 2));

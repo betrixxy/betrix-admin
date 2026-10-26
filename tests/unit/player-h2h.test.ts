@@ -10,7 +10,7 @@ import { genitive, numberPossessive } from "@/lib/player-h2h/turkish";
 import { upperName } from "@/lib/dashboard/name-case";
 import { aggregateSeason } from "@/lib/services/api-football/player-season-mappers";
 import type { ApiFootballPlayerSeasonEntry } from "@/lib/services/api-football/player-season-types";
-import { minutesAgree, nameMatches } from "@/lib/services/sportmonks/player-season-mappers";
+import { nameMatches } from "@/lib/services/sportmonks/player-season-mappers";
 import type { PlayerSeasonStats } from "@/types/player-h2h";
 import { H2H_LEFT, H2H_RIGHT } from "../fixtures/player-h2h";
 
@@ -176,11 +176,6 @@ describe("veri: katı toplama ve kaynak tutarlılığı", () => {
     assert.equal(Math.round(aggregate.values.duelsWonPct ?? 0), Math.round((17 / 58) * 100));
   });
 
-  it("Sportmonks yalnızca dakikası tutarsa (≤45 dk ya da ≤%5); son maçı içermeyen kaynakla karışmaz", () => {
-    assert.equal(minutesAgree(660, 648), true);
-    assert.equal(minutesAgree(734, 648), false, "bir maç fark (26 Ekim) — kullanılmaz");
-    assert.equal(minutesAgree(undefined, 648), false);
-  });
 
   it("Sportmonks aday adı: soyad + ilk ad baş harfi", () => {
     assert.equal(nameMatches("Dušan Vlahović", "Dušan Vlahović", "Vlahović"), true);

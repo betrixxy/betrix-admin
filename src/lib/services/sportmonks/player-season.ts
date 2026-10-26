@@ -9,9 +9,9 @@ import {
 } from "@/lib/services/sportmonks/player-season-mappers";
 
 /**
- * Oyuncunun Sportmonks sezon kayıtları — API-Football'un boş bıraktığı istatistikleri (xG, büyük fırsat…)
- * doldurmak için. Kimlik tablosu yok: soyadıyla aranır, adayın adı API-Football adıyla tutmalı VE
- * kapsamda (sezon + takım [+ lig]) kaydı olmalı. Bulunamazsa null — tahmin edilmez. Anahtar yoksa null.
+ * Oyuncunun Sportmonks sezon kayıtları — API-Football güncellenemediğinde o oyuncunun BÜTÜN satırları
+ * buradan gelir (satır bazında karışım yok, bkz. `player-h2h-data.ts`). Kimlik tablosu yok: soyadıyla
+ * aranır, adayın adı API-Football adıyla tutmalı VE kapsamda (sezon + takım [+ lig]) kaydı olmalı. Bulunamazsa null — tahmin edilmez. Anahtar yoksa null.
  */
 
 const SEARCH_TTL_MS = 24 * 60 * 60 * 1000;

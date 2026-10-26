@@ -67,8 +67,22 @@ export interface PlayerSeasonStats {
   sources: Partial<Record<H2HStatKey, H2HSource>>;
   /** Penaltı golü — bilinmiyorsa null (künyede yazılmaz). */
   penaltyGoals: number | null;
-  /** Sportmonks neden kullanılmadı (eşleşmedi, dakikalar tutmadı…); kullanıldıysa null. */
-  sportmonksNote: string | null;
+  /** Verinin kaynağı ve güncelliği — kaynaklar satır bazında KARIŞMAZ (kurucu kararı, 2026-10-27). */
+  freshness: H2HFreshness;
+}
+
+export interface H2HFreshness {
+  /**
+   * Bütün satırların kaynağı: API-Football (sezon toplamı + toplama girmemiş maçlar maç bazlı veriden)
+   * ya da — bu yapılamazsa — Sportmonks (tüm satırlar).
+   */
+  source: H2HSource;
+  /** Verinin güncel olduğu son maçın başlama zamanı (takımın kapsamdaki son bitmiş maçı); bilinmiyorsa null. */
+  asOfUtc: string | null;
+  /** Sezon toplamına maç bazlı veriden eklenen maç sayısı (API-Football yolunda). */
+  addedMatches: number;
+  /** Sportmonks'a neden geçildi ya da neden tarih bilinmiyor; yoksa null. */
+  note: string | null;
 }
 
 export interface H2HRow {
