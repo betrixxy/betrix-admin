@@ -37,6 +37,15 @@ const vitrinViewSchema = z.object({
   // 01 Poster + 02 Analiz (2026-10-19 tasarımı); eski tek kartlı kayıtlarda yok.
   carousel: z.array(z.object({ url: z.string(), label: z.string() })).optional(),
 });
+/** `AiContent.renderOptions` — Oyuncu Karşılaştırması (01 Poster + 02 İstatistikler). */
+const h2hViewSchema = z.object({
+  kind: z.literal("PLAYER_H2H"),
+  format: z.enum(MATCH_DAY_FORMAT_IDS),
+  imageUrl: z.string(),
+  title: z.string(),
+  subtitle: z.string(),
+  carousel: z.array(z.object({ url: z.string(), label: z.string() })),
+});
 const VITRIN_SOCIAL_FORMAT: Record<MatchDayFormatId, SocialFormatId> = { IG_PORTRAIT: "post", IG_SQUARE: "square", STORY: "story", X_LANDSCAPE: "landscape" };
 
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
@@ -159,6 +168,34 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
           marketPick,
           marketRationale,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "PLAYER_H2H") {
+    const h2h = h2hViewSchema.safeParse(record.renderOptions);
+    if (h2h.success) {
+      const { imageUrl, title, subtitle, format, carousel } = h2h.data;
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          title,
+          subtitle,
+          kindLabel: "Oyuncu Karşılaştırması",
+          mvpName: null,
+          imageUrl,
+          slides: carousel,
+          format: VITRIN_SOCIAL_FORMAT[format],
+          // Maç önü analiz dili: yayın merkezinde bahis dili uyarısı, kısa link yok.
+          vitrin: true,
         },
       };
     }

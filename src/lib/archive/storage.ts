@@ -40,7 +40,7 @@ export async function createArchiveUpscale(image: UploadedImage, upscale: PhotoU
   return { ok: true, data: await saveStoredFile("library", `archive-${image.hash}-s${ARCHIVE_TARGET_SHORT_SIDE}.jpg`, bytes) };
 }
 
-async function readUrl(url: string, label: string): Promise<Result<UploadedImage>> {
+export async function readUrl(url: string, label: string): Promise<Result<UploadedImage>> {
   const stored = parseStoredFileUrl(url);
   const bytes = stored ? await readStoredFile(stored.bucket, stored.fileName) : null;
   if (!bytes) return { ok: false, error: { code: "MEDIA_FILE_MISSING", message: `${label} depolamada bulunamadı.` } };

@@ -5,7 +5,7 @@ import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import type { PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import { h2hTextGate } from "@/lib/dashboard/player-h2h-card";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
-import { analysisArt, preparePosterArt, type VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
+import { analysisArt, preparePosterArt, type CropAdjust, type VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 import type { BlockFilter, LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
 import { h2hCompareGeometry, h2hPosterGeometry, type H2HGeometry } from "@/skills/render-engine/templates/player-h2h/geometry";
@@ -40,6 +40,8 @@ export interface H2HImageInput {
   photos: VitrinPhotos;
   seedKey: string;
   upscale?: PhotoUpscaler | undefined;
+  /** Poster fotoğrafının elle ayarı (sol = home, sağ = away); verilmezse otomatik kırpma. */
+  adjust?: { home?: CropAdjust | undefined; away?: CropAdjust | undefined } | undefined;
 }
 
 /** [01 Poster, 02 İstatistikler] PNG'leri. */
@@ -51,7 +53,7 @@ export async function renderH2HImages(input: H2HImageInput): Promise<Result<[Buf
   if (!posterGate.ok) return posterGate;
   const compareGate = await layoutGate("Oyuncu karşılaştırması 02 İstatistikler", input.frame, (only) => renderH2HLayer(input.card, compare, only), H2H_COMPARE_BLOCKS);
   if (!compareGate.ok) return compareGate;
-  const art = await preparePosterArt({ photos: input.photos, g: poster, homeHex: input.card.left.hex, awayHex: input.card.right.hex, upscale: input.upscale });
+  const art = await preparePosterArt({ photos: input.photos, g: poster, homeHex: input.card.left.hex, awayHex: input.card.right.hex, upscale: input.upscale, adjust: input.adjust });
   if (!art.ok) return art;
   const [posterOverlay, compareOverlay, compareBase] = await Promise.all([renderH2HLayer(input.card, poster), renderH2HLayer(input.card, compare), analysisArt(art.data, compare.k)]);
   const pages = await Promise.all([finalizeSetImage(art.data, posterOverlay, input.frame, input.seedKey), finalizeSetImage(compareBase, compareOverlay, input.frame, input.seedKey)]);

@@ -34,6 +34,11 @@ async function approvalFixture(fixtureId: string, renderOptions: unknown): Promi
 /** `approvedAt` — onayın anı; kayıt satırlarının `recordedAt`'i de budur (denetlenen an = yazılan an). */
 export async function vitrinApproval(id: string, publishCaption: string | null, approvedAt: Date): Promise<Result<(PredictionRecordInput & { recordedAt: Date })[], Fail["error"]>> {
   const record = await prisma.aiContent.findUnique({ where: { id }, select: { contentType: true, fixtureId: true, caption: true, renderOptions: true } });
+  // Oyuncu karşılaştırması: tahmin kaydı yok, ama gönderi metni aynı dil kapısından geçer.
+  if (record?.contentType === "PLAYER_H2H") {
+    const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
+    return language ? fail("BANNED_LANGUAGE", `${language} — onaylanmadı.`) : { ok: true, data: [] };
+  }
   const options = record?.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
   if (!record || !options) return { ok: true, data: [] };
   const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });

@@ -26,11 +26,24 @@ export interface PortraitCrop {
   side: number;
 }
 
-/** Saf: yüz → kare kırpma (göz üst üçte birde, yüz yatayda ortada; görüntü sınırına kıstırılır). */
-export function portraitCrop(face: FaceBox, image: { width: number; height: number }): PortraitCrop {
-  const side = Math.round(Math.min(image.width, image.height, face.height * PORTRAIT_SCALE));
-  const cx = face.x + face.width / 2;
-  const eyeY = face.y + face.height * EYE_LINE;
+/** Vesikalığın elle ayarı: kaydırma (−1..1, kare kenarının yarısı) ve zoom (1..2; 2 = yarı boy kare). */
+export interface PortraitAdjust {
+  offset?: { x: number; y: number } | undefined;
+  zoom?: number | undefined;
+}
+
+export const PORTRAIT_MAX_ZOOM = 2;
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/**
+ * Saf: yüz → kare kırpma (göz üst üçte birde, yüz yatayda ortada; görüntü sınırına kıstırılır). Elle ayar
+ * verilirse kare zoom ile daralır, merkez kaydırılır (profilden bakan yüz: Salah).
+ */
+export function portraitCrop(face: FaceBox, image: { width: number; height: number }, adjust: PortraitAdjust = {}): PortraitCrop {
+  const zoom = clamp(adjust.zoom ?? 1, 1, PORTRAIT_MAX_ZOOM);
+  const side = Math.round(Math.min(image.width, image.height, (face.height * PORTRAIT_SCALE) / zoom));
+  const cx = face.x + face.width / 2 + clamp(adjust.offset?.x ?? 0, -1, 1) * side * 0.5;
+  const eyeY = face.y + face.height * EYE_LINE + clamp(adjust.offset?.y ?? 0, -1, 1) * side * 0.5;
   const left = Math.round(Math.min(Math.max(0, cx - side / 2), image.width - side));
   const top = Math.round(Math.min(Math.max(0, eyeY - side / 3), image.height - side));
   return { left, top, side };
@@ -46,13 +59,18 @@ const maskSvg = () =>
 
 const tintSvg = (hex: string) => Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}"><rect width="100%" height="100%" fill="${hex}" fill-opacity="${TINT_OPACITY}"/></svg>`);
 
-export async function facePortrait(image: UploadedImage, hex: string): Promise<string | null> {
+export async function facePortrait(image: UploadedImage, hex: string, adjust: PortraitAdjust = {}): Promise<string | null> {
   const face = largest(await detectFaces(image.bytes, image.hash));
   if (!face) return null;
-  const crop = portraitCrop(face, image);
+  const crop = portraitCrop(face, image, adjust);
   const square = await sharp(image.bytes).rotate().extract({ left: crop.left, top: crop.top, width: crop.side, height: crop.side }).resize(SIZE, SIZE).png().toBuffer();
   const background = await sharp(square).blur(BLUR).modulate({ brightness: 0.7 }).composite([{ input: tintSvg(hex), blend: "soft-light" }]).png().toBuffer();
   const subject = await sharp(square).ensureAlpha().composite([{ input: maskSvg(), blend: "dest-in" }]).png().toBuffer();
   const jpeg = await sharp(background).composite([{ input: subject }]).jpeg({ quality: 88 }).toBuffer();
   return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+}
+
+/** Fotoğraf seçicinin denetimi: fotoğrafta yüz var mı (önbellekli yerel tespit). */
+export async function hasFace(image: Pick<UploadedImage, "bytes" | "hash">): Promise<boolean> {
+  return (await detectFaces(image.bytes, image.hash)).length > 0;
 }
