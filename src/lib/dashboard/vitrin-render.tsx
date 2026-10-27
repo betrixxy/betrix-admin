@@ -21,7 +21,7 @@ import type { VitrinCard } from "@/types/vitrin";
  */
 
 export const POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "teams", "win-bar", "headline", "footer-text", "footer-logo"];
-export const ANALYSIS_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "form", "open-2", "open-1", "locked", "hook", "footer-text", "footer-logo"];
+export const ANALYSIS_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "form", "stack-a", "stack-b", "open-2", "open-1", "locked", "hook", "footer-text", "footer-logo"];
 
 export function vitrinGeometries(frame: MatchDayFrame) {
   return { poster: posterGeometry(frame), analysis: analysisGeometry(frame) };

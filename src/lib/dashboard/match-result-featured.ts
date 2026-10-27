@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { MatchResultFacts, MatchResultTemplateId, MvpCandidate } from "@/types/match-result";
 
 /**
@@ -32,7 +33,7 @@ export function mvpOptions(facts: MatchResultFacts): MvpCandidate[] {
 export function playerOptionLabel(player: MvpCandidate, facts: Pick<MatchResultFacts, "home" | "away">): string {
   const team = player.side === "HOME" ? facts.home.name : facts.away.name;
   const parts = [player.name, team];
-  if (player.rating !== null) parts.push(player.rating.toFixed(1));
+  if (player.rating !== null) parts.push(formatNumber(player.rating, { decimals: 1 }));
   if (player.goals > 0) parts.push(`${player.goals} gol`);
   return parts.join(" · ");
 }

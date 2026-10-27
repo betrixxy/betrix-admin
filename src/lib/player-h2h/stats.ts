@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { H2HGroup, H2HMode, H2HPosition, H2HStatKey } from "@/types/player-h2h";
 
 /**
@@ -96,7 +97,7 @@ export function modeValue(key: H2HStatKey, total: number, minutes: number, mode:
   return minutes > 0 ? (total * 90) / minutes : null;
 }
 
-const decimal = (value: number, digits: number) => value.toFixed(digits).replace(".", ",");
+const decimal = (value: number, digits: number) => formatNumber(value, { decimals: digits });
 
 /** Türkçe yazım: ondalık virgül, yüzde işareti önde ("%78"). */
 export function formatStat(key: H2HStatKey, value: number, mode: H2HMode): string {

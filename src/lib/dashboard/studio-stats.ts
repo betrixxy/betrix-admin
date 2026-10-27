@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { StatRow } from "@/lib/dashboard/studio-render";
 import type { DraftStatSelection } from "@/types/draft";
 import type { MatchResultLetter, MatchStats, TeamRecentForm } from "@/types/sports";
@@ -18,7 +19,7 @@ export const DEFAULT_STAT_SELECTION: StatSelection = {
 };
 
 function decimal(value: number | null): string {
-  return value === null ? MISSING_STAT : value.toFixed(2);
+  return value === null ? MISSING_STAT : formatNumber(value, { decimals: 2 });
 }
 
 function formOf(team: TeamRecentForm): string {

@@ -96,12 +96,12 @@ describe("buildMarketAnalysisDraft / suggestMarkets", () => {
     const draft = buildMarketAnalysisDraft("api-football-1", stats);
     assert.equal(draft.home.strengths.length, 3);
     assert.ok(draft.home.strengths.includes("%86 pas isabeti"));
-    assert.ok(draft.home.strengths.includes("Maç başı 1.7 xG — net pozisyon üretiyor"));
+    assert.ok(draft.home.strengths.includes("Maç başı 1,7 xG — net pozisyon üretiyor"));
     assert.deepEqual(
       draft.home.stats.map((s) => s.value),
-      ["5.1", "%56", "%86", "9.0"],
+      ["5,1", "%56", "%86", "9,0"],
     );
-    assert.equal(draft.home.keyPlayers[0]?.role, "Forvet · 3 gol · 7.2 puan");
+    assert.equal(draft.home.keyPlayers[0]?.role, "Forvet · 3 gol · 7,2 puan");
     assert.equal(draft.home.quote, "");
   });
 

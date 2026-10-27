@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FORM_LETTER_TR, MISSING_STAT } from "@/lib/dashboard/studio-stats";
 import type { MatchResultLetter, MatchStats, TeamRecentForm } from "@/types/sports";
@@ -17,7 +18,7 @@ const fetchedFormatter = new Intl.DateTimeFormat("tr-TR", {
 });
 
 function decimal(value: number | null): string {
-  return value === null ? MISSING_STAT : value.toFixed(2);
+  return value === null ? MISSING_STAT : formatNumber(value, { decimals: 2 });
 }
 
 function TeamColumn({ team }: { team: TeamRecentForm }) {

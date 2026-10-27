@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import {
   ANALYSIS_POINT_COUNT,
   KEY_PLAYER_COUNT,
@@ -21,7 +22,7 @@ import { DEFAULT_SOCIAL_FORMAT } from "@/types/studio-formats";
 const POSITION_LABELS = { G: "Kaleci", D: "Defans", M: "Orta Saha", F: "Forvet" } as const;
 
 function n1(value: number): string {
-  return value.toFixed(1);
+  return formatNumber(value, { decimals: 1 });
 }
 
 function pct(value: number): string {

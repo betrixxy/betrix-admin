@@ -1,6 +1,6 @@
 import type { MatchResultLetter } from "@/types/sports";
 import type { VitrinCard } from "@/types/vitrin";
-import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { STACK_LAYERS, blockOpacity, layerOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { VITRIN_SIZES, type AnalysisColumn, type AnalysisGeometry } from "./geometry";
@@ -59,14 +59,19 @@ function FormGuide({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; o
   const column = g.columns.form;
   const width = widthOf(column);
   return (
-    <div tw="absolute flex flex-col" style={{ left: column.left, top: g.form.top, width, height: g.form.height, opacity: blockOpacity(only, "form") }}>
-      <div tw="flex items-center justify-between" style={{ height: px(s.sectionLabel, k), marginBottom: px(s.sectionLabelGap, k) }}>
+    <div tw="absolute flex flex-col" style={{ left: column.left, top: g.form.top, width, height: g.form.height, opacity: blockOpacity(only, "form", STACK_LAYERS) }}>
+      {/* Alt alta üç satır (etiket · ev · deplasman) sırayla mürekkep katmanında — kapı komşuları denetler. */}
+      <div tw="flex items-center justify-between" style={{ height: px(s.sectionLabel, k), marginBottom: px(s.sectionLabelGap, k), opacity: layerOpacity(only, "stack-a") }}>
         <SectionLabel text="Form · son 5 maç" color={card.accentHex} size={px(19, k)} maxWidth={width / 2} />
         <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(15, k), letterSpacing: px(2, k), color: MUTED }}>ESKİ → YENİ</span>
       </div>
-      <FormRow name={card.homeTeam} logo={card.homeLogo} form={card.homeForm} k={k} width={width} />
+      <div tw="flex" style={{ opacity: layerOpacity(only, "stack-b") }}>
+        <FormRow name={card.homeTeam} logo={card.homeLogo} form={card.homeForm} k={k} width={width} />
+      </div>
       <div tw="flex" style={{ height: px(s.formRowGap, k) }} />
-      <FormRow name={card.awayTeam} logo={card.awayLogo} form={card.awayForm} k={k} width={width} />
+      <div tw="flex" style={{ opacity: layerOpacity(only, "stack-a") }}>
+        <FormRow name={card.awayTeam} logo={card.awayLogo} form={card.awayForm} k={k} width={width} />
+      </div>
     </div>
   );
 }

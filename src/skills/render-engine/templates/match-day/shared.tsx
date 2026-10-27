@@ -10,11 +10,12 @@ import { wrapLines } from "../../satori-text";
  */
 export const DISPLAY = "Anton";
 /**
- * Anton `lineHeight: 1` satır kutusunun dışına taşan mürekkep (ölçüm, Satori, 2026-10-27): Ç/Ş/Ğ kuyruğu
- * altta ≈ 0,23 em, İ noktası üstte ≈ 0,13 em. Altına/üstüne satır gelen Anton metinde boşluk bundan büyük olur.
+ * Anton `lineHeight: 1` satır kutusunun dışına taşan mürekkep (ölçüm, Satori, 2026-10-27): Ç/Ş/Ę kuyruğu
+ * altta ≈ 0,23 em; üstte İ 0,13 · Ö/Ü 0,14 · Ğ 0,16 · É/Á/Č/Ž 0,18 em (Å 0,31 — kapsam dışı, nadir). Altına/üstüne
+ * satır gelen Anton metinde boşluk bundan büyük olur.
  */
 export const DISPLAY_DESCENT_EM = 0.25;
-export const DISPLAY_ACCENT_EM = 0.15;
+export const DISPLAY_ACCENT_EM = 0.2;
 export const SERIF = "DM Serif Display";
 export const BODY = "Geist";
 export const GOLD = "#F5C518";

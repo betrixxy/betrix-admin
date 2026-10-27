@@ -1,6 +1,6 @@
 import { STAT_META } from "@/lib/player-h2h/stats";
 import type { H2HCard, H2HPlayerCard, H2HRow } from "@/types/player-h2h";
-import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { STACK_LAYERS, blockOpacity, layerOpacity, stackLayer, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { PosterShade } from "../vitrin/poster";
@@ -15,7 +15,8 @@ import { StatValue, upperLabel, valueColor } from "./parts";
  * (logo · küçük ilk ad · büyük soyad · takım · mevki). Hiyerarşi: kahraman > ad > etiket.
  */
 
-function PlayerName({ player, width, k, align }: { player: H2HPlayerCard; width: number; k: number; align: "left" | "right" }) {
+/** Logo · ad · soyad · alt satır alt alta; her satır sırayla bir mürekkep katmanında (yerleşim kapısı komşuları denetler). */
+function PlayerName({ player, width, k, align, only }: { player: H2HPlayerCard; width: number; k: number; align: "left" | "right"; only: BlockFilter }) {
   const s = H2H_SIZES;
   const size = fitFontSize(player.name, width, px(s.name, k), 0.47, px(40, k));
   // Alt satır yarıya sığar (uzun takım adı: "BORUSSIA MÖNCHENGLADBACH · FORVET"); harf aralığı 0,2 em.
@@ -24,10 +25,13 @@ function PlayerName({ player, width, k, align }: { player: H2HPlayerCard; width:
   const items = align === "left" ? "items-start" : "items-end";
   return (
     <div tw={`flex flex-col ${items}`} style={{ width }}>
-      <TeamLogo src={player.teamLogo} name={player.name} size={px(s.teamLogo, k)} />
-      <span style={{ ...small, fontSize: px(s.firstName, k), letterSpacing: px(s.firstName, k) * 0.18, marginTop: px(14, k), color: "rgba(255,255,255,0.86)" }}>{player.firstName || " "}</span>
-      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", letterSpacing: size * 0.01, marginTop: px(8, k) + px(s.name, k) - size, textShadow: TEXT_SHADOW }}>{player.name}</span>
-      <span style={{ ...small, fontSize: subtitleSize, letterSpacing: subtitleSize * 0.2, marginTop: px(12, k) + px(s.subtitle, k) - subtitleSize }}>{player.subtitle}</span>
+      <div tw="flex" style={{ opacity: layerOpacity(only, stackLayer(0)) }}>
+        <TeamLogo src={player.teamLogo} name={player.name} size={px(s.teamLogo, k)} />
+      </div>
+      <span style={{ ...small, fontSize: px(s.firstName, k), letterSpacing: px(s.firstName, k) * 0.18, marginTop: px(14, k), color: "rgba(255,255,255,0.86)", opacity: layerOpacity(only, stackLayer(1)) }}>{player.firstName || " "}</span>
+      {/* Soyadın İ/Ö/Ü işareti adın Ç kuyruğuna, Ç/Ş/Ğ kuyruğu alt satıra binmez (geometry: nameAccent / nameDescent). */}
+      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", letterSpacing: size * 0.01, marginTop: px(8 + s.nameAccent, k) + px(s.name, k) - size, textShadow: TEXT_SHADOW, opacity: layerOpacity(only, stackLayer(2)) }}>{player.name}</span>
+      <span style={{ ...small, fontSize: subtitleSize, letterSpacing: subtitleSize * 0.2, marginTop: px(12 + s.nameDescent, k) + px(s.subtitle, k) - subtitleSize, opacity: layerOpacity(only, stackLayer(3)) }}>{player.subtitle}</span>
     </div>
   );
 }
@@ -36,9 +40,9 @@ function Players({ card, g, only }: { card: H2HCard; g: H2HPosterGeometry; only:
   const width = g.column.right - g.column.left;
   const half = Math.floor((width - px(32, g.k)) / 2);
   return (
-    <div tw="absolute flex justify-between" style={{ left: g.column.left, top: g.players.top, width, height: g.players.height, opacity: blockOpacity(only, "players") }}>
-      <PlayerName player={card.left} width={half} k={g.k} align="left" />
-      <PlayerName player={card.right} width={half} k={g.k} align="right" />
+    <div tw="absolute flex justify-between" style={{ left: g.column.left, top: g.players.top, width, height: g.players.height, opacity: blockOpacity(only, "players", STACK_LAYERS) }}>
+      <PlayerName player={card.left} width={half} k={g.k} align="left" only={only} />
+      <PlayerName player={card.right} width={half} k={g.k} align="right" only={only} />
     </div>
   );
 }

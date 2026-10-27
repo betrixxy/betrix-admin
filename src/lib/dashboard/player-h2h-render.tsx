@@ -20,8 +20,8 @@ import type { Result } from "@/types/result";
  * katmanları → gren/vinyet (iki sayfa aynı tohum). Kapılardan biri geçmezse kart üretilmez.
  */
 
-export const H2H_POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "players", "hero", "fact", "footer-text", "footer-logo"];
-export const H2H_COMPARE_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "faces", "chart", "footnote", "footer-text", "footer-logo"];
+export const H2H_POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "players", "stack-a", "stack-b", "hero", "fact", "footer-text", "footer-logo"];
+export const H2H_COMPARE_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "faces", "stack-a", "stack-b", "chart", "footnote", "footer-text", "footer-logo"];
 
 export function h2hGeometries(frame: MatchDayFrame) {
   return { poster: h2hPosterGeometry(frame), compare: h2hCompareGeometry(frame) };
