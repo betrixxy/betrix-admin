@@ -39,6 +39,11 @@ export async function vitrinApproval(id: string, publishCaption: string | null, 
     const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
     return language ? fail("BANNED_LANGUAGE", `${language} — onaylanmadı.`) : { ok: true, data: [] };
   }
+  // Kura sonucu: tahmin kaydı yok, yalnızca gönderi metninin dil kapısı (bahis dili yok).
+  if (record?.contentType === "DRAWS_AND_PAIRINGS") {
+    const draw = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
+    return draw ? fail("BANNED_LANGUAGE", `${draw} — onaylanmadı.`) : { ok: true, data: [] };
+  }
   const options = record?.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
   if (!record || !options) return { ok: true, data: [] };
   const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });

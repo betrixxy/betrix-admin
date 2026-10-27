@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { competitionKind, competitionName, resultRoundLabel, teamNameTr, upperTr } from "@/lib/dashboard/match-result-labels";
+import { cardTeamName } from "@/lib/archive/names";
+import { competitionKind, competitionName, resultRoundLabel, upperTr } from "@/lib/dashboard/match-result-labels";
 import { isSimilarColor, liftLightness, toHsl } from "@/lib/dashboard/color-math";
 import { contrastRatio, resultAccentHex, RESULT_SHADE_HEX } from "@/lib/dashboard/match-result-theme";
 import { countedGoals, formatMinute, pickMvp, scorerLines, toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
@@ -130,8 +131,8 @@ describe("etiketler ve tema", () => {
   });
 
   it("Türkçe takım adı ve tr-TR büyük harf", () => {
-    assert.equal(teamNameTr("Besiktas"), "Beşiktaş");
-    assert.equal(teamNameTr("Kocaelispor"), "Kocaelispor");
+    assert.equal(cardTeamName("Besiktas"), "Beşiktaş");
+    assert.equal(cardTeamName("Kocaelispor"), "Kocaelispor");
     assert.equal(upperTr("Beşiktaş"), "BEŞİKTAŞ");
   });
 

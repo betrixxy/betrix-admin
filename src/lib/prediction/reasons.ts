@@ -1,5 +1,5 @@
 import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
-import { teamNameTr } from "@/lib/dashboard/match-result-labels";
+import { cardTeamName } from "@/lib/archive/names";
 import type { DeepAnalysisStats, SeasonLeagueXg } from "@/types/deep-analysis";
 import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId } from "@/types/prediction";
 import { findBannedWords } from "./banned-words";
@@ -15,7 +15,7 @@ import { differentLeagues, SEASON_XG_MIN_MATCHES } from "./season-xg";
 
 /** Kartta ve gerekçede kullanılan takım adları (mevcut Türkçe kart adı eşlemesi). */
 export function matchSides(stats: DeepAnalysisStats): MatchSides {
-  return { home: teamNameTr(stats.fixture.homeTeam.name), away: teamNameTr(stats.fixture.awayTeam.name) };
+  return { home: cardTeamName(stats.fixture.homeTeam.name), away: cardTeamName(stats.fixture.awayTeam.name) };
 }
 
 /**

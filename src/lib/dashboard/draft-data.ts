@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { z } from "zod";
 import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
+import { drawRecordOptionsSchema } from "@/lib/dashboard/draw-records";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { APPROVED_STATUSES, STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
@@ -125,6 +126,36 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   const record = await prisma.aiContent.findUnique({ where: { id } });
   if (!record) return null;
 
+  if (record.contentType === "DRAWS_AND_PAIRINGS") {
+    const draw = drawRecordOptionsSchema.safeParse(record.renderOptions);
+    if (draw.success) {
+      const { imageUrl, title, subtitle, format, carousel } = draw.data;
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          title,
+          subtitle,
+          kindLabel: "Kura Sonucu",
+          mvpName: null,
+          imageUrl,
+          slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Kura Sonucu" }],
+          format: VITRIN_SOCIAL_FORMAT[format],
+          // Yayın akışı normal; gönderi metninde bahis dili uyarısı (vitrin gibi tahmin kaydı yok).
+          vitrin: false,
+          languageGate: true,
+          slug: "kura",
+        },
+      };
+    }
+  }
+
   if (record.contentType === "AI_MARKET_PREDICTION") {
     const vitrin = vitrinViewSchema.safeParse(record.renderOptions);
     if (vitrin.success) {
@@ -147,6 +178,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Maç Önü Analiz" }],
           format: VITRIN_SOCIAL_FORMAT[format],
           vitrin: true,
+          languageGate: true,
+          slug: "mac-onu",
         },
       };
     }
@@ -194,8 +227,10 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           imageUrl,
           slides: carousel,
           format: VITRIN_SOCIAL_FORMAT[format],
-          // Maç önü analiz dili: yayın merkezinde bahis dili uyarısı, kısa link yok.
-          vitrin: true,
+          // Tahmin kaydı yok (vitrin akışı değil): yayın akışı normal, gönderi metninde bahis dili uyarısı.
+          vitrin: false,
+          languageGate: true,
+          slug: "oyuncu-karsilastirma",
         },
       };
     }
@@ -273,6 +308,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: kindLabel }],
           format,
           vitrin: false,
+          languageGate: false,
+          slug: "mac-sonucu",
         },
       };
     }

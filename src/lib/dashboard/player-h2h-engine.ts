@@ -5,7 +5,7 @@ import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
-import { teamNameTr } from "@/lib/dashboard/match-result-labels";
+import { cardTeamName } from "@/lib/archive/names";
 import { buildH2HCaption } from "@/lib/dashboard/player-h2h-caption";
 import { buildH2HCard, h2hColors, type H2HCardResult } from "@/lib/dashboard/player-h2h-card";
 import { loadPlayerSeasonStats } from "@/lib/dashboard/player-h2h-data";
@@ -108,8 +108,8 @@ export async function renderH2H(request: H2HRequest): Promise<Result<H2HRendered
     rightPhoto.data ? facePortrait(rightPhoto.data, rightHex, request.right.portraitAdjust) : Promise.resolve(null),
   ]);
   const frame = MATCH_DAY_FRAMES[request.format];
-  const origin = (team: string) => (teamNameTr(team) === left.teamName ? left.teamOrigin : teamNameTr(team) === right.teamName ? right.teamOrigin : null);
-  const match = request.match ? { homeTeam: teamNameTr(request.match.homeTeam), awayTeam: teamNameTr(request.match.awayTeam), kickoffUtc: request.match.kickoffUtc, homeOrigin: origin(request.match.homeTeam), awayOrigin: origin(request.match.awayTeam) } : null;
+  const origin = (team: string) => (cardTeamName(team) === left.teamName ? left.teamOrigin : cardTeamName(team) === right.teamName ? right.teamOrigin : null);
+  const match = request.match ? { homeTeam: cardTeamName(request.match.homeTeam), awayTeam: cardTeamName(request.match.awayTeam), kickoffUtc: request.match.kickoffUtc, homeOrigin: origin(request.match.homeTeam), awayOrigin: origin(request.match.awayTeam) } : null;
   const built = buildH2HCard({ left, right, mode, match, images: { leftLogo, rightLogo, leftFace, rightFace, brandLogo }, frame });
   if (!built.ok) return built;
   const rendered = await renderH2HImages({

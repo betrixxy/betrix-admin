@@ -39,6 +39,8 @@ interface PublishingHubProps {
   targets: Record<PublishPlatform, PublishTarget>;
   /** Maç önü vitrin: metinde bahis dili uyarısı ve kısa link yok (onay sunucuda ayrıca reddeder). */
   vitrin?: boolean;
+  /** Vitrin dışında bahis dili uyarısı (Kura Sonucu); yayın akışı değişmez. */
+  languageGate?: boolean;
 }
 
 /** Dizilimin toplam sınırı: taslağın kartı + galeriden en fazla 9 (Instagram carousel = 10). */
@@ -56,7 +58,7 @@ interface CaptionState {
  * değiştirildiğinde o platformun metni bir kez Claude ile yazılır (admin tıklaması — ücretli); ilk açılışta
  * çağrı yapılmaz, kayıttaki şablon metni gösterilir.
  */
-export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false }: PublishingHubProps) {
+export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false, languageGate = false }: PublishingHubProps) {
   const [platform, setPlatform] = useState<PublishPlatform>("IG_POST");
   const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: caption, source: "template" } });
   const [layout, setLayout] = useState<PublishLayout>(media.length > 1 ? "multi" : "single");
@@ -72,7 +74,7 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
   const current = captions[platform] ?? { text: caption, source: "template" as const };
   const multi = layout === "multi" && order.length > 1;
   const selected = (multi ? order.slice(0, def.maxMedia) : order.slice(0, 1)).map((item) => item.url);
-  const banned = vitrin ? findBannedWords(current.text) : [];
+  const banned = vitrin || languageGate ? findBannedWords(current.text) : [];
   const warnings = [
     ...captionWarnings(current.text, platform, `${caption} ${media.map((item) => item.label).join(" ")}`),
     ...(banned.length ? [`Bahis dili yasak: ${banned.join(", ")} — bu metinle onaylanmaz.`] : []),

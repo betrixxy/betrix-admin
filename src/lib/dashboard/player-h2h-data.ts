@@ -1,6 +1,6 @@
 import { domesticLeague } from "@/lib/archive/structure";
 import { nameOrigin, originFromCountry } from "@/lib/dashboard/name-case";
-import { teamNameTr } from "@/lib/dashboard/match-result-labels";
+import { cardTeamName } from "@/lib/archive/names";
 import { fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
 import { positionFromApi } from "@/lib/player-h2h/stats";
 import { getFixturePlayers, getTeamFinishedFixtures } from "@/lib/services/api-football/player-recency";
@@ -145,7 +145,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       shortName,
       nameOrigin: nameOrigin(fullName) ?? originFromCountry(player.nationality),
       teamId: team.id,
-      teamName: teamNameTr(team.name),
+      teamName: cardTeamName(team.name),
       teamOrigin: originFromCountry(info.data?.country),
       teamLogo: team.logo,
       position,

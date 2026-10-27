@@ -89,7 +89,7 @@ describe("farklı ligler", () => {
   it("iki takımın xG'sini aynı cümlede kıyaslayan gerekçe reddedilir; tek takımın xG'si geçer", () => {
     const facts = vitrinFacts(cross);
     const compare = [
-      "Fenerbahçe ve Slavia Praha bu sezon ligde 2,34 ile 2,36 xG üretiyor.",
+      "Fenerbahçe ve Slavia Prag bu sezon ligde 2,34 ile 2,36 xG üretiyor.",
       "Fenerbahçe bu sezon ligde rakibinden daha fazla xG üretiyor.",
       "İki takım da bu sezon ligde yüksek xG üretiyor.",
     ];

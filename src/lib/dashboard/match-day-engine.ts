@@ -4,7 +4,7 @@ import { resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
 import { backgroundCacheKey, getPlayerCutout, readCachedBackground, saveCachedBackground } from "@/lib/dashboard/match-day-cache";
 import { buildProgrammaticBackground, composeMatchDayArt, finalizeMatchDayImage, restorePlayers } from "@/lib/dashboard/match-day-compose";
 import { MATCH_DAY_FRAMES, type MatchDayFrame } from "@/lib/dashboard/match-day-formats";
-import { renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
+import { matchDayLayoutGate, renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
 import { loadMatchDayStats } from "@/lib/dashboard/match-day-stats";
 import { MATCH_DAY_TEMPLATES } from "@/lib/dashboard/match-day-templates";
 import { saveStoredFile } from "@/lib/dashboard/storage";
@@ -149,6 +149,9 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   if (!awayCut.ok) return fail(awayCut.error.code, awayCut.error.message);
   if (!background.ok) return background;
   const card: MatchDayCard = { ...baseCard, stats };
+  // Yerleşim kapısı (DATA_DRIVEN ad satırları): harmanlama ve kayıttan önce — çakışma varsa kart üretilmez.
+  const layout = await matchDayLayoutGate(card, input.template, frame);
+  if (!layout.ok) return fail(layout.error.code, layout.error.message);
 
   const savedSteps: string[] = [];
   if (homeCut.data.fromCache) savedSteps.push("Ev sahibi oyuncu kesimi önbellekten");

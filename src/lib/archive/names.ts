@@ -1,4 +1,4 @@
-import { OFFICIAL_COMPETITION_NAMES, teamNameTr } from "@/lib/dashboard/match-result-labels";
+import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
 
 /**
  * Fotoğraf arşivinin isim disiplini — saf, tek kaynak. Lig, takım ve kişi adları API-Football +
@@ -15,8 +15,8 @@ export const NATIONAL_ROOT_NAME = "Milli Takımlar";
  *
  *   - `archiveName`: arşiv klasörünün adı — resmi kısa ad, SPONSORSUZ ("Beşiktaş JK"; sponsorlu
  *     adlar sezonluk değişir, arşivde kullanılmaz).
- *   - Kart adı (`displayName`) buraya YAZILMAZ: kartlar mevcut Türkçe eşleme tablosunu kullanmaya
- *     devam eder (`teamNameTr(apiName)` → "Beşiktaş"); tek kaynak orası.
+ *   - Kart adı (`displayName`) buraya YAZILMAZ: bütün kartlar `cardTeamName(apiName)` ile okur
+ *     ("Beşiktaş", "Slavia Prag"); tablolar aşağıda (`TEAM_NAMES_TR` + `EUROPEAN_TEAM_NAMES_TR`).
  *   - `apiName`: API-Football'un döndürdüğü ad (2026-10-19) — kart adı bununla türetilir.
  *   - `verified: false`: resmi kısa ad kullanıcı onayı bekliyor.
  *
@@ -90,12 +90,124 @@ export function officialLeagueName(leagueId: number, apiName: string): string {
 
 /** Arşiv klasörü adı: arşiv tablosu (sponsorsuz resmi kısa ad) → Türkçe eşleme → API adı. */
 export function officialTeamName(teamId: number, apiName: string): string {
-  return ARCHIVE_TEAM_NAMES[teamId]?.archiveName ?? teamNameTr(apiName);
+  return ARCHIVE_TEAM_NAMES[teamId]?.archiveName ?? TEAM_NAMES_TR[apiName.trim()] ?? apiName.trim();
 }
 
-/** Kartlardaki kısa ad — kartlarla aynı kaynak (`teamNameTr`); arşiv tablosu kartı etkilemez. */
+/**
+ * API-Football'un ASCII/İngilizce takım adları → Türkçe yazımı (yerli kulüpler, Türkçe karşılığıyla yazılan
+ * yabancı kulüpler, milli takımlar). Arşiv klasör adının da yedeği (`officialTeamName`).
+ */
+export const TEAM_NAMES_TR: Readonly<Record<string, string>> = {
+  Besiktas: "Beşiktaş",
+  Fenerbahce: "Fenerbahçe",
+  Basaksehir: "Başakşehir",
+  "Istanbul Basaksehir": "Başakşehir",
+  Goztepe: "Göztepe",
+  Kasimpasa: "Kasımpaşa",
+  Eyupspor: "Eyüpspor",
+  Genclerbirligi: "Gençlerbirliği",
+  "Fatih Karagumruk": "Fatih Karagümrük",
+  Karagumruk: "Fatih Karagümrük",
+  Rizespor: "Çaykur Rizespor",
+  // Kart adı kuralı: medyada yaygın kullanılan ad. Gaziantep FK, Çorum FK, Bodrum FK ekiyle
+  // (API adı zaten öyle); Erzurumspor ve Vanspor eksiz.
+  "Erzurumspor FK": "Erzurumspor",
+  "Vanspor FK": "Vanspor",
+  "Manisa F.K.": "Manisa FK",
+  Istanbulspor: "İstanbulspor",
+  Bandirmaspor: "Bandırmaspor",
+  "Corum FK": "Çorum FK",
+  "Igdir FK": "Iğdır FK",
+  Keciorengucu: "Keçiörengücü",
+  Umraniyespor: "Ümraniyespor",
+  "Gençlerbirliği S.K.": "Gençlerbirliği",
+  Turkey: "Türkiye",
+  "1899 Hoffenheim": "Hoffenheim",
+  "Bayern Munich": "Bayern Münih",
+  "Bayer Leverkusen": "Leverkusen",
+  "Borussia Dortmund": "Dortmund",
+  "Eintracht Frankfurt": "Frankfurt",
+  "Paris Saint Germain": "PSG",
+  "Inter Milan": "Inter",
+  "AC Milan": "Milan",
+  Marseille: "Marsilya",
+  "Sporting CP": "Sporting",
+  "Red Star Belgrade": "Kızılyıldız",
+  "FC Midtjylland": "Midtjylland",
+  Germany: "Almanya",
+  Spain: "İspanya",
+  Italy: "İtalya",
+  France: "Fransa",
+  England: "İngiltere",
+  Netherlands: "Hollanda",
+  Portugal: "Portekiz",
+  Croatia: "Hırvatistan",
+  Georgia: "Gürcistan",
+};
+
+/**
+ * Avrupa takımlarının Türk yayıncı kullanımı (kart adı) — API adı → ekranda okunan ad. Büyük harf
+ * yabancı adlarda uluslararası kuralla (`name-case.ts`). Admin stüdyoda kart başına düzeltebilir.
+ */
+export const EUROPEAN_TEAM_NAMES_TR: Readonly<Record<string, string>> = {
+  "AS Roma": "Roma",
+  "Atletico Madrid": "Atletico Madrid",
+  "Lask Linz": "LASK",
+  "Shakhtar Donetsk": "Şahtar Donetsk",
+  "Slavia Praha": "Slavia Prag",
+  "Sparta Praha": "Sparta Prag",
+  "VfB Stuttgart": "Stuttgart",
+  "AEK Athens FC": "AEK",
+  "Olympiakos Piraeus": "Olympiakos",
+  "Panathinaikos": "Panathinaikos",
+  "PSV Eindhoven": "PSV",
+  "Club Brugge KV": "Club Brugge",
+  "Union St. Gilloise": "Union Saint-Gilloise",
+  "Omonia Nicosia": "Omonia",
+  "Heart Of Midlothian": "Hearts",
+  "SC Freiburg": "Freiburg",
+  "FK Jablonec": "Jablonec",
+  "FK Crvena Zvezda": "Kızılyıldız",
+  "Dinamo Zagreb": "Dinamo Zagreb",
+  "Manchester United": "Manchester United",
+  "Manchester City": "Manchester City",
+  "Tottenham": "Tottenham",
+  "Atalanta": "Atalanta",
+  "Benfica": "Benfica",
+  "FC Porto": "Porto",
+  "Sporting Braga": "Braga",
+  "Borussia Monchengladbach": "Borussia Mönchengladbach",
+  "Hapoel Beer Sheva": "Hapoel Beer Sheva",
+  "Celtic": "Celtic",
+  "Rangers": "Rangers",
+  "FC Copenhagen": "Kopenhag",
+  "Young Boys": "Young Boys",
+  "Red Bull Salzburg": "Salzburg",
+  // API-Football /teams ve /fixtures adları (2026/27 ŞL · AL · KL katılımcıları, 2026-10-27 taraması).
+  "Bayern München": "Bayern Münih",
+  "Dynamo Kyiv": "Dinamo Kiev",
+  "Ferencvarosi TC": "Ferencvaros",
+  "Plzen": "Viktoria Plzen",
+  "SC Braga": "Braga",
+  "Rapid Vienna": "Rapid Viyana",
+  "Austria Vienna": "Austria Viyana",
+  "HNK Hajduk Split": "Hajduk Split",
+  "HNK Rijeka": "Rijeka",
+  "FK Partizan": "Partizan",
+  "Qarabag": "Karabağ",
+  "Neftchi Baku": "Neftçi",
+  "FC Lugano": "Lugano",
+  "FC ST. Gallen": "St. Gallen",
+};
+
+/**
+ * Kartlardaki takım adı — TEK KAYNAK (Maç Günü, Muhtemel 11, Vitrin, Maç Sonucu, İstatistik, Puan Durumu,
+ * Haftalık Fikstür, Kura, Oyuncu Karşılaştırması): Avrupa yayıncı adı → Türkçe eşleme → API adı. Arşiv
+ * tablosu kartı etkilemez. Sağlayıcılar arası ad eşleştirmesi (Sportmonks) ham API adıyla yapılır, bununla değil.
+ */
 export function cardTeamName(apiName: string): string {
-  return teamNameTr(apiName);
+  const name = apiName.trim();
+  return EUROPEAN_TEAM_NAMES_TR[name] ?? TEAM_NAMES_TR[name] ?? name;
 }
 
 const ABBREVIATED = /^(\p{Lu})\.\s*(.+)$/u;

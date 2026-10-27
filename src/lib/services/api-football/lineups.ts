@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { getFixtureDetailsByIds } from "@/lib/services/api-football/fixtures";
 import { findTeamLineup, isCompleteLineup, lineupColorHex, lineupStarters, mapSquad } from "@/lib/services/api-football/lineup-mappers";
@@ -43,7 +44,7 @@ async function getTeamReference(
   const teamId = Number(team.id);
   const squad = await getSquad(teamId);
   if (!squad.ok) return squad;
-  const base = { teamId, teamName: team.name, logoUrl: team.logoUrl, squad: squad.data };
+  const base = { teamId, teamName: cardTeamName(team.name), logoUrl: team.logoUrl, squad: squad.data };
 
   const announced = findTeamLineup(current.lineups, teamId);
   if (announced) {

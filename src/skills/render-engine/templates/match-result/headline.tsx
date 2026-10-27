@@ -2,7 +2,7 @@ import type { MatchResultCard } from "@/types/match-result";
 import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { LandscapeSetColumn } from "../checkmatch-set/landscape";
 import { ScorerColumns, SET_VERTICAL, SetFooter, SetHeader, setBlockBottom } from "../checkmatch-set/set-parts";
-import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
+import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { HEADLINE_VERTICAL, type ResultGeometry } from "./geometry";
 import { Shade, TopShade, type ResultTemplateProps } from "./shared";
 
@@ -22,7 +22,8 @@ function Title({ card, size, rule }: { card: MatchResultCard; size: number; rule
   return (
     <div tw="flex flex-col items-center">
       <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, letterSpacing: size * 0.02, color: "white" }}>{TITLE}</span>
-      <div tw="flex" style={{ width: size * 0.7, height: rule, backgroundColor: card.accentHex, marginTop: size * 0.14 }} />
+      {/* Çizgi "MAÇ"ın Ç kuyruğunun (≈ 0,25 em) altında. */}
+      <div tw="flex" style={{ width: size * 0.7, height: rule, backgroundColor: card.accentHex, marginTop: Math.ceil(size * (DISPLAY_DESCENT_EM + 0.08)) }} />
     </div>
   );
 }
