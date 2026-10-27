@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { CARD_SHADE_HEX } from "@/lib/dashboard/color-math";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
-import { planCrop, saliencyPoint } from "@/lib/dashboard/match-photo/crop";
+import { planCrop, saliencyPoint, type CropOffset } from "@/lib/dashboard/match-photo/crop";
 import { detectFaces } from "@/lib/dashboard/match-photo/faces";
 import { cropAndGrade } from "@/lib/dashboard/match-photo/grade";
 import { checkPhotoQuality, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
@@ -23,12 +23,23 @@ export interface VitrinPhotos {
   away: UploadedImage | null;
 }
 
+export type PosterArtGeometry = Pick<PosterGeometry, "photo" | "frame">;
+
 export interface PosterArtInput {
   photos: VitrinPhotos;
-  g: PosterGeometry;
+  /** Yalnızca fotoğraf bölgesi ve çerçeve okunur — oyuncu karşılaştırma posteri de aynı hattı kullanır. */
+  g: PosterArtGeometry;
   homeHex: string;
   awayHex: string;
   upscale?: PhotoUpscaler | undefined;
+  /** Elle kırpma ayarı (taraf başına); verilmezse otomatik. */
+  adjust?: { home?: CropAdjust | undefined; away?: CropAdjust | undefined } | undefined;
+}
+
+/** Elle kırpma: kaydırma (−1..1, kadraj boyunun yarısı) ve zoom (1..1,6); alan yoksa otomatik. */
+export interface CropAdjust {
+  offset?: CropOffset | undefined;
+  zoom?: number | undefined;
 }
 
 /** Takım rengi ışığının gücü (soft-light) — "hafif": fotoğrafın kimliği kalır. */
@@ -58,7 +69,7 @@ async function programmaticPanel(width: number, height: number, hex: string, sid
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler): Promise<Result<Buffer>> {
+async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined): Promise<Result<Buffer>> {
   const { width, height } = size(panel);
   if (!image) return { ok: true, data: await programmaticPanel(width, height, hex, side) };
   const quality = await checkPhotoQuality(image, upscale);
@@ -67,14 +78,15 @@ async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: Fr
   const faces = await detectFaces(source.bytes, source.hash);
   const dims = { width: source.width, height: source.height };
   const saliency = faces.length > 0 ? null : await saliencyPoint(source.bytes, dims);
-  const plan = planCrop({ source: dims, frame: { width, height }, safe, faces, saliency });
+  // Elle ayar verilmezse otomatik kırpma (yüz → yazısız bölge, gerekirse otomatik zoom).
+  const plan = planCrop({ source: dims, frame: { width, height }, safe, faces, saliency, offset: adjust?.offset, zoom: adjust?.zoom });
   const graded = await cropAndGrade(source.bytes, plan.box, { ...frame, width, height }, hex, undefined);
   const lit = await sharp(graded).composite([{ input: teamLightSvg(width, height, hex, side), blend: "soft-light" }]).png().toBuffer();
   return { ok: true, data: lit };
 }
 
 /** Deplasman panelini çapraz çizgiden keser (çizginin solu şeffaf). */
-async function maskDiagonal(panelPng: Buffer, panel: FrameBox, g: PosterGeometry): Promise<Buffer> {
+async function maskDiagonal(panelPng: Buffer, panel: FrameBox, g: PosterArtGeometry): Promise<Buffer> {
   const { width, height } = size(panel);
   const top = g.photo.topX - panel.left;
   const bottom = g.photo.bottomX - panel.left;
@@ -87,8 +99,8 @@ export async function preparePosterArt(input: PosterArtInput): Promise<Result<Bu
   const upscale = input.upscale ?? noUpscale;
   const { home: homePanel, away: awayPanel } = g.photo.panels;
   const [home, away] = await Promise.all([
-    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale),
-    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale),
+    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home),
+    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away),
   ]);
   if (!home.ok) return { ok: false, error: { ...home.error, message: `Ev sahibi fotoğrafı: ${home.error.message}` } };
   if (!away.ok) return { ok: false, error: { ...away.error, message: `Deplasman fotoğrafı: ${away.error.message}` } };

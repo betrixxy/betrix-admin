@@ -41,6 +41,14 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "active",
     route: "/dashboard/studio/market-analysis",
   },
+  {
+    id: "PLAYER_H2H",
+    label: "Oyuncu Karşılaştırması",
+    description: "İki oyuncunun sezon istatistikleri karşı karşıya — poster + kelebek grafiği (maçtan ya da serbest).",
+    phase: "pre_match",
+    status: "active",
+    route: "/dashboard/studio/player-h2h",
+  },
   { id: "HEAD_TO_HEAD", label: "Head to Head", description: "İki takımın aralarındaki son maçlar.", phase: "pre_match", status: "coming_soon", route: null },
   {
     id: "DRAWS_AND_PAIRINGS",

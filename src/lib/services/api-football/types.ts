@@ -171,7 +171,7 @@ export const apiFootballLeagueSeasonsRawSchema = z.object({
   // `type`: "League" | "Cup" — arşiv takımın yurt içi ligini bununla seçer.
   league: z.object({ id: z.number(), name: z.string(), type: z.string().optional(), logo: z.string().nullish() }),
   country: z.object({ name: z.string().nullable() }),
-  seasons: z.array(z.object({ year: z.number(), current: z.boolean() })),
+  seasons: z.array(z.object({ year: z.number(), current: z.boolean(), start: z.string().nullish(), end: z.string().nullish() })),
 });
 
 export const apiFootballTeamInfoRawSchema = z.object({

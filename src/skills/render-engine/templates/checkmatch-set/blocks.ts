@@ -25,6 +25,13 @@ export const LAYOUT_BLOCKS = [
   "hook",
   "win-bar",
   "form",
+  // Oyuncu karşılaştırması (bkz. templates/player-h2h/).
+  "players",
+  "hero",
+  "fact",
+  "faces",
+  "chart",
+  "footnote",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -48,6 +55,12 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   hook: "alt kanca",
   "win-bar": "kazanma çubuğu",
   form: "form rehberi",
+  players: "oyuncu adları",
+  hero: "kahraman istatistikler",
+  fact: "olgu satırı",
+  faces: "oyuncu yüzleri",
+  chart: "karşılaştırma grafiği",
+  footnote: "dipnot",
 };
 
 /** `only` verilmişse yalnızca o blok görünür; verilmemişse (normal çizim) hepsi. */
