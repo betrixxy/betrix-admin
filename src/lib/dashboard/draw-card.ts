@@ -1,4 +1,4 @@
-import { nameOrigin, originFromCountry, upperName } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, teamNameOrigin, upperName } from "@/lib/dashboard/name-case";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { cardTeamColor } from "@/lib/dashboard/vitrin-card";
 import { drawTeamName } from "@/lib/draw/entry";
@@ -50,7 +50,9 @@ const fail = (code: string, message: string): Fail => ({ ok: false, error: { cod
 export function teamCard(state: DrawState, id: number, logos: DrawCardInput["logos"]): DrawTeamCard {
   const team = state.teams.find((entry) => entry.id === id);
   const name = drawTeamName(state, id);
-  return { id, name: upperName(name, originFromCountry(team?.country) ?? nameOrigin(name)), logo: logos[id] ?? null, turkish: team?.country === "Turkey" };
+  // Türkçe karşılıkla yazılan yabancı kulüp ("Bayern Münih", "Dinamo Kiev") Türkçe büyük harfle; diğerleri ülkeden.
+  const origin = teamNameOrigin(name, { name: originFromCountry(team?.country) ?? nameOrigin(name), people: null });
+  return { id, name: upperName(name, origin), logo: logos[id] ?? null, turkish: team?.country === "Turkey" };
 }
 
 function footerLine(state: DrawState): string {

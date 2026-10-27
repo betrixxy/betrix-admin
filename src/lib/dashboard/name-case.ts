@@ -71,7 +71,7 @@ export interface TeamOrigin {
 export const UNKNOWN_ORIGIN: TeamOrigin = { name: null, people: null };
 
 /** Kartta Türkçe karşılığıyla yazılan yabancı kulüpler (bkz. `archive/names.ts::TEAM_NAMES_TR`). */
-const TURKISH_EXONYMS = new Set(["Bayern Münih", "Marsilya", "Kızılyıldız"]);
+const TURKISH_EXONYMS = new Set(["Bayern Münih", "Marsilya", "Kızılyıldız", "Dinamo Kiev", "Rapid Viyana", "Austria Viyana", "Karabağ", "Neftçi"]);
 
 /** Kartta yazan takım adının kökeni: Türkçe karşılık ise tr, değilse takımın kökeni. */
 export function teamNameOrigin(cardName: string, origin: TeamOrigin | undefined): NameOrigin | null {

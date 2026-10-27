@@ -183,6 +183,21 @@ export const EUROPEAN_TEAM_NAMES_TR: Readonly<Record<string, string>> = {
   "FC Copenhagen": "Kopenhag",
   "Young Boys": "Young Boys",
   "Red Bull Salzburg": "Salzburg",
+  // API-Football /teams ve /fixtures adları (2026/27 ŞL · AL · KL katılımcıları, 2026-10-27 taraması).
+  "Bayern München": "Bayern Münih",
+  "Dynamo Kyiv": "Dinamo Kiev",
+  "Ferencvarosi TC": "Ferencvaros",
+  "Plzen": "Viktoria Plzen",
+  "SC Braga": "Braga",
+  "Rapid Vienna": "Rapid Viyana",
+  "Austria Vienna": "Austria Viyana",
+  "HNK Hajduk Split": "Hajduk Split",
+  "HNK Rijeka": "Rijeka",
+  "FK Partizan": "Partizan",
+  "Qarabag": "Karabağ",
+  "Neftchi Baku": "Neftçi",
+  "FC Lugano": "Lugano",
+  "FC ST. Gallen": "St. Gallen",
 };
 
 /**

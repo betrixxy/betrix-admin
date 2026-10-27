@@ -139,6 +139,10 @@ export interface MatchResultDraftView extends PublishableDraft {
   format: SocialFormatId;
   /** Maç önü vitrin kartı (AI_MARKET_PREDICTION) — yayında kısa link yok, bahis dili denetimi. */
   vitrin: boolean;
+  /** Gönderi metninde bahis dili uyarısı (vitrin dışı: Kura Sonucu) — yayın akışı normal. */
+  languageGate: boolean;
+  /** İndirme dosya adının türü ("mac-sonucu", "mac-onu", "kura"). */
+  slug: string;
 }
 
 /** Puan Durumu taslağı — tek kart (bkz. standings-engine.ts). */

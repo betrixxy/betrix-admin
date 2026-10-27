@@ -138,8 +138,10 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           imageUrl,
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Kura Sonucu" }],
           format: VITRIN_SOCIAL_FORMAT[format],
-          // Kısa link yok, gönderi metninde bahis dili uyarısı (vitrin ile aynı yayın kuralı).
-          vitrin: true,
+          // Yayın akışı normal; gönderi metninde bahis dili uyarısı (vitrin gibi tahmin kaydı yok).
+          vitrin: false,
+          languageGate: true,
+          slug: "kura",
         },
       };
     }
@@ -167,6 +169,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Maç Önü Analiz" }],
           format: VITRIN_SOCIAL_FORMAT[format],
           vitrin: true,
+          languageGate: true,
+          slug: "mac-onu",
         },
       };
     }
@@ -265,6 +269,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: kindLabel }],
           format,
           vitrin: false,
+          languageGate: false,
+          slug: "mac-sonucu",
         },
       };
     }

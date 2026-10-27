@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { cardTeamName, officialTeamName } from "@/lib/archive/names";
+import { teamCard } from "@/lib/dashboard/draw-card";
 import { toStandingRow } from "@/lib/services/api-football/standings-mappers";
+import type { DrawState } from "@/types/draw";
 
 /**
  * Kart takım adı TEK KAYNAK (`archive/names.ts::cardTeamName`): bütün kartlar aynı adı yazar
@@ -15,6 +17,18 @@ describe("kart takım adı — tek kaynak", () => {
     assert.equal(cardTeamName(" Besiktas "), "Beşiktaş");
     assert.equal(cardTeamName("Bayern Munich"), "Bayern Münih");
     assert.equal(cardTeamName("Unknown FC"), "Unknown FC");
+  });
+
+  it("API-Football /teams adları (2026/27 Avrupa kupaları): Türk yayıncı kullanımı, Türkçe karşılık Türkçe büyük harfle", () => {
+    assert.equal(cardTeamName("Bayern München"), "Bayern Münih");
+    assert.equal(cardTeamName("Dynamo Kyiv"), "Dinamo Kiev");
+    assert.equal(cardTeamName("Qarabag"), "Karabağ");
+    const card = (apiName: string, country: string) => teamCard({ teams: [{ id: 1, apiName, country, logoUrl: null, pot: null }], nameOverrides: {} } as unknown as DrawState, 1, {}).name;
+    assert.equal(card("Bayern München", "Germany"), "BAYERN MÜNİH");
+    assert.equal(card("Dynamo Kyiv", "Ukraine"), "DİNAMO KİEV");
+    assert.equal(card("Rapid Vienna", "Austria"), "RAPİD VİYANA");
+    assert.equal(card("Villarreal", "Spain"), "VILLARREAL");
+    assert.equal(card("Borussia Monchengladbach", "Germany"), "BORUSSIA MÖNCHENGLADBACH");
   });
 
   it("puan durumu eşlemesi kart adını kullanır", () => {
