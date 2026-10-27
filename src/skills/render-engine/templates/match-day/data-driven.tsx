@@ -1,6 +1,8 @@
 import type { MatchDayCard, MatchDayStats } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
-import { BODY, BrandLogo, Canvas, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM, Eyebrow, GOLD, LeagueLogo, TeamLogo, clip, competitionLine, fitFontSize, known, px } from "./shared";
+import { layerOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { wrapLines } from "../../satori-text";
+import { BODY, BrandLogo, Canvas, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM, Eyebrow, GOLD, LeagueLogo, TeamLogo, clip, competitionLine, known, px } from "./shared";
 
 /**
  * DATA DRIVEN — spor veri ajansı (AA/Opta) infografiği: koyu düz zemin, tek vurgu rengi,
@@ -127,22 +129,56 @@ function FormSection({ card, accent, size, eyebrowSize, gap }: { card: MatchDayC
   );
 }
 
-function Headline({ card, width, k }: { card: MatchDayCard; width: number; k: number }) {
-  const size = (name: string) => fitFontSize(name, width - px(70, k), px(74, k));
-  const line = (name: string, logo: string | null, marginTop: number) => (
-    <div tw="flex items-center" style={{ marginTop }}>
-      <TeamLogo src={logo} name={name} size={px(52, k)} />
-      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: size(name), lineHeight: 1.05, color: "white", marginLeft: px(16, k) }}>
-        {name}
-      </span>
-    </div>
-  );
-  // Alt alta iki ad: üstteki adın Ç/Ş/Ğ kuyruğu ile alttakinin İ/Ö/Ü işareti arasında pay (bkz. DISPLAY_DESCENT_EM).
-  const between = Math.ceil(size(card.homeTeam) * DISPLAY_DESCENT_EM + size(card.awayTeam) * DISPLAY_ACCENT_EM);
+/** Anton büyük harf ortalaması ≈ 0,42–0,48 em/karakter (ölçüm 2026-10-27); satır genişliği taşmasın diye 0,5. */
+const NAME_EM = 0.5;
+
+/**
+ * Ad satırları — satır bölmeyi Satori'ye bırakmaz: ad tek satıra okunur boyda (≥ 0,65 × azami) sığmıyorsa en
+ * fazla 3 satıra bölünür, boy en uzun satıra göre. Satırlar arası (ad içinde ve iki ad arasında) mürekkep
+ * ölçüsüne göre: üst satırın Ç/Ş/Ğ kuyruğu + alt satırın İ/Ö/Ü işareti + boşluk. Satırlar sırayla iki mürekkep
+ * katmanına (md-name-a / md-name-b) düşer; yerleşim kapısı komşu satırların mürekkebini piksel düzeyinde denetler.
+ */
+export function nameLines(name: string, width: number, max: number): { lines: string[]; size: number } {
+  const single = Math.min(max, Math.floor(width / Math.max(1, [...name].length * NAME_EM)));
+  if (single >= Math.round(max * 0.65) || !/\s/u.test(name.trim())) return { lines: [name], size: single };
+  for (let size = max; size > 12; size -= 2) {
+    const lines = wrapLines(name, width, size, NAME_EM);
+    if (lines.length <= 2) return { lines, size };
+  }
+  const lines = wrapLines(name, width, 12, NAME_EM).slice(0, 3);
+  return { lines, size: Math.min(max, Math.floor(width / Math.max(...lines.map((line) => [...line].length * NAME_EM)))) };
+}
+
+const lineGap = (upper: number, lower: number, k: number) => Math.ceil(upper * DISPLAY_DESCENT_EM + lower * DISPLAY_ACCENT_EM) + px(6, k);
+
+function Headline({ card, width, k, only }: { card: MatchDayCard; width: number; k: number; only: BlockFilter }) {
+  const names = [
+    { name: card.homeTeam, logo: card.homeLogo },
+    { name: card.awayTeam, logo: card.awayLogo },
+  ].map((team) => ({ ...team, ...nameLines(team.name, width - px(70, k), px(74, k)) }));
+  let index = 0;
   return (
     <div tw="flex flex-col">
-      {line(card.homeTeam, card.homeLogo, px(6, k))}
-      {line(card.awayTeam, card.awayLogo, between)}
+      {names.map((team, row) => {
+        const previous = names[row - 1];
+        return (
+          <div key={row} tw="flex items-center" style={{ marginTop: previous ? lineGap(previous.size, team.size, k) : px(6, k) }}>
+            <div tw="flex" style={{ opacity: only ? 0 : 1 }}>
+              <TeamLogo src={team.logo} name={team.name} size={px(52, k)} />
+            </div>
+            <div tw="flex flex-col" style={{ marginLeft: px(16, k) }}>
+              {team.lines.map((line, i) => {
+                const layer = index++ % 2 === 0 ? "md-name-a" : "md-name-b";
+                return (
+                  <span key={i} style={{ fontFamily: DISPLAY, fontSize: team.size, lineHeight: 1.05, color: "white", marginTop: i === 0 ? 0 : lineGap(team.size, team.size, k), opacity: layerOpacity(only, layer) }}>
+                    {line}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -185,8 +221,10 @@ function DateBlock({ card, accent, k }: { card: MatchDayCard; accent: string; k:
   );
 }
 
-function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
+function Vertical({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only: BlockFilter }) {
   const { k } = g;
+  // Ad katmanı ölçülürken (yerleşim kapısı) kartın geri kalanı gizli, yerleşim aynı.
+  const rest = { opacity: only ? 0 : 1 };
   const accent = accentFor(card);
   const boxes = statBoxes(card);
   const boxWidth = Math.floor((g.right - g.left - px(12, k) * boxes.length) / Math.max(1, boxes.length)) - px(8, k);
@@ -194,21 +232,23 @@ function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
     <Canvas>
       {/* Kolon, sağdaki lig logosuna kadar uzanır: uzun künye satırı ("…ULUSLAR LİGİ") kırılmaz. */}
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: g.right - g.left - px(90, k) }}>
-        <Eyebrow size={px(16, k)} color={accent}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        <div tw="flex" style={rest}>
+          <Eyebrow size={px(16, k)} color={accent}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        </div>
         <div tw="flex" style={{ marginTop: px(18, k) }}>
-          <Headline card={card} width={px(520, k)} k={k} />
+          <Headline card={card} width={px(520, k)} k={k} only={only} />
         </div>
         {hasDateBlock(card) ? (
-          <div tw="flex" style={{ marginTop: px(40, k) }}>
+          <div tw="flex" style={{ marginTop: px(40, k), ...rest }}>
             <DateBlock card={card} accent={accent} k={k} />
           </div>
         ) : null}
       </div>
-      <div tw="absolute flex" style={{ right: g.left, top: g.top }}>
+      <div tw="absolute flex" style={{ right: g.left, top: g.top, ...rest }}>
         <LeagueLogo card={card} size={px(64, k)} />
       </div>
 
-      <div tw="absolute flex flex-col" style={{ left: g.left, right: g.left, top: g.blockTop }}>
+      <div tw="absolute flex flex-col" style={{ left: g.left, right: g.left, top: g.blockTop, ...rest }}>
         {formRows(card).length > 0 ? (
           <div tw="flex" style={{ marginBottom: px(18, k) }}>
             <FormSection card={card} accent={accent} size={px(34, k)} eyebrowSize={px(13, k)} gap={px(10, k)} />
@@ -222,30 +262,33 @@ function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
           </div>
         ) : null}
       </div>
-      <div tw="absolute flex" style={{ right: g.left, bottom: g.frame.height - g.bottom }}>
+      <div tw="absolute flex" style={{ right: g.left, bottom: g.frame.height - g.bottom, ...rest }}>
         <BrandLogo card={card} height={px(28, k)} />
       </div>
     </Canvas>
   );
 }
 
-function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
+function Landscape({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only: BlockFilter }) {
   const accent = accentFor(card);
+  const rest = { opacity: only ? 0 : 1 };
   const boxes = statBoxes(card).slice(0, 4);
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: 420 }}>
-        <Eyebrow size={12} color={accent} maxWidth={420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        <div tw="flex" style={rest}>
+          <Eyebrow size={12} color={accent} maxWidth={420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        </div>
         <div tw="flex" style={{ marginTop: 12 }}>
-          <Headline card={card} width={420} k={0.72} />
+          <Headline card={card} width={420} k={0.72} only={only} />
         </div>
         {hasDateBlock(card) ? (
-          <div tw="flex" style={{ marginTop: 26 }}>
+          <div tw="flex" style={{ marginTop: 26, ...rest }}>
             <DateBlock card={card} accent={accent} k={0.72} />
           </div>
         ) : null}
       </div>
-      <div tw="absolute flex flex-col" style={{ left: 880, top: g.top, width: 272 }}>
+      <div tw="absolute flex flex-col" style={{ left: 880, top: g.top, width: 272, ...rest }}>
         <div tw="flex" style={{ marginBottom: 18 }}>
           <LeagueLogo card={card} size={50} />
         </div>
@@ -262,13 +305,14 @@ function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
           ))}
         </div>
       </div>
-      <div tw="absolute flex" style={{ right: g.left, bottom: 30 }}>
+      <div tw="absolute flex" style={{ right: g.left, bottom: 30, ...rest }}>
         <BrandLogo card={card} height={24} />
       </div>
     </Canvas>
   );
 }
 
-export function DataDrivenTemplate({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
-  return g.frame.orientation === "landscape" ? <Landscape card={card} g={g} /> : <Vertical card={card} g={g} />;
+/** `only`: yerleşim kapısı için yalnızca o ad satırı katmanı (bkz. `blocks.ts::INK_LAYERS`). */
+export function DataDrivenTemplate({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only?: BlockFilter }) {
+  return g.frame.orientation === "landscape" ? <Landscape card={card} g={g} only={only} /> : <Vertical card={card} g={g} only={only} />;
 }

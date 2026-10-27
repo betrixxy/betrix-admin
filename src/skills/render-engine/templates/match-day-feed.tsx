@@ -1,4 +1,5 @@
 import type { MatchDayCard, MatchDayTemplateId } from "@/types/match-day";
+import type { BlockFilter } from "./checkmatch-set/blocks";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "./brand";
 import { DataDrivenTemplate } from "./match-day/data-driven";
@@ -214,7 +215,7 @@ export function MatchDayFeedCard({ card, variant = "full" }: { card: MatchDayCar
 
 const TEMPLATE_COMPONENTS: Record<
   MatchDayTemplateId,
-  (props: { card: MatchDayCard; g: TemplateGeometry }) => React.ReactElement
+  (props: { card: MatchDayCard; g: TemplateGeometry; only?: BlockFilter }) => React.ReactElement
 > = {
   PREMIUM_BROADCAST: PremiumBroadcastTemplate,
   DATA_DRIVEN: DataDrivenTemplate,
@@ -226,11 +227,14 @@ export function MatchDayTemplateCard({
   card,
   template,
   frame,
+  only,
 }: {
   card: MatchDayCard;
   template: MatchDayTemplateId;
   frame: MatchDayFrame;
+  /** Yerleşim kapısı: yalnızca bu katman görünür (şu an DATA_DRIVEN ad satırları). */
+  only?: BlockFilter;
 }) {
   const Template = TEMPLATE_COMPONENTS[template];
-  return <Template card={card} g={matchDayGeometry(template, frame)} />;
+  return <Template card={card} g={matchDayGeometry(template, frame)} only={only} />;
 }

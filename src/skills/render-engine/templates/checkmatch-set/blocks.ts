@@ -36,6 +36,9 @@ export const LAYOUT_BLOCKS = [
   // Mürekkep katmanları (bkz. INK_LAYERS): bir bloğun içinde tekrar eden satırlar.
   "draw-names",
   "draw-lines",
+  // Maç Günü DATA_DRIVEN: alt alta ad satırları (kırılan uzun ad dahil) sırayla iki katmanda.
+  "md-name-a",
+  "md-name-b",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -67,6 +70,8 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   "draw-subtitle": "başlığın alt satırı",
   "draw-names": "listedeki takım adları / logolar",
   "draw-lines": "listedeki alt satırlar (yer, torba, tarih, sıra)",
+  "md-name-a": "takım adı satırı (tek)",
+  "md-name-b": "takım adı satırı (çift)",
 };
 
 /**
@@ -75,7 +80,8 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
  * denetlenir: bir katmanın mürekkebi diğerininkine `INK_CLEARANCE` pikselden yakınsa çakışma. Katman, ait
  * olduğu bloğun yerine geçmez — blok kendi kutusuyla ayrıca denetlenir.
  */
-export const INK_LAYERS: ReadonlySet<LayoutBlockId> = new Set<LayoutBlockId>(["draw-names", "draw-lines"]);
+export const INK_LAYERS: ReadonlySet<LayoutBlockId> = new Set<LayoutBlockId>(["draw-names", "draw-lines", "md-name-a", "md-name-b"]);
+export const MATCH_DAY_NAME_LAYERS = ["md-name-a", "md-name-b"] as const satisfies readonly LayoutBlockId[];
 export const DRAW_LIST_LAYERS = ["draw-names", "draw-lines"] as const satisfies readonly LayoutBlockId[];
 
 /** `only` verilmişse yalnızca o blok görünür; verilmemişse (normal çizim) hepsi. */

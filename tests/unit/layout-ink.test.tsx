@@ -6,7 +6,8 @@ import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 import { layerOpacity, type BlockFilter, type LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
-import { BODY, DISPLAY, DISPLAY_DESCENT_EM } from "@/skills/render-engine/templates/match-day/shared";
+import { nameLines } from "@/skills/render-engine/templates/match-day/data-driven";
+import { BODY, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM } from "@/skills/render-engine/templates/match-day/shared";
 
 /**
  * Yerleşim kapısı mürekkebi ölçer (2026-10-27 hatası: Kura A 02 "FENERBAHÇE" başlığının Ç kuyruğu alt
@@ -60,6 +61,25 @@ describe("yerleşim kapısı — mürekkep (kuyruk/nokta)", () => {
     assert.equal(tight.issues[0]?.kind, "INK_TOUCH");
     const spaced = await checkLayout(FRAME, page(Math.ceil(40 * DISPLAY_DESCENT_EM) + 8), ["draw-names", "draw-lines"]);
     assert.equal(spaced.issues.length, 0);
+  });
+});
+
+describe("Maç Günü DATA_DRIVEN — kırılan uzun ad", () => {
+  it("tek satıra okunur boyda sığmayan ad iki satıra bölünür; kısa ad tek satır", () => {
+    assert.deepEqual(nameLines("GAZİANTEP FUTBOL KULÜBÜ", 450, 74).lines.map((line) => line.replace(/\u00a0/g, " ")), ["GAZİANTEP", "FUTBOL KULÜBÜ"]);
+    assert.deepEqual(nameLines("FENERBAHÇE", 450, 74), { lines: ["FENERBAHÇE"], size: 74 });
+  });
+
+  it("kırılan iki satır eski aralıkla (satır yüksekliği 1,05, ara yok) değiyor → kapı yakalar; mürekkep payıyla geçer", async () => {
+    const lines = (gap: number) => (only: LayoutBlockId) =>
+      png(
+        <div style={{ display: "flex", flexDirection: "column", position: "relative", left: 120, top: 300, width: FRAME.width - 120, height: FRAME.height - 300 }}>
+          <span style={{ fontFamily: DISPLAY, fontSize: 69, lineHeight: 1.05, color: "#fff", opacity: layerOpacity(only, "md-name-a") }}>FENERBAHÇE</span>
+          <span style={{ fontFamily: DISPLAY, fontSize: 69, lineHeight: 1.05, color: "#fff", marginTop: gap, opacity: layerOpacity(only, "md-name-b") }}>SPOR KULÜBÜ</span>
+        </div>,
+      );
+    assert.equal((await checkLayout(FRAME, lines(0), ["md-name-a", "md-name-b"])).issues[0]?.kind, "INK_TOUCH");
+    assert.equal((await checkLayout(FRAME, lines(Math.ceil(69 * (DISPLAY_DESCENT_EM + DISPLAY_ACCENT_EM)) + 6), ["md-name-a", "md-name-b"])).issues.length, 0);
   });
 });
 

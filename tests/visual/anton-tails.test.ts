@@ -7,7 +7,7 @@ import { drawPages, renderDrawImages, renderDrawLayer } from "@/lib/dashboard/dr
 import { checkLayout, describeLayoutIssues } from "@/lib/dashboard/layout-check";
 import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
-import { renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
+import { matchDayLayoutGate, renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
 import { buildMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { buildMatchStatsCard } from "@/lib/dashboard/match-stats-card";
@@ -107,6 +107,15 @@ describe("Anton kuyruk/nokta — mürekkep düzeyinde yerleşim kapısı", async
   for (const id of MATCH_DAY_FORMAT_IDS) {
     const frame = MATCH_DAY_FRAMES[id];
 
+    test(`Maç Günü DATA_DRIVEN kırılan uzun ad ${id}`, async () => {
+      // "GAZİANTEP FUTBOL KULÜBÜ" tek satıra okunur boyda sığmaz → iki satır; Ç/Ş/Ğ ↔ İ/Ö/Ü kapıdan geçer.
+      const base = MATCH_DAY_SCENARIOS.normal!;
+      const card = { ...base, homeTeam: "GAZİANTEP FUTBOL KULÜBÜ", awayTeam: "ÇAYKUR RİZESPOR KULÜBÜ", homeTeamName: "Gaziantep Futbol Kulübü", awayTeamName: "Çaykur Rizespor Kulübü" };
+      const layout = await matchDayLayoutGate(card, "DATA_DRIVEN", frame);
+      assert.ok(layout.ok, layout.ok ? "" : layout.error.message);
+      await save(`mac-gunu-DATA_DRIVEN-uzun-ad_${id}`, await renderMatchDayOverlay(card, "DATA_DRIVEN", frame));
+    });
+
     test(`Kura ${id}`, async () => {
       for (const [name, input] of Object.entries(DRAWS)) {
         const built = buildDrawCard({ ...input, states: [...input.states], logos: {}, brandLogo });
@@ -154,9 +163,11 @@ describe("Anton kuyruk/nokta — mürekkep düzeyinde yerleşim kapısı", async
         await Promise.all(pages.data.map((png, index) => save(`vitrin-${pair.key}_${id}_${index + 1}`, png)));
       });
 
-      test(`Maç Günü ${pair.key} ${id} (kapı yok — gözle inceleme)`, async () => {
+      test(`Maç Günü ${pair.key} ${id} (DATA_DRIVEN kapılı; diğerleri gözle)`, async () => {
         const base = MATCH_DAY_SCENARIOS.normal!;
         const card = { ...base, homeTeam: pair.home.tr.toLocaleUpperCase("tr-TR"), awayTeam: pair.away.tr.toLocaleUpperCase("tr-TR"), homeTeamName: pair.home.tr, awayTeamName: pair.away.tr };
+        const layout = await matchDayLayoutGate(card, "DATA_DRIVEN", frame);
+        assert.ok(layout.ok, layout.ok ? "" : layout.error.message);
         for (const template of MATCH_DAY_TEMPLATE_IDS) await save(`mac-gunu-${template}-${pair.key}_${id}`, await renderMatchDayOverlay(card, template, frame));
       });
     }
