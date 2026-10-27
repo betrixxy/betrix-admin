@@ -49,7 +49,8 @@ export interface ResultGeometry {
 }
 
 /** C · Manşet dikey ölçüleri (k ile ölçeklenir). */
-export const HEADLINE_VERTICAL = { titleGap: 44, title: 132, rule: 6, ruleGap: 18, bandPad: 40, bottomBlock: 300, bottomRamp: 220 } as const;
+// ruleGap: başlığın Ç kuyruğu (≈ 0,25 em) + 0,08 em — bkz. headline.tsx Title.
+export const HEADLINE_VERTICAL = { titleGap: 44, title: 132, rule: 6, ruleGap: 44, bandPad: 40, bottomBlock: 300, bottomRamp: 220 } as const;
 
 function vertical(frame: MatchDayFrame, template: MatchResultTemplateId): ResultGeometry {
   const k = Math.min(1, frame.height / 1350);

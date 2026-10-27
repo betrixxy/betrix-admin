@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
-import { LAYOUT_BLOCK_LABELS, LAYOUT_BLOCKS, type LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
+import { INK_LAYERS, LAYOUT_BLOCK_LABELS, LAYOUT_BLOCKS, type LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
 import { SAFE_MARGIN, type FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
 import type { Result } from "@/types/result";
 
@@ -9,7 +9,10 @@ import type { Result } from "@/types/result";
  * Satori yerleşim kutusu vermez; bu yüzden her blok aynı yerleşimle tek başına görünür çizilir
  * (`only`, bkz. `checkmatch-set/blocks.ts`) ve opak piksellerinin sınır kutusu ölçülür. Kural:
  * hiçbir blok başka bir blokla çakışmaz ve hiçbiri güvenli kenarın (64px + platform bantları)
- * dışına taşmaz. Çakışma varsa kart üretilmez, sebep (hangi bloklar, kaç piksel) yazılır.
+ * dışına taşmaz. Ölçü MÜREKKEPTİR (satır kutusu değil): Anton'da Ç/Ş/Ğ kuyruğu satır kutusunun ~0,23 em altına,
+ * İ noktası ~0,13 em üstüne taşar — bunlar da sınır kutusuna girer. Bir bloğun içindeki tekrar eden satırlar
+ * (liste: ad → alt satır) mürekkep katmanı olarak çizilir ve PİKSEL düzeyinde denetlenir: iki katmanın
+ * mürekkebi `INK_CLEARANCE` pikselden yakınsa çakışma. Çakışma varsa kart üretilmez, sebep yazılır.
  * Görsel testte de aynı kontrol koşar (4 format × 01/02 × 3 şablon).
  */
 
@@ -23,12 +26,15 @@ export interface BlockBox {
 
 export type LayoutIssue =
   | { kind: "OVERLAP"; a: LayoutBlockId; b: LayoutBlockId; width: number; height: number }
-  | { kind: "OUTSIDE_SAFE"; a: LayoutBlockId; by: number };
+  | { kind: "OUTSIDE_SAFE"; a: LayoutBlockId; by: number }
+  | { kind: "INK_TOUCH"; a: LayoutBlockId; b: LayoutBlockId; pixels: number; x: number; y: number };
 
 /** Gölge/ışıma (glow) gibi yarı saydam kenarlar ölçülmez — yalnızca belirgin pikseller. */
 const ALPHA_THRESHOLD = 64;
 /** Kenar yumuşatma ve yuvarlama payı (px). */
 const TOLERANCE = 2;
+/** Mürekkep katmanları arasında bırakılması gereken asgari boşluk (px, 1080 genişlikte okunur bir ara). */
+export const INK_CLEARANCE = 4;
 
 /** Kartın güvenli alanı: 64px kenar + 9:16 platform bantları. */
 export function layoutSafeArea(frame: MatchDayFrame): FrameBox {
@@ -55,7 +61,9 @@ export function describeLayoutIssues(issues: LayoutIssue[]): string {
     .map((issue) =>
       issue.kind === "OVERLAP"
         ? `${LAYOUT_BLOCK_LABELS[issue.a]} ↔ ${LAYOUT_BLOCK_LABELS[issue.b]} çakışıyor (${issue.width}×${issue.height}px)`
-        : `${LAYOUT_BLOCK_LABELS[issue.a]} güvenli kenarı ${issue.by}px aşıyor`,
+        : issue.kind === "INK_TOUCH"
+          ? `${LAYOUT_BLOCK_LABELS[issue.a]} ↔ ${LAYOUT_BLOCK_LABELS[issue.b]} mürekkebi birbirine ${INK_CLEARANCE}px'ten yakın (${issue.pixels} piksel, ilk: x${issue.x} y${issue.y})`
+          : `${LAYOUT_BLOCK_LABELS[issue.a]} güvenli kenarı ${issue.by}px aşıyor`,
     )
     .join("; ");
 }
@@ -80,10 +88,72 @@ export async function opaqueBounds(png: Buffer): Promise<Omit<BlockBox, "id"> | 
   return right < 0 ? null : { left, top, right: right + 1, bottom: bottom + 1 };
 }
 
-/** Her bloğu tek başına çizip ölçer; görünmeyen (boş) bloklar atlanır. */
+/** Her bloğu tek başına çizip ölçer; görünmeyen (boş) bloklar ve mürekkep katmanları atlanır. */
 export async function measureBlocks(render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS): Promise<BlockBox[]> {
-  const measured = await Promise.all(blocks.map(async (id) => ({ id, bounds: await opaqueBounds(await render(id)) })));
+  const measured = await Promise.all(blocks.filter((id) => !INK_LAYERS.has(id)).map(async (id) => ({ id, bounds: await opaqueBounds(await render(id)) })));
   return measured.flatMap(({ id, bounds }) => (bounds ? [{ id, ...bounds }] : []));
+}
+
+export interface InkMask {
+  id: LayoutBlockId;
+  width: number;
+  height: number;
+  /** 1 = belirgin mürekkep (alfa ≥ eşik). */
+  data: Uint8Array;
+}
+
+export async function inkMask(id: LayoutBlockId, png: Buffer): Promise<InkMask> {
+  const { data, info } = await sharp(png).ensureAlpha().extractChannel(3).raw().toBuffer({ resolveWithObject: true });
+  const mask = new Uint8Array(info.width * info.height);
+  for (let i = 0; i < mask.length; i++) mask[i] = (data[i] ?? 0) >= ALPHA_THRESHOLD ? 1 : 0;
+  return { id, width: info.width, height: info.height, data: mask };
+}
+
+/** Maskeyi `radius` piksel genişletir (kare komşuluk; yatay sonra dikey koşu). */
+export function dilate(mask: InkMask, radius: number): Uint8Array {
+  const { width, height, data } = mask;
+  const horizontal = new Uint8Array(data.length);
+  for (let y = 0; y < height; y++) {
+    let last = -Infinity;
+    for (let x = 0; x < width; x++) if (data[y * width + x]) last = x; else if (x - last <= radius) horizontal[y * width + x] = 1;
+    last = Infinity;
+    for (let x = width - 1; x >= 0; x--) {
+      const i = y * width + x;
+      if (data[i]) { last = x; horizontal[i] = 1; } else if (last - x <= radius) horizontal[i] = 1;
+    }
+  }
+  const out = new Uint8Array(data.length);
+  for (let x = 0; x < width; x++) {
+    let last = -Infinity;
+    for (let y = 0; y < height; y++) if (horizontal[y * width + x]) { last = y; out[y * width + x] = 1; } else if (y - last <= radius) out[y * width + x] = 1;
+    last = Infinity;
+    for (let y = height - 1; y >= 0; y--) if (horizontal[y * width + x]) last = y; else if (last - y <= radius) out[y * width + x] = 1;
+  }
+  return out;
+}
+
+/** Saf: katman çiftlerinde mürekkep teması (biri `clearance` kadar genişletilir). */
+export function findInkTouches(masks: InkMask[], clearance = INK_CLEARANCE): LayoutIssue[] {
+  const issues: LayoutIssue[] = [];
+  masks.forEach((a, index) => {
+    const grown = dilate(a, clearance);
+    for (const b of masks.slice(index + 1)) {
+      let pixels = 0;
+      let first = -1;
+      for (let i = 0; i < b.data.length; i++) {
+        if (!b.data[i] || !grown[i]) continue;
+        pixels += 1;
+        if (first < 0) first = i;
+      }
+      if (pixels > 0) issues.push({ kind: "INK_TOUCH", a: a.id, b: b.id, pixels, x: first % b.width, y: Math.floor(first / b.width) });
+    }
+  });
+  return issues;
+}
+
+async function measureLayers(render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[]): Promise<InkMask[]> {
+  const layers = blocks.filter((id) => INK_LAYERS.has(id));
+  return Promise.all(layers.map(async (id) => inkMask(id, await render(id))));
 }
 
 export interface LayoutReport {
@@ -92,8 +162,8 @@ export interface LayoutReport {
 }
 
 export async function checkLayout(frame: MatchDayFrame, render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS): Promise<LayoutReport> {
-  const boxes = await measureBlocks(render, blocks);
-  return { boxes, issues: findLayoutIssues(boxes, layoutSafeArea(frame)) };
+  const [boxes, layers] = await Promise.all([measureBlocks(render, blocks), measureLayers(render, blocks)]);
+  return { boxes, issues: [...findLayoutIssues(boxes, layoutSafeArea(frame)), ...findInkTouches(layers)] };
 }
 
 /** Üretim kapısı: çakışma varsa kart üretilmez, sebep yazılır. */

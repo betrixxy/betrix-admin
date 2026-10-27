@@ -33,6 +33,9 @@ export const DRAW_SIZES = {
   summary: 26,
   // Liste sayfaları
   title: 92,
+  /** Başlığın Ç/Ş/Ğ kuyruğu için ayrılan yer (≈ 0,25 × başlık; bkz. DISPLAY_DESCENT_EM) + alt satıra boşluk. */
+  titleTail: 24,
+  subtitleGap: 12,
   subtitle: 22,
   titleGap: 40,
 } as const;
@@ -137,7 +140,7 @@ export function drawListGeometry(frame: MatchDayFrame): DrawListGeometry {
   const s = DRAW_SIZES;
   const box = drawSafeBox(frame);
   const k = frame.orientation === "landscape" ? 0.62 : Math.min(1, (box.bottom - box.top) / BASE_BOX_HEIGHT);
-  const title = { top: box.top + px(s.header + s.headerGap, k), height: px(s.title + 14 + s.subtitle, k) };
+  const title = { top: box.top + px(s.header + s.headerGap, k), height: px(s.title + s.titleTail + s.subtitleGap + s.subtitle, k) };
   const bodyTop = title.top + title.height + px(s.titleGap, k);
   const body = { top: bodyTop, height: box.bottom - px(s.logoHeight + s.footerGap, k) - bodyTop };
   return { page: "list", frame, k, box, title, body };

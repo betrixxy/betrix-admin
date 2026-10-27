@@ -1,7 +1,7 @@
 import type { DrawCard, DrawLeagueCarousel } from "@/types/draw";
-import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { DRAW_LIST_LAYERS, blockOpacity, layerOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
-import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
+import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { DRAW_SIZES, type DrawListGeometry } from "./geometry";
 import { Caps, ListTitle, MUTED, VENUE_ICON_EM, VenueTag } from "./parts";
 
@@ -33,17 +33,20 @@ export function DrawGridTemplate({ card, body, g, only }: { card: DrawCard; body
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: MUTED }}>
       <SetHeader card={{ pageLabel: card.pageLabels[1] ?? "02 · RAKİPLER", dateLabel: card.dateLabel, accentHex: card.accentHex }} box={g.box} k={k} only={only} />
       <ListTitle title={body.team.name} subtitle={body.summary} accent={card.accentHex} g={g} only={only} />
-      <div tw="absolute flex flex-wrap" style={{ left: g.box.left, top: g.body.top, width, height: g.body.height, alignContent: "flex-start", opacity: blockOpacity(only, "draw-list") }}>
+      <div tw="absolute flex flex-wrap" style={{ left: g.box.left, top: g.body.top, width, height: g.body.height, alignContent: "flex-start", opacity: blockOpacity(only, "draw-list", DRAW_LIST_LAYERS) }}>
         {body.cells.map((cell, index) => {
           const size = fitFontSize(cell.opponent.name, nameWidth, px(40, k), 0.47, px(16, k));
           const meta = metaOf(cell);
           const venueColor = cell.venue === "HOME" ? card.accentHex : "rgba(255,255,255,0.8)";
           return (
             <div key={cell.opponent.id} tw="flex items-center" style={{ width: cellWidth, height: cellHeight, marginLeft: index % columns === 0 ? 0 : gap, marginTop: index < columns ? 0 : px(18, k) }}>
-              <TeamLogo src={cell.opponent.logo} name={cell.opponent.name} size={logo} />
+              <div tw="flex" style={{ opacity: layerOpacity(only, "draw-names") }}>
+                <TeamLogo src={cell.opponent.logo} name={cell.opponent.name} size={logo} />
+              </div>
               <div tw="flex flex-col" style={{ marginLeft: px(20, k), width: nameWidth }}>
-                <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff" }}>{cell.opponent.name}</span>
-                <div tw="flex items-center" style={{ marginTop: px(10, k) }}>
+                <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", opacity: layerOpacity(only, "draw-names") }}>{cell.opponent.name}</span>
+                {/* Alt satır adın Ç/Ş/Ğ kuyruğunun altından başlar. */}
+                <div tw="flex items-center" style={{ marginTop: Math.ceil(size * DISPLAY_DESCENT_EM) + px(8, k), opacity: layerOpacity(only, "draw-lines") }}>
                   <VenueTag venue={cell.venue} text={cell.venueLabel} size={metaSize} color={venueColor} />
                   {meta.length ? <Caps text={`  ·  ${meta.join("  ·  ")}`} size={metaSize} /> : null}
                 </div>

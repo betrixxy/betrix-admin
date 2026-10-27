@@ -1,6 +1,6 @@
 import type { MatchDayCard, MatchDayStats } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
-import { BODY, BrandLogo, Canvas, DISPLAY, Eyebrow, GOLD, LeagueLogo, TeamLogo, clip, competitionLine, fitFontSize, known, px } from "./shared";
+import { BODY, BrandLogo, Canvas, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM, Eyebrow, GOLD, LeagueLogo, TeamLogo, clip, competitionLine, fitFontSize, known, px } from "./shared";
 
 /**
  * DATA DRIVEN — spor veri ajansı (AA/Opta) infografiği: koyu düz zemin, tek vurgu rengi,
@@ -128,18 +128,21 @@ function FormSection({ card, accent, size, eyebrowSize, gap }: { card: MatchDayC
 }
 
 function Headline({ card, width, k }: { card: MatchDayCard; width: number; k: number }) {
-  const line = (name: string, logo: string | null) => (
-    <div tw="flex items-center" style={{ marginTop: px(6, k) }}>
+  const size = (name: string) => fitFontSize(name, width - px(70, k), px(74, k));
+  const line = (name: string, logo: string | null, marginTop: number) => (
+    <div tw="flex items-center" style={{ marginTop }}>
       <TeamLogo src={logo} name={name} size={px(52, k)} />
-      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: fitFontSize(name, width - px(70, k), px(74, k)), lineHeight: 1.05, color: "white", marginLeft: px(16, k) }}>
+      <span data-wrap style={{ fontFamily: DISPLAY, fontSize: size(name), lineHeight: 1.05, color: "white", marginLeft: px(16, k) }}>
         {name}
       </span>
     </div>
   );
+  // Alt alta iki ad: üstteki adın Ç/Ş/Ğ kuyruğu ile alttakinin İ/Ö/Ü işareti arasında pay (bkz. DISPLAY_DESCENT_EM).
+  const between = Math.ceil(size(card.homeTeam) * DISPLAY_DESCENT_EM + size(card.awayTeam) * DISPLAY_ACCENT_EM);
   return (
     <div tw="flex flex-col">
-      {line(card.homeTeam, card.homeLogo)}
-      {line(card.awayTeam, card.awayLogo)}
+      {line(card.homeTeam, card.homeLogo, px(6, k))}
+      {line(card.awayTeam, card.awayLogo, between)}
     </div>
   );
 }

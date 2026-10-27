@@ -5,6 +5,7 @@ import {
   BrandLogo,
   Canvas,
   DISPLAY,
+  DISPLAY_DESCENT_EM,
   Eyebrow,
   GOLD,
   LeagueLogo,
@@ -78,6 +79,8 @@ function Referee({ card, size }: { card: MatchDayCard; size: number }) {
 
 function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
   const { k } = g;
+  // Altın çizgi "MAÇ GÜNÜ"nün Ç kuyruğunun (≈ 0,25 em) altında.
+  const underlineGap = Math.ceil(px(172, k) * DISPLAY_DESCENT_EM) + px(14, k);
   return (
     <Canvas>
       <div tw="absolute flex flex-col items-center" style={{ left: 0, right: 0, top: g.top }}>
@@ -87,11 +90,13 @@ function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
         </div>
       </div>
 
-      <div tw="absolute flex flex-col items-center" style={{ left: 0, right: 0, top: g.blockTop }}>
+      {/* Blok, çizginin kuyruk payı (eski 30 px'ten fazlası) kadar yukarı alınır — alt künye yerinde kalır. */}
+      <div tw="absolute flex flex-col items-center" style={{ left: 0, right: 0, top: g.blockTop - (underlineGap - px(30, k)) }}>
         <span style={{ fontFamily: DISPLAY, fontSize: px(172, k), lineHeight: 0.95, color: "white", textShadow: TEXT_SHADOW }}>
           MAÇ GÜNÜ
         </span>
-        <div tw="flex" style={{ width: px(90, k), height: px(4, k), backgroundColor: GOLD, margin: `${px(30, k)}px 0 ${px(22, k)}px` }} />
+        {/* Altın çizgi "MAÇ GÜNÜ"nün Ç kuyruğunun (≈ 0,25 em) altında. */}
+        <div tw="flex" style={{ width: px(90, k), height: px(4, k), backgroundColor: GOLD, margin: `${underlineGap}px 0 ${px(22, k)}px` }} />
         <Matchup card={card} logo={px(104, k)} nameSize={px(22, k)} columnWidth={px(320, k)} gap={px(34, k)} />
         <div tw="flex" style={{ marginTop: px(26, k) }}>
           <InfoLine card={card} size={px(19, k)} />
@@ -120,7 +125,7 @@ function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
         <span style={{ fontFamily: DISPLAY, fontSize: 124, lineHeight: 0.95, color: "white", marginTop: 34, textShadow: TEXT_SHADOW }}>
           MAÇ GÜNÜ
         </span>
-        <div tw="flex" style={{ width: 70, height: 4, backgroundColor: GOLD, margin: "24px 0 26px" }} />
+        <div tw="flex" style={{ width: 70, height: 4, backgroundColor: GOLD, margin: `${Math.ceil(124 * DISPLAY_DESCENT_EM) + 12}px 0 26px` }} />
         <Matchup card={card} logo={78} nameSize={17} columnWidth={210} gap={22} />
         <div tw="flex" style={{ marginTop: 26 }}>
           <InfoLine card={card} size={15} />

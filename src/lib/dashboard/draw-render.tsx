@@ -21,7 +21,7 @@ import type { Result } from "@/types/result";
  */
 
 const POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "draw-kicker", "draw-hero", "draw-meta", "draw-fact", "footer-text", "footer-logo"];
-const LIST_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "draw-hero", "draw-list", "footer-text", "footer-logo"];
+const LIST_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "draw-hero", "draw-subtitle", "draw-list", "draw-names", "draw-lines", "footer-text", "footer-logo"];
 
 export interface DrawPage {
   g: DrawGeometry;

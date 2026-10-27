@@ -33,17 +33,25 @@ export function PosterShade({ g, only }: { g: DrawPosterGeometry; only: BlockFil
   );
 }
 
-/** Liste sayfalarının başlığı: büyük başlık (Anton) + küçük aralıklı alt satır (vurgu renginde). */
+/**
+ * Liste sayfalarının başlığı: büyük başlık (Anton) + küçük aralıklı alt satır (vurgu renginde). İkisi AYRI
+ * blok (yerleşim kapısı ayrı ölçer); alt satır başlığın Ç/Ş/Ğ kuyruğunun (≈ 0,23 em) altından başlar.
+ */
 export function ListTitle({ title, subtitle, accent, g, only }: { title: string; subtitle: string; accent: string; g: DrawListGeometry; only: BlockFilter }) {
   const s = DRAW_SIZES;
   const width = g.box.right - g.box.left;
-  const size = fitFontSize(title, width, px(s.title, g.k), 0.47, px(36, g.k));
+  const line = px(s.title, g.k);
+  const size = fitFontSize(title, width, line, 0.47, px(36, g.k));
   const sub = fitFontSize(subtitle, width, px(s.subtitle, g.k), 0.82, px(12, g.k));
   return (
-    <div tw="absolute flex flex-col" style={{ left: g.box.left, top: g.title.top, width, height: g.title.height, opacity: blockOpacity(only, "draw-hero") }}>
-      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", marginTop: px(s.title, g.k) - size }}>{title}</span>
-      <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: sub, lineHeight: 1, letterSpacing: sub * 0.2, color: accent, marginTop: px(14, g.k) }}>{subtitle}</span>
-    </div>
+    <>
+      <div tw="absolute flex" style={{ left: g.box.left, top: g.title.top + line - size, width, height: size, opacity: blockOpacity(only, "draw-hero") }}>
+        <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff" }}>{title}</span>
+      </div>
+      <div tw="absolute flex" style={{ left: g.box.left, top: g.title.top + line + px(s.titleTail + s.subtitleGap, g.k), width, opacity: blockOpacity(only, "draw-subtitle") }}>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: sub, lineHeight: 1, letterSpacing: sub * 0.2, color: accent }}>{subtitle}</span>
+      </div>
+    </>
   );
 }
 

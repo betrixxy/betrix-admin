@@ -31,6 +31,11 @@ export const LAYOUT_BLOCKS = [
   "draw-meta",
   "draw-fact",
   "draw-list",
+  // Liste sayfası başlığının alt satırı — büyük başlıktan AYRI blok (Ç/Ş kuyruğu alt satıra binmesin).
+  "draw-subtitle",
+  // Mürekkep katmanları (bkz. INK_LAYERS): bir bloğun içinde tekrar eden satırlar.
+  "draw-names",
+  "draw-lines",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -59,9 +64,25 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   "draw-meta": "sıra ve tarih",
   "draw-fact": "olgu satırı",
   "draw-list": "eşleşme listesi",
+  "draw-subtitle": "başlığın alt satırı",
+  "draw-names": "listedeki takım adları / logolar",
+  "draw-lines": "listedeki alt satırlar (yer, torba, tarih, sıra)",
 };
+
+/**
+ * Mürekkep katmanları: bir bloğun İÇİNDE tekrar eden satırlar (liste satırında ad → altındaki satır). Sınır
+ * kutuları her zaman üst üste biner (ikisi de bütün listeyi kaplar), bu yüzden kutuyla değil PİKSEL düzeyinde
+ * denetlenir: bir katmanın mürekkebi diğerininkine `INK_CLEARANCE` pikselden yakınsa çakışma. Katman, ait
+ * olduğu bloğun yerine geçmez — blok kendi kutusuyla ayrıca denetlenir.
+ */
+export const INK_LAYERS: ReadonlySet<LayoutBlockId> = new Set<LayoutBlockId>(["draw-names", "draw-lines"]);
+export const DRAW_LIST_LAYERS = ["draw-names", "draw-lines"] as const satisfies readonly LayoutBlockId[];
 
 /** `only` verilmişse yalnızca o blok görünür; verilmemişse (normal çizim) hepsi. */
 export type BlockFilter = LayoutBlockId | undefined;
 
-export const blockOpacity = (only: BlockFilter, id: LayoutBlockId): number => (only && only !== id ? 0 : 1);
+/** Blok görünürlüğü; `layers`: bloğun mürekkep katmanları ölçülürken blok kabı da görünür kalır. */
+export const blockOpacity = (only: BlockFilter, id: LayoutBlockId, layers: readonly LayoutBlockId[] = []): number => (only && only !== id && !layers.includes(only) ? 0 : 1);
+
+/** Blok içindeki öğenin katmanı: başka bir katman ölçülürken gizli; blok ölçülürken ya da normal çizimde görünür. */
+export const layerOpacity = (only: BlockFilter, layer: LayoutBlockId): number => (only && INK_LAYERS.has(only) && only !== layer ? 0 : 1);
