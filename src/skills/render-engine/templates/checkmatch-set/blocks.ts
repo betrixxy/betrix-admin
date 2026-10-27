@@ -25,6 +25,12 @@ export const LAYOUT_BLOCKS = [
   "hook",
   "win-bar",
   "form",
+  // Kura sonucu (bkz. templates/draw/).
+  "draw-kicker",
+  "draw-hero",
+  "draw-meta",
+  "draw-fact",
+  "draw-list",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -48,6 +54,11 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   hook: "alt kanca",
   "win-bar": "kazanma çubuğu",
   form: "form rehberi",
+  "draw-kicker": "üst satır (takım / tur)",
+  "draw-hero": "rakip / başlık",
+  "draw-meta": "sıra ve tarih",
+  "draw-fact": "olgu satırı",
+  "draw-list": "eşleşme listesi",
 };
 
 /** `only` verilmişse yalnızca o blok görünür; verilmemişse (normal çizim) hepsi. */

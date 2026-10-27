@@ -93,9 +93,49 @@ export function officialTeamName(teamId: number, apiName: string): string {
   return ARCHIVE_TEAM_NAMES[teamId]?.archiveName ?? teamNameTr(apiName);
 }
 
-/** Kartlardaki kısa ad — kartlarla aynı kaynak (`teamNameTr`); arşiv tablosu kartı etkilemez. */
+/**
+ * Avrupa takımlarının Türk yayıncı kullanımı (kart adı) — API adı → ekranda okunan ad. Büyük harf
+ * yabancı adlarda uluslararası kuralla (`name-case.ts`). Admin stüdyoda kart başına düzeltebilir.
+ */
+export const EUROPEAN_TEAM_NAMES_TR: Readonly<Record<string, string>> = {
+  "AS Roma": "Roma",
+  "Atletico Madrid": "Atletico Madrid",
+  "Lask Linz": "LASK",
+  "Shakhtar Donetsk": "Şahtar Donetsk",
+  "Slavia Praha": "Slavia Prag",
+  "Sparta Praha": "Sparta Prag",
+  "VfB Stuttgart": "Stuttgart",
+  "AEK Athens FC": "AEK",
+  "Olympiakos Piraeus": "Olympiakos",
+  "Panathinaikos": "Panathinaikos",
+  "PSV Eindhoven": "PSV",
+  "Club Brugge KV": "Club Brugge",
+  "Union St. Gilloise": "Union Saint-Gilloise",
+  "Omonia Nicosia": "Omonia",
+  "Heart Of Midlothian": "Hearts",
+  "SC Freiburg": "Freiburg",
+  "FK Jablonec": "Jablonec",
+  "FK Crvena Zvezda": "Kızılyıldız",
+  "Dinamo Zagreb": "Dinamo Zagreb",
+  "Manchester United": "Manchester United",
+  "Manchester City": "Manchester City",
+  "Tottenham": "Tottenham",
+  "Atalanta": "Atalanta",
+  "Benfica": "Benfica",
+  "FC Porto": "Porto",
+  "Sporting Braga": "Braga",
+  "Borussia Monchengladbach": "Borussia Mönchengladbach",
+  "Hapoel Beer Sheva": "Hapoel Beer Sheva",
+  "Celtic": "Celtic",
+  "Rangers": "Rangers",
+  "FC Copenhagen": "Kopenhag",
+  "Young Boys": "Young Boys",
+  "Red Bull Salzburg": "Salzburg",
+};
+
+/** Kartlardaki kısa ad: Avrupa yayıncı adı → Türkçe eşleme (`teamNameTr`) → API adı. Arşiv tablosu kartı etkilemez. */
 export function cardTeamName(apiName: string): string {
-  return teamNameTr(apiName);
+  return EUROPEAN_TEAM_NAMES_TR[apiName.trim()] ?? teamNameTr(apiName);
 }
 
 const ABBREVIATED = /^(\p{Lu})\.\s*(.+)$/u;
