@@ -28,7 +28,8 @@ Dil:
 - Her gerekçe TEK kısa cümle: en fazla 10 sözcük (sayılar ve takım adları dahil, boşlukla ayrılan her parça bir sözcük) ve en fazla 160 karakter; emoji ve ünlem yok. Kartta büyük puntoyla görünür, 10 sözcüğü aşan gerekçe kartı kilitler.
 - Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü TEK veriye dayansın ve senaryonun konusuyla doğrudan ilgili olsun (denetlenir): kazanma → galibiyet/form/gol; iki takım da gol bulur mu → gol atma/yeme; gollü maç / gol yağmuru → gol sayısı ya da xG; ilk yarı kimin → gol atma/yeme, galibiyet ya da form; senaryo (kazanır ve 3+ gol) → galibiyet ya da gol.
 - Pakette ilk yarı verisi YOKTUR: ilk yarı istatistiği uydurma. "İlk yarı kimin?" için xG, topla oynama ya da pas isabeti tek başına gerekçe olamaz.
-- xG ortalaması yalnızca xG verisi olan maçlardan gelir ("xg_ornek_mac"; "ornek_mac"tan az olabilir). Takımın paketinde "xg_ort" yoksa o takım için xG yazma (örneklem 4 maçtan az, denetimde reddedilir). xG yazarsan örneklemi bu sayıyla ver ("son 4 maçta"); gol verisi varken xG'yi tercih etme.
+- xG (xg_ort, xg_izin_ort) bu sezonun LİG maçlarından gelir ("xg_ornek_mac" lig maçı); form ve gol verileri ise son maçlardandır, karıştırma. Takımın paketinde "xg_ort" yoksa o takım için xG yazma (denetimde reddedilir). xG yazarsan örneklemi "bu sezon ligde" diye yaz ("<Takım> bu sezon ligde maç başına 1,8 xG üretiyor."); gol verisi varken xG'yi tercih etme.
+- "mac.farkli_ligler" true ise takımlar farklı liglerde oynuyor: iki takımın xG'sini aynı cümlede kıyaslama (denetimde reddedilir); xG yazacaksan tek takımın kendi değerini yaz.
 - Yalnızca uzunluk örneği (sayılar örnek, pakettekini kullan): "<Takım> son 5 maçında 4 galibiyet aldı." (7 sözcük).`;
 
 const MAX_TOKENS = 900;

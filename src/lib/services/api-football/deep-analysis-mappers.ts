@@ -174,5 +174,7 @@ export function computeTeamDeepStats(
     ...computeAdvancedMetrics(fixtures, team.id),
     // Sportmonks ek metrikleri servis katmanında (deep-analysis.ts) maç eşleşirse doldurulur.
     sportmonks: null,
+    // Sezon lig xG'si ayrı istekle (season-xg.ts) servis katmanında doldurulur.
+    seasonLeagueXg: null,
   };
 }
