@@ -44,11 +44,11 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
   { id: "HEAD_TO_HEAD", label: "Head to Head", description: "İki takımın aralarındaki son maçlar.", phase: "pre_match", status: "coming_soon", route: null },
   {
     id: "DRAWS_AND_PAIRINGS",
-    label: "Kuralar ve Maç Eşleşmeleri",
-    description: "Kura çekimi ve turnuva eşleşmeleri.",
+    label: "Kura Sonucu",
+    description: "Avrupa kupası kurası: takım odaklı poster + rakipler, temsilcilerimiz, tüm eşleşmeler — kura sırasında hızlı giriş.",
     phase: "pre_match",
-    status: "coming_soon",
-    route: null,
+    status: "active",
+    route: "/dashboard/studio/draw",
   },
   // ---- Maç sonrası ---- (ilk aktif tür, biten maçlarda menünün varsayılanıdır)
   {

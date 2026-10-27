@@ -2,8 +2,10 @@ import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels"
 import { leagueFixturesFromApi, teamsFromApi, tiesFromApi } from "@/lib/draw/api-mappers";
 import { headToHeadRecord } from "@/lib/draw/facts";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
+import { apiSearchTerm } from "@/lib/services/api-football/search-term";
+import { searchTeams } from "@/lib/services/api-football/team-directory";
 import { apiFootballFixturesResponseSchema, apiFootballTeamsResponseSchema, type ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
-import type { DrawStage, DrawState, HeadToHeadRecord } from "@/types/draw";
+import type { DrawStage, DrawState, DrawTeam, HeadToHeadRecord } from "@/types/draw";
 import type { Result } from "@/types/result";
 
 /**
@@ -70,4 +72,21 @@ export async function drawHeadToHead(teamId: number, opponentId: number, beforeU
   if (!raw.ok) return null;
   const parsed = apiFootballFixturesResponseSchema.safeParse(raw.data);
   return parsed.success ? headToHeadRecord(parsed.data.response, teamId, beforeUtc) : null;
+}
+
+/** Kura öncesi hazırlık: turnuvanın o sezonki katılımcıları (`/teams?league=&season=`, yalnızca okuma); torba elle. */
+export async function drawParticipants(competitionId: number, season: number): Promise<Result<DrawTeam[]>> {
+  const raw = await apiFootballRequest("/teams", { league: String(competitionId), season: String(season) }, { ttlMs: H2H_TTL_MS });
+  if (!raw.ok) return fail(raw.error.code, raw.error.message);
+  const parsed = apiFootballTeamsResponseSchema.safeParse(raw.data);
+  if (!parsed.success) return fail("INVALID_RESPONSE", `API-Football /teams yanıtı şemaya uymuyor: ${parsed.error.message}`);
+  return { ok: true, data: parsed.data.response.map(({ team }) => ({ id: team.id, apiName: team.name, country: team.country ?? null, logoUrl: team.logo ?? null, pot: null })) };
+}
+
+/** Elle katılımcı ekleme: adla arama (`/teams?search=`). */
+export async function searchDrawTeams(query: string): Promise<Result<DrawTeam[]>> {
+  if (!apiSearchTerm(query)) return { ok: true, data: [] };
+  const found = await searchTeams(query);
+  if (!found.ok) return fail(found.error.code, found.error.message);
+  return { ok: true, data: found.data.filter((team) => !team.national).map((team) => ({ id: team.id, apiName: team.name, country: team.country, logoUrl: team.logo, pot: null })) };
 }

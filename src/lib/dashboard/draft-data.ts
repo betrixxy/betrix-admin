@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { z } from "zod";
 import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
+import { drawRecordOptionsSchema } from "@/lib/dashboard/draw-records";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { APPROVED_STATUSES, STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
@@ -115,6 +116,34 @@ function toStudioFormat(value: string | null): StudioFormat | null {
 export async function getDraft(id: string): Promise<DraftLookup | null> {
   const record = await prisma.aiContent.findUnique({ where: { id } });
   if (!record) return null;
+
+  if (record.contentType === "DRAWS_AND_PAIRINGS") {
+    const draw = drawRecordOptionsSchema.safeParse(record.renderOptions);
+    if (draw.success) {
+      const { imageUrl, title, subtitle, format, carousel } = draw.data;
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          title,
+          subtitle,
+          kindLabel: "Kura Sonucu",
+          mvpName: null,
+          imageUrl,
+          slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Kura Sonucu" }],
+          format: VITRIN_SOCIAL_FORMAT[format],
+          // Kısa link yok, gönderi metninde bahis dili uyarısı (vitrin ile aynı yayın kuralı).
+          vitrin: true,
+        },
+      };
+    }
+  }
 
   if (record.contentType === "AI_MARKET_PREDICTION") {
     const vitrin = vitrinViewSchema.safeParse(record.renderOptions);

@@ -6,6 +6,7 @@ import {
   Layers,
   ListOrdered,
   Newspaper,
+  Shuffle,
   Sparkles,
   Star,
   Table2,
@@ -73,6 +74,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "Puan Durumu",
     description: "Lig ve grup tabloları",
     icon: Table2,
+  },
+  {
+    href: "/dashboard/studio/draw",
+    label: "Kura Sonucu",
+    description: "Avrupa kupası kuraları",
+    icon: Shuffle,
   },
   {
     href: "/dashboard/library",
