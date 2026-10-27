@@ -60,8 +60,17 @@ export function captionLength(caption: string, platform: PublishPlatform): numbe
 
 const HASHTAG_RANGE: Record<PublishPlatform, [number, number]> = { IG_POST: [5, 8], IG_REELS_STORY: [3, 5], X: [2, 3] };
 
+/** İçerik türünün hashtag üst sınırı (platform aralığını ezer): Kura Sonucu en fazla 5 (vitrin kuralı). */
+export const CONTENT_MAX_HASHTAGS: Readonly<Partial<Record<string, number>>> = { DRAWS_AND_PAIRINGS: 5 };
+
+/** Platform aralığı, içerik sınırıyla kırpılmış: sınır 5 → IG gönderide 3-5. */
+export function hashtagRange(platform: PublishPlatform, maxHashtags?: number | null): [number, number] {
+  const [min, max] = HASHTAG_RANGE[platform];
+  return maxHashtags ? [Math.min(min, Math.max(1, maxHashtags - 2)), Math.min(max, maxHashtags)] : [min, max];
+}
+
 /** Yayından önce admin'e gösterilen denetim uyarıları — metni değiştirmez. */
-export function captionWarnings(caption: string, platform: PublishPlatform, factsText: string): string[] {
+export function captionWarnings(caption: string, platform: PublishPlatform, factsText: string, maxHashtags?: number | null): string[] {
   const warnings: string[] = [];
   const known = new Set(numbersIn(factsText));
   const unknown = [...new Set(numbersIn(caption).filter((value) => !known.has(value)))];
@@ -70,7 +79,7 @@ export function captionWarnings(caption: string, platform: PublishPlatform, fact
   const length = captionLength(caption, platform);
   if (length > limit) warnings.push(`${PUBLISH_PLATFORM_DEFS[platform].label} sınırı ${limit} karakter — metin ${length} karakter.`);
   const hashtags = caption.match(HASHTAG_PATTERN)?.length ?? 0;
-  const [min, max] = HASHTAG_RANGE[platform];
+  const [min, max] = hashtagRange(platform, maxHashtags);
   if (hashtags < min || hashtags > max) warnings.push(`${hashtags} hashtag var — bu platform için ${min}-${max} önerilir.`);
   return warnings;
 }

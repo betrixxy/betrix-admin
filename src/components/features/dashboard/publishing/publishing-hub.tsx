@@ -41,6 +41,8 @@ interface PublishingHubProps {
   vitrin?: boolean;
   /** Vitrin dışında bahis dili uyarısı (Kura Sonucu); yayın akışı değişmez. */
   languageGate?: boolean;
+  /** İçerik türünün hashtag üst sınırı (Kura: 5); uyarı aralığı buna göre. */
+  maxHashtags?: number | null;
 }
 
 /** Dizilimin toplam sınırı: taslağın kartı + galeriden en fazla 9 (Instagram carousel = 10). */
@@ -58,7 +60,7 @@ interface CaptionState {
  * değiştirildiğinde o platformun metni bir kez Claude ile yazılır (admin tıklaması — ücretli); ilk açılışta
  * çağrı yapılmaz, kayıttaki şablon metni gösterilir.
  */
-export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false, languageGate = false }: PublishingHubProps) {
+export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false, languageGate = false, maxHashtags = null }: PublishingHubProps) {
   const [platform, setPlatform] = useState<PublishPlatform>("IG_POST");
   const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: caption, source: "template" } });
   const [layout, setLayout] = useState<PublishLayout>(media.length > 1 ? "multi" : "single");
@@ -76,7 +78,7 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
   const selected = (multi ? order.slice(0, def.maxMedia) : order.slice(0, 1)).map((item) => item.url);
   const banned = vitrin || languageGate ? findBannedWords(current.text) : [];
   const warnings = [
-    ...captionWarnings(current.text, platform, `${caption} ${media.map((item) => item.label).join(" ")}`),
+    ...captionWarnings(current.text, platform, `${caption} ${media.map((item) => item.label).join(" ")}`, maxHashtags),
     ...(banned.length ? [`Bahis dili yasak: ${banned.join(", ")} — bu metinle onaylanmaz.`] : []),
   ];
   const formatHint = format && format !== def.recommendedFormat ? `Kart ${SOCIAL_FORMATS[format].label} formatında; ${def.label} için ${SOCIAL_FORMATS[def.recommendedFormat].label} önerilir — gerekirse stüdyoda o formatta yeniden üretin.` : null;

@@ -56,7 +56,8 @@ const MAX_TOKENS: Record<PublishPlatform, number> = { IG_POST: 900, IG_REELS_STO
 
 const captionSchema = z.object({ caption: z.string().min(1).describe("Yalnızca gönderi metni.") });
 
-export async function generateCaption(platform: PublishPlatform, facts: unknown): Promise<Result<{ caption: string }, AnthropicError>> {
+/** `maxHashtags`: içerik türünün üst sınırı (ör. Kura 5) — platform kuralını ezer; sistem istemi önbellekte kalsın diye kullanıcı mesajında. */
+export async function generateCaption(platform: PublishPlatform, facts: unknown, options: { maxHashtags?: number | null } = {}): Promise<Result<{ caption: string }, AnthropicError>> {
   if (!isAnthropicConfigured()) {
     return { ok: false, error: { code: "NOT_CONFIGURED", message: "ANTHROPIC_API_KEY tanımlı değil — AI metin üretimi devre dışı." } };
   }
@@ -68,7 +69,7 @@ export async function generateCaption(platform: PublishPlatform, facts: unknown)
       thinking: { type: "between_tools" },
       output_config: { format: zodOutputFormat(captionSchema) },
       system: [{ type: "text", text: PROMPTS[platform], cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: `Olgu paketi (JSON):\n${JSON.stringify(facts)}\n\nBu içerik için gönderi metnini yaz.` }],
+      messages: [{ role: "user", content: `Olgu paketi (JSON):\n${JSON.stringify(facts)}\n\nBu içerik için gönderi metnini yaz.${options.maxHashtags ? ` Bu içerik türünde EN FAZLA ${options.maxHashtags} hashtag kullan (platform kuralındaki sayıyı ezer).` : ""}` }],
     });
 
     const { usage } = response;

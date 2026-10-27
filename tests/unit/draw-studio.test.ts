@@ -90,3 +90,17 @@ describe("tur kataloğu", () => {
     assert.equal(drawRecordKey(2, 2026, "LEAGUE"), "draw:2:2026:LEAGUE");
   });
 });
+
+describe("hashtag — kura metninde en fazla 5", () => {
+  it("şablon metni ≤5; yayın uyarısı aralığı içerik sınırıyla (IG gönderi 3-5)", async () => {
+    const { CONTENT_MAX_HASHTAGS, captionWarnings, hashtagRange } = await import("@/lib/dashboard/publish-caption");
+    assert.equal(CONTENT_MAX_HASHTAGS.DRAWS_AND_PAIRINGS, 5);
+    assert.deepEqual(hashtagRange("IG_POST", 5), [3, 5]);
+    assert.deepEqual(hashtagRange("IG_POST", null), [5, 8]);
+    const caption = buildDrawCaption("TURKISH", [DRAW_LEAGUE, { ...DRAW_LEAGUE, competition: { id: 3, name: "UEFA Avrupa Ligi" } }], null);
+    assert.ok(hashtagCount(caption) <= 5);
+    assert.ok(!captionWarnings(caption, "IG_POST", caption, 5).some((warning) => warning.includes("hashtag")));
+    const six = `${caption} #Bir #Iki`;
+    assert.ok(captionWarnings(six, "IG_POST", six, 5).some((warning) => warning.includes("3-5")));
+  });
+});

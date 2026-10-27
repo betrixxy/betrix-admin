@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
@@ -65,7 +66,7 @@ function FactsSummary({ facts }: { facts: MatchResultFacts }) {
           {facts.mvp ? (
             <span>
               {facts.mvp.name}
-              {facts.mvp.rating !== null ? ` · ${facts.mvp.rating.toFixed(1)}` : ""}
+              {facts.mvp.rating !== null ? ` · ${formatNumber(facts.mvp.rating, { decimals: 1 })}` : ""}
               {facts.mvp.goals > 0 ? ` · ${facts.mvp.goals} gol` : ""}
             </span>
           ) : (

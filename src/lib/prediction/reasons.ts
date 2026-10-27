@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
 import { cardTeamName } from "@/lib/archive/names";
 import type { DeepAnalysisStats, SeasonLeagueXg } from "@/types/deep-analysis";
@@ -36,7 +37,7 @@ const tally = (letters: string, letter: string) => [...letters].filter((value) =
 /** Son 5 maçtan (tüm kulvarlar) gelen xG anahtarları — gerekçe paketine girmez. */
 type RecentXgKey = "xg_ort" | "xg_izin_ort" | "sut_basi_xg";
 const RECENT_XG_KEYS = new Set<string>(["xg_ort", "xg_izin_ort", "sut_basi_xg"] satisfies RecentXgKey[]);
-const round2 = (value: number | null) => (value === null ? null : Number(value.toFixed(2)));
+const round2 = (value: number | null) => (value === null ? null : Math.round(value * 100) / 100);
 
 /**
  * Vitrin olgu paketi: mevcut paket, takım adları kart adıyla ve bahis dili taşıyan anahtarlar analiz
@@ -161,7 +162,7 @@ export function auditReasons(scenarios: Scenario[], facts: VitrinFacts, sides: M
   return Object.fromEntries(scenarios.map((scenario) => [scenario.id, auditReason(scenario.reason, scenario.id, facts, sides)]));
 }
 
-const decimal = (value: number | null) => (value === null ? null : String(value).replace(".", ","));
+const decimal = (value: number | null) => (value === null ? null : formatNumber(value));
 
 /** Parçaları sığdığı kadar birleştirir (≤160 karakter, ≤10 sözcük); ilk parça her zaman alınır. */
 function compose(parts: (string | null)[]): string {

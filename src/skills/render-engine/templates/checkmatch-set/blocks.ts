@@ -46,6 +46,9 @@ export const LAYOUT_BLOCKS = [
   // Maç Günü DATA_DRIVEN: alt alta ad satırları (kırılan uzun ad dahil) sırayla iki katmanda.
   "md-name-a",
   "md-name-b",
+  // Genel: bir blok içinde alt alta duran satırlar (ad/soyad, başlık/alt başlık, satır satır liste) sırayla.
+  "stack-a",
+  "stack-b",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -85,6 +88,8 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   "draw-lines": "listedeki alt satırlar (yer, torba, tarih, sıra)",
   "md-name-a": "takım adı satırı (tek)",
   "md-name-b": "takım adı satırı (çift)",
+  "stack-a": "alt alta satır (tek)",
+  "stack-b": "alt alta satır (çift)",
 };
 
 /**
@@ -93,7 +98,14 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
  * denetlenir: bir katmanın mürekkebi diğerininkine `INK_CLEARANCE` pikselden yakınsa çakışma. Katman, ait
  * olduğu bloğun yerine geçmez — blok kendi kutusuyla ayrıca denetlenir.
  */
-export const INK_LAYERS: ReadonlySet<LayoutBlockId> = new Set<LayoutBlockId>(["draw-names", "draw-lines", "md-name-a", "md-name-b"]);
+export const INK_LAYERS: ReadonlySet<LayoutBlockId> = new Set<LayoutBlockId>(["draw-names", "draw-lines", "md-name-a", "md-name-b", "stack-a", "stack-b"]);
+/**
+ * Genel kural: bir bloğun içinde alt alta duran her satır (Anton başlık ve altındaki/üstündeki satır) sırayla
+ * `stack-a` / `stack-b` katmanına düşer — komşu satırların mürekkebi piksel düzeyinde denetlenir. Katmanı
+ * olmayan öğe (logo, halka) katman ölçülürken gizlenir (`unlayered`), yanlış temas üretmez.
+ */
+export const STACK_LAYERS = ["stack-a", "stack-b"] as const satisfies readonly LayoutBlockId[];
+export const stackLayer = (index: number): LayoutBlockId => (index % 2 === 0 ? "stack-a" : "stack-b");
 export const MATCH_DAY_NAME_LAYERS = ["md-name-a", "md-name-b"] as const satisfies readonly LayoutBlockId[];
 export const DRAW_LIST_LAYERS = ["draw-names", "draw-lines"] as const satisfies readonly LayoutBlockId[];
 
@@ -105,3 +117,6 @@ export const blockOpacity = (only: BlockFilter, id: LayoutBlockId, layers: reado
 
 /** Blok içindeki öğenin katmanı: başka bir katman ölçülürken gizli; blok ölçülürken ya da normal çizimde görünür. */
 export const layerOpacity = (only: BlockFilter, layer: LayoutBlockId): number => (only && INK_LAYERS.has(only) && only !== layer ? 0 : 1);
+
+/** Katmanı olmayan öğe: herhangi bir katman ölçülürken gizli. */
+export const unlayered = (only: BlockFilter): number => (only && INK_LAYERS.has(only) ? 0 : 1);

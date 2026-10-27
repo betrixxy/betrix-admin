@@ -1,8 +1,8 @@
 import { groupRows } from "@/lib/player-h2h/rows";
 import type { H2HCard, H2HPlayerCard, H2HRow } from "@/types/player-h2h";
-import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { STACK_LAYERS, blockOpacity, layerOpacity, unlayered, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
-import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
+import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { MUTED } from "../vitrin/parts";
 import { H2H_SIZES, chartContentHeight, chartRowHeight, type H2HCompareGeometry } from "./geometry";
 import { LOSER_BAR, StatValue, TIE_BAR, upperLabel, valueColor } from "./parts";
@@ -14,7 +14,7 @@ import { LOSER_BAR, StatValue, TIE_BAR, upperLabel, valueColor } from "./parts";
  * solda, kim sağda), altta dipnot. Kutu/panel çerçevesi yok; zemin posterin bulanık hâli (motor).
  */
 
-function Face({ player, k, align }: { player: H2HPlayerCard; k: number; align: "left" | "right" }) {
+function Face({ player, k, align, only }: { player: H2HPlayerCard; k: number; align: "left" | "right"; only: BlockFilter }) {
   const size = px(H2H_SIZES.face, k);
   // İnce halka, takım renginde.
   const ring = Math.max(2, px(2.5, k));
@@ -27,12 +27,13 @@ function Face({ player, k, align }: { player: H2HPlayerCard; k: number; align: "
   );
   const text = (
     <div tw="flex flex-col" style={{ alignItems: align === "left" ? "flex-start" : "flex-end", margin: align === "left" ? `0 0 0 ${px(22, k)}px` : `0 ${px(22, k)}px 0 0` }}>
-      <span style={{ fontFamily: DISPLAY, fontSize: nameSize, lineHeight: 1, color: "#fff" }}>{player.name}</span>
-      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(17, k), lineHeight: 1, letterSpacing: px(17, k) * 0.18, color: MUTED, marginTop: px(12, k) }}>{player.sampleLine}</span>
+      <span style={{ fontFamily: DISPLAY, fontSize: nameSize, lineHeight: 1, color: "#fff", opacity: layerOpacity(only, "stack-a") }}>{player.name}</span>
+      {/* Alt satır adın Ç/Ş/Ğ kuyruğunun altından başlar. */}
+      <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: px(17, k), lineHeight: 1, letterSpacing: px(17, k) * 0.18, color: MUTED, marginTop: Math.ceil(nameSize * DISPLAY_DESCENT_EM) + px(8, k), opacity: layerOpacity(only, "stack-b") }}>{player.sampleLine}</span>
     </div>
   );
   const circle = (
-    <div tw="flex items-center justify-center" style={{ width: size, height: size, borderRadius: size, border: `${ring}px solid ${player.hex}`, backgroundColor: "rgba(7,8,12,0.55)" }}>
+    <div tw="flex items-center justify-center" style={{ width: size, height: size, borderRadius: size, border: `${ring}px solid ${player.hex}`, backgroundColor: "rgba(7,8,12,0.55)", opacity: unlayered(only) }}>
       {photo}
     </div>
   );
@@ -46,9 +47,9 @@ function Face({ player, k, align }: { player: H2HPlayerCard; k: number; align: "
 
 function Faces({ card, g, only }: { card: H2HCard; g: H2HCompareGeometry; only: BlockFilter }) {
   return (
-    <div tw="absolute flex items-center justify-between" style={{ left: g.box.left, top: g.faces.top, width: g.box.right - g.box.left, height: g.faces.height, opacity: blockOpacity(only, "faces") }}>
-      <Face player={card.left} k={g.k} align="left" />
-      <Face player={card.right} k={g.k} align="right" />
+    <div tw="absolute flex items-center justify-between" style={{ left: g.box.left, top: g.faces.top, width: g.box.right - g.box.left, height: g.faces.height, opacity: blockOpacity(only, "faces", STACK_LAYERS) }}>
+      <Face player={card.left} k={g.k} align="left" only={only} />
+      <Face player={card.right} k={g.k} align="right" only={only} />
     </div>
   );
 }

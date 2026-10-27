@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import { FORM_LETTER_TR } from "@/lib/dashboard/studio-stats";
 import type { MatchStats, TeamRecentForm } from "@/types/sports";
 
@@ -23,7 +24,7 @@ function formLine(team: TeamRecentForm): string | null {
 
 function pair(label: string, home: number | null, away: number | null, names: [string, string]): string | null {
   if (home === null || away === null) return null;
-  return `${label}: ${names[0]} ${home.toFixed(2)} · ${names[1]} ${away.toFixed(2)}`;
+  return `${label}: ${names[0]} ${formatNumber(home, { decimals: 2 })} · ${names[1]} ${formatNumber(away, { decimals: 2 })}`;
 }
 
 /** Hashtag'e uygun hale getirir — harf/rakam dışı her şey atılır (Türkçe harfler korunur). */

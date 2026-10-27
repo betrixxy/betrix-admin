@@ -1,7 +1,7 @@
 import sharp, { type Metadata } from "sharp";
 import { getContentType } from "@/lib/dashboard/content-types";
 import { markDraftPublished, type PublishDecision } from "@/lib/dashboard/draft-engine";
-import { captionFacts, captionLength, captionWarnings, publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { CONTENT_MAX_HASHTAGS, captionFacts, captionLength, captionWarnings, publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { signPublicMediaUrl } from "@/lib/dashboard/public-media";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
@@ -29,9 +29,10 @@ export async function generateDraftCaption(id: string, platform: PublishPlatform
   const contentLabel = (record.contentType ? getContentType(record.contentType)?.label : undefined) ?? "Maç içeriği";
   const media = publishMediaOf(record.renderOptions, record.resultImageUrl);
   const facts = captionFacts(contentLabel, baseCaption, media.map((item) => item.label));
-  const result = await generateCaption(platform, facts);
+  const maxHashtags = record.contentType ? (CONTENT_MAX_HASHTAGS[record.contentType] ?? null) : null;
+  const result = await generateCaption(platform, facts, { maxHashtags });
   if (!result.ok) return { ok: false, error: { code: result.error.code, message: result.error.message } };
-  return { ok: true, data: { caption: result.data.caption, warnings: captionWarnings(result.data.caption, platform, JSON.stringify(facts)), source: "ai" } };
+  return { ok: true, data: { caption: result.data.caption, warnings: captionWarnings(result.data.caption, platform, JSON.stringify(facts), maxHashtags), source: "ai" } };
 }
 
 // ---- Hemen Paylaş ----

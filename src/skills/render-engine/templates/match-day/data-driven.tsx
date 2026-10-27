@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { MatchDayCard, MatchDayStats } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
 import { layerOpacity, type BlockFilter } from "../checkmatch-set/blocks";
@@ -93,7 +94,7 @@ function statBoxes(card: MatchDayCard): StatBoxData[] {
     [card.awayTeam, stats.awayGoalsForAvg],
   ];
   for (const [team, value] of goals) {
-    if (value !== null) boxes.push({ caption: "GOL ORTALAMASI", label: clip(team, BOX_TEAM_CHARS), value: value.toFixed(1) });
+    if (value !== null) boxes.push({ caption: "GOL ORTALAMASI", label: clip(team, BOX_TEAM_CHARS), value: formatNumber(value, { maxDecimals: 1 }) });
   }
   if (stats.h2h.played > 0) {
     const caption = `SON ${stats.h2h.played} MAÇ`;

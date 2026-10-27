@@ -1,3 +1,4 @@
+import { formatNumber } from "@/lib/format/number";
 import type { StatBar, StatRowDef, StatRowKey, StatRowValue, StatSection, StatTone } from "@/types/match-stats";
 
 /**
@@ -121,6 +122,6 @@ export function statTones(value: StatRowValue): { home: StatTone; away: StatTone
 /** "%75" · "1,84" · "28" — Türkçe yazım (yüzde başta, ondalık virgül). */
 export function formatStatValue(key: StatRowKey, value: number): string {
   const def = STAT_ROWS[key];
-  const number = value.toLocaleString("tr-TR", { minimumFractionDigits: def.decimals, maximumFractionDigits: def.decimals });
+  const number = formatNumber(value, { decimals: def.decimals });
   return def.percent ? `%${number}` : number;
 }

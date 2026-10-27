@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_HASHTAGS, hashtagCount } from "@/lib/dashboard/vitrin-caption";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { vitrinPublishGate } from "@/lib/prediction/publish-gate";
@@ -41,8 +42,11 @@ export async function vitrinApproval(id: string, publishCaption: string | null, 
   }
   // Kura sonucu: tahmin kaydı yok, yalnızca gönderi metninin dil kapısı (bahis dili yok).
   if (record?.contentType === "DRAWS_AND_PAIRINGS") {
-    const draw = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
-    return draw ? fail("BANNED_LANGUAGE", `${draw} — onaylanmadı.`) : { ok: true, data: [] };
+    const text = publishCaption ?? record.caption ?? "";
+    const draw = bannedWordsGate({ "gönderi metni": text });
+    if (draw) return fail("BANNED_LANGUAGE", `${draw} — onaylanmadı.`);
+    const tags = hashtagCount(text);
+    return tags > MAX_HASHTAGS ? fail("TOO_MANY_HASHTAGS", `Kura metninde en fazla ${MAX_HASHTAGS} hashtag (${tags} var) — onaylanmadı.`) : { ok: true, data: [] };
   }
   const options = record?.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
   if (!record || !options) return { ok: true, data: [] };

@@ -22,7 +22,10 @@ export const H2H_SIZES = {
   firstName: 22,
   name: 84,
   subtitle: 20,
-  players: 60 + 14 + 22 + 8 + 84 + 12 + 20,
+  /** Logo · ad · soyad (Anton) · alt satır; soyadın İ/Ö/É işareti (0,2 em) ve Ç/Ş/Ğ kuyruğu (0,25 em) için pay. */
+  nameAccent: 17,
+  nameDescent: 21,
+  players: 60 + 14 + 22 + 8 + 17 + 84 + 21 + 12 + 20,
   playersGap: 40,
   modeLabel: 18,
   modeGap: 22,
