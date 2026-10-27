@@ -1,4 +1,5 @@
-import { competitionKind, competitionName, resultRoundLabel, teamNameTr } from "@/lib/dashboard/match-result-labels";
+import { cardTeamName } from "@/lib/archive/names";
+import { competitionKind, competitionName, resultRoundLabel } from "@/lib/dashboard/match-result-labels";
 import { teamColorHex } from "@/lib/dashboard/match-result-theme";
 import { findTeamLineup, lineupColorHex } from "@/lib/services/api-football/lineup-mappers";
 import type { ApiFootballEventRaw, ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -139,7 +140,7 @@ function resultTeam(raw: ApiFootballFixtureResultRaw, side: MatchSide, goals: Ap
   const lineup = findTeamLineup(raw.lineups, team.id);
   return {
     id: team.id,
-    name: teamNameTr(team.name),
+    name: cardTeamName(team.name),
     logoUrl: team.logo,
     goals: (side === "HOME" ? raw.goals.home : raw.goals.away) ?? 0,
     scorers: scorerLines(goals, team.id),

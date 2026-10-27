@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import type { Fixture } from "@/types/sports";
 import type { StudioFormatDef } from "@/types/ai-content";
 
@@ -85,8 +86,8 @@ function portraitLayout({ format, fixture, statRows, playerDataUri, logoDataUri 
   const panelHeight = statRows.length ? statRows.length * rowHeight + rowHeight * 0.4 : 0;
   const panelY = H - safeBottom - panelHeight;
   const titleY = safeTop + 150;
-  const home = fixture.homeTeam.name;
-  const away = fixture.awayTeam.name;
+  const home = cardTeamName(fixture.homeTeam.name);
+  const away = cardTeamName(fixture.awayTeam.name);
   const playerTop = titleY + 250;
   const playerHeight = Math.max(200, panelY - 30 - playerTop);
 
@@ -106,8 +107,8 @@ function landscapeLayout({ format, fixture, statRows, playerDataUri, logoDataUri
   const { width: W, height: H } = format;
   const margin = W * 0.05;
   const leftWidth = W * 0.52;
-  const home = fixture.homeTeam.name;
-  const away = fixture.awayTeam.name;
+  const home = cardTeamName(fixture.homeTeam.name);
+  const away = cardTeamName(fixture.awayTeam.name);
   const rowHeight = 46;
   const panelHeight = statRows.length ? statRows.length * rowHeight + rowHeight * 0.4 : 0;
 

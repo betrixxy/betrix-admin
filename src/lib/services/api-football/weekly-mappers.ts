@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { toFixtureId } from "@/lib/services/api-football/mappers";
 import type { ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
 import type { WeeklyMatch, WeeklyMatchStatus, WeeklyRoundOption } from "@/types/weekly-fixtures";
@@ -112,8 +113,8 @@ export function toWeeklyMatch(raw: ApiFootballFixtureRaw, standingsGroups: Reado
     time: timeKnown ? ISTANBUL_TIME.format(kickoff).replace(":", ".") : "",
     status: matchStatus(raw.fixture.status.short),
     elapsed: raw.fixture.status.elapsed,
-    home: { name: raw.teams.home.name, logoUrl: raw.teams.home.logo, goals: raw.goals.home },
-    away: { name: raw.teams.away.name, logoUrl: raw.teams.away.logo, goals: raw.goals.away },
+    home: { name: cardTeamName(raw.teams.home.name), logoUrl: raw.teams.home.logo, goals: raw.goals.home },
+    away: { name: cardTeamName(raw.teams.away.name), logoUrl: raw.teams.away.logo, goals: raw.goals.away },
     group: groupOf(raw, standingsGroups),
   };
 }

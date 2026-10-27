@@ -47,6 +47,38 @@ export function ListTitle({ title, subtitle, accent, g, only }: { title: string;
   );
 }
 
+/**
+ * Ev / deplasman ikonu — Lucide `house` / `plane` (lucide-react 1.47, ISC) satır içi SVG. Kutusu etiketin
+ * yazı boyu kadar (çizim ≈ 0,78 em ≈ büyük harf yüksekliği); kontur etiketin kalın harfine uysun diye 2,5.
+ */
+const VENUE_ICON_PATHS = {
+  HOME: ["M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8", "M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"],
+  AWAY: ["M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"],
+} as const;
+
+/** İkonun etiketin solunda kapladığı genişlik (em): kutu 1 + boşluk 0,4. */
+export const VENUE_ICON_EM = 1.4;
+
+export function VenueIcon({ venue, size, color }: { venue: "HOME" | "AWAY"; size: number; color: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ marginRight: Math.round(size * 0.4) }}>
+      {VENUE_ICON_PATHS[venue].map((d) => (
+        <path key={d} d={d} stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </svg>
+  );
+}
+
+/** İkon + yer etiketi ("İÇ SAHA" / "DEPLASMAN" ya da kısa "EV" / "DEP"); ikon etiketle aynı renk ve boyda. */
+export function VenueTag({ venue, text, size, color, spacing = 0.18 }: { venue: "HOME" | "AWAY"; text: string; size: number; color: string; spacing?: number }) {
+  return (
+    <div tw="flex items-center">
+      <VenueIcon venue={venue} size={size} color={color} />
+      <Caps text={text} size={size} color={color} weight={900} spacing={spacing} />
+    </div>
+  );
+}
+
 /** Küçük, aralıklı büyük harf satır; `maxWidth` verilirse sığana kadar küçülür (Geist kalın ≈ 0,72 em + harf aralığı). */
 export function Caps({ text, size, color = MUTED, weight = 700, spacing = 0.18, maxWidth }: { text: string; size: number; color?: string; weight?: number; spacing?: number; maxWidth?: number }) {
   const fitted = maxWidth ? fitFontSize(text, maxWidth, size, 0.72 + spacing, Math.round(size * 0.55)) : size;

@@ -70,59 +70,6 @@ export function resultRoundLabel(round: string): string {
   return roundLabel(round);
 }
 
-/** API-Football'un ASCII/İngilizce takım adları → Türkçe yazımı. Listede olmayan ad olduğu gibi kalır. */
-const TEAM_NAMES_TR: Record<string, string> = {
-  Besiktas: "Beşiktaş",
-  Fenerbahce: "Fenerbahçe",
-  Basaksehir: "Başakşehir",
-  "Istanbul Basaksehir": "Başakşehir",
-  Goztepe: "Göztepe",
-  Kasimpasa: "Kasımpaşa",
-  Eyupspor: "Eyüpspor",
-  Genclerbirligi: "Gençlerbirliği",
-  "Fatih Karagumruk": "Fatih Karagümrük",
-  Karagumruk: "Fatih Karagümrük",
-  Rizespor: "Çaykur Rizespor",
-  // Kart adı kuralı: medyada yaygın kullanılan ad. Gaziantep FK, Çorum FK, Bodrum FK ekiyle
-  // (API adı zaten öyle); Erzurumspor ve Vanspor eksiz.
-  "Erzurumspor FK": "Erzurumspor",
-  "Vanspor FK": "Vanspor",
-  "Manisa F.K.": "Manisa FK",
-  Istanbulspor: "İstanbulspor",
-  Bandirmaspor: "Bandırmaspor",
-  "Corum FK": "Çorum FK",
-  "Igdir FK": "Iğdır FK",
-  Keciorengucu: "Keçiörengücü",
-  Umraniyespor: "Ümraniyespor",
-  "Gençlerbirliği S.K.": "Gençlerbirliği",
-  Turkey: "Türkiye",
-  "1899 Hoffenheim": "Hoffenheim",
-  "Bayern Munich": "Bayern Münih",
-  "Bayer Leverkusen": "Leverkusen",
-  "Borussia Dortmund": "Dortmund",
-  "Eintracht Frankfurt": "Frankfurt",
-  "Paris Saint Germain": "PSG",
-  "Inter Milan": "Inter",
-  "AC Milan": "Milan",
-  Marseille: "Marsilya",
-  "Sporting CP": "Sporting",
-  "Red Star Belgrade": "Kızılyıldız",
-  "FC Midtjylland": "Midtjylland",
-  Germany: "Almanya",
-  Spain: "İspanya",
-  Italy: "İtalya",
-  France: "Fransa",
-  England: "İngiltere",
-  Netherlands: "Hollanda",
-  Portugal: "Portekiz",
-  Croatia: "Hırvatistan",
-  Georgia: "Gürcistan",
-};
-
-export function teamNameTr(name: string): string {
-  return TEAM_NAMES_TR[name.trim()] ?? name.trim();
-}
-
 export function upperTr(value: string): string {
   return value.toLocaleUpperCase("tr-TR");
 }

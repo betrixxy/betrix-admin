@@ -3,12 +3,12 @@ import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { DRAW_SIZES, type DrawListGeometry } from "./geometry";
-import { Caps, ListTitle, MUTED } from "./parts";
+import { Caps, ListTitle, MUTED, VENUE_ICON_EM, VenueTag } from "./parts";
 
 /**
  * B · TEMSİLCİLERİMİZ — Türk takımlarının hepsi tek kartta (1–5 satır; satır yüksekliği takım sayısına
  * göre). Eleme: logo + ad → rakip logosu + adı + sıra. Lig aşaması: takım başına kompakt satır — rakip
- * logoları yan yana, altında EV / DEP. Satırlar arasında yalnızca ince çizgi.
+ * logoları yan yana, altında ev / uçak ikonu + EV / DEP. Satırlar arasında yalnızca ince çizgi.
  */
 
 /** Kısa yer etiketi. Not: Satori tek başına "İÇ"/"İ" dizgesini küçük harf gibi çiziyor ("İÇ SAHA" doğru) — "EV" kullanılır. */
@@ -23,6 +23,8 @@ function Row({ row, card, width, height, k }: { row: DrawTurkishRow; card: DrawC
   const count = row.opponents.length;
   const slot = Math.floor(rightWidth / Math.max(1, count));
   const small = Math.min(px(58, k), slot - px(10, k), Math.round(height * 0.42));
+  // Logo altındaki etiket en küçük formatta da okunur: en az 12 px; "DEP" + ikon yuvaya sığar.
+  const venueSize = Math.max(12, Math.min(px(15, k), Math.floor((slot - px(6, k)) / (3 * 0.84 + VENUE_ICON_EM))));
   return (
     <div tw="flex items-center" style={{ width, height, borderTop: `1px solid rgba(255,255,255,0.12)` }}>
       <div tw="flex items-center" style={{ width: leftWidth }}>
@@ -46,7 +48,7 @@ function Row({ row, card, width, height, k }: { row: DrawTurkishRow; card: DrawC
           {row.opponents.map((opponent) => (
             <div key={opponent.team.id} tw="flex flex-col items-center" style={{ width: slot }}>
               <TeamLogo src={opponent.team.logo} name={opponent.team.name} size={small} />
-              <div tw="flex" style={{ marginTop: px(6, k) }}><Caps text={VENUE_SHORT[opponent.venue]} size={px(12, k)} color={opponent.venue === "HOME" ? card.accentHex : MUTED} weight={900} spacing={0.12} /></div>
+              <div tw="flex" style={{ marginTop: px(8, k) }}><VenueTag venue={opponent.venue} text={VENUE_SHORT[opponent.venue]} size={venueSize} color={opponent.venue === "HOME" ? card.accentHex : MUTED} spacing={0.12} /></div>
             </div>
           ))}
         </div>

@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { isFinishedStatus } from "@/lib/services/api-football/mappers";
 import type { ApiFootballFixtureDetailRaw, ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
 import type { HeadToHeadSummary, MatchResultLetter, TeamRecentForm } from "@/types/sports";
@@ -103,8 +104,8 @@ export function computeHeadToHead(fixtures: ApiFootballFixtureRaw[], homeTeamId:
 
     summary.matches.push({
       kickoffUtc: new Date(raw.fixture.date).toISOString(),
-      homeTeamName: raw.teams.home.name,
-      awayTeamName: raw.teams.away.name,
+      homeTeamName: cardTeamName(raw.teams.home.name),
+      awayTeamName: cardTeamName(raw.teams.away.name),
       homeGoals: raw.goals.home,
       awayGoals: raw.goals.away,
     });

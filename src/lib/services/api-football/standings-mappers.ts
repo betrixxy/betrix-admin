@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { z } from "zod";
 import type { StandingRow, StandingsGroup, StandingZone } from "@/types/standings";
 
@@ -44,7 +45,7 @@ export function toStandingRow(raw: StandingsRowRaw): StandingRow {
   return {
     rank: raw.rank,
     teamId: raw.team.id,
-    teamName: raw.team.name,
+    teamName: cardTeamName(raw.team.name),
     logoUrl: raw.team.logo,
     played: raw.all.played ?? 0,
     win: raw.all.win ?? 0,

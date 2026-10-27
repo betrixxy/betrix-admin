@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { getSelectableFixtures, formatFixtureLabel } from "@/lib/dashboard/fixtures";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import type { Result } from "@/types/result";
@@ -29,8 +30,8 @@ function toOption(fixture: Fixture): MatchDayFixtureOption {
   return {
     id: fixture.id,
     label: `${formatFixtureLabel(fixture)} · ${fixture.competition.shortName}`,
-    homeTeam: fixture.homeTeam.name,
-    awayTeam: fixture.awayTeam.name,
+    homeTeam: cardTeamName(fixture.homeTeam.name),
+    awayTeam: cardTeamName(fixture.awayTeam.name),
     homeTeamId: Number(fixture.homeTeam.id),
     awayTeamId: Number(fixture.awayTeam.id),
     homeLogoUrl: fixture.homeTeam.logoUrl,
