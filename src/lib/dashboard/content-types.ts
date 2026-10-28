@@ -44,16 +44,15 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
   {
     id: "PLAYER_H2H",
     label: "Oyuncu Karşılaştırması",
-    description: "İki oyuncunun sezon istatistikleri karşı karşıya — poster + kelebek grafiği (maçtan ya da serbest).",
+    description: "Head to Head: iki oyuncunun sezon istatistikleri karşı karşıya — poster + kelebek grafiği; maçtan açılınca iki takımın önerilen oyuncularıyla dolar.",
     phase: "pre_match",
     status: "active",
     route: "/dashboard/studio/player-h2h",
   },
-  { id: "HEAD_TO_HEAD", label: "Head to Head", description: "İki takımın aralarındaki son maçlar.", phase: "pre_match", status: "coming_soon", route: null },
   {
     id: "DRAWS_AND_PAIRINGS",
     label: "Kura Sonucu",
-    description: "Avrupa kupası kurası: takım odaklı poster + rakipler, temsilcilerimiz, tüm eşleşmeler — kura sırasında hızlı giriş.",
+    description: "Avrupa kupası kurası: takım odaklı poster + rakipler, temsilcilerimiz, tüm eşleşmeler — maçtan açılınca maçın turnuvası ve sezonu seçili gelir (ana giriş: AI İçerik Stüdyosu).",
     phase: "pre_match",
     status: "active",
     route: "/dashboard/studio/draw",

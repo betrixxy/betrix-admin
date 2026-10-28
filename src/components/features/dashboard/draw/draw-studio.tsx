@@ -44,13 +44,15 @@ interface Saved {
 export interface DrawStudioProps {
   initial: (Saved & { photoId: string | null }) | null;
   initialComparison: DrawComparison[] | null;
+  /** Yeni kurada seçili turnuva + sezon — Maç Merkezi'nden açılınca maçın turnuvası (bkz. `drawSetupForLeague`). */
+  defaultCompetitionId: number;
   defaultSeason: number;
 }
 
-export function DrawStudio({ initial, initialComparison, defaultSeason }: DrawStudioProps) {
+export function DrawStudio({ initial, initialComparison, defaultCompetitionId, defaultSeason }: DrawStudioProps) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [sessions, setSessions] = useState<DrawSession[]>(initial?.sessions ?? [newSession(2, defaultSeason, "LEAGUE")]);
+  const [sessions, setSessions] = useState<DrawSession[]>(initial?.sessions ?? [newSession(defaultCompetitionId, defaultSeason, "LEAGUE")]);
   const [active, setActive] = useState(0);
   const [variant, setVariant] = useState<DrawVariant>(initial?.variant ?? "TEAM");
   const [format, setFormat] = useState<MatchDayFormatId>(initial?.format ?? "IG_PORTRAIT");
