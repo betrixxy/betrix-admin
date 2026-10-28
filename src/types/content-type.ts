@@ -15,7 +15,6 @@ export const CONTENT_TYPE_IDS = [
   "MARKET_RESULTS",
   "POST_MATCH_REPORT",
   "STANDINGS",
-  "HEAD_TO_HEAD",
   "DRAWS_AND_PAIRINGS",
 ] as const;
 export type ContentTypeId = (typeof CONTENT_TYPE_IDS)[number];

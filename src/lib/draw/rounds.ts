@@ -11,6 +11,8 @@ export const DRAW_COMPETITIONS = [
   { id: 848, name: "UEFA Konferans Ligi", short: "Konferans Ligi" },
 ] as const;
 export type DrawCompetitionId = (typeof DRAW_COMPETITIONS)[number]["id"];
+/** Doğrudan açılışta (AI İçerik Stüdyosu / menü) seçili turnuva: Şampiyonlar Ligi. */
+export const DEFAULT_DRAW_COMPETITION_ID: DrawCompetitionId = 2;
 
 export interface DrawRoundDef {
   id: string;
@@ -34,6 +36,15 @@ export const DRAW_ROUNDS: readonly DrawRoundDef[] = [
 export const drawRound = (id: string): DrawRoundDef | undefined => DRAW_ROUNDS.find((round) => round.id === id);
 export const drawRoundByLabel = (label: string): DrawRoundDef | undefined => DRAW_ROUNDS.find((round) => round.label === label);
 export const drawCompetition = (id: number) => DRAW_COMPETITIONS.find((competition) => competition.id === id);
+
+/**
+ * Maç Merkezi'nden açılış: maçın API-Football ligi (`league.id` + `league.season`) bir kura turnuvasıysa
+ * stüdyo o turnuva ve sezonla açılır; yurt içi lig vb. → null (varsayılan turnuva).
+ */
+export function drawSetupForLeague(league: { id: number; season: number }): { competitionId: DrawCompetitionId; season: number } | null {
+  const competition = drawCompetition(league.id);
+  return competition ? { competitionId: competition.id, season: league.season } : null;
+}
 
 /** Sezon başlangıç yılı → "2026/27". */
 export const seasonText = (season: number) => `${season}/${String((season + 1) % 100).padStart(2, "0")}`;
