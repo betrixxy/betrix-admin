@@ -3,7 +3,6 @@ import { AlertTriangle } from "lucide-react";
 import { LineupForm } from "@/components/features/dashboard/lineup/lineup-form";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
-import { isFalConfigured } from "@/lib/services/fal";
 
 export const metadata: Metadata = {
   title: "Muhtemel 11 — betrix.pro",
@@ -28,7 +27,7 @@ export default async function LineupPage({ searchParams }: LineupPageProps) {
     <>
       <PageHeader
         title="Muhtemel 11"
-        description="Maçı seçin; açıklanmış ilk 11 ya da takımların son maçtaki 11'i ve dizilişi taslak olarak gelir. Dizilişi ve 11 pozisyonu kadrodan seçip iki takımın kadro kartını önizleyin — oyuncu fotoğrafı kullanılmaz."
+        description="Maçı seçin; açıklanmış ilk 11 ya da takımların son maçtaki 11'i ve dizilişi taslak olarak gelir. Dizilişi ve 11 pozisyonu kadrodan seçip iki takımın kadro kartını önizleyin. Kahraman Liste şablonunda kapak fotoğrafı Fotoğraf Arşivi'nden gelir."
       />
 
       {!fixtures.ok ? (
@@ -38,7 +37,7 @@ export default async function LineupPage({ searchParams }: LineupPageProps) {
         </div>
       ) : null}
 
-      <LineupForm fixtures={fixtureList} initialFixtureId={initialFixtureId} falConfigured={isFalConfigured()} />
+      <LineupForm fixtures={fixtureList} initialFixtureId={initialFixtureId} />
     </>
   );
 }

@@ -24,7 +24,8 @@ export function emptyTeamLineup(teamName = "", logoUrl = ""): TeamLineupDraft {
     teamName,
     logoUrl,
     colorHex: "",
-    heroImageUrl: "",
+    heroPhotoId: "",
+    heroAdjust: null,
     formation: DEFAULT_FORMATION,
     slots: Array.from({ length: LINEUP_SIZE }, emptySlot),
     coach: "",
@@ -89,9 +90,9 @@ export function lineupIssues(team: TeamLineupDraft): string[] {
 }
 
 /**
- * Tek kartın gerçekte çizileceği şablon — her takım bağımsız: "Kahraman Liste" seçiliyse kapak kesimi
- * olan takım liste, olmayan takım taktik tahtası olarak çizilir (kapaksız liste kartı çizilmez).
+ * Tek kartın gerçekte çizileceği şablon — her takım bağımsız: "Kahraman Liste" seçiliyse kapak fotoğrafı
+ * seçilen takım liste, seçilmeyen takım taktik tahtası olarak çizilir (kapaksız liste kartı çizilmez).
  */
-export function cardTemplateStyle(selected: LineupTemplateStyle, team: Pick<TeamLineupDraft, "heroImageUrl">): LineupTemplateStyle {
-  return selected === "hero_list" && team.heroImageUrl ? "hero_list" : "pitch";
+export function cardTemplateStyle(selected: LineupTemplateStyle, team: Pick<TeamLineupDraft, "heroPhotoId">): LineupTemplateStyle {
+  return selected === "hero_list" && team.heroPhotoId ? "hero_list" : "pitch";
 }

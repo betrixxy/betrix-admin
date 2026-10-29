@@ -49,20 +49,20 @@ describe("logo paleti", () => {
 });
 
 describe("Kahraman Liste kapak kuralı (takım başına bağımsız)", () => {
-  const team = (heroImageUrl: string) => ({ ...emptyTeamLineup("Takım"), heroImageUrl });
-  const cutout = "/api/files/generated/cutout-v1-" + "a".repeat(64) + ".png";
+  const team = (heroPhotoId: string) => ({ ...emptyTeamLineup("Takım"), heroPhotoId });
+  const photo = "cm0arsivfotografi000000001";
 
   it("kapağı olan takım liste çizilir", () => {
-    assert.equal(cardTemplateStyle("hero_list", team(cutout)), "hero_list");
+    assert.equal(cardTemplateStyle("hero_list", team(photo)), "hero_list");
   });
 
   it("yalnızca kapağı eksik takım taktik tahtasına düşer — diğer takımı etkilemez", () => {
-    const [home, away] = [team(cutout), team("")];
+    const [home, away] = [team(photo), team("")];
     assert.deepEqual([cardTemplateStyle("hero_list", home), cardTemplateStyle("hero_list", away)], ["hero_list", "pitch"]);
   });
 
   it("taktik tahtası seçimi kapaktan bağımsızdır", () => {
-    assert.equal(cardTemplateStyle("pitch", team(cutout)), "pitch");
+    assert.equal(cardTemplateStyle("pitch", team(photo)), "pitch");
   });
 });
 

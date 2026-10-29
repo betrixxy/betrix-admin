@@ -1,4 +1,5 @@
 import type { NameOrigin, TeamOrigin } from "@/lib/dashboard/name-case";
+import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import type { SocialFormatId } from "@/types/studio-formats";
 
 /**
@@ -72,17 +73,25 @@ export interface LineupSlot {
 }
 
 /**
- * Kart yalnızca kesim motorunun yazdığı şeffaf oyuncu PNG'sini kapak olarak kabul eder
- * (birefnet çıktısı, `match-day-cache.ts::playerCutoutUrl`) — formdan gelen başka adres çizilmez.
+ * Kahraman Liste kapağının elle ayarı (null = otomatik: yüz tespiti + akıllı kırpma). Kaydırma −1..1
+ * (kadrajın yarısı), zoom 1..2 (null = otomatik zoom). Oyuncu Karşılaştırması ile aynı ölçek.
  */
-export const LINEUP_HERO_PATTERN = /^\/api\/files\/generated\/cutout-v\d+-[a-f0-9]{64}\.png$/;
+export interface LineupHeroAdjust {
+  x: number;
+  y: number;
+  zoom: number | null;
+}
 
 export interface TeamLineupDraft {
   teamName: string;
   logoUrl: string;
   colorHex: string;
-  /** Kapak oyuncusunun şeffaf kesimi (LINEUP_HERO_PATTERN) — yalnızca `hero_list` şablonu çizer; boşsa kapaksız. */
-  heroImageUrl: string;
+  /**
+   * Kapak: Fotoğraf Arşivi'nden seçilen, takımın KENDİ formalı fotoğrafı (`Photo.id`); boşsa kapaksız
+   * (kart Taktik Tahtası çizilir). Sunucu fotoğrafın o takıma ve formaya ait olduğunu doğrular.
+   */
+  heroPhotoId: string;
+  heroAdjust: LineupHeroAdjust | null;
   /** "4-2-3-1" gibi; kaleci hariç satırlar toplamı 10 olmalı. */
   formation: string;
   slots: LineupSlot[];
@@ -164,4 +173,9 @@ export interface LineupCardInput {
   format: SocialFormatId;
   /** Ad büyük harfi için takım kökenleri (motor maçtan doldurur, bkz. team-origin.ts). */
   origins?: { team: TeamOrigin; opponent: TeamOrigin };
+  /**
+   * Kahraman Liste kapağının baytları (sunucu `team.heroPhotoId`'den çözer; çizim DB'siz kalır). Yoksa ya da
+   * şablon taktik tahtasıysa kapak çizilmez.
+   */
+  heroPhoto?: UploadedImage | null;
 }

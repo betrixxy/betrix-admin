@@ -69,7 +69,11 @@ async function programmaticPanel(width: number, height: number, hex: string, sid
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined): Promise<Result<Buffer>> {
+/**
+ * Tek fotoğraf paneli (kalite kapısı → yüz tespiti → akıllı kırpma / elle ayar → split-tone → takım ışığı);
+ * fotoğraf yoksa programatik panel. `safe` panele göre yüzün düşeceği bölge. Muhtemel 11 kapağı da kullanır.
+ */
+export async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined): Promise<Result<Buffer>> {
   const { width, height } = size(panel);
   if (!image) return { ok: true, data: await programmaticPanel(width, height, hex, side) };
   const quality = await checkPhotoQuality(image, upscale);

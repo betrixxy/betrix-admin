@@ -1,125 +1,119 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
-import { AlertCircle, LoaderCircle, Scissors, Trash2 } from "lucide-react";
-import { generateLineupHeroAction } from "@/app/dashboard/studio/lineup/actions";
+import { useCallback, useRef, useState, useTransition } from "react";
+import { AlertCircle, LoaderCircle, Upload } from "lucide-react";
+import { uploadLineupHeroAction } from "@/app/dashboard/studio/lineup/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
+import { CropAdjust } from "@/components/features/dashboard/player-h2h/crop-adjust";
 import type { TeamSide } from "@/types/deep-analysis";
-import type { LineupDraft } from "@/types/lineup";
-import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
+import type { LineupDraft, TeamLineupDraft } from "@/types/lineup";
 
 interface LineupHeroFieldsProps {
   draft: LineupDraft;
   /** Seçili maçtaki takımların API-Football kimlikleri — seçici her tarafta o takımın arşivini açar. */
   teamIds: Record<TeamSide, number | null>;
-  falConfigured: boolean;
-  onHeroChange: (side: TeamSide, heroImageUrl: string) => void;
+  onHeroChange: (side: TeamSide, hero: Pick<TeamLineupDraft, "heroPhotoId" | "heroAdjust">) => void;
 }
 
 const SIDE_LABELS: Record<TeamSide, string> = { home: "Ev sahibi", away: "Deplasman" };
 
-interface SideStatus {
-  pending: boolean;
-  error: string | null;
-  note: string | null;
-}
+/** Vitrin/Oyuncu Karşılaştırması ile aynı elle ayar sınırı. */
+const MAX_ZOOM = 2;
 
 /**
- * Kapak oyuncusu: her takım için kütüphaneden seçilen ya da yüklenen fotoğraf → Fal.ai kesimi
- * (birefnet, fotoğraf başına bir kez ücretli). Dosya alanları sekmelerin dışında tek bir formdadır:
- * sekme değişince seçim kaybolmaz. Kesim bir kez üretilir; önizleme ve kayıt onu kullanır.
+ * Kahraman Liste kapağı: her takım için Fotoğraf Arşivi'nden yalnızca O TAKIMIN KENDİ formalı fotoğrafları
+ * (sunucu takım + formayı yeniden doğrular). "Yeni yükle": fotoğraf arşive o takım ve seçilen kişiyle
+ * etiketlenerek girer (forma takımı yine o takım olmalı), sonra seçili gelir. Fotoğraf Vitrin hattından
+ * geçer — yüz tespiti, akıllı kırpma, tonlama; "Otomatik" kaldırılınca elle kaydırma/zoom. Ücretli adım yok.
  */
-export function LineupHeroFields({ draft, teamIds, falConfigured, onHeroChange }: LineupHeroFieldsProps) {
+export function LineupHeroFields({ draft, teamIds, onHeroChange }: LineupHeroFieldsProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Kapak Fotoğrafı · Kahraman Liste</CardTitle>
+        <CardDescription>
+          Her takım için arşivden takımın kendi formalı bir fotoğraf seçin ya da yeni yükleyin (saha oyuncusu önerilir). Yüz otomatik
+          bulunur ve kartın sol bölgesine yerleştirilir; gerekirse elle ayarlayın. Fotoğrafı olmayan takım Taktik Tahtası olarak çizilir.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-5 md:grid-cols-2">
+        {(["home", "away"] as const).map((side) => (
+          <HeroSide key={side} side={side} draft={draft} teamId={teamIds[side]} onHeroChange={onHeroChange} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft: LineupDraft; teamId: number | null; onHeroChange: LineupHeroFieldsProps["onHeroChange"] }) {
+  const team = draft[side];
   const formRef = useRef<HTMLFormElement>(null);
-  const [status, setStatus] = useState<Record<TeamSide, SideStatus>>({
-    home: { pending: false, error: null, note: null },
-    away: { pending: false, error: null, note: null },
-  });
-  const [, startGenerating] = useTransition();
+  const [uploadMode, setUploadMode] = useState(false);
+  const [reload, setReload] = useState<{ key: number; selectPhotoId: string | null } | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [isUploading, startUploading] = useTransition();
 
-  const update = (side: TeamSide, next: Partial<SideStatus>) => setStatus((current) => ({ ...current, [side]: { ...current[side], ...next } }));
+  // Seçici her durum değişiminde çağırır: yalnızca gerçekten değişen fotoğraf forma yazılır (ayar sıfırlanır).
+  const onPick = useCallback(
+    (selection: PickerSelection) => {
+      setUploadMode(selection.upload);
+      const photoId = selection.photoId ?? "";
+      if (photoId !== team.heroPhotoId) onHeroChange(side, { heroPhotoId: photoId, heroAdjust: null });
+    },
+    [side, team.heroPhotoId, onHeroChange],
+  );
 
-  function generate(side: TeamSide) {
+  function upload() {
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
     formData.set("side", side);
     formData.set("fixtureId", draft.fixtureId);
-    formData.set("teamName", draft[side].teamName);
-    update(side, { pending: true, error: null, note: null });
-    startGenerating(async () => {
-      const result = await generateLineupHeroAction(formData);
+    setError(null);
+    startUploading(async () => {
+      const result = await uploadLineupHeroAction(formData);
       if (!result.ok) {
-        update(side, { pending: false, error: result.error.message });
+        setError(result.error.message);
         return;
       }
-      onHeroChange(side, result.data.heroImageUrl);
-      update(side, { pending: false, note: result.data.paidCalls ? `${result.data.paidCalls} ücretli Fal.ai çağrısı` : "Kesim önbellekten (ücretsiz)" });
+      // Arşiv yeniden yüklenir, yeni fotoğraf seçili gelir (seçici onu forma bildirir).
+      setReload((current) => ({ key: (current?.key ?? 0) + 1, selectPhotoId: result.data.photoId }));
     });
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Hero Fotoğrafı · Kapak Oyuncusu (Fal.ai)</CardTitle>
-        <CardDescription>
-          Her takım için öne çıkacak oyuncunun fotoğrafını seçin ya da yükleyin (kısa kenar ≥ 1024px önerilir; küçükse AI ile büyütülür).
-          Arka planı birefnet ile temizlenir ve kartın sol yarısına yerleşir. Aynı fotoğraf ikinci kez ücret çıkarmaz. Kapak isteğe bağlıdır —
-          yoksa liste ortalanıp genişler.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="grid gap-5 md:grid-cols-2">
-          {(["home", "away"] as const).map((side) => {
-            const team = draft[side];
-            const state = status[side];
-            return (
-              <div key={side} className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
-                <ArchivePhotoPicker
-                  name={`${side}Hero`}
-                  label={`${team.teamName || SIDE_LABELS[side]} · kapak oyuncusu`}
-                  teams={teamIds[side] ? [{ id: teamIds[side], name: team.teamName }] : []}
-                  fixtureId={draft.fixtureId || null}
-                />
-                {team.heroImageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- korumalı depolama dosyası, küçük önizleme.
-                  <img
-                    src={team.heroImageUrl}
-                    alt={`${team.teamName} kapak oyuncusu kesimi`}
-                    className="h-40 w-full rounded-md bg-[repeating-conic-gradient(#ffffff10_0_25%,transparent_0_50%)] bg-[length:16px_16px] object-contain ring-1 ring-border"
-                  />
-                ) : null}
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="flex-1"
-                    disabled={!falConfigured || !team.teamName || state.pending}
-                    onClick={() => generate(side)}
-                    title={falConfigured ? undefined : "FAL_KEY tanımlı değil"}
-                  >
-                    {state.pending ? <LoaderCircle className="animate-spin" /> : <Scissors />}
-                    {state.pending ? "Kesiliyor…" : team.heroImageUrl ? "Kesimi yenile" : "Kesimi üret"}
-                  </Button>
-                  {team.heroImageUrl ? (
-                    <Button type="button" size="sm" variant="outline" onClick={() => onHeroChange(side, "")} title="Kartı kapaksız çiz">
-                      <Trash2 />
-                    </Button>
-                  ) : null}
-                </div>
-                {state.note ? <p className="text-[11px] text-muted-foreground">{state.note}</p> : null}
-                {state.error ? (
-                  <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
-                    <AlertCircle className="size-3.5 shrink-0" />
-                    {state.error}
-                  </p>
-                ) : null}
-              </div>
-            );
-          })}
-          {!falConfigured ? <p className="text-xs text-muted-foreground md:col-span-2">FAL_KEY tanımlı değil — kesim üretilemez; kart kapaksız çizilir.</p> : null}
-        </form>
-      </CardContent>
-    </Card>
+    <form ref={formRef} onSubmit={(event) => event.preventDefault()} className="flex flex-col gap-2 rounded-lg border border-border/60 p-3">
+      <ArchivePhotoPicker
+        name={`${side}Hero`}
+        label={`${team.teamName || SIDE_LABELS[side]} · kapak fotoğrafı`}
+        teams={teamId ? [{ id: teamId, name: team.teamName }] : []}
+        fixtureId={draft.fixtureId || null}
+        kitOnly
+        reload={reload}
+        onChange={onPick}
+      />
+      {uploadMode ? (
+        <Button type="button" size="sm" onClick={upload} disabled={isUploading || !draft.fixtureId}>
+          {isUploading ? <LoaderCircle className="animate-spin" /> : <Upload />}
+          {isUploading ? "Arşive yükleniyor…" : "Arşive yükle ve seç"}
+        </Button>
+      ) : null}
+      {error ? (
+        <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
+          <AlertCircle className="size-3.5 shrink-0" />
+          {error}
+        </p>
+      ) : null}
+      {team.heroPhotoId && !uploadMode ? (
+        <CropAdjust
+          id={`${side}-hero-adjust`}
+          title="Kadraj"
+          value={team.heroAdjust}
+          onChange={(heroAdjust) => onHeroChange(side, { heroPhotoId: team.heroPhotoId, heroAdjust })}
+          maxZoom={MAX_ZOOM}
+        />
+      ) : null}
+    </form>
   );
 }

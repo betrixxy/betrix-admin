@@ -4,7 +4,7 @@ import type { BlockFilter } from "../checkmatch-set/blocks";
 import { BODY } from "../studio-tokens";
 import { LineupFooter, LineupHeader } from "./lineup-chrome";
 import { lineupGeometry } from "./lineup-geometry";
-import { LineupHeroList, type LineupHeroImage } from "./lineup-hero-list";
+import { LineupHeroList } from "./lineup-hero-list";
 import { LineupPitch } from "./lineup-pitch";
 
 /**
@@ -20,13 +20,12 @@ import { LineupPitch } from "./lineup-pitch";
  */
 
 export { lineupGeometry } from "./lineup-geometry";
-export type { LineupHeroImage } from "./lineup-hero-list";
 
-/** Kapak yalnızca liste şablonunda vardır ve orada zorunludur — tip, kapaksız listeyi imkânsız kılar. */
-type TemplateLayer = { templateStyle: "pitch"; hero: null } | { templateStyle: "hero_list"; hero: LineupHeroImage };
-
-export type LineupCardData = Omit<LineupCardInput, "templateStyle"> &
-  TemplateLayer & {
+/**
+ * Kapak yalnızca liste şablonunda vardır ve orada zorunludur; fotoğraf bu katmanın altındaki sanat
+ * katmanında çizilir (render tarafı kapak yoksa taktik tahtasına düşer).
+ */
+export type LineupCardData = Omit<LineupCardInput, "heroPhoto"> & {
     /** CheckMatch logosu (".net"siz, data URL). */
     brandLogo: string;
     palette: LineupPalette;
@@ -37,14 +36,16 @@ export type LineupCardData = Omit<LineupCardInput, "templateStyle"> &
 export function LineupCard(props: LineupCardData) {
   const { team, opponentName, opponentLogoUrl, headline, matchLabel, format, brandLogo, palette, only } = props;
   const g = lineupGeometry(format);
+  const hero = props.templateStyle === "hero_list";
   // Adlar köken kuralıyla büyür (Türkçe büyük harf yalnızca Türk adlarına, bkz. name-case.ts).
   const people = props.origins?.team.people ?? null;
   const teamLabel = upperTeamName(team.teamName, props.origins?.team);
   const opponentLabel = opponentName ? upperTeamName(opponentName, props.origins?.opponent) : "";
   return (
-    <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: only ? "transparent" : palette.backgroundBottom, overflow: "hidden" }}>
-      {props.templateStyle === "hero_list" ? (
-        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} peopleOrigin={people} only={only} />
+    // Kahraman Liste: zemin + kapak alttaki sanat katmanında — bu katman saydam.
+    <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: only || hero ? "transparent" : palette.backgroundBottom, overflow: "hidden" }}>
+      {hero ? (
+        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} peopleOrigin={people} only={only} />
       ) : (
         <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} peopleOrigin={people} only={only} />
       )}

@@ -25,17 +25,16 @@ interface LineupFormProps {
   fixtures: MatchDayFixtureOption[];
   /** `?fixtureId=` ile gelen, listede doğrulanmış maç — açılışta verisi otomatik yüklenir. */
   initialFixtureId: string | null;
-  /** Medya kütüphanesindeki oyuncu fotoğrafları — kapak oyuncusu için (bkz. CLAUDE.md 1.11). */
-  falConfigured: boolean;
 }
 
-/** Veriden yeniden doldurma admin'in şablon ve format seçimini, aynı maçta da ürettiği kapağı ve seçtiği rengi ezmez. */
+/** Veriden yeniden doldurma admin'in şablon ve format seçimini, aynı maçta da seçtiği kapağı ve rengi ezmez. */
 function keepVisuals(next: LineupDraft, current: LineupDraft): LineupDraft {
   const withStyle = { ...next, templateStyle: current.templateStyle, format: current.format };
   if (next.fixtureId !== current.fixtureId) return withStyle;
   const side = (key: TeamSide) => ({
     ...next[key],
-    heroImageUrl: current[key].heroImageUrl,
+    heroPhotoId: current[key].heroPhotoId,
+    heroAdjust: current[key].heroAdjust,
     colorHex: current[key].colorHex || next[key].colorHex,
   });
   return { ...withStyle, home: side("home"), away: side("away") };
@@ -63,7 +62,7 @@ function heroTeamIds(fixtures: MatchDayFixtureOption[], fixtureId: string): Reco
   return { home: fixture?.homeTeamId ?? null, away: fixture?.awayTeamId ?? null };
 }
 
-export function LineupForm({ fixtures, initialFixtureId, falConfigured }: LineupFormProps) {
+export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   const [draft, setDraft] = useState<LineupDraft>(() => draftFor(fixtures.find((f) => f.id === initialFixtureId)));
   const [loaded, setLoaded] = useState<LineupLoadResult | null>(null);
@@ -106,7 +105,7 @@ export function LineupForm({ fixtures, initialFixtureId, falConfigured }: Lineup
 
   const issues = draft.fixtureId ? [...lineupIssues(draft.home), ...lineupIssues(draft.away)] : [];
   const missingHeroes =
-    draft.templateStyle === "hero_list" ? (["home", "away"] as const).filter((key) => !draft[key].heroImageUrl).map((key) => draft[key].teamName || (key === "home" ? "Ev sahibi" : "Deplasman")) : [];
+    draft.templateStyle === "hero_list" ? (["home", "away"] as const).filter((key) => !draft[key].heroPhotoId).map((key) => draft[key].teamName || (key === "home" ? "Ev sahibi" : "Deplasman")) : [];
 
   function save() {
     setSaveError(null);
@@ -219,8 +218,8 @@ export function LineupForm({ fixtures, initialFixtureId, falConfigured }: Lineup
         {missingHeroes.length > 0 ? (
           <p className="-mt-3 flex items-start gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200" role="status">
             <AlertCircle className="mt-px size-3.5 shrink-0" />
-            Kapak kesimi olmayan takım ({missingHeroes.join(", ")}) Taktik Tahtası olarak çizilir; kapağı olan takım Kahraman Liste olur. Her iki
-            kartın da liste olması için eksik kesimi üretin.
+            Kapak fotoğrafı seçilmeyen takım ({missingHeroes.join(", ")}) Taktik Tahtası olarak çizilir; kapağı olan takım Kahraman Liste olur.
+            Her iki kartın da liste olması için aşağıdan iki takıma da kapak fotoğrafı seçin.
           </p>
         ) : null}
 
@@ -228,8 +227,7 @@ export function LineupForm({ fixtures, initialFixtureId, falConfigured }: Lineup
           <LineupHeroFields
             draft={draft}
             teamIds={heroTeamIds(fixtures, draft.fixtureId)}
-            falConfigured={falConfigured}
-            onHeroChange={(target, heroImageUrl) => setDraft((current) => ({ ...current, [target]: { ...current[target], heroImageUrl } }))}
+            onHeroChange={(target, hero) => setDraft((current) => ({ ...current, [target]: { ...current[target], ...hero } }))}
           />
         ) : null}
 
