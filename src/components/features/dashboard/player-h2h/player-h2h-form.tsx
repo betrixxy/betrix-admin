@@ -10,6 +10,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import type { H2HMatchContext, H2HPlayerOption } from "@/lib/dashboard/player-h2h-studio";
 import { h2hStudioIssues } from "@/lib/player-h2h/studio-issues";
+import { counterpartSuggestion, slotPosition } from "@/lib/player-h2h/suggest";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFixtureOption, type MatchDayFormatId } from "@/types/match-day";
 import type { H2HMode, H2HScope } from "@/types/player-h2h";
 import { EMPTY_SLOT, PlayerSlot, type SlotValue } from "./player-slot";
@@ -38,6 +39,9 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
   const [match, setMatch] = useState<H2HMatchContext | null>(null);
   const [left, setLeft] = useState<SlotValue>(EMPTY_SLOT);
   const [right, setRight] = useState<SlotValue>(EMPTY_SLOT);
+  // Hâlâ öneride duran taraflar (elle değişince null) ve elle seçilmiş tarafa gösterilen aynı mevki önerisi.
+  const [suggested, setSuggested] = useState<Record<"left" | "right", string | null>>({ left: null, right: null });
+  const [hints, setHints] = useState<Record<"left" | "right", string | null>>({ left: null, right: null });
   const [scope, setScope] = useState<H2HScope>("LEAGUE");
   const [mode, setMode] = useState<H2HMode | "AUTO">("AUTO");
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
@@ -64,6 +68,8 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
       setMatch(result.data);
       setLeft({ ...EMPTY_SLOT, key: result.data.suggestions.home });
       setRight({ ...EMPTY_SLOT, key: result.data.suggestions.away });
+      setSuggested({ left: result.data.suggestions.home, right: result.data.suggestions.away });
+      setHints({ left: null, right: null });
     });
   }, [start, fixtureId]);
 
@@ -78,6 +84,36 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
   }, [left.key, right.key, scope, mode, selectionKey]);
 
   const matchShown = match && match.fixtureId === fixtureId && start === "match" ? match : null;
+
+  /**
+   * Bir taraf elle değişince diğer taraf aynı mevkiden önerilir: diğer taraf hâlâ öneride ise kendiliğinden,
+   * elle seçildiyse yalnızca "aynı mevkiden öneri" bağlantısı (bkz. `counterpartSuggestion`).
+   */
+  function change(side: "left" | "right", value: SlotValue) {
+    const [set, setOther, other, otherSide] = side === "left" ? [setLeft, setRight, right, "right" as const] : [setRight, setLeft, left, "left" as const];
+    set(value);
+    if (!matchShown || value.key === (side === "left" ? left.key : right.key)) return;
+    setSuggested((s) => ({ ...s, [side]: null }));
+    const position = slotPosition(players.find((p) => p.key === value.key)?.position);
+    const otherPositions = otherSide === "right" ? matchShown.byPosition.away : matchShown.byPosition.home;
+    const next = counterpartSuggestion({ position, other: otherPositions, otherKey: other.key, otherIsSuggested: other.key !== null && other.key === suggested[otherSide] });
+    if (next.apply) {
+      setOther({ ...EMPTY_SLOT, key: next.apply });
+      setSuggested((s) => ({ ...s, [otherSide]: next.apply }));
+    }
+    setHints({ [side]: null, [otherSide]: next.hint } as Record<"left" | "right", string | null>);
+  }
+
+  const hintFor = (side: "left" | "right") => {
+    const key = hints[side];
+    const option = key ? players.find((p) => p.key === key) : null;
+    if (!key || !option || key === (side === "left" ? left.key : right.key)) return null;
+    return (
+      <button type="button" className="self-start text-[11px] text-emerald-400 hover:underline" onClick={() => { (side === "left" ? setLeft : setRight)({ ...EMPTY_SLOT, key }); setSuggested((s) => ({ ...s, [side]: key })); setHints((h) => ({ ...h, [side]: null })); }}>
+        Aynı mevkiden öneri: {option.name} — seç
+      </button>
+    );
+  };
 
   const options = useMemo(() => {
     if (!matchShown) return { left: players, right: players };
@@ -132,8 +168,14 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
           {matchShown ? <Notes items={matchShown.warnings} /> : null}
 
           <div className="grid gap-3 md:grid-cols-2">
-            <PlayerSlot id="h2h-left" label={matchShown ? `Sol · ${matchShown.homeTeam.name}` : "Sol oyuncu"} options={options.left} value={left} onChange={setLeft} />
-            <PlayerSlot id="h2h-right" label={matchShown ? `Sağ · ${matchShown.awayTeam.name}` : "Sağ oyuncu"} options={options.right} value={right} onChange={setRight} />
+            <div className="flex flex-col gap-1">
+              <PlayerSlot id="h2h-left" label={matchShown ? `Sol · ${matchShown.homeTeam.name}` : "Sol oyuncu"} options={options.left} value={left} onChange={(value) => change("left", value)} />
+              {hintFor("left")}
+            </div>
+            <div className="flex flex-col gap-1">
+              <PlayerSlot id="h2h-right" label={matchShown ? `Sağ · ${matchShown.awayTeam.name}` : "Sağ oyuncu"} options={options.right} value={right} onChange={(value) => change("right", value)} />
+              {hintFor("right")}
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">

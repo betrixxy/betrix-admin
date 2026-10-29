@@ -2,6 +2,7 @@ import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { clubColors } from "@/lib/dashboard/club-colors";
 import { isReadableOnCard, isSimilarColor } from "@/lib/dashboard/color-math";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
+import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { openBoxLines, scenarioTitle, type MatchSides } from "@/lib/prediction/catalog";
 import type { PredictionSet, Scenario, ScenarioId } from "@/types/prediction";
@@ -30,6 +31,8 @@ export interface VitrinMeta {
   roundLabel: string;
   /** Son 5 maç, eskiden yeniye. */
   homeForm: MatchResultLetter[];
+  /** Ad büyük harfi için takım kökeni (motor doldurur, bkz. team-origin.ts); yoksa ad kendi harflerinden. */
+  origins?: { home: TeamOrigin; away: TeamOrigin };
   awayForm: MatchResultLetter[];
 }
 
@@ -118,8 +121,8 @@ export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSele
     competitionLabel: upperTr(meta.competitionName),
     roundLabel: upperTr(meta.roundLabel),
     accentHex: vitrinAccentHex(bar, colors),
-    homeTeam: upperTr(meta.sides.home),
-    awayTeam: upperTr(meta.sides.away),
+    homeTeam: upperTeamName(meta.sides.home, meta.origins?.home),
+    awayTeam: upperTeamName(meta.sides.away, meta.origins?.away),
     homeHex: colors[0],
     awayHex: colors[1],
     homeForm: meta.homeForm,

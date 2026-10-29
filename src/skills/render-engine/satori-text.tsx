@@ -1,5 +1,6 @@
 import { Children, cloneElement, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import { ImageResponse } from "next/og";
+import { legibleMonoTree } from "./satori-mono";
 
 /**
  * Satori metin katmanı — bütün kartların ORTAK giriş noktası (`renderSatori`).
@@ -63,7 +64,10 @@ export function tightenTree(node: ReactNode, wrap = false): ReactNode {
   return cloneElement(element, undefined, ...children);
 }
 
-/** Bütün kartların Satori çizimi bu fonksiyondan geçer (`new ImageResponse` doğrudan çağrılmaz). */
+/**
+ * Bütün kartların Satori çizimi bu fonksiyondan geçer (`new ImageResponse` doğrudan çağrılmaz). Ağaç
+ * sıkılaştırılır, küçük punto Space Mono Bold Regular'a çevrilir (bkz. `satori-mono.ts`).
+ */
 export function renderSatori(element: ReactElement, options: ConstructorParameters<typeof ImageResponse>[1]): ImageResponse {
-  return new ImageResponse(tightenTree(element) as ReactElement, options);
+  return new ImageResponse(legibleMonoTree(tightenTree(element)) as ReactElement, options);
 }

@@ -33,7 +33,7 @@ describe("formatNumber", () => {
 
 /** Kart metni üreten kaynaklar: şablonlar, kart/metin kurucuları. */
 const ROOTS = ["src/skills/render-engine/templates", "src/lib/player-h2h", "src/lib/draw", "src/lib/dashboard", "src/lib/prediction"];
-const CARD_TEXT = /templates|player-h2h|[/\\]draw[/\\]|-card\.ts|-caption\.ts|studio-stats\.ts|studio-render\.ts|match-stats-rows\.ts|deep-analysis-insights\.ts|reasons\.ts|-labels\.ts/;
+const CARD_TEXT = /templates|player-h2h|[/\\]draw[/\\]|-card\.ts|-caption\.ts|studio-stats\.ts|studio-render\.ts|match-stats-rows\.ts|reasons\.ts|-labels\.ts/;
 /** SVG geometrisi (koordinat, gradyan durağı, yazı boyu) metin değildir. */
 const GEOMETRY = /d=\{|stop-|offset=|font-size=|toFixed\(3\)/;
 

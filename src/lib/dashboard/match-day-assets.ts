@@ -1,3 +1,7 @@
+import { normalizeClock } from "@/lib/format/dates";
+import { MATCH_DAY_FONT_FILES } from "@/lib/dashboard/card-font-files";
+import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { cardVenueName } from "@/lib/names/venue-names";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { format, isValid, parseISO } from "date-fns";
@@ -12,18 +16,8 @@ const PUBLIC_ROOT = path.join(process.cwd(), "public");
 const REMOTE_TIMEOUT_MS = 8000;
 const PLACEHOLDER = "—";
 
-/**
- * Satori için gömülü fontlar — hepsi Türkçe karakterleri (Ç, Ğ, İ, Ş, Ö, Ü) kapsar:
- * Geist (gövde metni), Anton (yayın başlıkları) ve DM Serif Display (editoryal serif); hepsi OFL.
- */
-const FONT_FILES = [
-  { name: "Geist", file: "Geist-Regular.ttf", weight: 400, style: "normal" },
-  { name: "Geist", file: "Geist-Bold.ttf", weight: 700, style: "normal" },
-  { name: "Geist", file: "Geist-Black.ttf", weight: 900, style: "normal" },
-  { name: "Anton", file: "Anton-Regular.ttf", weight: 400, style: "normal" },
-  { name: "DM Serif Display", file: "DMSerifDisplay-Regular.ttf", weight: 400, style: "normal" },
-  { name: "DM Serif Display", file: "DMSerifDisplay-Italic.ttf", weight: 400, style: "italic" },
-] as const;
+/** Satori için gömülü fontlar — liste `card-font-files.ts`'te (build kontrolüyle ortak tek kaynak). */
+const FONT_FILES = MATCH_DAY_FONT_FILES;
 
 export interface MatchDayFont {
   name: string;
@@ -155,28 +149,33 @@ const DEFAULT_COLORS = { homeColorHex: "#e11d48", awayColorHex: "#1d4ed8" };
 export async function resolveMatchDayCard(
   params: MatchDayParams,
   colors: { homeColorHex: string; awayColorHex: string } = DEFAULT_COLORS,
+  /** Ad büyük harfi için takım kökenleri (maçtan); elle doldurulan kartta yok. */
+  origins?: { home: TeamOrigin; away: TeamOrigin },
 ): Promise<MatchDayCard> {
   const [homePlayerImg, awayPlayerImg, homeLogo, awayLogo, leagueLogo, brandLogo] = await Promise.all([
     resolveImage(params.homePlayerImg, 1350),
     resolveImage(params.awayPlayerImg, 1350),
     resolveImage(params.homeLogo, 300),
     resolveImage(params.awayLogo, 300),
-    resolveImage(params.leagueLogo, 160),
+    // Lig logosu kartta kullanılmaz — lig adı tipografik (competitionLine).
+    Promise.resolve(null),
     loadBrandLogo(),
   ]);
 
   return {
-    homeTeam: upper(params.homeTeam),
-    awayTeam: upper(params.awayTeam),
+    homeTeam: upperTeamName(params.homeTeam, origins?.home),
+    awayTeam: upperTeamName(params.awayTeam, origins?.away),
     homeTeamName: params.homeTeam,
     awayTeamName: params.awayTeam,
     weekdayLabel: formatWeekday(params.date),
     stats: null,
+    ...(origins ? { origins } : {}),
     leagueLabel: upper(params.league ?? "Süper Lig"),
     weekLabel: formatWeek(params.week),
     dateLabel: formatDate(params.date),
-    timeLabel: params.time ?? PLACEHOLDER,
-    stadiumLabel: params.stadium ?? PLACEHOLDER,
+    timeLabel: params.time ? normalizeClock(params.time) : PLACEHOLDER,
+    // Elle yazılan ad da aynı kuraldan ("… Stadium" → "… Stadyumu"); ön doldurma düzeltmeyi zaten uygular.
+    stadiumLabel: params.stadium ? cardVenueName(params.stadium).name : PLACEHOLDER,
     refereeLabel: params.referee ?? PLACEHOLDER,
     homePlayerImg,
     awayPlayerImg,

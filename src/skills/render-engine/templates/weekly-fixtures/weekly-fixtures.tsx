@@ -1,7 +1,9 @@
+import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { bodyOffsetTop, matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
-import { BODY, upper } from "../deep-analysis/deep-analysis-tokens";
-import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader } from "./league-card-chrome";
+import { BODY, upper } from "../studio-tokens";
+import type { BlockFilter } from "../checkmatch-set/blocks";
+import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader, shown } from "./league-card-chrome";
 import { WeeklyRow } from "./weekly-row";
 import { weeklyTheme } from "./weekly-theme";
 
@@ -21,10 +23,13 @@ export interface WeeklyFixturesCardData extends WeeklyFixturesCardInput {
   brandLogo: string;
   /** Gömülü (data URL) logolar, maç kimliğine göre; okunamayan logo boş. */
   teamLogos: Record<string, { home: string; away: string }>;
+  /** Yerleşim kapısı: yalnızca bu blok görünür (bkz. `LEAGUE_CARD_BLOCKS`). */
+  only?: BlockFilter | undefined;
 }
 
-export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title, grouping, matches, format, brandLogo, teamLogos }: WeeklyFixturesCardData) {
+export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title, grouping, matches, format, brandLogo, teamLogos, only }: WeeklyFixturesCardData) {
   const theme = weeklyTheme(leagueId);
+  const nameOrigin = getSupportedLeague(leagueId).nameOrigin;
   const layout = weeklyLayout(format);
   const { width: W, pad: PAD } = layout;
   // Sığmayan kart motor tarafından reddedilir; yine de çizilirse tek sütun + en küçük satır.
@@ -34,11 +39,12 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
   const { kicker, main } = splitTitle(title);
 
   return (
-    <div tw="relative flex h-full w-full flex-col" style={{ fontFamily: BODY, color: theme.text, backgroundImage: theme.background, overflow: "hidden" }}>
-      <LeagueCardGlow layout={layout} theme={theme} />
+    <div tw="relative flex h-full w-full flex-col" style={{ fontFamily: BODY, color: theme.text, ...(only ? {} : { backgroundImage: theme.background }), overflow: "hidden" }}>
+      <LeagueCardGlow layout={layout} theme={theme} only={only} />
       <LeagueCardHeader
         layout={layout}
         theme={theme}
+        only={only}
         leagueLogoUrl={leagueLogoUrl}
         kicker={kicker ? `${upper(leagueName)} · ${kicker}` : upper(leagueName)}
         title={main}
@@ -46,7 +52,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
       />
 
       {/* Maçlar: tek sütun (dikey formatlar) ya da yan yana sütunlar (yatay) — satır yüksekliği tüm sütunlarda ortak. */}
-      <div tw="flex" style={{ position: "absolute", left: PAD, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap }}>
+      <div tw="flex" style={{ position: "absolute", left: PAD, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap, ...shown(only, "card-body") }}>
         {plan.columns.map((column, columnIndex) => (
           <div key={columnIndex} tw="flex flex-col" style={{ width: columnWidth, gap: layout.sectionGap }}>
             {column.map((section) => (
@@ -61,6 +67,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
                     rowHeight={plan.rowHeight}
                     width={columnWidth}
                     theme={theme}
+                    nameOrigin={nameOrigin}
                   />
                 ))}
               </div>
@@ -69,7 +76,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
         ))}
       </div>
 
-      <LeagueCardFooter layout={layout} theme={theme} brandLogo={brandLogo} note="SAATLER TÜRKİYE SAATİYLE (TSİ)" />
+      <LeagueCardFooter layout={layout} theme={theme} brandLogo={brandLogo} note="SAATLER TÜRKİYE SAATİYLE (TSİ)" only={only} />
     </div>
   );
 }

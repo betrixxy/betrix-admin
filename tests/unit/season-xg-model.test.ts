@@ -8,6 +8,7 @@ import { DIFFERENT_LEAGUES_WARNING, differentLeagues, modelForm, SEASON_XG_MIN_M
 import { computeTeamDeepStats } from "@/lib/services/api-football/deep-analysis-mappers";
 import type { DeepAnalysisStats, SeasonLeagueXg, TeamDeepStats } from "@/types/deep-analysis";
 import { DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM } from "../fixtures/api-football/deep-analysis";
+import { PICK } from "../fixtures/prediction/outcomes";
 
 /**
  * Model v2 ("v2-season-xg"): Poisson'un xG girdisi bu sezonun lig maçlarından (≥5), yoksa yalnızca
@@ -94,16 +95,16 @@ describe("farklı ligler", () => {
       "İki takım da bu sezon ligde yüksek xG üretiyor.",
     ];
     for (const reason of compare) {
-      assert.ok(auditReason(reason, "GOALS_3PLUS", facts, sides).includes("farklı ligler: iki takımın xG'si kıyaslanamaz"), reason);
+      assert.ok(auditReason(reason, PICK.GOALS_3PLUS, facts, sides).includes("farklı ligler: iki takımın xG'si kıyaslanamaz"), reason);
     }
-    assert.deepEqual(auditReason("Fenerbahçe bu sezon ligde maç başına 2,34 xG üretiyor.", "GOALS_3PLUS", facts, sides), []);
+    assert.deepEqual(auditReason("Fenerbahçe bu sezon ligde maç başına 2,34 xG üretiyor.", PICK.GOALS_3PLUS, facts, sides), []);
     // xG'siz kıyas serbest (yalnızca xG kıyaslanamaz).
-    assert.ok(!auditReason("Fenerbahçe ve Slavia Praha son 5 maçta gol buldu.", "BTTS", facts, sides).some((issue) => issue.startsWith("farklı ligler")));
+    assert.ok(!auditReason("Fenerbahçe ve Slavia Praha son 5 maçta gol buldu.", PICK.BTTS, facts, sides).some((issue) => issue.startsWith("farklı ligler")));
   });
 
   it("aynı ligde iki takımın xG kıyası serbest", () => {
     const facts = vitrinFacts(same);
-    const issues = auditReason("Fenerbahçe ve Slavia Praha bu sezon ligde 2,34 ile 1,4 xG üretiyor.", "GOALS_3PLUS", facts, matchSides(same));
+    const issues = auditReason("Fenerbahçe ve Slavia Praha bu sezon ligde 2,34 ile 1,4 xG üretiyor.", PICK.GOALS_3PLUS, facts, matchSides(same));
     assert.ok(!issues.some((issue) => issue.startsWith("farklı ligler")), issues.join(" | "));
   });
 });

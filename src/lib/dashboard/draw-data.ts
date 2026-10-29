@@ -1,10 +1,13 @@
 import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
 import { leagueFixturesFromApi, teamsFromApi, tiesFromApi } from "@/lib/draw/api-mappers";
+import { DRAW_COMPETITIONS, drawRound } from "@/lib/draw/rounds";
+import { emptyParticipantsReason, turkishLeagueScope, type LeagueSeasonInfo } from "@/lib/draw/season-draws";
 import { headToHeadRecord } from "@/lib/draw/facts";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { apiSearchTerm } from "@/lib/services/api-football/search-term";
 import { searchTeams } from "@/lib/services/api-football/team-directory";
-import { apiFootballFixturesResponseSchema, apiFootballTeamsResponseSchema, type ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
+import { apiFootballFixturesResponseSchema, apiFootballLeagueSeasonsRawSchema, apiFootballTeamsResponseSchema, type ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
+import { z } from "zod";
 import type { DrawStage, DrawState, DrawTeam, HeadToHeadRecord } from "@/types/draw";
 import type { Result } from "@/types/result";
 
@@ -74,13 +77,56 @@ export async function drawHeadToHead(teamId: number, opponentId: number, beforeU
   return parsed.success ? headToHeadRecord(parsed.data.response, teamId, beforeUtc) : null;
 }
 
+/** Katılımcı listesi + liste boşsa ekranda yazılacak neden. */
+export interface DrawParticipantsResult {
+  teams: DrawTeam[];
+  emptyReason: string | null;
+}
+
+const leaguesSchema = z.object({ response: z.array(apiFootballLeagueSeasonsRawSchema) });
+
+/** Liste boş geldiğinde nedeni ayırt etmek için lig + sezon bilgisi (`/leagues?id=&season=`); okunamazsa null. */
+async function leagueSeasonInfo(competitionId: number, season: number): Promise<LeagueSeasonInfo | null> {
+  const raw = await apiFootballRequest("/leagues", { id: String(competitionId), season: String(season) }, { ttlMs: H2H_TTL_MS });
+  if (!raw.ok) return null;
+  const parsed = leaguesSchema.safeParse(raw.data);
+  if (!parsed.success) return null;
+  const entry = parsed.data.response[0]?.seasons.find((s) => s.year === season);
+  return entry ? { exists: true, current: entry.current, start: entry.start ?? null } : { exists: false, current: false, start: null };
+}
+
 /** Kura öncesi hazırlık: turnuvanın o sezonki katılımcıları (`/teams?league=&season=`, yalnızca okuma); torba elle. */
-export async function drawParticipants(competitionId: number, season: number): Promise<Result<DrawTeam[]>> {
+export async function drawParticipants(competitionId: number, season: number): Promise<Result<DrawParticipantsResult>> {
   const raw = await apiFootballRequest("/teams", { league: String(competitionId), season: String(season) }, { ttlMs: H2H_TTL_MS });
   if (!raw.ok) return fail(raw.error.code, raw.error.message);
   const parsed = apiFootballTeamsResponseSchema.safeParse(raw.data);
   if (!parsed.success) return fail("INVALID_RESPONSE", `API-Football /teams yanıtı şemaya uymuyor: ${parsed.error.message}`);
-  return { ok: true, data: parsed.data.response.map(({ team }) => ({ id: team.id, apiName: team.name, country: team.country ?? null, logoUrl: team.logo ?? null, pot: null })) };
+  const teams = parsed.data.response.map(({ team }) => ({ id: team.id, apiName: team.name, country: team.country ?? null, logoUrl: team.logo ?? null, pot: null }));
+  const name = OFFICIAL_COMPETITION_NAMES[competitionId] ?? `Turnuva ${competitionId}`;
+  const emptyReason = teams.length ? null : emptyParticipantsReason(name, season, await leagueSeasonInfo(competitionId, season));
+  return { ok: true, data: { teams, emptyReason } };
+}
+
+/** Sezonun Avrupa kuraları: her kupanın lig aşaması, Türk takımlarına daraltılmış; Türk takımı/fikstür yoksa atlanır (neden `skipped`). */
+export async function seasonEuropeanDraws(season: number): Promise<Result<{ states: DrawState[]; skipped: string[] }>> {
+  const league = drawRound("LEAGUE")!;
+  const results = await Promise.all(
+    DRAW_COMPETITIONS.map(async (competition) => ({ competition, result: await drawFromApi({ competitionId: competition.id, season, stage: league.stage, roundLabel: league.label }) })),
+  );
+  const states: DrawState[] = [];
+  const skipped: string[] = [];
+  for (const { competition, result } of results) {
+    if (!result.ok) {
+      skipped.push(`${competition.short}: ${result.error.code === "NO_FIXTURES" ? "lig aşaması fikstürü API'de yok" : result.error.message}.`);
+      continue;
+    }
+    const scoped = turkishLeagueScope({ ...result.data, competition: { id: competition.id, name: competition.name } });
+    if (scoped) states.push(scoped);
+    else skipped.push(`${competition.short}: lig aşamasında Türk takımı yok.`);
+  }
+  // Hiçbir kupa okunamadıysa (ağ/kota) boş sonuç değil hata — ekranda API mesajı yazar.
+  if (results.every(({ result }) => !result.ok && result.error.code !== "NO_FIXTURES")) return fail("API_ERROR", skipped.join(" "));
+  return { ok: true, data: { states, skipped } };
 }
 
 /** Elle katılımcı ekleme: adla arama (`/teams?search=`). */

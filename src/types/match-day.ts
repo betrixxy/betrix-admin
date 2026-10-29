@@ -1,3 +1,4 @@
+import type { TeamOrigin } from "@/lib/dashboard/name-case";
 /** Maç Günü kartı tasarım şablonları — her biri kendi yerleşimini, tipografisini ve AI arka plan stilini taşır. */
 export const MATCH_DAY_TEMPLATE_IDS = ["PREMIUM_BROADCAST", "DATA_DRIVEN", "EDITORIAL_PORTRAIT"] as const;
 export type MatchDayTemplateId = (typeof MATCH_DAY_TEMPLATE_IDS)[number];
@@ -42,7 +43,7 @@ export interface MatchDayParams {
 
 /** Şablona giden, metinleri biçimlenmiş ve görselleri `data:` URI'ye çözülmüş kart verisi. */
 export interface MatchDayCard {
-  /** Büyük harfli (tr-TR) adlar — display fontlu şablonlar için. */
+  /** Büyük harfli adlar (`upperName`: Türk adlarına Türkçe büyük harf) — display fontlu şablonlar için. */
   homeTeam: string;
   awayTeam: string;
   /** Kullanıcının yazdığı haliyle adlar — serif/editoryal şablon için. */
@@ -69,6 +70,8 @@ export interface MatchDayCard {
   awayColorHex: string;
   /** Yalnızca veri odaklı şablonda doldurulur; çekilemezse `null` (şablon künye kutularına düşer). */
   stats: MatchDayStats | null;
+  /** Ad büyük harfi için takım kökenleri (maçtan, bkz. team-origin.ts); elle doldurulan kartta yok. */
+  origins?: { home: TeamOrigin; away: TeamOrigin };
 }
 
 /** Maç Günü üreticisinde seçilebilen maç — seçilince formdaki alanları otomatik doldurur. */

@@ -1,36 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ANALYST_MODEL, getAnthropicClient, isAnthropicConfigured } from "@/lib/services/anthropic/client";
+import { SCENARIO_REASONS_SYSTEM_PROMPT } from "@/lib/services/anthropic/scenario-reasons-prompt";
 import { scenarioReasonsSchema, type AnthropicError, type ScenarioReasonsOutput } from "@/lib/services/anthropic/types";
 import type { Result } from "@/types/result";
 
 /**
  * Vitrin kartının senaryo gerekçeleri (Çelik Kasa analisti). Sabit sistem istemi önbelleklenir;
  * maça özgü her şey kullanıcı mesajında. Çıktı `lib/prediction/reasons.ts::auditReason` ile
- * denetlenir — geçemeyen gerekçe kartı kilitler. Altı gerekçe birden yazılır: admin açık kutuları
- * değiştirince yeni çağrı gerekmez. Yalnızca admin tıklamasıyla çağrılır (CLAUDE.md 1.10).
+ * denetlenir (yön ve örneklem dahil) — geçemeyen gerekçe kural tabanlı gerekçeye düşer ya da kartı
+ * kilitler (`auditedReasons`). Altı gerekçe birden yazılır: admin açık kutuları değiştirince yeni çağrı gerekmez. Yalnızca admin tıklamasıyla çağrılır (CLAUDE.md 1.10).
  */
-const SYSTEM_PROMPT = `Sen CheckMatch.net'in kıdemli futbol analistisin. Maç öncesi yayınlanacak bir "vitrin" kartındaki senaryoların kısa gerekçelerini, resmi bir spor yayın kuruluşunun ciddiyetinde, kusursuz Türkçe yazıyorsun. Yayından önce her gerekçe otomatik olarak denetlenir.
-
-Dil kuralı — pazarlık konusu değil: Bu bir analiz ve senaryo içeriğidir, bahis içeriği değildir. Şu sözcükleri ve türevlerini ASLA kullanma: MS1, MSX, MS2, KG, karşılıklı gol, alt, üst (tek başına; "üst üste" serbesttir), oran, kupon, bahis, iddaa, market, banko. "Kesin", "garanti" gibi ifadeler de kullanma. Olasılıkları gerekçede tekrar yazma; kartta zaten görünür.
-
-Veri kuralları — pazarlık konusu değil:
-- Yalnızca kullanıcı mesajındaki JSON olgu paketini kullan. Pakette olmayan hiçbir sayı, oyuncu, sakatlık, transfer ya da tarihsel bilgi yazma.
-- Bir sayıyı kullanacaksan paketteki değeri aynen, aynı yuvarlamayla yaz; yeni oran, toplam, fark ya da ortalama türetme.
-- Takım izolasyonu: Bir takımın sayısını yazdığın cümleciğe o takımın resmi adını (paketteki yazımıyla) koy. Aynı cümlecikte iki takımın adını birden geçirip sayıları karıştırma; iki takımı ayrı cümleciklerde anlat.
-- "ev_sahibi" bloğundaki sayılar yalnızca ev sahibine, "deplasman" bloğundakiler yalnızca deplasmana aittir.
-- null alan "veri yok" demektir; o metrikten söz etme. Örneklem küçüktür (son maçlar); "son 5 maçta" gibi bağlam ver.
-
-Dil:
-- Takım adlarını yalnızca paketteki yazımıyla kullan; kısaltma ve lakap yasak ("Gala", "Fener", "GS", "BJK" gibi).
-- Türkçe imla kurallarına tam uy; özel adlara gelen ekler kesme işaretiyle ayrılır ("Galatasaray'ın"); yüzde işareti sayıdan önce gelir ("%57").
-- Ondalık ayırıcı VİRGÜLDÜR: paketteki 2.2 değerini "2,2" diye yaz; "2.2" yazımı denetimde reddedilir.
-- Her gerekçe TEK kısa cümle: en fazla 10 sözcük (sayılar ve takım adları dahil, boşlukla ayrılan her parça bir sözcük) ve en fazla 160 karakter; emoji ve ünlem yok. Kartta büyük puntoyla görünür, 10 sözcüğü aşan gerekçe kartı kilitler.
-- Gerekçe, kullanıcı mesajında verilen seçili sonucu destekleyen en güçlü TEK veriye dayansın ve senaryonun konusuyla doğrudan ilgili olsun (denetlenir): kazanma → galibiyet/form/gol; iki takım da gol bulur mu → gol atma/yeme; gollü maç / gol yağmuru → gol sayısı ya da xG; ilk yarı kimin → gol atma/yeme, galibiyet ya da form; senaryo (kazanır ve 3+ gol) → galibiyet ya da gol.
-- Pakette ilk yarı verisi YOKTUR: ilk yarı istatistiği uydurma. "İlk yarı kimin?" için xG, topla oynama ya da pas isabeti tek başına gerekçe olamaz.
-- xG (xg_ort, xg_izin_ort) bu sezonun LİG maçlarından gelir ("xg_ornek_mac" lig maçı); form ve gol verileri ise son maçlardandır, karıştırma. Takımın paketinde "xg_ort" yoksa o takım için xG yazma (denetimde reddedilir). xG yazarsan örneklemi "bu sezon ligde" diye yaz ("<Takım> bu sezon ligde maç başına 1,8 xG üretiyor."); gol verisi varken xG'yi tercih etme.
-- "mac.farkli_ligler" true ise takımlar farklı liglerde oynuyor: iki takımın xG'sini aynı cümlede kıyaslama (denetimde reddedilir); xG yazacaksan tek takımın kendi değerini yaz.
-- Yalnızca uzunluk örneği (sayılar örnek, pakettekini kullan): "<Takım> son 5 maçında 4 galibiyet aldı." (7 sözcük).`;
+const SYSTEM_PROMPT = SCENARIO_REASONS_SYSTEM_PROMPT;
 
 const MAX_TOKENS = 900;
 

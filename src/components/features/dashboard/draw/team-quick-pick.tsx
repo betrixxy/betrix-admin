@@ -66,6 +66,7 @@ export const TeamQuickPick = forwardRef<HTMLInputElement, TeamQuickPickProps>(fu
       <input
         ref={ref}
         id={id}
+        name={id}
         role="combobox"
         aria-expanded="true"
         aria-controls={`${id}-list`}

@@ -102,7 +102,10 @@ export const TEAM_NAMES_TR: Readonly<Record<string, string>> = {
   Fenerbahce: "Fenerbahçe",
   Basaksehir: "Başakşehir",
   "Istanbul Basaksehir": "Başakşehir",
-  Goztepe: "Göztepe",
+  // Kart adı (kullanıcı kararı 2026-10-29): Amed ve Göztepe kulüp ekiyle — bütün kartlarda aynı.
+  Amed: "Amed SFK",
+  Goztepe: "Göztepe SK",
+  Göztepe: "Göztepe SK",
   Kasimpasa: "Kasımpaşa",
   Eyupspor: "Eyüpspor",
   Genclerbirligi: "Gençlerbirliği",

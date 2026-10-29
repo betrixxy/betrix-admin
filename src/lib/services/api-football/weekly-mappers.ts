@@ -1,3 +1,4 @@
+import { clock } from "@/lib/format/dates";
 import { cardTeamName } from "@/lib/archive/names";
 import { toFixtureId } from "@/lib/services/api-football/mappers";
 import type { ApiFootballFixtureRaw } from "@/lib/services/api-football/types";
@@ -9,7 +10,6 @@ import type { WeeklyMatch, WeeklyMatchStatus, WeeklyRoundOption } from "@/types/
  */
 
 const ISTANBUL_DATE = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" });
-const ISTANBUL_TIME = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", hour: "2-digit", minute: "2-digit", hour12: false });
 
 /** Eski kupa formatı: her grubun turu ayrı ("Group A - 3"); aynı maç günü tek seçenekte birleşir. */
 const GROUP_ROUND = /^Group ([A-Z]) - (\d+)$/;
@@ -110,7 +110,7 @@ export function toWeeklyMatch(raw: ApiFootballFixtureRaw, standingsGroups: Reado
     id: toFixtureId(raw.fixture.id),
     kickoffUtc: kickoff.toISOString(),
     dateKey: ISTANBUL_DATE.format(kickoff),
-    time: timeKnown ? ISTANBUL_TIME.format(kickoff).replace(":", ".") : "",
+    time: timeKnown ? clock(kickoff) : "",
     status: matchStatus(raw.fixture.status.short),
     elapsed: raw.fixture.status.elapsed,
     home: { name: cardTeamName(raw.teams.home.name), logoUrl: raw.teams.home.logo, goals: raw.goals.home },

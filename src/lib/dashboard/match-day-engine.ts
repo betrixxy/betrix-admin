@@ -1,3 +1,4 @@
+import { fixtureOrigins } from "@/lib/dashboard/team-origin";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
@@ -142,7 +143,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     getPlayerCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
     getPlayerCutout(input.awayPlayer, "Deplasman oyuncu fotoğrafı"),
     getBackground(input, frame, promptInput),
-    resolveMatchDayCard(input.info, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }),
+    fixtureOrigins(input.fixtureId).then((origins) => resolveMatchDayCard(input.info, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }, origins)),
     input.template === "DATA_DRIVEN" ? loadMatchDayStats(input.fixtureId) : Promise.resolve(null),
   ]);
   if (!homeCut.ok) return fail(homeCut.error.code, homeCut.error.message);

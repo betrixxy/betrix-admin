@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { formatNumber } from "@/lib/format/number";
 import { FORM_LETTER_TR } from "@/lib/dashboard/studio-stats";
 import type { MatchStats, TeamRecentForm } from "@/types/sports";
@@ -36,9 +37,11 @@ export function toHashtag(value: string): string | null {
 export function buildDraftCaption(stats: MatchStats): string {
   const { fixture, home, away, headToHead } = stats;
   const names: [string, string] = [home.teamName, away.teamName];
+  // Takım adı kart adı tablosundan (`names.ts`), API adı doğrudan yazılmaz.
+  const [homeName, awayName] = [cardTeamName(fixture.homeTeam.name), cardTeamName(fixture.awayTeam.name)];
 
   const header = [
-    `⚽ ${fixture.homeTeam.name} – ${fixture.awayTeam.name}`,
+    `⚽ ${homeName} – ${awayName}`,
     `🏆 ${fixture.competition.name} · ${kickoffFormatter.format(new Date(fixture.kickoffUtc))}`,
   ];
 
@@ -53,7 +56,7 @@ export function buildDraftCaption(stats: MatchStats): string {
       ? `🤝 Son ${headToHead.matches.length} karşılaşma: ${names[0]} ${headToHead.homeWins}G · ${headToHead.draws}B · ${names[1]} ${headToHead.awayWins}G`
       : null;
 
-  const hashtags = [fixture.homeTeam.name, fixture.awayTeam.name, fixture.competition.shortName]
+  const hashtags = [homeName, awayName, fixture.competition.shortName]
     .map(toHashtag)
     .filter((tag): tag is string => tag !== null);
 

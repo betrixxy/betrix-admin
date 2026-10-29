@@ -5,8 +5,11 @@ import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { MatchDayTemplateCard } from "@/skills/render-engine/templates/match-day-feed";
 import type { MatchDayCard, MatchDayTemplateId } from "@/types/match-day";
 import type { BlockFilter } from "@/skills/render-engine/templates/checkmatch-set/blocks";
-import { layoutGate, type LayoutReport } from "@/lib/dashboard/layout-check";
-import { MATCH_DAY_NAME_LAYERS } from "@/skills/render-engine/templates/checkmatch-set/blocks";
+import { bandSafeArea, layoutGate, type LayoutReport } from "@/lib/dashboard/layout-check";
+import type { LayoutBlockId } from "@/skills/render-engine/templates/checkmatch-set/blocks";
+import { DATA_DRIVEN_BLOCKS } from "@/skills/render-engine/templates/match-day/data-driven";
+import { EDITORIAL_PORTRAIT_BLOCKS } from "@/skills/render-engine/templates/match-day/editorial-portrait";
+import { PREMIUM_BROADCAST_BLOCKS } from "@/skills/render-engine/templates/match-day/premium-broadcast";
 import type { Result } from "@/types/result";
 
 /**
@@ -25,11 +28,18 @@ export async function renderMatchDayOverlay(card: MatchDayCard, template: MatchD
   return sharp(bytes).ensureAlpha().png().toBuffer();
 }
 
+/** Şablon başına ölçülen bloklar — logo dahil kartın HER öğesi (sonda bloksuz öğe kalmadığını da denetler). */
+export const MATCH_DAY_TEMPLATE_BLOCKS: Record<MatchDayTemplateId, readonly LayoutBlockId[]> = {
+  DATA_DRIVEN: DATA_DRIVEN_BLOCKS,
+  PREMIUM_BROADCAST: PREMIUM_BROADCAST_BLOCKS,
+  EDITORIAL_PORTRAIT: EDITORIAL_PORTRAIT_BLOCKS,
+};
+
 /**
- * Maç Günü yerleşim kapısı: DATA_DRIVEN'da alt alta ad satırları (kırılan uzun ad dahil) — komşu satırların
- * Ç/Ş/Ğ kuyruğu ile İ/Ö/Ü işareti piksel düzeyinde denetlenir. Diğer şablonlarda kapı yok (geçer).
+ * Maç Günü yerleşim kapısı — her şablonda bütün bloklar (künye, başlık, tarih, form, istatistik kutuları,
+ * CheckMatch logosu) birbiriyle ve güvenli alanla çakışmamalı; DATA_DRIVEN ad satırları ayrıca piksel
+ * düzeyinde (Ç/Ş/Ğ kuyruğu, İ/Ö/Ü işareti). Güvenli alan: platform bantları + 24px (şablon kenarı 48–56px).
  */
-export async function matchDayLayoutGate(card: MatchDayCard, template: MatchDayTemplateId, frame: MatchDayFrame): Promise<Result<LayoutReport | null>> {
-  if (template !== "DATA_DRIVEN") return { ok: true, data: null };
-  return layoutGate("Maç Günü ad satırları", frame, (only) => renderMatchDayOverlay(card, template, frame, only), MATCH_DAY_NAME_LAYERS);
+export async function matchDayLayoutGate(card: MatchDayCard, template: MatchDayTemplateId, frame: MatchDayFrame): Promise<Result<LayoutReport>> {
+  return layoutGate("Maç Günü", frame, (only) => renderMatchDayOverlay(card, template, frame, only), MATCH_DAY_TEMPLATE_BLOCKS[template], bandSafeArea(frame));
 }

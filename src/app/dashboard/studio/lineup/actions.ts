@@ -1,5 +1,8 @@
 "use server";
 
+import { clock, shortDate } from "@/lib/format/dates";
+import { fixtureOrigins } from "@/lib/dashboard/team-origin";
+import { withCardNames } from "@/lib/dashboard/lineup-names";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
@@ -23,17 +26,9 @@ export interface LineupLoadResult {
   away: Pick<TeamLineupReference, "source" | "squad">;
 }
 
-const KICKOFF_FORMAT = new Intl.DateTimeFormat("tr-TR", {
-  timeZone: "Europe/Istanbul",
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
 function matchLabelFor(fixture: Fixture): string {
-  return `${fixture.competition.name} · ${KICKOFF_FORMAT.format(new Date(fixture.kickoffUtc)).replace(" ", " · ")}`;
+  // Ortak tarih kuralı: kısa tarih "30.10" · saat "20:00" (tr-TR biçimi "30/10" verirdi).
+  return `${fixture.competition.name} · ${shortDate(fixture.kickoffUtc)} · ${clock(fixture.kickoffUtc)}`;
 }
 
 function unauthorized<T>(): Result<T> {
@@ -46,8 +41,10 @@ export async function loadLineupAction(fixtureId: string): Promise<Result<Lineup
   const apiId = parseFixtureId(fixtureId);
   if (apiId === null) return { ok: false, error: { code: "INVALID_INPUT", message: "Geçersiz maç." } };
 
-  const reference = await getLineupReference(apiId, fixtureId);
-  if (!reference.ok) return { ok: false, error: { code: reference.error.code, message: reference.error.message } };
+  const raw = await getLineupReference(apiId, fixtureId);
+  if (!raw.ok) return { ok: false, error: { code: raw.error.code, message: raw.error.message } };
+  // Kart adları (Türkçe karakter + uyruk kökeni) form açılmadan çözülür.
+  const reference = { ok: true as const, data: await withCardNames(raw.data) };
   const { home, away, fixture } = reference.data;
   return {
     ok: true,
@@ -67,13 +64,13 @@ const teamSchema = z.object({
   heroImageUrl: z.string().refine((value) => value === "" || LINEUP_HERO_PATTERN.test(value), "Kapak görseli geçersiz."),
   formation: z.string().refine(isValidFormation, "Diziliş geçersiz (ör. 4-2-3-1, toplam 10 saha oyuncusu)."),
   slots: z
-    .array(z.object({ playerId: z.number().int().nullable(), name: text(40), number: z.string().regex(/^\d{0,2}$/, "Forma numarası 0-99 olmalı.") }))
+    .array(z.object({ playerId: z.number().int().nullable(), name: text(40), number: z.string().regex(/^\d{0,2}$/, "Forma numarası 0-99 olmalı."), origin: z.enum(["tr", "intl"]).nullable().optional() }))
     .length(LINEUP_SIZE),
   coach: text(60),
 });
 const templateStyle = z.enum(LINEUP_TEMPLATE_STYLES);
 const format = z.enum(SOCIAL_FORMAT_IDS).default(DEFAULT_SOCIAL_FORMAT);
-const previewSchema = z.object({ templateStyle, team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80), format });
+const previewSchema = z.object({ templateStyle, team: teamSchema, opponentName: text(60), opponentLogoUrl: text(500), headline: text(30), matchLabel: text(80), format, fixtureId: z.string().optional(), side: z.enum(["home", "away"]).optional() });
 const saveSchema = z.object({ fixtureId: z.string(), templateStyle, headline: text(30), matchLabel: text(80), format, home: teamSchema, away: teamSchema });
 
 function firstIssue(error: z.ZodError): string {
@@ -87,7 +84,12 @@ export async function previewLineupAction(input: unknown): Promise<Result<{ data
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
 
   try {
-    const { png, templateStyle } = await renderLineupCard(parsed.data);
+    const { fixtureId, side, ...input } = parsed.data;
+    const origins = await fixtureOrigins(fixtureId ?? null);
+    const sideOrigins = origins && side ? { team: side === "home" ? origins.home : origins.away, opponent: side === "home" ? origins.away : origins.home } : undefined;
+    const rendered = await renderLineupCard({ ...input, ...(sideOrigins ? { origins: sideOrigins } : {}) });
+    if (!rendered.ok) return rendered;
+    const { png, templateStyle } = rendered.data;
     return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle } };
   } catch (cause) {
     console.error("[lineup] önizleme çizilemedi:", cause);

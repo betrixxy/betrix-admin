@@ -1,6 +1,8 @@
 import { toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-mappers";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { getSportmonksMatchValues } from "@/lib/services/sportmonks";
+import { withSetPeople } from "@/lib/dashboard/set-people";
+import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import type { MatchStatsFacts } from "@/types/match-stats";
 
 /**
@@ -19,5 +21,7 @@ export async function loadMatchStatsFacts(raw: ApiFootballFixtureResultRaw): Pro
     console.error("[match-stats] Sportmonks eşlemesi düştü:", error);
     return null;
   });
-  return toMatchStatsFacts(raw, sportmonks);
+  const facts = toMatchStatsFacts(raw, sportmonks);
+  // Ad büyük harfi için takım kökeni (Türk takımı mı) — bkz. team-origin.ts.
+  return facts ? withSetPeople(await withTeamOrigins(facts)) : null;
 }

@@ -54,7 +54,10 @@ export async function createWeeklyFixturesDraft(draft: WeeklyFixturesDraft, anch
 
   let png: Buffer;
   try {
-    png = await renderWeeklyFixturesCard(card.data);
+    // Yerleşim kapısına takılan kart üretilmez; sebep stüdyoda gösterilir.
+    const rendered = await renderWeeklyFixturesCard(card.data);
+    if (!rendered.ok) return rendered;
+    png = rendered.data;
   } catch (cause) {
     console.error("[weekly-fixtures] kart çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kart çizilemedi.", cause } };

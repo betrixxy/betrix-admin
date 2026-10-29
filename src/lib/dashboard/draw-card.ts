@@ -1,3 +1,4 @@
+import { fullDate, shortDate as dayMonth } from "@/lib/format/dates";
 import { nameOrigin, originFromCountry, teamNameOrigin, upperName } from "@/lib/dashboard/name-case";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { cardTeamColor } from "@/lib/dashboard/vitrin-card";
@@ -17,19 +18,6 @@ const GOLD = "#F5C518";
 const NEUTRAL = "#E8E8EA";
 const SHORT_COMPETITION: Readonly<Record<number, string>> = { 2: "ŞAMPİYONLAR LİGİ", 3: "AVRUPA LİGİ", 848: "KONFERANS LİGİ" };
 
-const istanbul = (options: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", ...options });
-const dayMonthFormat = istanbul({ day: "2-digit", month: "2-digit" });
-const fullDateFormat = istanbul({ day: "2-digit", month: "2-digit", year: "numeric" });
-const parts = (format: Intl.DateTimeFormat, iso: string) => Object.fromEntries(format.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
-/** "04.11" (İstanbul; tr-TR gün+ay "04/11" verir). */
-export const dayMonth = (iso: string) => {
-  const p = parts(dayMonthFormat, iso);
-  return `${p.day}.${p.month}`;
-};
-export const fullDate = (iso: string) => {
-  const p = parts(fullDateFormat, iso);
-  return `${p.day}.${p.month}.${p.year}`;
-};
 
 export interface DrawCardInput {
   variant: DrawVariant;

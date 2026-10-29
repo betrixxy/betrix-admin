@@ -1,3 +1,4 @@
+import { shortDate } from "@/lib/format/dates";
 import type { H2HPosition, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
 import { POSITION_LABELS, SMALL_SAMPLE_MINUTES } from "./stats";
@@ -9,18 +10,23 @@ import { POSITION_LABELS, SMALL_SAMPLE_MINUTES } from "./stats";
 
 type Player = Pick<PlayerSeasonStats, "shortName" | "position" | "minutes" | "league" | "scope" | "seasonLabel" | "freshness">;
 
-const dayMonth = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit" });
 /** "2026-10-26T16:00:00Z" → "26.10" (İstanbul; tr-TR yalnız gün+ay'da "26/10" verir, parçalardan kurulur). */
 export function asOfDay(iso: string): string {
-  const parts = dayMonth.formatToParts(new Date(iso));
-  const part = (type: "day" | "month") => parts.find((p) => p.type === type)?.value ?? "";
-  return `${part("day")}.${part("month")}`;
+  return shortDate(iso);
 }
 
-/** Künyenin güncellik parçası: "26.10 İTİBARIYLA"; iki oyuncu farklıysa ikisi ("26.10 / 25.10"); bilinmiyorsa boş. */
+/** Oyuncu kendi takımının bütün bitmiş maçlarıyla güncel mi (verisi gelmeyen maç yok). */
+const upToDate = (player: Player) => player.freshness.missingMatches === 0;
+
+/**
+ * Künyenin güncellik parçası. Her oyuncu kendi takımının son bitmiş maçıyla kıyaslanır: ikisi de güncelse
+ * TEK tarih — en son olanı ("26.10 İTİBARIYLA"; takımlar farklı günlerde oynamış olabilir). Biri eksikse
+ * (ya da bilinmiyorsa) ve tarihler farklıysa ikisi ("26.10 / 19.10"); tarih bilinmiyorsa boş.
+ */
 export function freshnessLabel(left: Player, right: Player): string {
   const [a, b] = [left.freshness.asOfUtc, right.freshness.asOfUtc];
   if (!a || !b) return "";
+  if (upToDate(left) && upToDate(right)) return `${asOfDay(a > b ? a : b)} İTİBARIYLA`;
   const [x, y] = [asOfDay(a), asOfDay(b)];
   return `${x === y ? x : `${x} / ${y}`} İTİBARIYLA`;
 }
@@ -46,8 +52,10 @@ export function comparisonWarnings(left: Player, right: Player): string[] {
   if (small.length) warnings.push(`Küçük örneklem: ${small.map((player) => `${player.shortName} ${player.minutes} dk`).join(", ")} (${SMALL_SAMPLE_MINUTES} dakikanın altında)`);
   const unknown = [left, right].filter((player) => !player.freshness.asOfUtc);
   if (unknown.length) warnings.push(`Güncellik tarihi bilinmiyor: ${unknown.map((player) => player.shortName).join(", ")}`);
-  else if (asOfDay(left.freshness.asOfUtc ?? "") !== asOfDay(right.freshness.asOfUtc ?? "")) {
-    warnings.push(`Güncellik farklı: ${left.shortName} ${asOfDay(left.freshness.asOfUtc ?? "")}, ${right.shortName} ${asOfDay(right.freshness.asOfUtc ?? "")} itibarıyla`);
+  // Yalnızca GERÇEKTEN eksik maç varsa (takımların farklı günlerde oynaması uyarı değildir).
+  for (const player of [left, right]) {
+    const missing = player.freshness.missingMatches ?? 0;
+    if (missing > 0 && player.freshness.asOfUtc) warnings.push(`Eksik maç: ${player.shortName} için ${missing} bitmiş maçın verisi henüz yok — ${asOfDay(player.freshness.asOfUtc)} itibarıyla`);
   }
   for (const player of [left, right]) {
     if (player.freshness.source === "sportmonks") warnings.push(`${player.shortName}: bütün satırlar Sportmonks'tan (${player.freshness.note ?? "API-Football güncellenemedi"})`);

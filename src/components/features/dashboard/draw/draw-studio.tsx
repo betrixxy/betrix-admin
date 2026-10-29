@@ -166,7 +166,7 @@ export function DrawStudio({ initial, initialComparison, defaultCompetitionId, d
                 {restoreNote}
               </div>
             ) : null}
-            <DrawSetup sessions={sessions} active={active} onActive={setActive} onSessions={(next) => { setSessions(next); setActive((index) => Math.min(index, next.length - 1)); }} />
+            <DrawSetup sessions={sessions} active={active} onActive={setActive} onSessions={(next) => { setSessions(next); setActive((index) => Math.min(index, next.length - 1)); }} onSeasonDraws={() => setVariant("TURKISH")} />
             <DrawParticipants state={state} onChange={updateState} />
           </CardContent>
         </Card>

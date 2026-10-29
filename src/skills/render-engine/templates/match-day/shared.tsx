@@ -1,6 +1,7 @@
 import type { MatchDayCard } from "@/types/match-day";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { wrapLines } from "../../satori-text";
+import { upperName } from "@/lib/dashboard/name-case";
 
 /**
  * Maç Günü şablonlarının ortak yapı taşları (Satori). Satori yalnızca flexbox ve CSS alt
@@ -65,20 +66,6 @@ export function TeamLogo({ src, name, size }: { src: string | null; name: string
   );
 }
 
-export function LeagueLogo({ card, size }: { card: MatchDayCard; size: number }) {
-  if (!card.leagueLogo) return null;
-  return (
-    <div
-      tw="flex items-center justify-center"
-      style={{ width: size, height: size, borderRadius: size * 0.18, backgroundColor: "rgba(255,255,255,0.94)" }}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-      <img src={card.leagueLogo} alt="" width={size * 0.74} height={size * 0.74} style={{ objectFit: "contain" }} />
-    </div>
-  );
-}
-
-
 export function BrandLogo({ card, height }: { card: MatchDayCard; height: number }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur.
@@ -120,4 +107,13 @@ export function Canvas({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/** Stadyum adı büyük harfle: kendi harfleri, belirsizse ev sahibinin ülkesi (stadyum ev sahibinde). */
+export const upperStadium = (card: Pick<MatchDayCard, "stadiumLabel" | "origins">, stadium = card.stadiumLabel): string => upperName(stadium, card.origins?.home.people);
+
+/** Hakem adı büyük harfle: iki takım aynı ülkedense (yurt içi maç) o ülke, değilse yalnızca kendi harfleri. */
+export function upperReferee(card: Pick<MatchDayCard, "refereeLabel" | "origins">): string {
+  const home = card.origins?.home.people;
+  return upperName(card.refereeLabel, home && home === card.origins?.away.people ? home : null);
 }

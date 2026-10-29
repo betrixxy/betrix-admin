@@ -4,7 +4,7 @@ import { cardTeamName } from "@/lib/archive/names";
 import { fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
 import { positionFromApi } from "@/lib/player-h2h/stats";
 import { getFixturePlayers, getTeamFinishedFixtures } from "@/lib/services/api-football/player-recency";
-import { missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
+import { fixtureCoverage, missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
 import { getPlayerSeason } from "@/lib/services/api-football/player-season";
 import { aggregateSeason, type SeasonAggregate } from "@/lib/services/api-football/player-season-mappers";
 import type { ApiFootballPlayerSeasonEntry } from "@/lib/services/api-football/player-season-types";
@@ -68,14 +68,15 @@ async function apiFootballCurrent(entries: ApiFootballPlayerSeasonEntry[], reque
   const missing = missingAppearances(seasonAggregate.appearances, playerAppearances(details.data, request.playerId, team));
   if (!missing.ok) return missing;
   const aggregate = aggregateSeason([...entries, ...missing.data.map((appearance) => appearance.entry)], () => true);
-  const last = finished.at(-1);
+  // Güncellik oyuncunun kendi takımının bitmiş maçlarına göre (diğer oyuncunun tarihine değil).
+  const coverage = fixtureCoverage(finished, details.data, team.id);
   return {
     ok: true,
     data: {
       aggregate: { ...aggregate, position: seasonAggregate.position ?? aggregate.position, competitions: seasonAggregate.competitions },
       values: aggregate.values,
       sources: allFrom(aggregate.values, "api-football"),
-      freshness: { source: "api-football", asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, addedMatches: missing.data.length, note: null },
+      freshness: { source: "api-football", asOfUtc: coverage.asOfUtc, missingMatches: coverage.missingMatches, addedMatches: missing.data.length, note: null },
     },
   };
 }
@@ -110,14 +111,16 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
     if (!sm) return fail("NO_CURRENT_DATA", `${fullName}: güncel veri yok — ${reason}; Sportmonks'ta da kapsamda kayıt yok.`);
     if (!sm.minutes) return fail("NO_CURRENT_DATA", `${fullName}: güncel veri yok — ${reason}; Sportmonks kaydında dakika yok.`);
     const list = await getTeamFinishedFixtures(team.id, season, request.scope === "LEAGUE" ? domestic.id : null);
-    const last = list.ok ? list.data.filter((fixture) => fixture.fixture.timestamp * 1000 < beforeMs).at(-1) : undefined;
+    // Sezon toplamındaki turnuvalar (hazırlık maçı tarihi künyeye girmez); Sportmonks'un o maçı içerip içermediği bilinmez.
+    const leagueIds = new Set([domestic.id, ...entries.map((entry) => entry.league.id)]);
+    const last = list.ok ? list.data.filter((fixture) => fixture.fixture.timestamp * 1000 < beforeMs && leagueIds.has(fixture.league.id)).at(-1) : undefined;
     current = {
       ok: true,
       data: {
         aggregate: { appearances: sm.appearances ?? 0, minutes: sm.minutes, values: sm.values, penaltyGoals: sm.penaltyGoals ?? null, position: aggregateSeason(entries, () => true).position, competitions: entries.map((e) => ({ id: e.league.id, name: e.league.name })) },
         values: sm.values,
         sources: allFrom(sm.values, "sportmonks"),
-        freshness: { source: "sportmonks", asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, addedMatches: 0, note: `Sportmonks kullanıldı: ${reason}` },
+        freshness: { source: "sportmonks", asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, missingMatches: null, addedMatches: 0, note: `Sportmonks kullanıldı: ${reason}` },
       },
     };
   }

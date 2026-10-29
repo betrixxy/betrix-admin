@@ -37,6 +37,9 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
         headline: draft.headline,
         matchLabel: draft.matchLabel,
         format: draft.format,
+        // Ad büyük harfi için köken sunucuda maçtan çözülür (bkz. team-origin.ts).
+        fixtureId: draft.fixtureId,
+        side: target,
       });
       if (!result.ok) {
         setError(result.error.message);

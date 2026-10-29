@@ -7,7 +7,7 @@ import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createVitrinDraft, predictWithRuleReasons, renderVitrin, vitrinMeta, vitrinPrediction } from "@/lib/dashboard/vitrin-engine";
 import { kickoffGate } from "@/lib/prediction/kickoff";
-import { auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
+import { auditedReasons, auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
 import { DIFFERENT_LEAGUES_WARNING, differentLeagues } from "@/lib/prediction/season-xg";
 import { openBoxLines, scenarioTitle } from "@/lib/prediction/catalog";
 import { isAnthropicConfigured } from "@/lib/services/anthropic";
@@ -62,7 +62,7 @@ async function loadStats(fixtureId: string): Promise<Result<DeepAnalysisStats>> 
 }
 
 /** Tahmin + gerekçeler (verilmezse kural tabanlı) → stüdyo tablosu, denetim sonuçlarıyla. */
-async function buildRows(fixtureId: string, stats: DeepAnalysisStats, reasons: Partial<Record<ScenarioId, string>>): Promise<Result<VitrinLoadResult>> {
+async function buildRows(fixtureId: string, stats: DeepAnalysisStats, reasons: Partial<Record<ScenarioId, string>>, notes: string[] = []): Promise<Result<VitrinLoadResult>> {
   const base = await predictWithRuleReasons(stats);
   if (!base.ok) return base;
   const sides = matchSides(stats);
@@ -81,7 +81,7 @@ async function buildRows(fixtureId: string, stats: DeepAnalysisStats, reasons: P
       scenarioCount: base.data.scenarioCount,
       surprisePct: base.data.surprisePct,
       analystAvailable: isAnthropicConfigured(),
-      warnings: differentLeagues(stats) ? [DIFFERENT_LEAGUES_WARNING] : [],
+      warnings: [...(differentLeagues(stats) ? [DIFFERENT_LEAGUES_WARNING] : []), ...notes],
       rows: scenarios.map((scenario) => ({
         id: scenario.id,
         title: scenarioTitle(scenario.id, sides, scenario.outcome),
@@ -108,7 +108,10 @@ export async function writeReasonsAction(fixtureId: string): Promise<Result<Vitr
   const picks = base.data.scenarios.map((scenario) => ({ senaryo: scenarioTitle(scenario.id, sides, scenario.outcome), kimlik: scenario.id, secili_sonuc: openBoxLines(scenario, sides).find((line) => line.picked)?.label ?? "" }));
   const written = await generateScenarioReasons(vitrinFacts(stats.data), picks);
   if (!written.ok) return fail(written.error.code, written.error.message);
-  return buildRows(fixtureId, stats.data, written.data);
+  // Yön/örneklem dahil denetimden geçmeyen AI gerekçesi, geçen kural tabanlı gerekçeyle değişir (uyarıyla).
+  const audited = auditedReasons(base.data.scenarios, written.data, vitrinFacts(stats.data), sides);
+  const notes = audited.replaced.map(({ id, outcome, issues }) => `${scenarioTitle(id, sides, outcome)}: AI gerekçesi denetimden geçmedi (${issues.join(" · ")}) — kural tabanlı gerekçe kullanıldı.`);
+  return buildRows(fixtureId, stats.data, audited.reasons, notes);
 }
 
 const reasonsSchema = z.record(z.enum(SCENARIO_IDS), z.string().max(REASON_MAX_LENGTH * 2));

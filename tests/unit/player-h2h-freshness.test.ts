@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { buildH2HCard } from "@/lib/dashboard/player-h2h-card";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { comparisonWarnings, freshnessLabel } from "@/lib/player-h2h/checks";
-import { fixtureEntry, missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
+import { fixtureCoverage, fixtureEntry, missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
 import { aggregateSeason } from "@/lib/services/api-football/player-season-mappers";
 import type { ApiFootballFixturePlayers, ApiFootballPlayerSeasonEntry } from "@/lib/services/api-football/player-season-types";
 import { seasonLabel } from "@/lib/player-h2h/names";
@@ -68,6 +68,17 @@ describe("toplama girmemiş maçlar (maç sayısı × süre alınan maç listesi
     assert.equal(!result.ok && result.error.code, "FIXTURE_DATA_MISSING");
   });
 
+  it("güncellik oyuncunun KENDİ takımının bitmiş maçlarına göre; kadro satırı gelmemiş maç eksik sayılır", () => {
+    const finished = FIXTURES.map((f) => ({ fixture: { id: f.fixture.id, timestamp: f.fixture.timestamp } }));
+    const all = fixtureCoverage(finished, FIXTURES, TEAM.id);
+    assert.deepEqual(all, { asOfUtc: "2026-11-02T16:00:00.000Z", missingMatches: 0 });
+    // Son maçın oyuncu verisi henüz yayımlanmadı (kadro boş) → bir önceki maç itibarıyla, 1 eksik.
+    const late = FIXTURES.map((f) => (f.fixture.id === 5 ? { ...f, players: [{ team: { id: TEAM.id }, players: [] }] } : f));
+    assert.deepEqual(fixtureCoverage(finished, late, TEAM.id), { asOfUtc: "2026-10-26T16:00:00.000Z", missingMatches: 1 });
+    // Başka takımın maç verisi bu takımı güncel saymaz.
+    assert.deepEqual(fixtureCoverage(finished, FIXTURES, 645), { asOfUtc: null, missingMatches: 5 });
+  });
+
   it("maç kaydı: pas isabeti SAYIDAN yüzdeye (15/20 → %75), tek maç", () => {
     const entry = fixtureEntry(FIXTURES[0]!.players[0]!.players[0]!.statistics[0]!, FIXTURES[0]!, TEAM);
     assert.equal(entry.passes?.accuracy, 75);
@@ -99,27 +110,47 @@ describe("toplama girmemiş maçlar (maç sayısı × süre alınan maç listesi
 });
 
 describe("künye ve uyarılar: güncellik", () => {
-  const withAsOf = (asOfUtc: string | null, source: "api-football" | "sportmonks" = "api-football"): PlayerSeasonStats => ({ ...H2H_LEFT, league: H2H_LEFT.league, freshness: { source, asOfUtc, addedMatches: 1, note: source === "sportmonks" ? "maç verisi eksik" : null } });
+  const withAsOf = (asOfUtc: string | null, missingMatches: number | null = 0, source: "api-football" | "sportmonks" = "api-football"): PlayerSeasonStats => ({ ...H2H_LEFT, league: H2H_LEFT.league, freshness: { source, asOfUtc, missingMatches, addedMatches: 1, note: source === "sportmonks" ? "maç verisi eksik" : null } });
+  const missingWarning = (warnings: string[]) => warnings.filter((w) => w.startsWith("Eksik maç") || w.startsWith("Güncellik"));
 
   it("aynı tarih: '26.10 İTİBARIYLA' (İstanbul saati), uyarı yok", () => {
     const a = withAsOf("2026-10-26T16:00:00Z");
     const b = withAsOf("2026-10-26T18:30:00Z");
     assert.equal(freshnessLabel(a, b), "26.10 İTİBARIYLA");
-    assert.ok(!comparisonWarnings(a, b).some((w) => w.startsWith("Güncellik")));
+    assert.deepEqual(missingWarning(comparisonWarnings(a, b)), []);
   });
 
-  it("farklı tarih: iki tarih + stüdyo uyarısı; bilinmeyen tarih uyarısı", () => {
+  it("ikisi de kendi takımının son maçıyla güncel, takımlar farklı günlerde oynamış: tek tarih (en son), uyarı yok", () => {
+    const konya = withAsOf("2026-10-25T13:00:00Z");
+    const galatasaray = withAsOf("2026-10-26T17:00:00Z");
+    assert.equal(freshnessLabel(konya, galatasaray), "26.10 İTİBARIYLA");
+    assert.equal(freshnessLabel(galatasaray, konya), "26.10 İTİBARIYLA", "sıra fark etmez");
+    assert.deepEqual(missingWarning(comparisonWarnings(konya, galatasaray)), []);
+  });
+
+  it("gerçekten eksik maç: iki tarih + oyuncu başına uyarı", () => {
     const a = withAsOf("2026-10-26T16:00:00Z");
-    const b = withAsOf("2026-10-25T16:00:00Z");
-    assert.equal(freshnessLabel(a, b), "26.10 / 25.10 İTİBARIYLA");
-    assert.ok(comparisonWarnings(a, b).includes("Güncellik farklı: Aktürkoğlu 26.10, Aktürkoğlu 25.10 itibarıyla"));
+    const stale = withAsOf("2026-10-19T16:00:00Z", 1);
+    assert.equal(freshnessLabel(a, stale), "26.10 / 19.10 İTİBARIYLA");
+    assert.deepEqual(missingWarning(comparisonWarnings(a, stale)), ["Eksik maç: Aktürkoğlu için 1 bitmiş maçın verisi henüz yok — 19.10 itibarıyla"]);
+  });
+
+  it("bilinmeyen tarih: künyede tarih yok + uyarı", () => {
+    const a = withAsOf("2026-10-26T16:00:00Z");
     assert.equal(freshnessLabel(a, withAsOf(null)), "");
     assert.ok(comparisonWarnings(a, withAsOf(null)).some((w) => w.startsWith("Güncellik tarihi bilinmiyor")));
   });
 
+  it("Sportmonks (eksik maç bilinmez): tarihler farklıysa ikisi, eksik maç uyarısı yok", () => {
+    const a = withAsOf("2026-10-26T16:00:00Z");
+    const sm = withAsOf("2026-10-25T16:00:00Z", null, "sportmonks");
+    assert.equal(freshnessLabel(a, sm), "26.10 / 25.10 İTİBARIYLA");
+    assert.deepEqual(missingWarning(comparisonWarnings(a, sm)), []);
+  });
+
   it("Sportmonks'a geçen oyuncu uyarıda; dipnot oyuncu başına tek kaynak; künyede tarih", async () => {
     const left = withAsOf("2026-10-26T16:00:00Z");
-    const right: PlayerSeasonStats = { ...H2H_RIGHT, freshness: { source: "sportmonks", asOfUtc: "2026-10-26T18:00:00Z", addedMatches: 0, note: "maç verisi eksik" } };
+    const right: PlayerSeasonStats = { ...H2H_RIGHT, freshness: { source: "sportmonks", asOfUtc: "2026-10-26T18:00:00Z", missingMatches: null, addedMatches: 0, note: "maç verisi eksik" } };
     assert.ok(comparisonWarnings(left, right).some((w) => w.startsWith("Pléa: bütün satırlar Sportmonks'tan")));
     const built = buildH2HCard({ left, right, mode: "TOTAL", match: null, images: { leftLogo: null, rightLogo: null, leftFace: null, rightFace: null, brandLogo: "" }, frame: MATCH_DAY_FRAMES.IG_PORTRAIT });
     assert.ok(built.ok);

@@ -1,6 +1,7 @@
+import { upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import type { MatchCenter } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyMatch, WeeklyTeam } from "@/types/weekly-fixtures";
-import { EYEBROW, SCORE, TEAM, upper } from "../deep-analysis/deep-analysis-tokens";
+import { EYEBROW, SCORE, TEAM } from "../studio-tokens";
 import type { WeeklyTheme } from "./weekly-theme";
 
 /**
@@ -24,9 +25,10 @@ function lost(team: WeeklyTeam, other: WeeklyTeam, match: WeeklyMatch): boolean 
   return match.status === "finished" && team.goals !== null && other.goals !== null && team.goals < other.goals;
 }
 
-function Side({ team, logo, align, rowHeight, sideWidth, theme, faded }: { team: WeeklyTeam; logo: string; align: "home" | "away"; rowHeight: number; sideWidth: number; theme: WeeklyTheme; faded: boolean }) {
+function Side({ team, logo, align, rowHeight, sideWidth, theme, faded, nameOrigin }: { team: WeeklyTeam; logo: string; align: "home" | "away"; rowHeight: number; sideWidth: number; theme: WeeklyTheme; faded: boolean; nameOrigin: NameOrigin }) {
   const logoSize = Math.round(rowHeight * 0.6);
-  const name = upper(team.name);
+  // Takım adı köken kuralıyla (lig varsayılanı, bkz. name-case.ts).
+  const name = upperTeamName(team.name, { name: nameOrigin, people: nameOrigin });
   const fontSize = nameFont(name, sideWidth - logoSize - 14, Math.max(20, Math.min(30, Math.round(rowHeight * 0.33))));
   const label = (
     <span
@@ -88,6 +90,7 @@ export function WeeklyRow({
   rowHeight,
   width,
   theme,
+  nameOrigin,
 }: {
   match: WeeklyMatch;
   center: MatchCenter;
@@ -95,6 +98,8 @@ export function WeeklyRow({
   rowHeight: number;
   width: number;
   theme: WeeklyTheme;
+  /** Takım adlarının varsayılan kökeni (ligden, bkz. leagues.ts::nameOrigin). */
+  nameOrigin: NameOrigin;
 }) {
   const sideWidth = Math.floor((width - ROW_PAD_X * 2 - CENTER_WIDTH - SIDE_GAP * 2) / 2);
   return (
@@ -102,9 +107,9 @@ export function WeeklyRow({
       tw="flex items-center"
       style={{ width, height: rowHeight, padding: `0 ${ROW_PAD_X}px`, gap: SIDE_GAP, borderRadius: 16, backgroundColor: theme.row, border: `1px solid ${theme.rowBorder}` }}
     >
-      <Side team={match.home} logo={logos.home} align="home" rowHeight={rowHeight} sideWidth={sideWidth} theme={theme} faded={lost(match.home, match.away, match)} />
+      <Side team={match.home} logo={logos.home} align="home" rowHeight={rowHeight} sideWidth={sideWidth} theme={theme} faded={lost(match.home, match.away, match)} nameOrigin={nameOrigin} />
       <Center center={center} rowHeight={rowHeight} theme={theme} />
-      <Side team={match.away} logo={logos.away} align="away" rowHeight={rowHeight} sideWidth={sideWidth} theme={theme} faded={lost(match.away, match.home, match)} />
+      <Side team={match.away} logo={logos.away} align="away" rowHeight={rowHeight} sideWidth={sideWidth} theme={theme} faded={lost(match.away, match.home, match)} nameOrigin={nameOrigin} />
     </div>
   );
 }

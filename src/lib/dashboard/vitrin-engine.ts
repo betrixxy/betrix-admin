@@ -8,6 +8,7 @@ import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
 import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
+import { teamOrigin } from "@/lib/dashboard/team-origin";
 import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
@@ -79,7 +80,7 @@ export async function vitrinPrediction(stats: DeepAnalysisStats, reasons: Partia
   const scenarios = base.data.scenarios.map((scenario) => ({ ...scenario, reason: (reasons[scenario.id] ?? scenario.reason).trim() }));
   const problems = selection.open.flatMap((id) => {
     const scenario = scenarios.find((entry) => entry.id === id);
-    const issues = scenario ? auditReason(scenario.reason, id, facts, sides) : ["senaryo yok"];
+    const issues = scenario ? auditReason(scenario.reason, scenario.outcome, facts, sides) : ["senaryo yok"];
     return issues.length ? [`${id}: ${issues.join(", ")}`] : [];
   });
   if (problems.length) return fail("REASON_AUDIT", `Gerekçe denetimi geçmedi — kart üretilmedi: ${problems.join(" · ")}`);
@@ -106,7 +107,10 @@ const SLIDE_LABELS = ["01 Poster", "02 Analiz"] as const;
 export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ pages: [Buffer, Buffer]; card: VitrinCard }>> {
   const late = request.allowPast ? null : kickoffGate(request.stats.fixture, new Date());
   if (late) return fail("MATCH_STARTED", late);
-  const card = buildVitrinCard(request.prediction, request.selection, vitrinMeta(request.stats), await vitrinImages(request.stats));
+  const meta = vitrinMeta(request.stats);
+  // Ad büyük harfi için takım kökeni (Türk takımı mı) — arşiv/API, yalnızca okuma.
+  const [home, away] = await Promise.all([teamOrigin(meta.homeTeamId), teamOrigin(meta.awayTeamId)]);
+  const card = buildVitrinCard(request.prediction, request.selection, { ...meta, origins: { home, away } }, await vitrinImages(request.stats));
   const rendered = await renderVitrinImages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
   return rendered.ok ? { ok: true, data: { pages: rendered.data, card } } : rendered;
 }

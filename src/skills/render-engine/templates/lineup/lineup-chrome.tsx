@@ -1,6 +1,7 @@
 import type { LineupPalette } from "@/types/lineup";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
-import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
+import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../studio-tokens";
 import type { LineupGeometry } from "./lineup-geometry";
 
 /**
@@ -33,6 +34,14 @@ export const labelStyle = (fontSize: number, color: string) => ({ fontFamily: TY
 export const nameStyle = (fontSize: number, color: string, weight: 500 | 600 = 600) => ({ fontFamily: TYPE.NAME, fontWeight: weight, fontSize, letterSpacing: 0.5, color, lineHeight: 1.1 });
 
 const BRAND_LOGO_HEIGHT = 54;
+
+/**
+ * Muhtemel 11 blokları (yerleşim kapısı) — logo dahil her öğe birine aittir; zemin, ışıma, perde ölçülmez.
+ * Kahraman Liste'de kapak kesimi bilerek listenin arkasındadır: ikisi aynı `card-body` bloğudur.
+ */
+export const LINEUP_BLOCKS = ["card-header", "teams", "card-body", "footer-text", "footer-logo"] as const satisfies readonly LayoutBlockId[];
+
+export const shown = (only: BlockFilter, id: LayoutBlockId) => ({ opacity: blockOpacity(only, id) });
 /** Archivo Black büyük harf ≈ 0.76 em/karakter — başlık kutusuna sığacak en büyük punto. */
 const HEADLINE_CHAR_RATIO = 0.76;
 
@@ -54,7 +63,8 @@ function splitHeadline(headline: string): [string, string] {
  * Zemin: baskın koyu renkten geceye inen degrade + zeminin açık tonunda yumuşak ışık. Işık kutusu kanvasın
  * içinde kalmalı: Satori negatif `left`li kutunun degradesini kanvas genişliğinde keser (sert dikey kenar).
  */
-export function LineupBackground({ g, palette, glow }: { g: LineupGeometry; palette: LineupPalette; glow: { left: number; top: number; size: number } }) {
+export function LineupBackground({ g, palette, glow, only }: { g: LineupGeometry; palette: LineupPalette; glow: { left: number; top: number; size: number }; only?: BlockFilter }) {
+  if (only) return null;
   return (
     <>
       <div style={{ position: "absolute", left: 0, top: 0, width: g.width, height: g.height, backgroundImage: `linear-gradient(160deg, ${palette.backgroundTop} 0%, ${palette.backgroundBottom} 100%)` }} />
@@ -71,8 +81,10 @@ export function LineupHeader({
   logoUrl,
   opponentLogoUrl,
   palette,
+  only,
 }: {
   g: LineupGeometry;
+  only?: BlockFilter;
   headline: string;
   teamName: string;
   opponentName: string;
@@ -93,19 +105,19 @@ export function LineupHeader({
   const opponentLogoSize = Math.round(52 * k);
 
   const titles = (
-    <div tw="flex flex-col" style={{ maxWidth: g.landscape ? g.header.width : Math.round(780 * k) }}>
+    <div tw="flex flex-col" style={{ maxWidth: g.landscape ? g.header.width : Math.round(780 * k), ...shown(only, "card-header") }}>
       <div tw="flex items-end" style={{ gap: headlineSize * 0.22 }}>
         {lead ? <span style={{ ...headlineStyle, color: palette.text, textShadow: "0 6px 28px rgba(0,0,0,0.5)" }}>{lead}</span> : null}
         {accent ? <span style={{ ...headlineStyle, color: palette.accent, textShadow: `0 0 36px ${rgba(palette.accent, 0.32)}` }}>{accent}</span> : null}
       </div>
       <div tw="flex items-center" style={{ gap: Math.round(16 * k), marginTop: Math.round(26 * k) }}>
         <div style={{ width: 5, height: Math.round(38 * k), backgroundColor: palette.accent }} />
-        <span style={{ fontFamily: TYPE.TEAM, fontWeight: 800, fontSize: teamSize, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{upper(teamName)}</span>
+        <span style={{ fontFamily: TYPE.TEAM, fontWeight: 800, fontSize: teamSize, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{teamName}</span>
       </div>
       {opponentName ? (
         <div tw="flex items-center" style={{ gap: 12, marginTop: Math.round(14 * k), marginLeft: 21 }}>
           <span style={labelStyle(Math.round(14 * k), palette.accent)}>VS</span>
-          <span style={labelStyle(Math.round(17 * k), palette.muted)}>{upper(opponentName)}</span>
+          <span style={labelStyle(Math.round(17 * k), palette.muted)}>{opponentName}</span>
         </div>
       ) : null}
     </div>
@@ -125,7 +137,7 @@ export function LineupHeader({
   if (g.landscape) {
     return (
       <div tw="flex flex-col" style={{ position: "absolute", left: g.header.left, top: g.header.top, width: g.header.width, gap: 34 }}>
-        <div tw="flex items-center" style={{ gap: 22 }}>
+        <div tw="flex items-center" style={{ gap: 22, ...shown(only, "teams") }}>
           {teamLogo}
           {opponentLogo}
         </div>
@@ -136,7 +148,7 @@ export function LineupHeader({
   return (
     <div tw="flex items-start justify-between" style={{ position: "absolute", left: g.header.left, top: g.header.top, width: g.header.width }}>
       {titles}
-      <div tw="flex flex-col items-center" style={{ gap: 12 }}>
+      <div tw="flex flex-col items-center" style={{ gap: 12, ...shown(only, "teams") }}>
         {teamLogo}
         {opponentLogo}
       </div>
@@ -148,20 +160,36 @@ export function LineupHeader({
  * Alt imza: CheckMatch logosu (".net"siz, en üst katman) + diziliş, künye, teknik direktör. Dikeyde kanvas
  * altında perdeli bant (logo solda, künye sağda); yatayda sol sütunun altında, sola hizalı blok.
  */
-export function LineupFooter({ g, brandLogo, formation, matchLabel, coach, palette }: { g: LineupGeometry; brandLogo: string; formation: string; matchLabel: string; coach: string; palette: LineupPalette }) {
+export function LineupFooter({
+  g,
+  brandLogo,
+  formation,
+  matchLabel,
+  coach,
+  palette,
+  only,
+}: {
+  g: LineupGeometry;
+  brandLogo: string;
+  formation: string;
+  matchLabel: string;
+  coach: string;
+  palette: LineupPalette;
+  only?: BlockFilter;
+}) {
   const { k } = g;
   const logoHeight = Math.round(BRAND_LOGO_HEIGHT * k);
   const logoWidth = brandLogoWidth(logoHeight);
   const night = palette.backgroundBottom;
   const brand = (
-    <div tw="flex flex-col" style={{ gap: Math.round(12 * k) }}>
+    <div tw="flex flex-col" style={{ gap: Math.round(12 * k), ...shown(only, "footer-logo") }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
       <img src={brandLogo} alt={BRAND_LOGO_ALT} width={logoWidth} height={logoHeight} />
       <div style={{ width: logoWidth, height: 3, backgroundImage: `linear-gradient(90deg, ${palette.accent} 0%, ${rgba(palette.accent, 0)} 100%)` }} />
     </div>
   );
   const info = (
-    <div tw={g.landscape ? "flex flex-col items-start" : "flex flex-col items-end"} style={{ gap: Math.round(12 * k) }}>
+    <div tw={g.landscape ? "flex flex-col items-start" : "flex flex-col items-end"} style={{ gap: Math.round(12 * k), ...shown(only, "footer-text") }}>
       <div tw="flex items-center" style={{ gap: 14 }}>
         <span style={labelStyle(Math.round(13 * k), palette.muted)}>DİZİLİŞ</span>
         <span style={{ fontFamily: TYPE.DISPLAY, fontSize: Math.round(34 * k), color: palette.accent, letterSpacing: 0.5, lineHeight: 1 }}>{formation}</span>
@@ -194,7 +222,8 @@ export function LineupFooter({ g, brandLogo, formation, matchLabel, coach, palet
         width: g.width,
         height: g.height - g.footerTop,
         padding: `0 ${g.pad}px ${g.footerInset}px`,
-        backgroundImage: `linear-gradient(180deg, ${rgba(night, 0)} 0%, ${rgba(night, 0.9)} ${Math.round((230 * 0.58 * 100) / (g.height - g.footerTop))}%, ${night} 100%)`,
+        // Perde ölçülmez (yerleşim kapısı); logo ve künye ayrı bloklar.
+        ...(only ? {} : { backgroundImage: `linear-gradient(180deg, ${rgba(night, 0)} 0%, ${rgba(night, 0.9)} ${Math.round((230 * 0.58 * 100) / (g.height - g.footerTop))}%, ${night} 100%)` }),
       }}
     >
       {brand}

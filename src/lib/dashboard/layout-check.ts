@@ -14,6 +14,10 @@ import type { Result } from "@/types/result";
  * (liste: ad → alt satır) mürekkep katmanı olarak çizilir ve PİKSEL düzeyinde denetlenir: iki katmanın
  * mürekkebi `INK_CLEARANCE` pikselden yakınsa çakışma. Çakışma varsa kart üretilmez, sebep yazılır.
  * Görsel testte de aynı kontrol koşar (4 format × 01/02 × 3 şablon).
+ *
+ * KAPSAM: kartın HER öğesi bir bloğa aittir (logo dahil). Sonda bloğuyla (`unassigned`, hiçbir şablon
+ * kullanmaz) çizilince bütün bloklar gizlenir; görünen kalan öğe hiçbir bloğa ait değildir ve ölçülmüyordur
+ * → `UNMEASURED`. Zemin ve süsler (gradyan, ışıma, saha çizgileri) ölçüm sırasında gizlenir (`only ? 0 : 1`).
  */
 
 export interface BlockBox {
@@ -27,7 +31,11 @@ export interface BlockBox {
 export type LayoutIssue =
   | { kind: "OVERLAP"; a: LayoutBlockId; b: LayoutBlockId; width: number; height: number }
   | { kind: "OUTSIDE_SAFE"; a: LayoutBlockId; by: number }
-  | { kind: "INK_TOUCH"; a: LayoutBlockId; b: LayoutBlockId; pixels: number; x: number; y: number };
+  | { kind: "INK_TOUCH"; a: LayoutBlockId; b: LayoutBlockId; pixels: number; x: number; y: number }
+  | { kind: "UNMEASURED"; left: number; top: number; right: number; bottom: number };
+
+/** Sonda bloğu (bkz. KAPSAM). */
+export const UNASSIGNED_PROBE: LayoutBlockId = "unassigned";
 
 /** Gölge/ışıma (glow) gibi yarı saydam kenarlar ölçülmez — yalnızca belirgin pikseller. */
 const ALPHA_THRESHOLD = 64;
@@ -37,8 +45,16 @@ const TOLERANCE = 2;
 export const INK_CLEARANCE = 4;
 
 /** Kartın güvenli alanı: 64px kenar + 9:16 platform bantları. */
-export function layoutSafeArea(frame: MatchDayFrame): FrameBox {
+export function layoutSafeArea(frame: Pick<MatchDayFrame, "width" | "height" | "safeTop" | "safeBottom">): FrameBox {
   return { left: SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, right: frame.width - SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN };
+}
+
+/**
+ * Kendi kenar boşluğu set kartlarından dar olan kartların (Maç Günü, Muhtemel 11, lig kartları) güvenli alanı:
+ * platform bantları (9:16) + `margin` px kenar. Kapı bunlarda asıl olarak blok çakışmasını denetler.
+ */
+export function bandSafeArea(frame: Pick<MatchDayFrame, "width" | "height" | "safeTop" | "safeBottom">, margin = 24): FrameBox {
+  return { left: margin, top: frame.safeTop + margin, right: frame.width - margin, bottom: frame.height - frame.safeBottom - margin };
 }
 
 /** Saf: kutular arası çakışmalar + güvenli alan taşmaları. */
@@ -63,7 +79,9 @@ export function describeLayoutIssues(issues: LayoutIssue[]): string {
         ? `${LAYOUT_BLOCK_LABELS[issue.a]} ↔ ${LAYOUT_BLOCK_LABELS[issue.b]} çakışıyor (${issue.width}×${issue.height}px)`
         : issue.kind === "INK_TOUCH"
           ? `${LAYOUT_BLOCK_LABELS[issue.a]} ↔ ${LAYOUT_BLOCK_LABELS[issue.b]} mürekkebi birbirine ${INK_CLEARANCE}px'ten yakın (${issue.pixels} piksel, ilk: x${issue.x} y${issue.y})`
-          : `${LAYOUT_BLOCK_LABELS[issue.a]} güvenli kenarı ${issue.by}px aşıyor`,
+          : issue.kind === "UNMEASURED"
+            ? `${LAYOUT_BLOCK_LABELS[UNASSIGNED_PROBE]} ölçülmüyor (x${issue.left}–${issue.right}, y${issue.top}–${issue.bottom})`
+            : `${LAYOUT_BLOCK_LABELS[issue.a]} güvenli kenarı ${issue.by}px aşıyor`,
     )
     .join("; ");
 }
@@ -90,7 +108,7 @@ export async function opaqueBounds(png: Buffer): Promise<Omit<BlockBox, "id"> | 
 
 /** Her bloğu tek başına çizip ölçer; görünmeyen (boş) bloklar ve mürekkep katmanları atlanır. */
 export async function measureBlocks(render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS): Promise<BlockBox[]> {
-  const measured = await Promise.all(blocks.filter((id) => !INK_LAYERS.has(id)).map(async (id) => ({ id, bounds: await opaqueBounds(await render(id)) })));
+  const measured = await Promise.all(blocks.filter((id) => !INK_LAYERS.has(id) && id !== UNASSIGNED_PROBE).map(async (id) => ({ id, bounds: await opaqueBounds(await render(id)) })));
   return measured.flatMap(({ id, bounds }) => (bounds ? [{ id, ...bounds }] : []));
 }
 
@@ -161,20 +179,30 @@ export interface LayoutReport {
   issues: LayoutIssue[];
 }
 
-export async function checkLayout(frame: MatchDayFrame, render: (only: LayoutBlockId) => Promise<Buffer>, blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS): Promise<LayoutReport> {
-  const [boxes, layers] = await Promise.all([measureBlocks(render, blocks), measureLayers(render, blocks)]);
-  return { boxes, issues: [...findLayoutIssues(boxes, layoutSafeArea(frame)), ...findInkTouches(layers)] };
+export async function checkLayout(
+  frame: Pick<MatchDayFrame, "width" | "height" | "safeTop" | "safeBottom">,
+  render: (only: LayoutBlockId) => Promise<Buffer>,
+  blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS,
+  /** Kartın güvenli alanı (verilmezse set kartlarınınki: 64px + bantlar). */
+  safe: FrameBox = layoutSafeArea(frame),
+): Promise<LayoutReport> {
+  // Sonda yalnızca kutu bloğu ölçülen çağrıda: salt mürekkep katmanı düzeneğinde (birim test) kapsayıcı blok yoktur.
+  const probe = blocks.some((id) => !INK_LAYERS.has(id) && id !== UNASSIGNED_PROBE);
+  const [boxes, layers, residual] = await Promise.all([measureBlocks(render, blocks), measureLayers(render, blocks), probe ? render(UNASSIGNED_PROBE).then(opaqueBounds) : null]);
+  const unmeasured: LayoutIssue[] = residual ? [{ kind: "UNMEASURED", ...residual }] : [];
+  return { boxes, issues: [...findLayoutIssues(boxes, safe), ...findInkTouches(layers), ...unmeasured] };
 }
 
 /** Üretim kapısı: çakışma varsa kart üretilmez, sebep yazılır. */
 export async function layoutGate(
   label: string,
-  frame: MatchDayFrame,
+  frame: Pick<MatchDayFrame, "width" | "height" | "safeTop" | "safeBottom" | "ratioLabel">,
   render: (only: LayoutBlockId) => Promise<Buffer>,
   /** Kartın blokları (verilmezse hepsi; olmayan blok boş çizilir ve atlanır). */
   blocks: readonly LayoutBlockId[] = LAYOUT_BLOCKS,
+  safe?: FrameBox,
 ): Promise<Result<LayoutReport>> {
-  const report = await checkLayout(frame, render, blocks);
+  const report = await checkLayout(frame, render, blocks, safe);
   if (report.issues.length === 0) return { ok: true, data: report };
   return {
     ok: false,

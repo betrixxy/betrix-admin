@@ -135,6 +135,20 @@
   .dark select {
     color-scheme: dark;
   }
+  /*
+   * Tarayıcı otomatik doldurması (Chrome/Edge) alanı açık sarı/mavi zemin + koyu yazıyla boyar ve koyu
+   * temayı bozar. Zemin içten gölgeyle tema zeminine, yazı tema yazısına çekilir; renk geçişi ertelenir.
+   */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
+    box-shadow: 0 0 0 1000px var(--background) inset;
+    transition: background-color 99999s ease-out 0s;
+  }
   select option,
   select optgroup {
     background-color: var(--popover);

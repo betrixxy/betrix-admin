@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildMarketAnalysisDraft, suggestMarkets } from "@/lib/dashboard/deep-analysis-insights";
 import { computeTeamDeepStats } from "@/lib/services/api-football/deep-analysis-mappers";
 import { computeSeasonLeagueXg } from "@/lib/services/api-football/form-mappers";
 import { apiFootballFixtureDetailRawSchema } from "@/lib/services/api-football/types";
-import type { DeepAnalysisStats } from "@/types/deep-analysis";
 import { DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM } from "../fixtures/api-football/deep-analysis";
 
 describe("computeTeamDeepStats", () => {
@@ -85,30 +83,5 @@ describe("şema toleransı", () => {
     const parsed = apiFootballFixtureDetailRawSchema.safeParse({ ...first, players: [{ broken: true }], lineups: "x" });
     assert.ok(parsed.success);
     assert.deepEqual(parsed.success && [parsed.data.players, parsed.data.lineups], [[], []]);
-  });
-});
-
-describe("buildMarketAnalysisDraft / suggestMarkets", () => {
-  const team = computeTeamDeepStats(DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM);
-  const stats = { home: team, away: team } as unknown as DeepAnalysisStats;
-
-  it("eşiği geçen maddeleri gerçek sayılarla yazar, kalanı boş bırakır", () => {
-    const draft = buildMarketAnalysisDraft("api-football-1", stats);
-    assert.equal(draft.home.strengths.length, 3);
-    assert.ok(draft.home.strengths.includes("%86 pas isabeti"));
-    assert.ok(draft.home.strengths.includes("Maç başı 1,7 xG — net pozisyon üretiyor"));
-    assert.deepEqual(
-      draft.home.stats.map((s) => s.value),
-      ["5,1", "%56", "%86", "9,0"],
-    );
-    assert.equal(draft.home.keyPlayers[0]?.role, "Forvet · 3 gol · 7,2 puan");
-    assert.equal(draft.home.quote, "");
-  });
-
-  it("market önerisi gerekçesini sayıyla verir", () => {
-    const picks = suggestMarkets(stats);
-    // Beklenen toplam gol: (1.33+1.0)/2*2 = 2.3 → üst/alt eşiği yok; KG 4/6 ≈ %67 → KG Var.
-    assert.deepEqual(picks.map((p) => p.pick), ["KG Var"]);
-    assert.equal(picks[0]?.reason, "İki takımın son 6 maçında 4 kez karşılıklı gol");
   });
 });

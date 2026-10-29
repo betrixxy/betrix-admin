@@ -232,7 +232,7 @@ export function MatchDayTemplateCard({
   card: MatchDayCard;
   template: MatchDayTemplateId;
   frame: MatchDayFrame;
-  /** Yerleşim kapısı: yalnızca bu katman görünür (şu an DATA_DRIVEN ad satırları). */
+  /** Yerleşim kapısı: yalnızca bu blok / katman görünür (bkz. `match-day-overlay.tsx::MATCH_DAY_TEMPLATE_BLOCKS`). */
   only?: BlockFilter;
 }) {
   const Template = TEMPLATE_COMPONENTS[template];

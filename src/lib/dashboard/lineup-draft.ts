@@ -40,7 +40,7 @@ export function teamDraftFromReference(ref: TeamLineupReference): TeamLineupDraf
       ? ref.starters.map((s) => {
           // Güncel kadrodaki numara esas (transfer sonrası değişmiş olabilir); yoksa maçtaki numara.
           const number = (s.id !== null ? squadNumbers.get(s.id) : null) ?? s.number;
-          return { playerId: s.id, name: s.name, number: number !== null ? String(number) : "" };
+          return { playerId: s.id, name: s.name, number: number !== null ? String(number) : "", ...(s.origin !== undefined ? { origin: s.origin } : {}) };
         })
       : base.slots;
   return { ...base, formation, slots, coach: ref.coach ?? "", colorHex: ref.colorHex };

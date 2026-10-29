@@ -1,4 +1,4 @@
-import { upperTr } from "@/lib/dashboard/match-result-labels";
+import { upperTeamName } from "@/lib/dashboard/name-case";
 import { formatStatValue } from "@/lib/dashboard/match-stats-rows";
 import type { MatchStatsFacts, StatRowKey } from "@/types/match-stats";
 
@@ -70,7 +70,7 @@ export function statsHighlight(facts: MatchStatsFacts): string | null {
   for (const rule of RULES) {
     for (const side of ["home", "away"] as const) {
       const text = rule(facts, side);
-      if (text) return `${upperTr(facts[side].name)} · ${text}`;
+      if (text) return `${upperTeamName(facts[side].name, facts[side].origin)} · ${text}`;
     }
   }
   return null;

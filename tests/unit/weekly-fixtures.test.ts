@@ -32,9 +32,9 @@ describe("tur etiketleri", () => {
 describe("maç eşleme (Türkiye saati)", () => {
   it("UTC saatini İstanbul'a çevirir; gece yarısını geçen maç ertesi güne düşer", () => {
     const finished = toWeeklyMatch(RAW_FINISHED);
-    assert.deepEqual([finished.dateKey, finished.time, finished.status], ["2026-10-09", "20.00", "finished"]);
+    assert.deepEqual([finished.dateKey, finished.time, finished.status], ["2026-10-09", "20:00", "finished"]);
     const late = toWeeklyMatch(RAW_LATE);
-    assert.deepEqual([late.dateKey, late.time], ["2026-10-11", "00.30"]);
+    assert.deepEqual([late.dateKey, late.time], ["2026-10-11", "00:30"]);
     assert.equal(toWeeklyMatch(RAW_TBD).time, "");
   });
 
@@ -87,7 +87,7 @@ describe("kart yerleşimi", () => {
     const [finished, late, live, postponed] = matches;
     assert.ok(finished && late && live && postponed);
     assert.deepEqual(matchCenter(finished, "date"), { primary: "3 - 1", kind: "score", note: "" });
-    assert.deepEqual(matchCenter(late, "date"), { primary: "00.30", kind: "time", note: "" });
+    assert.deepEqual(matchCenter(late, "date"), { primary: "00:30", kind: "time", note: "" });
     assert.deepEqual(matchCenter(live, "date"), { primary: "0 - 0", kind: "score", note: "CANLI 62'" });
     assert.equal(matchCenter(postponed, "date").primary, "ERT.");
     assert.equal(weeklyKindLabel(matches), "FİKSTÜR & SONUÇLAR");

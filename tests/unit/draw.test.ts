@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { cardTeamName } from "@/lib/archive/names";
-import { buildDrawCard, dayMonth, teamCard } from "@/lib/dashboard/draw-card";
+import { buildDrawCard, teamCard } from "@/lib/dashboard/draw-card";
+import { shortDate as dayMonth } from "@/lib/format/dates";
 import { leagueFixturesFromApi, tiesFromApi } from "@/lib/draw/api-mappers";
 import { compareLeague, compareTies } from "@/lib/draw/compare";
 import { addLeagueFixture, addTie, drawTeamName, emptyDraw, leagueOpponentLimit, removeTie } from "@/lib/draw/entry";
