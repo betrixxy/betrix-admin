@@ -3,6 +3,7 @@ import { getSelectableFixtures } from "@/lib/dashboard/fixtures";
 import { loadVenueOverrides } from "@/lib/names/venue-directory";
 import { cardVenueName, venueNeedsReview } from "@/lib/names/venue-names";
 import { matchPerson, personNeedsReview, restoreName } from "@/lib/names/person-name";
+import { suspiciousAccent } from "@/lib/names/accent-check";
 import { prisma } from "@/lib/prisma";
 import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches } from "@/lib/services/sportmonks/people";
 
@@ -11,6 +12,7 @@ import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches } fro
  *  - Kişiler: arşivdeki Türk kulüplerinin oyuncu/teknik direktörlerinden adı ASCII olup Türk uyruklu
  *    (Sportmonks) ya da Sportmonks'ta bulunamayan ve yabancı harfi olmayanlar — öneri Sportmonks adından.
  *  - Stadyumlar: önümüzdeki maçların stadyumlarından Türkçe karşılığı/düzeltmesi olmayanlar.
+ *  - Aksan şüpheli: arşiv + son maç sonrası kartlarındaki adlardan sözcük sonu "è" taşıyanlar (öneri é).
  * Sportmonks istekleri 24 saat önbellekli (takım başına 2 istek); varsayılan kapsam Süper Lig.
  */
 
@@ -70,4 +72,52 @@ export async function venueReport(): Promise<VenueReportRow[]> {
     const venue = cardVenueName(apiName, overrides);
     return venueNeedsReview(venue) ? [{ apiName, current: venue.name, matches }] : [];
   });
+}
+
+export interface AccentReportRow {
+  name: string;
+  suggestion: string;
+  /** Adın görüldüğü yer(ler): arşiv takımı ya da son maç sonrası kartı. */
+  sources: string[];
+  /** Arşivde kayıtlıysa düzeltme formu için kişi kimliği. */
+  personId: string | null;
+}
+
+/** Maç sonrası kartlarının bakılacağı geçmiş (gün). */
+const ACCENT_LOOKBACK_DAYS = 30;
+
+function factsPeople(snapshot: unknown): string[] {
+  if (typeof snapshot !== "object" || snapshot === null) return [];
+  const facts = snapshot as { players?: { name?: unknown }[]; home?: { scorers?: { name?: unknown }[] }; away?: { scorers?: { name?: unknown }[] } };
+  const names = [...(facts.players ?? []), ...(facts.home?.scorers ?? []), ...(facts.away?.scorers ?? [])].map((person) => person.name);
+  return names.filter((name): name is string => typeof name === "string" && name.trim().length > 0);
+}
+
+/**
+ * "Aksan şüpheli" adlar (bkz. `accent-check.ts`) — yalnızca okuma, otomatik düzeltme yok. Kaynak: arşivdeki
+ * bütün kişiler + son 30 günün Maç Sonucu kartlarındaki oyuncu/golcü adları (API'den gelip arşivde olmayan
+ * yabancı oyuncular, ör. "Alphadjo Cissè").
+ */
+export async function accentReport(): Promise<AccentReportRow[]> {
+  const since = new Date(Date.now() - ACCENT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  const [people, results] = await Promise.all([
+    prisma.person.findMany({ select: { id: true, officialName: true, nameOverride: true, currentTeam: { select: { officialName: true } } } }),
+    prisma.aiContent.findMany({ where: { contentType: "MATCH_RESULT", createdAt: { gte: since } }, select: { statsSnapshot: true }, orderBy: { createdAt: "desc" }, take: 200 }),
+  ]);
+  const rows = new Map<string, AccentReportRow>();
+  const add = (name: string, source: string, personId: string | null) => {
+    const suspicion = suspiciousAccent(name);
+    if (!suspicion) return;
+    const row = rows.get(name) ?? { name, suggestion: suspicion.suggestion, sources: [], personId };
+    if (!row.sources.includes(source)) row.sources.push(source);
+    row.personId ??= personId;
+    rows.set(name, row);
+  };
+  for (const person of people) add(displayPersonName(person), `Arşiv · ${person.currentTeam?.officialName ?? "takımsız"}`, person.id);
+  for (const result of results) {
+    const facts = result.statsSnapshot as { home?: { name?: unknown }; away?: { name?: unknown } } | null;
+    const match = [facts?.home?.name, facts?.away?.name].filter((name) => typeof name === "string").join(" – ");
+    for (const name of factsPeople(result.statsSnapshot)) add(name, `Maç Sonucu · ${match || "maç"}`, null);
+  }
+  return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name, "tr-TR"));
 }

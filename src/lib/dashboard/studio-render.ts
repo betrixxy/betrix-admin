@@ -1,4 +1,5 @@
 import { cardTeamName } from "@/lib/archive/names";
+import { upperCompetition } from "@/lib/dashboard/name-case";
 import type { Fixture } from "@/types/sports";
 import type { StudioFormatDef } from "@/types/ai-content";
 
@@ -93,7 +94,7 @@ function portraitLayout({ format, fixture, statRows, playerDataUri, logoDataUri 
 
   return [
     playerDataUri ? image(playerDataUri, W * 0.15, playerTop, W * 0.7, playerHeight, "xMidYMax") : "",
-    text(fixture.competition.name.toLocaleUpperCase("tr-TR"), W / 2, safeTop + 90, 30, { weight: 600, opacity: 0.7 }),
+    text(upperCompetition(fixture.competition.name), W / 2, safeTop + 90, 30, { weight: 600, opacity: 0.7 }),
     text(home, W / 2, titleY + 40, fitFontSize(home, W * 0.86, 96)),
     text("VS", W / 2, titleY + 130, 40, { weight: 600, opacity: 0.6 }),
     text(away, W / 2, titleY + 220, fitFontSize(away, W * 0.86, 96)),
@@ -115,7 +116,7 @@ function landscapeLayout({ format, fixture, statRows, playerDataUri, logoDataUri
   return [
     playerDataUri ? image(playerDataUri, W * 0.56, H * 0.06, W * 0.4, H * 0.88, "xMidYMax") : "",
     text("CheckMatch", margin, H * 0.12, 26, { anchor: "start", weight: 800 }),
-    text(fixture.competition.name.toLocaleUpperCase("tr-TR"), margin, H * 0.2, 20, { anchor: "start", weight: 600, opacity: 0.7 }),
+    text(upperCompetition(fixture.competition.name), margin, H * 0.2, 20, { anchor: "start", weight: 600, opacity: 0.7 }),
     text(home, margin, H * 0.36, fitFontSize(home, leftWidth, 58), { anchor: "start" }),
     text("VS", margin, H * 0.44, 24, { anchor: "start", weight: 600, opacity: 0.6 }),
     text(away, margin, H * 0.54, fitFontSize(away, leftWidth, 58), { anchor: "start" }),

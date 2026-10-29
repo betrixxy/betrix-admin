@@ -28,8 +28,9 @@ describe("kartlarda lig logosu yok", () => {
   });
 
   it("lig adı tipografik: üst satırda lig adı yazılır", () => {
-    assert.match(read("src/skills/render-engine/templates/weekly-fixtures/weekly-fixtures.tsx"), /upper\(leagueName\)/);
-    assert.match(read("src/skills/render-engine/templates/standings/standings-card.tsx"), /upper\(leagueName\)/);
+    // Lig adı köken kuralıyla büyür (yabancı lig "SERIE A", Türkçe "SÜPER LİG") — bkz. name-case.ts::upperCompetition.
+    assert.match(read("src/skills/render-engine/templates/weekly-fixtures/weekly-fixtures.tsx"), /upperCompetition\(leagueName\)/);
+    assert.match(read("src/skills/render-engine/templates/standings/standings-card.tsx"), /upperCompetition\(leagueName\)/);
     assert.match(read("src/skills/render-engine/templates/match-day/shared.tsx"), /card\.leagueLabel/);
   });
 });

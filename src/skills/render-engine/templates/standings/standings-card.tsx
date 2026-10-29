@@ -2,6 +2,7 @@ import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { seasonLabel, standingsLayout, standingsPlan, standingsStatColumns } from "@/lib/dashboard/standings-layout";
 import { bodyOffsetTop } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { StandingsCardInput } from "@/types/standings";
+import { upperCompetition } from "@/lib/dashboard/name-case";
 import { BODY, upper } from "../studio-tokens";
 import type { BlockFilter } from "../checkmatch-set/blocks";
 import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader, shown } from "../weekly-fixtures/league-card-chrome";
@@ -52,7 +53,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
         theme={theme}
         only={only}
         leagueLogoUrl={leagueLogoUrl}
-        kicker={`${upper(leagueName)} · ${seasonLabel(season)}`}
+        kicker={`${upperCompetition(leagueName)} · ${seasonLabel(season)}`}
         title={upper(title)}
         kindLabel={kindLabel}
       />
