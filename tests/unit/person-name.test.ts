@@ -33,7 +33,9 @@ const GALATASARAY = [
 const KONYASPOR = [
   p("Bahadır Güngördü", "Turkey", 1),
   p("Deniz Türüç", "Turkey", 10),
-  p("Melih İbrahimoğlu", "Turkey", 6),
+  // Sportmonks gerçek kaydı: iki "M. Ibrahimoglu", soyadı alanı ASCII, uyruk Avusturya.
+  p("Melih İbrahimoğlu", "Austria", 77, "Melih", "Ibrahimoglu"),
+  p("Mücahit İbrahimoğlu", "Austria", 24, "Mücahit", "Ibrahimoglu"),
   p("Marko Jevtović", "Serbia", 8),
   p("Chidozie Awaziem", "Nigeria", 5),
 ];
@@ -52,7 +54,9 @@ describe("kart kişi adı — Türkçe karakter geri yükleme", () => {
     assert.equal(card("A. Bardakci", GALATASARAY), "A. BARDAKCI");
     assert.equal(card("B. Gungordu", KONYASPOR), "B. GÜNGÖRDÜ");
     assert.equal(card("D. Turuc", KONYASPOR), "D. TÜRÜÇ");
-    assert.equal(card("M. Ibrahimoglu", KONYASPOR), "M. İBRAHİMOĞLU");
+    assert.equal(card("M. Ibrahimoglu", KONYASPOR, 77), "M. İBRAHİMOĞLU");
+    // Forma numarası yoksa iki aday belirsiz → tahmin yok, API adı (raporda listelenir).
+    assert.equal(cardPersonName({ apiName: "M. Ibrahimoglu", people: KONYASPOR }).source, "api");
   });
 
   it("yabancı oyuncular Türk takımında da uluslararası büyük harf", () => {

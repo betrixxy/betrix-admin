@@ -69,7 +69,10 @@ export function restoreName(apiName: string, person: SportmonksPerson): string {
         const word = given.find((w) => foldName(w).charAt(0) === foldName(initial[1] ?? ""));
         return word ? `${[...word][0]}.` : token;
       }
-      return pool.find((word) => foldName(word) === foldName(token)) ?? token;
+      // Aynı katlanmış sözcüğün birden çok yazımı varsa (Sportmonks soyadı alanı bazen ASCII: "Ibrahimoglu" /
+      // görünen ad "İbrahimoğlu") Türkçe/aksanlı yazım kazanır.
+      const same = pool.filter((word) => foldName(word) === foldName(token));
+      return same.find((word) => !isAsciiName(word)) ?? same[0] ?? token;
     })
     .join(" ");
 }

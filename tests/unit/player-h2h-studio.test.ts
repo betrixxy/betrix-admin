@@ -51,8 +51,12 @@ describe("maçtan başla: aynı mevkiden öneri", () => {
     assert.equal(defaultLeader(players, 998, 203)?.playerId, 2);
   });
 
-  it("forvet katkısı yoksa kaleci dışı gol + asist liderine düşer", () => {
-    assert.equal(defaultLeader([season(1, "Orta", "Midfielder", 2, 1, 800), season(2, "Forvet", "Attacker", 0, 0, 300)], 998, 203)?.playerId, 1);
+  it("forvetlerin katkısı yoksa da varsayılan forvet (iki taraf aynı mevkiden — Konyaspor 2026-10)", () => {
+    assert.equal(defaultLeader([season(1, "Orta", "Midfielder", 2, 1, 800), season(2, "Forvet", "Attacker", 0, 0, 300)], 998, 203)?.playerId, 2);
+  });
+
+  it("ligde hiç forvet oynamadıysa kaleci dışı gol + asist liderine düşer", () => {
+    assert.equal(defaultLeader([season(1, "Orta", "Midfielder", 2, 1, 800), season(3, "Defans", "Defender", 0, 1, 900)], 998, 203)?.playerId, 1);
   });
 
   it("mevki liderleri: saha oyuncusu gol + asist (eşitlikte dakika), kaleci dakika", () => {

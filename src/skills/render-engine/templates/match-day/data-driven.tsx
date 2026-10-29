@@ -79,8 +79,10 @@ function venueBoxes(card: MatchDayCard): StatBoxData[] {
   const boxes: StatBoxData[] = [];
   const stadium = known(card.stadiumLabel);
   const referee = known(card.refereeLabel);
-  if (stadium) boxes.push({ label: "STADYUM", value: clip(stadium, 16) });
-  if (referee) boxes.push({ label: "HAKEM", value: clip(referee, 16) });
+  // Tek kutu bütün genişliği kaplar: Türkçe stadyum adı ("Konya Büyükşehir Stadyumu") kesilmesin.
+  const chars = stadium && referee ? 16 : 28;
+  if (stadium) boxes.push({ label: "STADYUM", value: clip(stadium, chars) });
+  if (referee) boxes.push({ label: "HAKEM", value: clip(referee, chars) });
   return boxes;
 }
 

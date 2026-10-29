@@ -4,7 +4,8 @@ import { positionFromApi } from "./stats";
 
 /**
  * Maçtan başlarken her takımın önerilen oyuncusu — saf. Varsayılan: iki takımın FORVETLERİ (ligde gol +
- * asist lideri forvet; forvet verisi yoksa kaleci dışı gol + asist lideri). Admin bir tarafı değiştirince
+ * asist lideri forvet — forvetlerin hiç gol/asisti yoksa da forvet, dakikayla; ligde hiç forvet oynamadıysa
+ * kaleci dışı gol + asist lideri). Böylece iki taraf varsayılan olarak aynı mevkiden gelir. Admin bir tarafı değiştirince
  * diğer taraf aynı mevkiden önerilir (`positionLeaders`). Sıralama: gol + asist, eşitlikte gol, sonra
  * dakika; kalecide yalnızca dakika. Veri yoksa null (öneri yok, admin seçer).
  */
@@ -46,8 +47,7 @@ export function positionLeaders(players: ApiFootballPlayerSeason[], teamId: numb
   return out;
 }
 
-/** Varsayılan öneri: forvet lideri (gol + asist > 0); yoksa kaleci dışı gol + asist lideri. */
+/** Varsayılan öneri: forvet lideri (gol + asist, eşitlikte dakika); ligde forvet yoksa kaleci dışı gol + asist lideri. */
 export function defaultLeader(players: ApiFootballPlayerSeason[], teamId: number, leagueId: number): LeaderPick | null {
-  const forward = positionLeaders(players, teamId, leagueId).FWD;
-  return forward && forward.goals + forward.assists > 0 ? forward : goalContributionLeader(players, teamId, leagueId);
+  return positionLeaders(players, teamId, leagueId).FWD ?? goalContributionLeader(players, teamId, leagueId);
 }
