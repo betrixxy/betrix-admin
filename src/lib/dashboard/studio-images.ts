@@ -60,6 +60,14 @@ export async function inspectImageBytes(
       );
     }
 
+    // Başlık sağlam ama gövde yarıda kesik/bozuk olabilir: dosya küçültülerek bir kez çözülür (ucuz —
+    // JPEG küçültmeli yüklenir); çözülemeyen dosya burada reddedilir, hattın ortasında patlamaz.
+    try {
+      await sharp(bytes, { failOn: "truncated" }).resize(64, 64, { fit: "inside" }).raw().toBuffer();
+    } catch {
+      return fail("CORRUPT_IMAGE", `${label} bozuk ya da yarıda kesilmiş — dosyayı yeniden kaydedip yükleyin.`);
+    }
+
     const hash = createHash("sha256").update(bytes).digest("hex");
     return {
       ok: true,

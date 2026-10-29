@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { AlertCircle, Eye, LoaderCircle, Save } from "lucide-react";
 import { analyzeH2HAction, matchContextAction, previewH2HAction, saveH2HAction, type H2HAnalysis, type H2HStudioRequest } from "@/app/dashboard/studio/player-h2h/actions";
 import { Button } from "@/components/ui/button";
+import { runGuarded } from "@/hooks/use-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -131,7 +132,7 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
     setBusy(kind);
     startAction(async () => {
       try {
-        await task();
+        await runGuarded(task, setError);
       } finally {
         setBusy(null);
       }

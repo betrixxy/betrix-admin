@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { AlertCircle, Sparkles } from "lucide-react";
 import { generateMatchResultAction, previewMatchPhotoAction } from "@/app/dashboard/studio/match-result/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { useActionForm } from "@/hooks/use-action-form";
+import { useActionForm, useSafeActionState } from "@/hooks/use-action-form";
 import { MATCH_RESULT_TEMPLATES, mvpLineName, mvpOptions, playerOptionLabel } from "@/lib/dashboard/match-result-featured";
 import { cn } from "@/lib/utils";
 import type { MatchDayFormatId } from "@/types/match-day";
@@ -58,7 +58,7 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
 
 export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchResultFormProps) {
   const { state, isPending, onSubmit } = useActionForm(generateMatchResultAction, INITIAL_STATE);
-  const [previewState, previewAction, previewPending] = useActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
+  const [previewState, previewAction, previewPending] = useSafeActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");

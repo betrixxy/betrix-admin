@@ -61,12 +61,44 @@ export function splitTone(rgb: Uint8Array, highlight: Rgb, shadow: Rgb): Uint8Ar
   return rgb;
 }
 
+/** Taşan kadraj (grup fotoğrafı, `GROUP_FIT`) dolgusunun bulanıklığı ve kararması. */
+const FILL_BLUR = 36;
+const FILL_BRIGHTNESS = 0.55;
+
+/**
+ * Kadraj → kart boyutunda RGB. Kutu kaynağın içindeyse düz kırpma; taşıyorsa (grup fotoğrafı) fotoğrafın
+ * tamamı ölçekle yerine basılır, taşan alan fotoğrafın bulanık/koyu hâliyle (kart boyutunda) doldurulur.
+ */
+async function frameRegion(bytes: Buffer, box: CropBox, frame: MatchDayFrame): Promise<Buffer> {
+  const upright = sharp(bytes).rotate();
+  // Dik (EXIF yönü uygulanmış) ölçü: yön 5–8 genişlik/yüksekliği yer değiştirir.
+  const meta = await sharp(bytes).metadata();
+  const swap = (meta.orientation ?? 1) >= 5;
+  const width = (swap ? meta.height : meta.width) ?? 0;
+  const height = (swap ? meta.width : meta.height) ?? 0;
+  const inside = box.left >= 0 && box.top >= 0 && box.left + box.width <= width && box.top + box.height <= height;
+  if (inside) return upright.extract(box).resize(frame.width, frame.height, { fit: "fill", kernel: "lanczos3" }).png().toBuffer();
+  const scale = box.width / frame.width;
+  const ix = Math.max(0, box.left);
+  const iy = Math.max(0, box.top);
+  const iw = Math.min(width, box.left + box.width) - ix;
+  const ih = Math.min(height, box.top + box.height) - iy;
+  const fill = await sharp(bytes).rotate().resize(frame.width, frame.height, { fit: "cover" }).blur(FILL_BLUR).modulate({ brightness: FILL_BRIGHTNESS }).png().toBuffer();
+  const part = await sharp(bytes)
+    .rotate()
+    .extract({ left: ix, top: iy, width: iw, height: ih })
+    .resize(Math.max(1, Math.round(iw / scale)), Math.max(1, Math.round(ih / scale)), { fit: "fill", kernel: "lanczos3" })
+    .png()
+    .toBuffer();
+  return sharp(fill)
+    .composite([{ input: part, left: Math.round((ix - box.left) / scale), top: Math.round((iy - box.top) / scale) }])
+    .png()
+    .toBuffer();
+}
+
 /** Kırp → kart boyutuna ölçekle → kontrast/doygunluk → split-tone → PNG (kart boyutunda sanat katmanı). */
 export async function cropAndGrade(bytes: Buffer, box: CropBox, frame: MatchDayFrame, accentHex: string, deepHex: string | undefined): Promise<Buffer> {
-  const { data, info } = await sharp(bytes)
-    .rotate()
-    .extract(box)
-    .resize(frame.width, frame.height, { fit: "fill", kernel: "lanczos3" })
+  const { data, info } = await sharp(await frameRegion(bytes, box, frame))
     .modulate({ saturation: SATURATION })
     .linear(CONTRAST, -128 * (CONTRAST - 1))
     .removeAlpha()

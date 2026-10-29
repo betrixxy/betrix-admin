@@ -5,6 +5,7 @@ import { AlertCircle, Eye, LoaderCircle, Save, Sparkles } from "lucide-react";
 import { loadVitrinAction, previewVitrinAction, saveVitrinAction, writeReasonsAction, type VitrinLoadResult } from "@/app/dashboard/studio/market-analysis/vitrin-actions";
 import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { Button } from "@/components/ui/button";
+import { runGuarded } from "@/hooks/use-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -63,7 +64,7 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
     setBusy(kind);
     startTransition(async () => {
       try {
-        await task();
+        await runGuarded(task, setError, formData());
       } finally {
         setBusy(null);
       }
