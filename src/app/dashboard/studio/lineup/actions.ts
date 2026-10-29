@@ -12,10 +12,8 @@ import { isValidFormation } from "@/lib/dashboard/lineup-formations";
 import { createLineupDraft } from "@/lib/dashboard/lineup-engine";
 import { renderLineupCard } from "@/lib/dashboard/lineup-render";
 import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/services/api-football";
-import { getPlayerCutout, playerCutoutUrl } from "@/lib/dashboard/match-day-cache";
-import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
-import { isFalConfigured } from "@/lib/services/fal";
-import { LINEUP_HERO_PATTERN, LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
+import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
+import { LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import type { Fixture } from "@/types/sports";
@@ -61,7 +59,9 @@ const teamSchema = z.object({
   teamName: text(60).min(1, "Takım adı boş olamaz."),
   logoUrl: text(500),
   colorHex: z.string().regex(/^(#[0-9a-fA-F]{6})?$/, "Forma rengi #RRGGBB olmalı."),
-  heroImageUrl: z.string().refine((value) => value === "" || LINEUP_HERO_PATTERN.test(value), "Kapak görseli geçersiz."),
+  // Kapak: arşiv fotoğrafının kimliği (sunucu takım + forma doğrular) ve elle ayar (null = otomatik).
+  heroPhotoId: z.union([z.literal(""), z.string().cuid("Kapak fotoğrafı geçersiz.")]),
+  heroAdjust: z.object({ x: z.number().min(-1).max(1), y: z.number().min(-1).max(1), zoom: z.number().min(1).max(2).nullable() }).nullable(),
   formation: z.string().refine(isValidFormation, "Diziliş geçersiz (ör. 4-2-3-1, toplam 10 saha oyuncusu)."),
   slots: z
     .array(z.object({ playerId: z.number().int().nullable(), name: text(40), number: z.string().regex(/^\d{0,2}$/, "Forma numarası 0-99 olmalı."), origin: z.enum(["tr", "intl"]).nullable().optional() }))
@@ -85,9 +85,15 @@ export async function previewLineupAction(input: unknown): Promise<Result<{ data
 
   try {
     const { fixtureId, side, ...input } = parsed.data;
+    // Kapak fotoğrafı yalnızca maçtan ve taraftan doğrulanabilir (o takımın formalı arşiv fotoğrafı).
+    if (input.templateStyle === "hero_list" && input.team.heroPhotoId && (!fixtureId || !side)) {
+      return { ok: false, error: { code: "INVALID_INPUT", message: "Kapak fotoğrafı için önce maçı seçin." } };
+    }
+    const heroPhoto = fixtureId && side ? await resolveLineupHeroPhoto(fixtureId, side, input.team, input.templateStyle) : { ok: true as const, data: null };
+    if (!heroPhoto.ok) return heroPhoto;
     const origins = await fixtureOrigins(fixtureId ?? null);
     const sideOrigins = origins && side ? { team: side === "home" ? origins.home : origins.away, opponent: side === "home" ? origins.away : origins.home } : undefined;
-    const rendered = await renderLineupCard({ ...input, ...(sideOrigins ? { origins: sideOrigins } : {}) });
+    const rendered = await renderLineupCard({ ...input, heroPhoto: heroPhoto.data, ...(sideOrigins ? { origins: sideOrigins } : {}) });
     if (!rendered.ok) return rendered;
     const { png, templateStyle } = rendered.data;
     return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle } };
@@ -116,42 +122,4 @@ export async function saveLineupAction(input: unknown): Promise<Result<{ id: str
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return { ok: true, data: saved.data };
-}
-
-export interface LineupHeroResult {
-  /** Şeffaf oyuncu kesimi — `/api/files/generated/cutout-v1-<sha256>.png`. */
-  heroImageUrl: string;
-  /** Bu üretimdeki ücretli Fal.ai çağrısı (aynı fotoğraf daha önce kesildiyse 0). */
-  paidCalls: number;
-}
-
-/**
- * Kapak oyuncusu (ücretli olabilir): kütüphaneden seçilen ya da yeni yüklenen fotoğraf (yeni
- * yükleme kütüphaneye kaydedilir) → gerekirse AI Upscale → birefnet kesim. Kesim fotoğraf
- * başına önbelleklidir; kart önizlemesi ve kaydı bu dosyayı kullanır, Fal.ai'ye tekrar gitmez.
- */
-export async function generateLineupHeroAction(formData: FormData): Promise<Result<LineupHeroResult>> {
-  if (!(await getCurrentSession())) return unauthorized();
-  if (!isFalConfigured()) return { ok: false, error: { code: "NOT_CONFIGURED", message: "FAL_KEY tanımlı değil — kapak kesimi üretilemez." } };
-
-  const side = formData.get("side");
-  const teamName = formData.get("teamName");
-  if ((side !== "home" && side !== "away") || typeof teamName !== "string" || !teamName.trim()) {
-    return { ok: false, error: { code: "INVALID_INPUT", message: "Takım seçilmedi." } };
-  }
-  const label = `${teamName.trim().slice(0, 60)} kapak oyuncusu`;
-  const fixtureId = formData.get("fixtureId");
-
-  let player: Awaited<ReturnType<typeof resolveStudioPhoto>>;
-  try {
-    player = await resolveStudioPhoto(formData, `${side}Hero`, typeof fixtureId === "string" ? fixtureId : "", label);
-  } catch {
-    return { ok: false, error: { code: "STORAGE_FAILED", message: "Oyuncu fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
-  }
-  if (!player.ok) return player;
-  if (!player.data) return { ok: false, error: { code: "INVALID_INPUT", message: `${teamName} için kapak oyuncusu fotoğrafı seçin veya yükleyin.` } };
-
-  const cutout = await getPlayerCutout(player.data.image, label);
-  if (!cutout.ok) return cutout;
-  return { ok: true, data: { heroImageUrl: playerCutoutUrl(player.data.image), paidCalls: cutout.data.paidCalls } };
 }

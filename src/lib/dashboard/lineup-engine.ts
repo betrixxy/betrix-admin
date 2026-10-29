@@ -5,6 +5,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
+import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
 import { renderLineupCard, type RenderedLineupCard } from "@/lib/dashboard/lineup-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { ContentTypeId } from "@/types/content-type";
@@ -32,14 +33,22 @@ function buildCaption(draft: LineupDraft): string {
  * İki takımın Muhtemel 11 kartını çizer, kalıcı depoya yazar ve tek `AiContent`
  * (contentType = PROBABLE_LINEUPS, DRAFT) açar — takvimde bu maç için planlanmış placeholder varsa
  * onun üzerine yazılır (bkz. content-schedule.ts). Ana görsel ev sahibi kartıdır; iki kartın adresi
- * ve formun tamamı `renderOptions`'ta saklanır. Fal.ai yok — ücretsiz.
+ * ve formun tamamı `renderOptions`'ta saklanır (kapak: arşiv fotoğrafının kimliği + elle ayar). Fal.ai yok — ücretsiz.
  */
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
   // Ad büyük harfi için takım kökenleri (maçtan, bkz. team-origin.ts).
   const origins = await fixtureOrigins(draft.fixtureId);
   // Her kart kendi şablonuyla: kapağı olan takım liste, olmayan taktik tahtası (bkz. cardTemplateStyle).
-  const card = (team: TeamLineupDraft, opponent: TeamLineupDraft, sides?: { team: TeamOrigin; opponent: TeamOrigin }) =>
+  // Kapak fotoğrafları (Kahraman Liste): arşivden, o tarafın takımına + formasına ait olduğu doğrulanır.
+  const [homeHero, awayHero] = await Promise.all([
+    resolveLineupHeroPhoto(draft.fixtureId, "home", draft.home, draft.templateStyle),
+    resolveLineupHeroPhoto(draft.fixtureId, "away", draft.away, draft.templateStyle),
+  ]);
+  if (!homeHero.ok) return homeHero;
+  if (!awayHero.ok) return awayHero;
+  const card = (team: TeamLineupDraft, opponent: TeamLineupDraft, heroPhoto: typeof homeHero.data, sides?: { team: TeamOrigin; opponent: TeamOrigin }) =>
     renderLineupCard({
+      heroPhoto,
       templateStyle: cardTemplateStyle(draft.templateStyle, team),
       team,
       opponentName: opponent.teamName,
@@ -54,8 +63,8 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
   let away: RenderedLineupCard;
   try {
     const [homeCard, awayCard] = await Promise.all([
-      card(draft.home, draft.away, origins && { team: origins.home, opponent: origins.away }),
-      card(draft.away, draft.home, origins && { team: origins.away, opponent: origins.home }),
+      card(draft.home, draft.away, homeHero.data, origins && { team: origins.home, opponent: origins.away }),
+      card(draft.away, draft.home, awayHero.data, origins && { team: origins.away, opponent: origins.home }),
     ]);
     // Yerleşim kapısına takılan kart üretilmez; sebep stüdyoda gösterilir.
     if (!homeCard.ok) return homeCard;

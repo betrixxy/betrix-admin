@@ -38,6 +38,11 @@ interface ArchivePhotoPickerProps {
   defaultSubject?: "team" | "player";
   /** Yalnızca forması o takımın olan fotoğraflar; yeni yüklemede forma takımı sabit (vitrin posteri). */
   kitOnly?: boolean;
+  /**
+   * Yeni yükleme seçeneği (varsayılan açık). JSON gönderen formlar (Muhtemel 11) dosya taşıyamaz — kapatılır,
+   * fotoğraf Kütüphane → Fotoğraf Arşivi'nden eklenir.
+   */
+  allowUpload?: boolean;
   onChange?: (selection: PickerSelection) => void;
 }
 
@@ -55,11 +60,13 @@ function Thumb({ photo, selected, onSelect }: { photo: PickerPhoto; selected: bo
   );
 }
 
-export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", kitOnly = false, onChange }: ArchivePhotoPickerProps) {
+export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", kitOnly = false, allowUpload = true, onChange }: ArchivePhotoPickerProps) {
   const [data, setData] = useState<ArchivePickerData | null>(null);
   const [subjectKey, setSubjectKey] = useState("");
   const [photoId, setPhotoId] = useState<string | null>(null);
-  const [upload, setUpload] = useState(false);
+  const [uploadChosen, setUpload] = useState(false);
+  // Yükleme kapalıysa (JSON form) seçim her zaman arşivden.
+  const upload = allowUpload && uploadChosen;
   const [isLoading, startLoading] = useTransition();
   const teamKey = teams.map((team) => team.id).join(",");
 
@@ -150,7 +157,13 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
         </div>
       ) : null}
 
-      <div className="flex gap-3 text-xs">
+      {!allowUpload && data && photos.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
+          {`${subject?.label ?? "Bu kişi"} için ${kitOnly ? "takımın kendi formalı " : ""}fotoğraf yok — Kütüphane → Fotoğraf Arşivi'nden ekleyin ya da başka bir kişi seçin.`}
+        </p>
+      ) : null}
+
+      <div className={cn("flex gap-3 text-xs", !allowUpload && "hidden")}>
         <button type="button" onClick={() => setUpload(false)} disabled={photos.length === 0} className={cn("flex items-center gap-1", !upload ? "text-white" : "text-muted-foreground hover:text-white", photos.length === 0 && "opacity-40")}>
           <Images className="size-3.5" /> Arşivden seç
         </button>

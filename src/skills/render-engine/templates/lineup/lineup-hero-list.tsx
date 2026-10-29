@@ -3,22 +3,17 @@ import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
 import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { rgba } from "../studio-tokens";
 import type { BlockFilter } from "../checkmatch-set/blocks";
-import { LineupBackground, TYPE, displayName, labelStyle, nameStyle, shown } from "./lineup-chrome";
+import { TYPE, displayName, labelStyle, nameStyle, shown } from "./lineup-chrome";
 import type { LineupGeometry } from "./lineup-geometry";
 
 /**
  * ŞABLON 2 — Kahraman Liste (`hero_list`). Kapak ZORUNLUDUR: kapaksız liste kartı çizilmez (render
- * tarafı taktik tahtasına düşer). Sol yarıda kapak oyuncusunun şeffaf kesimi (alttan taşar), sağda saha
- * çizgisi OLMAYAN liste: logonun canlı renginde numara kutusu + isim + mevki, mevkiler arası vurgu
- * renginde ayraç. Liste koyu cam panel üstündedir — kapak arkada kalsa da beyaz metin kontrastı korunur.
+ * tarafı taktik tahtasına düşer). Kapak fotoğrafı bu katmanda DEĞİL — altındaki sanat katmanındadır
+ * (`lib/dashboard/lineup-hero-art.ts`: arşiv fotoğrafı, yüz tespiti, akıllı kırpma, tonlama); bu katman
+ * saydamdır ve yalnızca saha çizgisi OLMAYAN listeyi çizer: logonun canlı renginde numara kutusu + isim +
+ * mevki, mevkiler arası vurgu renginde ayraç. Liste koyu cam panel üstündedir — fotoğraf arkada kalsa da
+ * beyaz metin kontrastı korunur.
  */
-
-export interface LineupHeroImage {
-  /** Kırpılmış (boş kenarları atılmış) şeffaf PNG, data URL. */
-  src: string;
-  width: number;
-  height: number;
-}
 
 /** 4:5 ölçüleri; diğer formatlarda `LineupGeometry.k` ile ölçeklenir, panel ve kapak konumu geometriden gelir. */
 const PANEL_PAD_X = 28;
@@ -72,7 +67,6 @@ export function LineupHeroList({
   formation,
   slots,
   palette,
-  hero,
   peopleOrigin = null,
   only,
 }: {
@@ -80,7 +74,6 @@ export function LineupHeroList({
   formation: string;
   slots: LineupSlot[];
   palette: LineupPalette;
-  hero: LineupHeroImage;
   peopleOrigin?: NameOrigin | null;
   only?: BlockFilter;
 }) {
@@ -96,21 +89,8 @@ export function LineupHeroList({
   // Satırlar ve mevki ayraçları dikeyde ortalanır.
   const listHeight = slots.length * rowHeight + (groups.length - 1) * groupGap;
   const listTop = Math.max(Math.round(PANEL_PAD_Y * k), Math.round((panel.height - listHeight) / 2));
-  const heroLeft = Math.round(Math.max(-60, g.hero.centerX - hero.width / 2));
-  // Okunabilirlik perdesi panelin solundan başlar (4:5'te %38 → %52).
-  const veilStart = Math.round(((panel.left - 130) / g.width) * 100);
-  const veilMid = Math.round(((panel.left + 22) / g.width) * 100);
-
   return (
     <>
-      <LineupBackground g={g} palette={palette} only={only} glow={{ left: Math.max(0, g.hero.centerX - 380), top: g.header.top + 248, size: 760 }} />
-      {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-      <img src={hero.src} alt="" width={hero.width} height={hero.height} style={{ position: "absolute", left: heroLeft, bottom: 0, ...shown(only, "card-body") }} />
-      {/* Okunabilirlik perdesi: kapağın sağ kenarı listenin arkasında yumuşar (yerleşim kapısında ölçülmez). */}
-      {only ? null : (
-        <div style={{ position: "absolute", left: 0, top: 0, width: g.width, height: g.height, backgroundImage: `linear-gradient(90deg, ${rgba(night, 0)} ${veilStart}%, ${rgba(night, 0.5)} ${veilMid}%, ${rgba(night, 0.7)} 100%)` }} />
-      )}
-
       <div
         tw="flex flex-col"
         style={{

@@ -67,7 +67,7 @@ const LONG_SLOTS = slots(
 export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   "tr-takim": {
     templateStyle: "pitch",
-    team: { teamName: "Kurgu Gençlikspor", logoUrl: "", colorHex: "#0B6E3A", heroImageUrl: "", formation: "4-2-3-1", slots: TR_SLOTS, coach: "İlhan Şıkışık" },
+    team: { teamName: "Kurgu Gençlikspor", logoUrl: "", colorHex: "#0B6E3A", heroPhotoId: "", heroAdjust: null, formation: "4-2-3-1", slots: TR_SLOTS, coach: "İlhan Şıkışık" },
     opponentName: "Örnek İdmanyurdu",
     opponentLogoUrl: "",
     headline: "MUHTEMEL 11",
@@ -76,7 +76,7 @@ export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   },
   "yabanci-takim": {
     templateStyle: "pitch",
-    team: { teamName: "Sporting Milano", logoUrl: "", colorHex: "#1D3E8A", heroImageUrl: "", formation: "4-3-3", slots: INTL_SLOTS, coach: "Dimitri Ivanović" },
+    team: { teamName: "Sporting Milano", logoUrl: "", colorHex: "#1D3E8A", heroPhotoId: "", heroAdjust: null, formation: "4-3-3", slots: INTL_SLOTS, coach: "Dimitri Ivanović" },
     opponentName: "Kurgu Gençlikspor",
     opponentLogoUrl: "",
     headline: "İLK 11",
@@ -85,7 +85,7 @@ export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   },
   "uzun-adlar": {
     templateStyle: "pitch",
-    team: { teamName: "Borussia Mönchengladbach", logoUrl: "", colorHex: "#111111", heroImageUrl: "", formation: "3-4-2-1", slots: LONG_SLOTS, coach: "Konstantin Alexandropoulos-Weißmann" },
+    team: { teamName: "Borussia Mönchengladbach", logoUrl: "", colorHex: "#111111", heroPhotoId: "", heroAdjust: null, formation: "3-4-2-1", slots: LONG_SLOTS, coach: "Konstantin Alexandropoulos-Weißmann" },
     opponentName: "Wolverhampton Wanderers",
     opponentLogoUrl: "",
     headline: "MUHTEMEL 11",

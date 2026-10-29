@@ -7,7 +7,7 @@ import { LINEUP_TEMPLATE_LABELS, LINEUP_TEMPLATE_STYLES, type LineupTemplateStyl
 
 const DESCRIPTIONS: Record<LineupTemplateStyle, string> = {
   pitch: "Saha çizgileri üzerinde diziliş — kapak fotoğrafı gerekmez.",
-  hero_list: "Solda kapak oyuncusu (zorunlu, Fal.ai kesimi), sağda numara + isim listesi.",
+  hero_list: "Solda arşivden kapak fotoğrafı (takımın kendi forması), sağda numara + isim listesi.",
 };
 
 const ICONS = { pitch: LayoutGrid, hero_list: UserRound } as const satisfies Record<LineupTemplateStyle, unknown>;

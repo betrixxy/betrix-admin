@@ -1,3 +1,4 @@
+import type { FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
 import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 
 /**
@@ -26,9 +27,21 @@ export interface LineupGeometry {
   /** Dikey ailede: alt imza bandının üstü (bant kanvas altına kadar iner) ve bant içeriğinin alttan boşluğu. */
   footerTop: number;
   footerInset: number;
-  /** Kahraman Liste: kapak kesiminin en büyük ölçüsü ve oturduğu yatay merkez; liste paneli. */
-  hero: { maxWidth: number; maxHeight: number; centerX: number };
+  /** Kahraman Liste: kapak fotoğrafının bölgesi ve liste paneli. */
+  photo: LineupPhotoGeometry;
   panel: { left: number; top: number; width: number; height: number };
+}
+
+/**
+ * Kahraman Liste kapağı (Vitrin hattı: kalite kapısı, yüz tespiti, akıllı kırpma, split-tone, takım ışığı).
+ * `box` kanvas koordinatında fotoğraf bölgesi (kanvasın üst/alt kenarına kadar — başlık ve imza bandı
+ * fotoğrafın üstüne biner); `safe` box'a GÖRE yüzün düşeceği yazısız bölge (başlığın altı, bandın üstü,
+ * listenin solu); `fade` box'a göre x: fotoğrafın zemine söndüğü aralık(lar) — listenin arkasında yumuşar.
+ */
+export interface LineupPhotoGeometry {
+  box: FrameBox;
+  safe: FrameBox;
+  fade: { left: [number, number] | null; right: [number, number] };
 }
 
 /** 4:5'in birebir ölçüleri (ilk tasarım) — Story bunları `safeTop` kadar aşağı kaydırır. */
@@ -47,7 +60,11 @@ function vertical(formatId: "post" | "story"): LineupGeometry {
     horizontalPitch: false,
     footerTop: height - safeBottom - 230,
     footerInset: 50 + safeBottom,
-    hero: { maxWidth: 640, maxHeight: 1040, centerX: 280 },
+    photo: {
+      box: { left: 0, top: 0, right: 640, bottom: height },
+      safe: { left: 40, top: contentTop, right: 500, bottom: height - safeBottom - 230 },
+      fade: { left: null, right: [470, 640] },
+    },
     panel: { left: 540, top: contentTop - 10, width: 490, height: contentBottom - contentTop + 10 },
   };
 }
@@ -68,7 +85,11 @@ function square(): LineupGeometry {
     horizontalPitch: true,
     footerTop,
     footerInset: 38,
-    hero: { maxWidth: 520, maxHeight: 820, centerX: 270 },
+    photo: {
+      box: { left: 0, top: 0, right: 660, bottom: height },
+      safe: { left: 40, top: contentTop, right: 520, bottom: footerTop },
+      fade: { left: null, right: [500, 660] },
+    },
     panel: { left: 556, top: contentTop - 8, width: 476, height: footerTop - contentTop + 8 },
   };
 }
@@ -89,7 +110,12 @@ function landscape(): LineupGeometry {
     horizontalPitch: true,
     footerTop: height,
     footerInset: pad,
-    hero: { maxWidth: 600, maxHeight: 1000, centerX: 1060 },
+    // Başlık sütunu (56–816) ile liste (1304–1864) arasında; iki yana söner.
+    photo: {
+      box: { left: 760, top: 0, right: 1400, bottom: height },
+      safe: { left: 110, top: pad + 40, right: 500, bottom: height - pad - 40 },
+      fade: { left: [0, 140], right: [480, 640] },
+    },
     panel: { left: width - pad - 560, top: pad, width: 560, height: height - pad * 2 },
   };
 }
