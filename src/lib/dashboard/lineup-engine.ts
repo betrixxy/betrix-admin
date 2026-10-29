@@ -1,3 +1,5 @@
+import type { TeamOrigin } from "@/lib/dashboard/name-case";
+import { fixtureOrigins } from "@/lib/dashboard/team-origin";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
@@ -33,8 +35,10 @@ function buildCaption(draft: LineupDraft): string {
  * ve formun tamamı `renderOptions`'ta saklanır. Fal.ai yok — ücretsiz.
  */
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
+  // Ad büyük harfi için takım kökenleri (maçtan, bkz. team-origin.ts).
+  const origins = await fixtureOrigins(draft.fixtureId);
   // Her kart kendi şablonuyla: kapağı olan takım liste, olmayan taktik tahtası (bkz. cardTemplateStyle).
-  const card = (team: TeamLineupDraft, opponent: TeamLineupDraft) =>
+  const card = (team: TeamLineupDraft, opponent: TeamLineupDraft, sides?: { team: TeamOrigin; opponent: TeamOrigin }) =>
     renderLineupCard({
       templateStyle: cardTemplateStyle(draft.templateStyle, team),
       team,
@@ -43,12 +47,16 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
       headline: draft.headline,
       matchLabel: draft.matchLabel,
       format: draft.format,
+      ...(sides ? { origins: sides } : {}),
     });
 
   let home: RenderedLineupCard;
   let away: RenderedLineupCard;
   try {
-    [home, away] = await Promise.all([card(draft.home, draft.away), card(draft.away, draft.home)]);
+    [home, away] = await Promise.all([
+      card(draft.home, draft.away, origins && { team: origins.home, opponent: origins.away }),
+      card(draft.away, draft.home, origins && { team: origins.away, opponent: origins.home }),
+    ]);
   } catch (cause) {
     console.error("[lineup] kartlar çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kadro kartları çizilemedi.", cause } };

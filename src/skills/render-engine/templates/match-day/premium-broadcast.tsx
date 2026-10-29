@@ -15,6 +15,8 @@ import {
   competitionLine,
   fitFontSize,
   px,
+  upperReferee,
+  upperStadium,
 } from "./shared";
 
 /**
@@ -24,7 +26,9 @@ import {
  */
 
 function InfoLine({ card, size }: { card: MatchDayCard; size: number }) {
-  const items = [card.dateLabel, card.timeLabel, clip(card.stadiumLabel, 30)].filter((item) => item && item !== "—");
+  // Tarih/saat Türkçe büyük harf; stadyum AD (köken kuralı).
+  const items = [card.dateLabel, card.timeLabel].filter((item) => item && item !== "—").map((item) => item.toLocaleUpperCase("tr-TR"));
+  if (card.stadiumLabel && card.stadiumLabel !== "—") items.push(upperStadium(card, clip(card.stadiumLabel, 30)));
   return (
     <div tw="flex items-center">
       {items.map((item, index) => (
@@ -33,7 +37,7 @@ function InfoLine({ card, size }: { card: MatchDayCard; size: number }) {
             <div tw="flex" style={{ width: 1, height: size * 0.9, backgroundColor: "rgba(255,255,255,0.4)", margin: `0 ${size * 0.9}px` }} />
           ) : null}
           <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: size, letterSpacing: size * 0.1, color: "white" }}>
-            {item.toLocaleUpperCase("tr-TR")}
+            {item}
           </span>
         </div>
       ))}
@@ -74,7 +78,7 @@ function Matchup({ card, logo, nameSize, columnWidth, gap }: { card: MatchDayCar
 
 function Referee({ card, size }: { card: MatchDayCard; size: number }) {
   if (!card.refereeLabel || card.refereeLabel === "—") return null;
-  return <Eyebrow size={size} color="rgba(255,255,255,0.6)">{`HAKEM  ·  ${card.refereeLabel.toLocaleUpperCase("tr-TR")}`}</Eyebrow>;
+  return <Eyebrow size={size} color="rgba(255,255,255,0.6)">{`HAKEM  ·  ${upperReferee(card)}`}</Eyebrow>;
 }
 
 function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {

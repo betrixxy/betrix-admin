@@ -31,7 +31,7 @@ export function TeamLineupFields({ idPrefix, value, squad, onChange }: TeamLineu
 
   function pickPlayer(index: number, rawId: string) {
     const player = rawId ? squadById.get(Number(rawId)) : undefined;
-    setSlot(index, player ? { playerId: player.id, name: player.name, number: player.number !== null ? String(player.number) : "" } : { playerId: null, name: "", number: "" });
+    setSlot(index, player ? { playerId: player.id, name: player.name, number: player.number !== null ? String(player.number) : "", ...(player.origin !== undefined ? { origin: player.origin } : {}) } : { playerId: null, name: "", number: "" });
   }
 
   const byPosition = [...SQUAD_POSITIONS, null].map((position) => ({
@@ -116,7 +116,7 @@ export function TeamLineupFields({ idPrefix, value, squad, onChange }: TeamLineu
                   maxLength={40}
                   value={slot.name}
                   // Kartta görünen adı kısaltmak ("M. Salah" → "Salah") kadro seçimini bozmaz.
-                  onChange={(event) => setSlot(index, { ...slot, name: event.target.value })}
+                  onChange={(event) => setSlot(index, { playerId: slot.playerId, number: slot.number, name: event.target.value })}
                 />
               </div>
             );

@@ -100,12 +100,12 @@ export function LineupHeader({
       </div>
       <div tw="flex items-center" style={{ gap: Math.round(16 * k), marginTop: Math.round(26 * k) }}>
         <div style={{ width: 5, height: Math.round(38 * k), backgroundColor: palette.accent }} />
-        <span style={{ fontFamily: TYPE.TEAM, fontWeight: 800, fontSize: teamSize, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{upper(teamName)}</span>
+        <span style={{ fontFamily: TYPE.TEAM, fontWeight: 800, fontSize: teamSize, color: palette.text, lineHeight: 1, letterSpacing: 1.6 }}>{teamName}</span>
       </div>
       {opponentName ? (
         <div tw="flex items-center" style={{ gap: 12, marginTop: Math.round(14 * k), marginLeft: 21 }}>
           <span style={labelStyle(Math.round(14 * k), palette.accent)}>VS</span>
-          <span style={labelStyle(Math.round(17 * k), palette.muted)}>{upper(opponentName)}</span>
+          <span style={labelStyle(Math.round(17 * k), palette.muted)}>{opponentName}</span>
         </div>
       ) : null}
     </div>

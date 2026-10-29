@@ -1,6 +1,7 @@
 import type { MatchDayCard } from "@/types/match-day";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { wrapLines } from "../../satori-text";
+import { upperName } from "@/lib/dashboard/name-case";
 
 /**
  * Maç Günü şablonlarının ortak yapı taşları (Satori). Satori yalnızca flexbox ve CSS alt
@@ -120,4 +121,13 @@ export function Canvas({ children }: { children: React.ReactNode }) {
       {children}
     </div>
   );
+}
+
+/** Stadyum adı büyük harfle: kendi harfleri, belirsizse ev sahibinin ülkesi (stadyum ev sahibinde). */
+export const upperStadium = (card: Pick<MatchDayCard, "stadiumLabel" | "origins">, stadium = card.stadiumLabel): string => upperName(stadium, card.origins?.home.people);
+
+/** Hakem adı büyük harfle: iki takım aynı ülkedense (yurt içi maç) o ülke, değilse yalnızca kendi harfleri. */
+export function upperReferee(card: Pick<MatchDayCard, "refereeLabel" | "origins">): string {
+  const home = card.origins?.home.people;
+  return upperName(card.refereeLabel, home && home === card.origins?.away.people ? home : null);
 }

@@ -1,3 +1,5 @@
+import { withResultPeople } from "@/lib/dashboard/set-people";
+import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import type { Prisma } from "@/generated/prisma/client";
@@ -98,9 +100,12 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   const photo = prepared.data;
 
   // 3. Kart + yerleşim kapısı.
-  const mvpName = mvpLineName({ mvp: input.mvp, photoPlayerId: input.photo.playerId, photoIsMvp: input.photoIsMvp });
+  // Ad büyük harfi için takım kökeni (Türk takımı mı) + kart kişi adları (arşiv → Sportmonks → API, uyruk) — yalnızca okuma.
+  const people = await withResultPeople(await withTeamOrigins(facts));
+  const mvp = input.mvp ? (people.players.find((player) => player.playerId === input.mvp?.playerId) ?? input.mvp) : null;
+  const mvpName = mvpLineName({ mvp, photoPlayerId: input.photo.playerId, photoIsMvp: input.photoIsMvp });
   const carousel = input.stats ? input.stats : null;
-  const card = await resolveMatchResultCard(facts, mvpName, carousel ? SET_PAGE_LABELS.RESULT : null);
+  const card = await resolveMatchResultCard(people, mvpName, carousel ? SET_PAGE_LABELS.RESULT : null, mvp ? (people.mvpOrigins.get(mvp.playerId) ?? null) : null);
   const options = { template: input.template, shadeStrength: photo.shadeStrength, side: photo.side };
   let final: Buffer;
   try {
@@ -149,7 +154,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
       playerImageUrl: null,
       status: "DRAFT",
       format: format.db,
-      caption: buildMatchResultCaption(facts, input.mvp?.name ?? null),
+      caption: buildMatchResultCaption(people, mvp?.name ?? null),
       statsSnapshot: asJson(facts),
       renderOptions: asJson({
         kind: "MATCH_RESULT",

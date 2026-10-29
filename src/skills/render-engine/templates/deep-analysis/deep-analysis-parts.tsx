@@ -1,3 +1,4 @@
+import { upperName } from "@/lib/dashboard/name-case";
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import { BODY, EYEBROW, GRAY, GREEN_BR, MAX_WIDTH, NAVY_700, PANEL, SCORE, YELLOW, upper } from "./deep-analysis-tokens";
 
@@ -72,7 +73,7 @@ export function KeyPlayer({ name, role, photoUrl, s = 1, stacked = false }: Team
         />
       ) : null}
       <div tw="flex flex-col" style={{ flex: 1 }}>
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5 * s, color: "white", marginBottom: 3 }}>{upper(name)}</span>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5 * s, color: "white", marginBottom: 3 }}>{upperName(name)}</span>
         {role ? <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 14.5 * s, lineHeight: 1.32, color: GRAY }}>{role}</span> : null}
       </div>
     </div>

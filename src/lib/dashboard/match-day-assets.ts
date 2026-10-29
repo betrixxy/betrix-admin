@@ -1,3 +1,5 @@
+import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { cardVenueName } from "@/lib/names/venue-names";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { format, isValid, parseISO } from "date-fns";
@@ -155,6 +157,8 @@ const DEFAULT_COLORS = { homeColorHex: "#e11d48", awayColorHex: "#1d4ed8" };
 export async function resolveMatchDayCard(
   params: MatchDayParams,
   colors: { homeColorHex: string; awayColorHex: string } = DEFAULT_COLORS,
+  /** Ad büyük harfi için takım kökenleri (maçtan); elle doldurulan kartta yok. */
+  origins?: { home: TeamOrigin; away: TeamOrigin },
 ): Promise<MatchDayCard> {
   const [homePlayerImg, awayPlayerImg, homeLogo, awayLogo, leagueLogo, brandLogo] = await Promise.all([
     resolveImage(params.homePlayerImg, 1350),
@@ -166,17 +170,19 @@ export async function resolveMatchDayCard(
   ]);
 
   return {
-    homeTeam: upper(params.homeTeam),
-    awayTeam: upper(params.awayTeam),
+    homeTeam: upperTeamName(params.homeTeam, origins?.home),
+    awayTeam: upperTeamName(params.awayTeam, origins?.away),
     homeTeamName: params.homeTeam,
     awayTeamName: params.awayTeam,
     weekdayLabel: formatWeekday(params.date),
     stats: null,
+    ...(origins ? { origins } : {}),
     leagueLabel: upper(params.league ?? "Süper Lig"),
     weekLabel: formatWeek(params.week),
     dateLabel: formatDate(params.date),
     timeLabel: params.time ?? PLACEHOLDER,
-    stadiumLabel: params.stadium ?? PLACEHOLDER,
+    // Elle yazılan ad da aynı kuraldan ("… Stadium" → "… Stadyumu"); ön doldurma düzeltmeyi zaten uygular.
+    stadiumLabel: params.stadium ? cardVenueName(params.stadium).name : PLACEHOLDER,
     refereeLabel: params.referee ?? PLACEHOLDER,
     homePlayerImg,
     awayPlayerImg,

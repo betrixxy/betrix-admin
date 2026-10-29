@@ -1,3 +1,4 @@
+import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { seasonLabel, standingsLayout, standingsPlan, standingsStatColumns } from "@/lib/dashboard/standings-layout";
 import { bodyOffsetTop } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { StandingsCardInput } from "@/types/standings";
@@ -23,6 +24,7 @@ export interface StandingsCardData extends StandingsCardInput {
 
 export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, title, kindLabel, sections, format, brandLogo, teamLogos }: StandingsCardData) {
   const theme = weeklyTheme(leagueId);
+  const nameOrigin = getSupportedLeague(leagueId).nameOrigin;
   const layout = standingsLayout(format);
   const wide = format === "landscape";
   const columns = standingsStatColumns(format);
@@ -71,6 +73,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
                       width={columnWidth}
                       nameSize={nameSize}
                       theme={theme}
+                      nameOrigin={nameOrigin}
                     />
                   ))}
                 </div>

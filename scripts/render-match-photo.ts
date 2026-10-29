@@ -32,6 +32,7 @@ import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
 import { toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-mappers";
 import { apiFootballFixtureResultsResponseSchema, type ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
+import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { matchResultGeometry } from "@/skills/render-engine/templates/match-result/geometry";
 import { SET_PAGE_LABELS } from "@/types/checkmatch-set";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
@@ -114,8 +115,11 @@ async function main() {
   await mkdir(out, { recursive: true });
 
   const raw = await loadRaw();
-  const facts = toMatchResultFacts(raw);
-  const stats = toMatchStatsFacts(raw, null);
+  const bareFacts = toMatchResultFacts(raw);
+  const bareStats = toMatchStatsFacts(raw, null);
+  // Ad büyük harfi için takım kökeni (arşiv/API, yalnızca okuma).
+  const facts = bareFacts && (await withTeamOrigins(bareFacts));
+  const stats = bareStats && (await withTeamOrigins(bareStats));
   if (!facts || !stats) throw new Error("Maç bitmemiş — kart yalnızca FT/AET/PEN için.");
 
   const inspected = await inspectImageBytes(await readFile(values.photo), "Maç fotoğrafı");

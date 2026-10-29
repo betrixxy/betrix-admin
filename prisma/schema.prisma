@@ -783,3 +783,11 @@ model PredictionRecord {
   @@unique([aiContentId, scenarioId])
   @@index([fixtureId])
 }
+
+/// Stadyum kart adı — admin düzeltmesi (bkz. `lib/names/venue-names.ts`). Anahtar API-Football'un
+/// döndürdüğü ham ad ("Konya Buyuksehir Belediye Stadium"); tablo ve "Stadium → Stadyumu" kuralını ezer.
+model VenueName {
+  apiName     String   @id
+  displayName String
+  updatedAt   DateTime @updatedAt
+}

@@ -1,3 +1,4 @@
+import { upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { formatGoalDiff, type StandingsStatColumn, type StandingsStatKey } from "@/lib/dashboard/standings-layout";
 import type { StandingRow, StandingZone } from "@/types/standings";
 import { EYEBROW, SCORE, TEAM, upper } from "../deep-analysis/deep-analysis-tokens";
@@ -69,6 +70,7 @@ export function StandingsRow({
   width,
   nameSize,
   theme,
+  nameOrigin,
 }: {
   row: StandingRow;
   /** Gömülü (data URL) logo; okunamadıysa boş. */
@@ -80,9 +82,12 @@ export function StandingsRow({
   /** Tablo genelinde ortak isim puntosu (`standingsNameSize`). */
   nameSize: number;
   theme: WeeklyTheme;
+  /** Takım adlarının varsayılan kökeni (ligden, bkz. leagues.ts::nameOrigin). */
+  nameOrigin: NameOrigin;
 }) {
   const logoSize = Math.round(height * 0.6);
-  const name = upper(row.teamName);
+  // Takım adı köken kuralıyla (lig varsayılanı, bkz. name-case.ts); yüzde ve etiketler değişmez.
+  const name = upperTeamName(row.teamName, { name: nameOrigin, people: nameOrigin });
   const statSize = clamp(height * 0.42, 15, 26);
   const pillHeight = Math.round(height * 0.72);
 

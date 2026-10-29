@@ -40,6 +40,12 @@ export default async function LibraryPage({ searchParams }: LibraryPageProps) {
         title="Medya Kütüphanesi"
         description="Fotoğraf arşivi Lig / Takım / Kişi klasörlerinde — adlar API-Football ve resmi ad tablosundan, elle klasör adı yok. Logolar ve referans görseller ayrı sekmelerde."
       />
+      <p className="-mt-2 mb-4 text-xs text-muted-foreground">
+        Kartlarda ASCII yazılan Türk adları ve Türkçe karşılığı olmayan stadyumlar:{" "}
+        <Link href="/dashboard/library/names" className="text-emerald-400 hover:underline">
+          Ad Raporu
+        </Link>
+      </p>
       <nav className="flex flex-wrap gap-2" aria-label="Kütüphane">
         {(Object.keys(VIEWS) as View[]).map((key) => (
           <Link

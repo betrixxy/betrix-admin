@@ -1,5 +1,6 @@
 import type { SetCard } from "./checkmatch-set";
 import type { MatchDayFormatId } from "./match-day";
+import type { NameOrigin, TeamOrigin } from "@/lib/dashboard/name-case";
 
 /**
  * MAÇ SONUCU kartı (`AiContent.contentType = "MATCH_RESULT"`, maç sonrası) — kanonik tipler.
@@ -33,8 +34,11 @@ export interface Competition {
 /** Bir oyuncunun bir taraftaki golleri tek satırda: "72'", "90+2' (P)", "34' (KK)". */
 export interface ScorerLine {
   playerId: number | null;
+  /** Kart adı (arşiv düzeltmesi → Sportmonks → API, bkz. `set-people.ts`). */
   name: string;
   minutes: string[];
+  /** Büyük harf kökeni (adın harfi → uyruk); çözülmediyse yok → takımın kişi kökeni. */
+  origin?: NameOrigin | null;
 }
 
 export interface ResultTeam {
@@ -45,6 +49,8 @@ export interface ResultTeam {
   goals: number;
   /** Bu tarafa yazılan goller (kendi kalesine goller dahil — golü kazanan taraf). */
   scorers: ScorerLine[];
+  /** Ad büyük harfinin kökeni (bkz. `team-origin.ts`); motor doldurur, yoksa ad kendi harflerinden. */
+  origin?: TeamOrigin;
   /** Forma rengi (`#rrggbb`); dizilişte ve renk tablosunda yoksa boş. */
   colorHex: string;
 }

@@ -1,6 +1,6 @@
 import type { MatchDayCard } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
-import { BrandLogo, Canvas, Eyebrow, LeagueLogo, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px } from "./shared";
+import { BrandLogo, Canvas, Eyebrow, LeagueLogo, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px, upperReferee, upperStadium } from "./shared";
 
 /**
  * EDITORIAL PORTRAIT — spor dergisi kapağı: dramatik stüdyo ışığında oyuncu portreleri,
@@ -58,7 +58,8 @@ function Credits({ card, k }: { card: MatchDayCard; k: number }) {
   const line = [known(card.dateLabel), known(card.timeLabel)].filter(Boolean).join("  ·  ");
   const stadium = known(card.stadiumLabel);
   const referee = known(card.refereeLabel);
-  const sub = [stadium ? clip(stadium, 34) : null, referee ? `Hakem ${referee}` : null].filter(Boolean).join("  ·  ");
+  // Stadyum ve hakem AD (köken kuralı), "HAKEM" Türkçe etiket.
+  const sub = [stadium ? upperStadium(card, clip(stadium, 34)) : null, referee ? `HAKEM ${upperReferee(card)}` : null].filter(Boolean).join("  ·  ");
   return (
     <div tw="flex flex-col items-center">
       <div tw="flex items-center">
@@ -67,7 +68,7 @@ function Credits({ card, k }: { card: MatchDayCard; k: number }) {
           {line ? <Eyebrow size={px(16, k)} color="white">{line.toLocaleUpperCase("tr-TR")}</Eyebrow> : null}
           {sub ? (
             <div tw="flex" style={{ marginTop: line ? px(6, k) : 0 }}>
-              <Eyebrow size={px(11, k)} color="rgba(255,255,255,0.62)">{sub.toLocaleUpperCase("tr-TR")}</Eyebrow>
+              <Eyebrow size={px(11, k)} color="rgba(255,255,255,0.62)">{sub}</Eyebrow>
             </div>
           ) : null}
         </div>

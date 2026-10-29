@@ -1,3 +1,4 @@
+import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { bodyOffsetTop, matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 import { BODY, upper } from "../deep-analysis/deep-analysis-tokens";
@@ -25,6 +26,7 @@ export interface WeeklyFixturesCardData extends WeeklyFixturesCardInput {
 
 export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title, grouping, matches, format, brandLogo, teamLogos }: WeeklyFixturesCardData) {
   const theme = weeklyTheme(leagueId);
+  const nameOrigin = getSupportedLeague(leagueId).nameOrigin;
   const layout = weeklyLayout(format);
   const { width: W, pad: PAD } = layout;
   // Sığmayan kart motor tarafından reddedilir; yine de çizilirse tek sütun + en küçük satır.
@@ -61,6 +63,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
                     rowHeight={plan.rowHeight}
                     width={columnWidth}
                     theme={theme}
+                    nameOrigin={nameOrigin}
                   />
                 ))}
               </div>

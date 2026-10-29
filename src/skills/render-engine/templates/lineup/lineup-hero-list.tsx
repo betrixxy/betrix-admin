@@ -1,6 +1,7 @@
 import { formationGroups } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
-import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { rgba } from "../deep-analysis/deep-analysis-tokens";
 import { LineupBackground, TYPE, displayName, labelStyle, nameStyle } from "./lineup-chrome";
 import type { LineupGeometry } from "./lineup-geometry";
 
@@ -64,14 +65,15 @@ function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider, k
   );
 }
 
-export function LineupHeroList({ g, formation, slots, palette, hero }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; hero: LineupHeroImage }) {
+/** `peopleOrigin`: oyuncu adlarının varsayılan kökeni (takımın ülkesi, bkz. name-case.ts). */
+export function LineupHeroList({ g, formation, slots, palette, hero, peopleOrigin = null }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; hero: LineupHeroImage; peopleOrigin?: NameOrigin | null }) {
   const { k, panel } = g;
   const night = palette.backgroundBottom;
   const padX = Math.round(PANEL_PAD_X * k);
   const rowHeight = Math.round(ROW_HEIGHT * k);
   const groupGap = Math.round(GROUP_GAP * k);
   const nameWidth = panel.width - padX * 2 - Math.round(NUMBER_BOX * k) - Math.round(ROLE_WIDTH * k) - Math.round(ROW_GAP * k) * 2;
-  const names = slots.map((slot) => upper(displayName(slot.name, MAX_NAME_CHARS)));
+  const names = slots.map((slot) => upperName(displayName(slot.name, MAX_NAME_CHARS), slot.origin ?? peopleOrigin));
   const fontSize = listFontSize(names, nameWidth, k);
   const groups = formationGroups(formation);
   // Satırlar ve mevki ayraçları dikeyde ortalanır.

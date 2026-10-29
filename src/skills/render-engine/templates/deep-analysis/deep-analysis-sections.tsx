@@ -1,8 +1,9 @@
+import { upperName } from "@/lib/dashboard/name-case";
 import type { ReactNode } from "react";
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { BangGlyph, CheckGlyph, Eyebrow, GearGlyph, KeyPlayer, PointColumn, StatRow } from "./deep-analysis-parts";
-import { BODY, GRAY, GREEN, GREEN_BR, MAX_WIDTH, SCORE, TEAM, YELLOW, filled, upper } from "./deep-analysis-tokens";
+import { BODY, GRAY, GREEN, GREEN_BR, MAX_WIDTH, SCORE, TEAM, YELLOW, filled } from "./deep-analysis-tokens";
 
 /**
  * Kartın bölüm blokları — her yerleşim (4:5/9:16 tek sütun, 1:1 ve 16:9 grid) aynı blokları kendi
@@ -49,7 +50,7 @@ export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quo
             {eyebrow}
           </Eyebrow>
           <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: Math.round((onHero ? 52 : 44) * s), letterSpacing: 0.3, lineHeight: 1.05, marginTop: 2 }}>
-            {upper(team.teamName)}
+            {upperName(team.teamName)}
           </span>
         </div>
       </div>

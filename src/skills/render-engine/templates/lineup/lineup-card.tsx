@@ -1,3 +1,4 @@
+import { upperTeamName } from "@/lib/dashboard/name-case";
 import type { LineupCardInput, LineupPalette } from "@/types/lineup";
 import { BODY } from "../deep-analysis/deep-analysis-tokens";
 import { LineupFooter, LineupHeader } from "./lineup-chrome";
@@ -33,14 +34,18 @@ export type LineupCardData = Omit<LineupCardInput, "templateStyle"> &
 export function LineupCard(props: LineupCardData) {
   const { team, opponentName, opponentLogoUrl, headline, matchLabel, format, brandLogo, palette } = props;
   const g = lineupGeometry(format);
+  // Adlar köken kuralıyla büyür (Türkçe büyük harf yalnızca Türk adlarına, bkz. name-case.ts).
+  const people = props.origins?.team.people ?? null;
+  const teamLabel = upperTeamName(team.teamName, props.origins?.team);
+  const opponentLabel = opponentName ? upperTeamName(opponentName, props.origins?.opponent) : "";
   return (
     <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: palette.backgroundBottom, overflow: "hidden" }}>
       {props.templateStyle === "hero_list" ? (
-        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} />
+        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} peopleOrigin={people} />
       ) : (
-        <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} />
+        <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} peopleOrigin={people} />
       )}
-      <LineupHeader g={g} headline={headline} teamName={team.teamName} opponentName={opponentName} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} />
+      <LineupHeader g={g} headline={headline} teamName={teamLabel} opponentName={opponentLabel} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} />
       <LineupFooter g={g} brandLogo={brandLogo} formation={team.formation} matchLabel={matchLabel} coach={team.coach} palette={palette} />
     </div>
   );

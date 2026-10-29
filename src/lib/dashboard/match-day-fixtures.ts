@@ -1,4 +1,6 @@
 import { cardTeamName } from "@/lib/archive/names";
+import { loadVenueOverrides } from "@/lib/names/venue-directory";
+import { cardVenueName } from "@/lib/names/venue-names";
 import { getSelectableFixtures, formatFixtureLabel } from "@/lib/dashboard/fixtures";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import type { Result } from "@/types/result";
@@ -24,7 +26,7 @@ export function parseRoundWeek(round: string | null | undefined): string {
   return match?.[1] ?? round;
 }
 
-function toOption(fixture: Fixture): MatchDayFixtureOption {
+function toOption(fixture: Fixture, venues: ReadonlyMap<string, string>): MatchDayFixtureOption {
   const kickoff = new Date(fixture.kickoffUtc);
   const details = fixture.details;
   return {
@@ -41,7 +43,8 @@ function toOption(fixture: Fixture): MatchDayFixtureOption {
     week: parseRoundWeek(details?.round),
     date: ISTANBUL_DATE.format(kickoff),
     time: ISTANBUL_TIME.format(kickoff),
-    stadium: details?.venueName ?? "",
+    // Stadyum kart adı: admin düzeltmesi → Türkçe karşılık → "Stadium → Stadyumu" (bkz. venue-names.ts).
+    stadium: details?.venueName ? cardVenueName(details.venueName, venues).name : "",
     referee: details?.referee ?? "",
   };
 }
@@ -53,5 +56,6 @@ function toOption(fixture: Fixture): MatchDayFixtureOption {
 export async function getMatchDayFixtureOptions(): Promise<Result<MatchDayFixtureOption[]>> {
   const result = await getSelectableFixtures();
   if (!result.ok) return { ok: false, error: { code: result.error.code, message: result.error.message } };
-  return { ok: true, data: result.data.map(toOption) };
+  const venues = await loadVenueOverrides();
+  return { ok: true, data: result.data.map((fixture) => toOption(fixture, venues)) };
 }

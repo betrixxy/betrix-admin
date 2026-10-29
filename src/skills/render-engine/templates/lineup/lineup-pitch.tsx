@@ -1,6 +1,7 @@
 import { pitchPositions } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot } from "@/types/lineup";
-import { rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { rgba } from "../deep-analysis/deep-analysis-tokens";
 import { LineupBackground, TYPE, displayName, nameStyle } from "./lineup-chrome";
 import type { LineupGeometry } from "./lineup-geometry";
 
@@ -74,8 +75,8 @@ function Markings({ width, height, accent, horizontal, circle }: { width: number
   );
 }
 
-function shownName(name: string, labelWidth: number): string {
-  return upper(displayName(name, labelWidth < TIGHT_LABEL_WIDTH ? MAX_NAME_CHARS_TIGHT : MAX_NAME_CHARS));
+function shownName(name: string, labelWidth: number, origin: NameOrigin | null): string {
+  return upperName(displayName(name, labelWidth < TIGHT_LABEL_WIDTH ? MAX_NAME_CHARS_TIGHT : MAX_NAME_CHARS), origin);
 }
 
 /** Tüm isimler için ortak boyut: en dar sığan isme göre, alt sınırla. */
@@ -114,7 +115,8 @@ function PlayerMarker({ slot, name, fontSize, goalkeeper, palette, labelWidth, m
   );
 }
 
-export function LineupPitch({ g, formation, slots, palette }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette }) {
+/** `peopleOrigin`: oyuncu adlarının varsayılan kökeni (takımın ülkesi, bkz. name-case.ts). */
+export function LineupPitch({ g, formation, slots, palette, peopleOrigin = null }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; peopleOrigin?: NameOrigin | null }) {
   const { width, height } = g.content;
   const marker = Math.round(MARKER * g.k);
   // Yatay sahada kaleci solda, hücum sağda: (x, y) → (1 - y, x).
@@ -126,7 +128,7 @@ export function LineupPitch({ g, formation, slots, palette }: { g: LineupGeometr
       : points.filter((other) => other !== point && other.y === point.y).map((other) => Math.abs(other.x - point.x) * width);
     return Math.min(MAX_LABEL_WIDTH, ...gaps.map((gap) => gap - LABEL_GAP));
   });
-  const names = slots.map((slot, index) => shownName(slot.name, labelWidths[index] ?? MAX_LABEL_WIDTH));
+  const names = slots.map((slot, index) => shownName(slot.name, labelWidths[index] ?? MAX_LABEL_WIDTH, slot.origin ?? peopleOrigin));
   const fontSize = boardFontSize(names, labelWidths, g.k);
   const glowSize = Math.max(g.content.width, 1080);
 

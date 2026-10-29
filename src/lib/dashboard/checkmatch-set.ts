@@ -1,6 +1,7 @@
 import { logoSilhouette } from "@/lib/dashboard/logo-silhouette";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
+import { upperName, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import type { SetCard } from "@/types/checkmatch-set";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
@@ -29,19 +30,20 @@ export interface SetImages {
   brandLogo: string;
 }
 
-const upperLines = (lines: ScorerLine[]): ScorerLine[] => lines.map((line) => ({ ...line, name: upperTr(line.name) }));
+/** Golcü adları: kendi harfleri, belirsizse takımın kişi kökeni (kendi kalesine gol nadir istisna). */
+const upperLines = (lines: ScorerLine[], origin: TeamOrigin | undefined): ScorerLine[] => lines.map((line) => ({ ...line, name: upperName(line.name, line.origin ?? origin?.people) }));
 
 /** Saf: maç verisi + görseller + sayfa etiketi → set alanları. */
 export function buildSetCard(facts: SetFacts, images: SetImages, pageLabel: string | null): SetCard {
   return {
-    homeTeam: upperTr(facts.home.name),
-    awayTeam: upperTr(facts.away.name),
+    homeTeam: upperTeamName(facts.home.name, facts.home.origin),
+    awayTeam: upperTeamName(facts.away.name, facts.away.origin),
     homeGoals: facts.home.goals,
     awayGoals: facts.away.goals,
     outcome: facts.outcome,
     penaltyLabel: facts.penaltyScore ? `PEN ${facts.penaltyScore}` : null,
-    homeScorers: upperLines(facts.home.scorers),
-    awayScorers: upperLines(facts.away.scorers),
+    homeScorers: upperLines(facts.home.scorers, facts.home.origin),
+    awayScorers: upperLines(facts.away.scorers, facts.away.origin),
     competitionLabel: upperTr(facts.competition.name),
     roundLabel: upperTr(facts.roundLabel),
     accentHex: resultAccentHex(facts),

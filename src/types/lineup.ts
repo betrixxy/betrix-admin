@@ -1,3 +1,4 @@
+import type { NameOrigin, TeamOrigin } from "@/lib/dashboard/name-case";
 import type { SocialFormatId } from "@/types/studio-formats";
 
 /**
@@ -11,9 +12,12 @@ export type SquadPosition = (typeof SQUAD_POSITIONS)[number];
 
 export interface SquadPlayer {
   id: number;
+  /** Kart adı (arşiv düzeltmesi → Sportmonks → API, bkz. `lib/names/person-name.ts`). */
   name: string;
   number: number | null;
   position: SquadPosition | null;
+  /** Büyük harf kökeni (adın harfi → uyruk → takım); çözülmediyse yok. */
+  origin?: NameOrigin | null;
 }
 
 /** Referans ilk 11'in bir oyuncusu — `grid` = "satır:sütun" (1 = kaleci satırı). */
@@ -22,6 +26,7 @@ export interface ReferenceStarter {
   name: string;
   number: number | null;
   grid: string | null;
+  origin?: NameOrigin | null;
 }
 
 /**
@@ -62,6 +67,8 @@ export interface LineupSlot {
   name: string;
   /** Forma numarası metin olarak ("" = yok). */
   number: string;
+  /** Adın büyük harf kökeni (kadrodan seçildiyse uyruktan); elle yazılan adda yok → adın harfi / takım. */
+  origin?: NameOrigin | null;
 }
 
 /**
@@ -155,4 +162,6 @@ export interface LineupCardInput {
   headline: string;
   matchLabel: string;
   format: SocialFormatId;
+  /** Ad büyük harfi için takım kökenleri (motor maçtan doldurur, bkz. team-origin.ts). */
+  origins?: { team: TeamOrigin; opponent: TeamOrigin };
 }
