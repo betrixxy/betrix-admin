@@ -23,11 +23,11 @@ describe("içerik türü menüsü", () => {
     assert.deepEqual(labels, ["Maç Günü Kartı", "Haftanın Maçları", "Muhtemel 11", "AI Market Tahmin & Analiz", "Oyuncu Karşılaştırması", "Kura Sonucu"]);
   });
 
-  it("'Yakında' yalnızca bilinen üç maç sonrası tür", () => {
+  it("'Yakında' yalnızca bilinen iki maç sonrası tür", () => {
     const soon = [...contentTypesForPhase("pre_match"), ...contentTypesForPhase("post_match")].filter((type) => type.status === "coming_soon");
     assert.deepEqual(
       soon.map(contentTypeOptionLabel),
-      ["Oyuncu İstatistikleri (Yakında)", "Market Sonuçları (Yakında)", "Maç Sonrası Analiz Raporu (Yakında)"],
+      ["Market Sonuçları (Yakında)", "Maç Sonrası Analiz Raporu (Yakında)"],
     );
   });
 

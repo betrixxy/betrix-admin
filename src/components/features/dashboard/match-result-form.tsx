@@ -137,6 +137,20 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
               </span>
             </label>
 
+            <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
+              <Label htmlFor="playerPage">Oyuncu sayfasını da ekle</Label>
+              <NativeSelect id="playerPage" name="playerPage" defaultValue="">
+                <option value="">Yok</option>
+                <option value="SPOTLIGHT">A · Maçın Oyuncusu (yukarıdaki oyuncu)</option>
+                <option value="TOP_3">B · Maçın En İyileri (3 oyuncu)</option>
+                <option value="TOP_5">B · Maçın En İyileri (5 oyuncu)</option>
+              </NativeSelect>
+              <span className="text-[11px] text-muted-foreground">
+                Aynı taslakta carousel&apos;in son sayfası — aynı format, vurgu rengi ve sütun tarafı. A&apos;nın fotoğrafı oyuncunun bu takımın formalı en yeni arşiv fotoğrafıdır (yoksa
+                tipografik tasarım). Oyuncu verisi henüz kesinleşmediyse kart üretilmez.
+              </span>
+            </div>
+
             {state.error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                 <AlertCircle className="size-3.5 shrink-0" />

@@ -8,6 +8,7 @@ import type { SportmonksFixture } from "@/lib/services/sportmonks/advanced-stats
 export const SM_BESIKTAS_MIDTJYLLAND: SportmonksFixture = {
   "id": 19720995,
   "starting_at": "2026-07-23 18:00:00",
+  "lineups": [],
   "participants": [
     {
       "id": 939,
@@ -499,6 +500,7 @@ export const SM_BESIKTAS_MIDTJYLLAND_IDS = { home: 554, away: 939 };
 export const SM_HOFFENHEIM_BESIKTAS: SportmonksFixture = {
   "id": 19873855,
   "starting_at": "2026-10-15 19:00:00",
+  "lineups": [],
   "participants": [
     {
       "id": 554,

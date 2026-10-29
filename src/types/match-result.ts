@@ -90,6 +90,10 @@ export interface MatchResultGenerationResult {
   resultImageUrl: string;
   /** "İstatistik sayfasını da ekle" seçildiyse carousel'in 02 görseli; yoksa null. */
   statsImageUrl: string | null;
+  /** "Oyuncu sayfasını da ekle" seçildiyse carousel'in son görseli (A ya da B); yoksa null. */
+  playerImageUrl: string | null;
+  /** "03 · Maçın oyuncusu" */
+  playerPageLabel: string | null;
   /** Tonlanmış, kırpılmış fotoğraf (yazısız sanat katmanı). */
   backgroundImageUrl: string;
   format: MatchDayFormatId;

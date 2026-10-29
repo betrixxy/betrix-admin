@@ -9,8 +9,8 @@
     "lint": "eslint",
     "db:seed": "tsx prisma/seed.ts",
     "test:unit": "tsx --test tests/unit/*.test.ts tests/unit/*.test.tsx",
-    "test:visual": "tsx --test tests/visual/match-day.test.ts tests/visual/checkmatch-set.test.ts tests/visual/vitrin.test.ts tests/visual/player-h2h.test.ts tests/visual/draw.test.ts tests/visual/anton-tails.test.ts tests/visual/anton-tails-h2h.test.ts tests/visual/studio-cards.test.ts",
-    "test:visual:update": "tsx --test tests/visual/match-day.test.ts tests/visual/checkmatch-set.test.ts tests/visual/vitrin.test.ts tests/visual/player-h2h.test.ts tests/visual/draw.test.ts tests/visual/anton-tails.test.ts tests/visual/anton-tails-h2h.test.ts tests/visual/studio-cards.test.ts"
+    "test:visual": "tsx --test tests/visual/match-day.test.ts tests/visual/checkmatch-set.test.ts tests/visual/vitrin.test.ts tests/visual/player-h2h.test.ts tests/visual/draw.test.ts tests/visual/anton-tails.test.ts tests/visual/anton-tails-h2h.test.ts tests/visual/studio-cards.test.ts tests/visual/player-stats.test.ts",
+    "test:visual:update": "tsx --test tests/visual/match-day.test.ts tests/visual/checkmatch-set.test.ts tests/visual/vitrin.test.ts tests/visual/player-h2h.test.ts tests/visual/draw.test.ts tests/visual/anton-tails.test.ts tests/visual/anton-tails-h2h.test.ts tests/visual/studio-cards.test.ts tests/visual/player-stats.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

@@ -1,6 +1,6 @@
 import { isSchedulePlaceholder } from "@/lib/calendar/schedule-placeholder";
 import { isContentTypeId } from "@/lib/dashboard/content-types";
-import { carouselUrls } from "@/lib/dashboard/publish-caption";
+import { setPages } from "@/lib/dashboard/set-pages";
 import { isApprovedStatus } from "@/types/ai-content";
 import type { FixtureProduction } from "@/types/calendar";
 import type { ContentTypeId } from "@/types/content-type";
@@ -19,11 +19,11 @@ export interface ProductionRow {
 }
 
 /**
- * Saf: kaydın karşıladığı içerik türleri. Carousel'li Maç Sonucu taslağı (01 + 02) Maç
- * İstatistikleri'ni de AYNI durumla karşılar — 02 ayrıca üretilmemiş sayılmaz.
+ * Saf: kaydın karşıladığı içerik türleri. Carousel'li Maç Sonucu taslağı (01 + 02 [+ 03 oyuncu sayfası])
+ * Maç İstatistikleri'ni ve Oyuncu İstatistikleri'ni de AYNI durumla karşılar — ayrıca üretilmemiş sayılmaz.
  */
 export function coveredContentTypes(contentType: ContentTypeId, renderOptions: unknown): ContentTypeId[] {
-  return contentType === "MATCH_RESULT" && carouselUrls(renderOptions).length >= 2 ? ["MATCH_RESULT", "MATCH_STATS"] : [contentType];
+  return setPages(contentType, renderOptions);
 }
 
 /**

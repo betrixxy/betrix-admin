@@ -74,7 +74,14 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "active",
     route: "/dashboard/studio/match-stats",
   },
-  { id: "PLAYER_STATS", label: "Oyuncu İstatistikleri", description: "Maçın/oyuncunun bireysel performans kartı.", phase: "post_match", status: "coming_soon", route: null },
+  {
+    id: "PLAYER_STATS",
+    label: "Oyuncu İstatistikleri",
+    description: "Maçın Oyuncusu (puan + mevkiye göre istatistik) ya da Maçın En İyileri (3/5 oyuncu) — tek başına ya da Maç Sonucu carousel'inin son sayfası (yalnızca biten maçlar).",
+    phase: "post_match",
+    status: "active",
+    route: "/dashboard/studio/player-stats",
+  },
   { id: "MARKET_RESULTS", label: "Market Sonuçları", description: "Tahminlerin maç sonu tutma durumu.", phase: "post_match", status: "coming_soon", route: null },
   {
     id: "POST_MATCH_REPORT",

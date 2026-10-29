@@ -12,6 +12,7 @@ import { loadMediaAssetImage, matchPhotoTag } from "@/lib/dashboard/media-librar
 import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/match-result-engine";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { loadMatchStatsFacts } from "@/lib/dashboard/match-stats-studio";
+import { loadPlayerStatsFacts } from "@/lib/dashboard/player-stats-studio";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { getMatchResultRaw, parseFixtureId } from "@/lib/services/api-football";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -35,9 +36,13 @@ const photoSchema = z.object({
   zoom,
 });
 
-const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean() });
+/** "Oyuncu sayfasını da ekle": yok · A Maçın Oyuncusu · B Maçın En İyileri (3 / 5). */
+const PLAYER_PAGES = { SPOTLIGHT: { template: "SPOTLIGHT", count: undefined }, TOP_3: { template: "TOP_PLAYERS", count: 3 }, TOP_5: { template: "TOP_PLAYERS", count: 5 } } as const;
+const playerPage = z.union([z.literal(""), z.enum(["SPOTLIGHT", "TOP_3", "TOP_5"])]);
 
-const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId"] as const;
+const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean(), playerPage });
+
+const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId", "playerPage"] as const;
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -86,7 +91,7 @@ async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema
     const resolved = await resolveArchivePhoto(formData, "photo", [facts.home.id, facts.away.id], data.fixtureId);
     if (!resolved.ok) return resolved;
     if (!resolved.data) return { ok: false, error: { code: "PHOTO_MISSING", message: "Maç fotoğrafı yok — arşivden seçin ya da yükleyin. Kart üretilmedi." } };
-    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId, kitTeamId: resolved.data.kitTeamId } };
+    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId, kitTeamId: resolved.data.kitTeamId, photoId: resolved.data.photoId } };
   } catch (error: unknown) {
     console.error("[match-result] arşiv fotoğrafı çözülemedi:", error);
     return { ok: false, error: { code: "ARCHIVE_FAILED", message: "Maç fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
@@ -118,6 +123,12 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
   if (data.includeStats) reportJobStep("İstatistik verisi alınıyor (02)");
   const stats = data.includeStats ? await loadMatchStatsFacts(input.raw) : null;
   if (data.includeStats && !stats) return { error: "Maç istatistikleri alınamadı — kart üretilmedi." };
+  // "Oyuncu sayfasını da ekle": veri kesinleşmediyse kart üretilmez (sebep + yeniden dene).
+  const page = data.playerPage ? PLAYER_PAGES[data.playerPage] : null;
+  if (page) reportJobStep("Oyuncu verisi alınıyor");
+  const playerFacts = page ? await loadPlayerStatsFacts(input.raw, new Date()) : null;
+  if (page && !playerFacts) return { error: "Oyuncu istatistikleri alınamadı — kart üretilmedi." };
+  if (playerFacts && !playerFacts.settlement.settled) return { error: `Oyuncu verisi henüz kesinleşmedi — ${playerFacts.settlement.reason} Oyuncu sayfası olmadan üretin ya da biraz sonra yeniden deneyin.` };
 
   const mvp = (data.mvpId ? facts.players.find((player) => player.playerId === data.mvpId) : null) ?? facts.mvp;
   const result = await createMatchResultCard({
@@ -130,6 +141,7 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
     offset: { x: data.offsetX, y: data.offsetY },
     zoom: data.zoom,
     stats,
+    player: page && playerFacts ? { facts: playerFacts, template: page.template, count: page.count } : null,
   });
   if (!result.ok) return { error: result.error.message };
 
