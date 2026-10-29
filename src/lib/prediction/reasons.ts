@@ -1,10 +1,10 @@
-import { formatNumber } from "@/lib/format/number";
 import { allowedNumbersBySide, buildAnalysisFacts, findTeamAbbreviations, findUngroundedNumbers, union } from "@/lib/dashboard/expert-analysis-facts";
 import { cardTeamName } from "@/lib/archive/names";
 import type { DeepAnalysisStats, SeasonLeagueXg } from "@/types/deep-analysis";
-import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId } from "@/types/prediction";
+import { REASON_MAX_LENGTH, REASON_MAX_WORDS, wordCount, type Scenario, type ScenarioId, type ScenarioOutcome } from "@/types/prediction";
 import { findBannedWords } from "./banned-words";
 import type { MatchSides } from "./catalog";
+import { CLAUSE_SPLIT, clauseSide, directionIssues, unsampledClauses } from "./reason-claims";
 import { differentLeagues, SEASON_XG_MIN_MATCHES } from "./season-xg";
 
 /**
@@ -96,22 +96,18 @@ export const SCENARIO_TOPICS: Record<ScenarioId, { pattern: RegExp; label: strin
   COMBO: { pattern: /galibiyet|kazan|form|gol/u, label: "galibiyet ya da gol" },
 };
 
-/** Cümlecik sınırı: noktalı virgül/iki nokta, ardından boşluk gelen virgül/nokta (ondalık "2,4" bölünmez), bağlaçlar. */
-const CLAUSE_SPLIT = /[;:]|[,.](?=\s|$)|\s(?:ve|ama|fakat|ancak|oysa|iken|buna karşın)\s/u;
 const lower = (text: string) => text.toLocaleLowerCase("tr-TR");
 /** Rakam.rakam — Türkçe metinde ondalık nokta (binlik ayırıcı da noktadır ama gerekçelerde binlik sayı yok). */
 const DECIMAL_POINT = /\d+\.\d+/gu;
 
-/** Cümleciğin takımı: yalnızca birinin adı geçiyorsa o; ikisi ya da hiçbiri → null (birleşik kapsam). */
-function clauseSide(clause: string, sides: MatchSides): "home" | "away" | null {
-  const has = (name: string) => lower(clause).includes(lower(name));
-  const home = has(sides.home);
-  const away = has(sides.away);
-  return home === away ? null : home ? "home" : "away";
-}
-
-/** Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, xG yalnızca bu sezon ≥5 lig maçından ve "bu sezon ligde" diye, bahis dili yok, kısaltma yok, her sayı doğru takımın paketinden. */
-export function auditReason(reason: string, scenarioId: ScenarioId, facts: VitrinFacts, sides: MatchSides): string[] {
+/**
+ * Gerekçe denetimi: boş değil, ≤160 karakter, ≤10 sözcük, ondalık virgül, senaryoyla ilgili, seçili sonucu
+ * DESTEKLER (yön, `reason-claims.ts`), her sayının örneklemi yazılı ("son 5 maçta", "bu sezon ligde"), xG
+ * yalnızca bu sezon ≥5 lig maçından ve "bu sezon ligde" diye, bahis dili yok, kısaltma yok, her sayı doğru
+ * takımın paketinden.
+ */
+export function auditReason(reason: string, outcome: ScenarioOutcome, facts: VitrinFacts, sides: MatchSides): string[] {
+  const scenarioId: ScenarioId = outcome.scenario;
   const text = reason.trim();
   if (!text) return ["gerekçe boş"];
   const issues: string[] = [];
@@ -126,6 +122,11 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
   if (banned.length) issues.push(`bahis dili: ${banned.join(", ")}`);
   const short = findTeamAbbreviations(text, [sides.home, sides.away]);
   if (short.length) issues.push(`takım kısaltması: ${short.join(", ")}`);
+  // Örneklem: her sayının örneklemi cümlecikte (ya da aynı öznenin önceki cümleciğinde) yazılır.
+  for (const clause of unsampledClauses(text, sides)) issues.push(`örneklem yok: "${clause}" — "son 5 maçta" ya da "bu sezon ligde" gibi yazılmalı`);
+  // Yön: gerekçe seçili sonucu desteklemeli; çelişen iddia reddedilir.
+  const sample = (side: "home" | "away" | null) => (side === "away" ? facts.deplasman.ornek_mac : facts.ev_sahibi.ornek_mac);
+  issues.push(...directionIssues(text, outcome, sides, sample));
 
   // xG örneklemi: cümleciğin takımının (takım adı yoksa iki takımın da) xG'si bu sezon ≥ XG_MIN_SAMPLE lig maçından gelmeli.
   for (const clause of text.split(CLAUSE_SPLIT)) {
@@ -159,62 +160,25 @@ export function auditReason(reason: string, scenarioId: ScenarioId, facts: Vitri
 
 /** Bütün senaryoların denetimi: senaryo → sorunlar (boş dizi = temiz). */
 export function auditReasons(scenarios: Scenario[], facts: VitrinFacts, sides: MatchSides): Record<string, string[]> {
-  return Object.fromEntries(scenarios.map((scenario) => [scenario.id, auditReason(scenario.reason, scenario.id, facts, sides)]));
-}
-
-const decimal = (value: number | null) => (value === null ? null : formatNumber(value));
-
-/** Parçaları sığdığı kadar birleştirir (≤160 karakter, ≤10 sözcük); ilk parça her zaman alınır. */
-function compose(parts: (string | null)[]): string {
-  let out = "";
-  for (const part of parts) {
-    if (!part) continue;
-    // Parçalar takım adıyla başlar — özel ad küçültülmez.
-    const next = out ? `${out}; ${part}` : part;
-    if (next.length + 1 > REASON_MAX_LENGTH || wordCount(next) > REASON_MAX_WORDS) break;
-    out = next;
-  }
-  return out ? `${out}.` : "";
+  return Object.fromEntries(scenarios.map((scenario) => [scenario.id, auditReason(scenario.reason, scenario.outcome, facts, sides)]));
 }
 
 /**
- * Kural tabanlı gerekçeler (AI yoksa ya da admin isterse) — sayılar olgu paketinden, denetimden geçer.
+ * AI gerekçeleri denetimden geçmezse kural tabanlı gerekçeye düşülür (o da geçiyorsa) — kart yön ya da
+ * örneklem hatasıyla kilitlenmez; değiştirilen her gerekçe sebebiyle `replaced`'da (stüdyoda uyarı olur).
  */
-export function ruleReason(scenario: Scenario, facts: VitrinFacts, sides: MatchSides): string {
-  const home = facts.ev_sahibi;
-  const away = facts.deplasman;
-  const form = (team: typeof home, name: string) => `${name} son ${team.ornek_mac} maçında ${team.galibiyet} galibiyet aldı`;
-  const scoring = (team: typeof home, name: string) => (team.gol_atilan_ort === null ? null : `${name} maç başı ${decimal(team.gol_atilan_ort)} gol atıyor`);
-  const conceding = (team: typeof home, name: string) => (team.gol_yenilen_ort === null ? null : `${name} maç başı ${decimal(team.gol_yenilen_ort)} gol yiyor`);
-  const favouriteIsHome = scenario.outcome.scenario === "COMBO" ? scenario.outcome.team === "HOME" : scenario.outcome.pick !== "AWAY";
-  const [fav, favName, other, otherName] = favouriteIsHome ? [home, sides.home, away, sides.away] : [away, sides.away, home, sides.home];
-
-  switch (scenario.id) {
-    case "RESULT_1X2":
-      return scenario.outcome.pick === "DRAW"
-        ? compose([form(home, sides.home), form(away, sides.away)])
-        : compose([form(fav, favName), conceding(other, otherName)]);
-    case "BTTS":
-      if (scenario.outcome.pick === "YES") return compose([scoring(home, sides.home), scoring(away, sides.away)]);
-      return compose([
-        home.gol_yemedigi_mac >= away.gol_yemedigi_mac
-          ? `${sides.home} son ${home.ornek_mac} maçta ${home.gol_yemedigi_mac} kez gol yemedi`
-          : `${sides.away} son ${away.ornek_mac} maçta ${away.gol_yemedigi_mac} kez gol yemedi`,
-        scoring(home, sides.home),
-      ]);
-    case "GOALS_3PLUS":
-      if (scenario.outcome.pick === "YES") {
-        const goalsSeen = (team: typeof home, name: string) => `${name} son ${team.ornek_mac} maçının ${team.uc_veya_daha_fazla_gollu_mac} tanesinde 3+ gol gördü`;
-        return compose([goalsSeen(home, sides.home), goalsSeen(away, sides.away)]);
-      }
-      return compose([conceding(home, sides.home), conceding(away, sides.away)]);
-    case "GOALS_4PLUS":
-      // "Gol yağmuru": evet → iki hücum; hayır → iki savunmanın yediği.
-      return scenario.outcome.pick === "YES" ? compose([scoring(home, sides.home), scoring(away, sides.away)]) : compose([conceding(home, sides.home), conceding(away, sides.away)]);
-    case "HT_RESULT":
-      return compose([scoring(fav, favName), conceding(other, otherName)]);
-    case "COMBO":
-      // Evet → favorinin formu ve hücumu; hayır → rakibin direnci (yediği gol azsa) ve favorinin hücumu.
-      return scenario.outcome.pick === "YES" ? compose([form(fav, favName), scoring(fav, favName)]) : compose([conceding(other, otherName), scoring(fav, favName)]);
+export function auditedReasons(scenarios: Scenario[], written: Partial<Record<ScenarioId, string>>, facts: VitrinFacts, sides: MatchSides) {
+  const reasons: Partial<Record<ScenarioId, string>> = {};
+  const replaced: { id: ScenarioId; outcome: ScenarioOutcome; issues: string[] }[] = [];
+  for (const scenario of scenarios) {
+    const ai = written[scenario.id]?.trim();
+    if (!ai) continue;
+    const issues = auditReason(ai, scenario.outcome, facts, sides);
+    const fallbackClean = scenario.reason.trim() !== "" && auditReason(scenario.reason, scenario.outcome, facts, sides).length === 0;
+    if (issues.length && fallbackClean) replaced.push({ id: scenario.id, outcome: scenario.outcome, issues });
+    else reasons[scenario.id] = ai;
   }
+  return { reasons, replaced };
 }
+
+export { ruleReason } from "./rule-reasons";
