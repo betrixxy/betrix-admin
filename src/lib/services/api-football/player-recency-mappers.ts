@@ -52,6 +52,18 @@ export function playerAppearances(fixtures: ApiFootballFixturePlayers[], playerI
 }
 
 /**
+ * Oyuncunun KENDİ takımının kapsamdaki bitmiş maçlarına göre güncellik: maç bazlı oyuncu verisi gelmiş son
+ * maç (`asOfUtc`) ve verisi henüz gelmemiş bitmiş maç sayısı. Takımın kadro satırı boşsa maç "gelmedi"
+ * sayılır (API maçı bitmiş gösterip oyuncu istatistiğini geç yayımlayabilir).
+ */
+export function fixtureCoverage(finished: readonly { fixture: { id: number; timestamp: number } }[], details: readonly ApiFootballFixturePlayers[], teamId: number): { asOfUtc: string | null; missingMatches: number } {
+  const covered = new Set(details.filter((detail) => detail.players.some((side) => side.team.id === teamId && side.players.length > 0)).map((detail) => detail.fixture.id));
+  const done = finished.filter((fixture) => covered.has(fixture.fixture.id)).sort((a, b) => a.fixture.timestamp - b.fixture.timestamp);
+  const last = done.at(-1);
+  return { asOfUtc: last ? new Date(last.fixture.timestamp * 1000).toISOString() : null, missingMatches: finished.length - done.length };
+}
+
+/**
  * Toplama girmemiş maçlar: toplamdaki maç sayısından sonraki süre alınan maçlar. Maç listesi toplamdan
  * KISA ise (maç verisi eksik) eşleştirme yapılamaz — çağıran Sportmonks'a geçer.
  */

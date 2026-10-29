@@ -4,7 +4,8 @@ import { domesticLeague } from "@/lib/archive/structure";
 import { hasFace } from "@/lib/dashboard/player-h2h-photo";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { playerKey } from "@/lib/player-h2h/keys";
-import { goalContributionLeader } from "@/lib/player-h2h/leaders";
+import { defaultLeader, positionLeaders } from "@/lib/player-h2h/leaders";
+import type { PositionSuggestions } from "@/lib/player-h2h/suggest";
 import { prisma } from "@/lib/prisma";
 import { getFixtureById } from "@/lib/services/api-football/fixtures";
 import { getTeamLeaguePlayers } from "@/lib/services/api-football/team-player-stats";
@@ -44,27 +45,37 @@ export interface H2HMatchContext {
   homeTeam: { id: number; name: string };
   awayTeam: { id: number; name: string };
   kickoffUtc: string;
-  /** Takım başına öneri (gol + asist lideri); veri yoksa null. */
+  /** Takım başına varsayılan öneri (forvet gol + asist lideri); veri yoksa null. */
   suggestions: { home: string | null; away: string | null };
+  /** Takım başına mevki önerileri (arşivde olanlar) — bir taraf değişince diğeri aynı mevkiden. */
+  byPosition: { home: PositionSuggestions; away: PositionSuggestions };
   warnings: string[];
 }
 
-/** Takımın yurt içi liginde gol + asist lideri → arşivdeki oyuncu anahtarı (arşivde yoksa null + uyarı). */
-async function suggestFor(teamId: number, warnings: string[]): Promise<string | null> {
+interface TeamSuggestions {
+  default: string | null;
+  byPosition: PositionSuggestions;
+}
+
+const NO_SUGGESTIONS: TeamSuggestions = { default: null, byPosition: {} };
+
+/** Takımın yurt içi liginde varsayılan öneri + mevki liderleri → arşivdeki oyuncu anahtarları (arşivde yoksa uyarı). */
+async function suggestFor(teamId: number, warnings: string[]): Promise<TeamSuggestions> {
   const [info, leagues] = await Promise.all([getTeamInfo(teamId), getTeamCurrentLeagues(teamId)]);
-  if (!info.ok || !leagues.ok) return null;
+  if (!info.ok || !leagues.ok) return NO_SUGGESTIONS;
   const domestic = domesticLeague(leagues.data, info.data?.country ?? null);
-  if (!domestic || domestic.season === null) return null;
+  if (!domestic || domestic.season === null) return NO_SUGGESTIONS;
   const players = await getTeamLeaguePlayers(teamId, domestic.season, domestic.id);
-  if (!players.ok) return null;
-  const leader = goalContributionLeader(players.data, teamId, domestic.id);
-  if (!leader) return null;
-  const inArchive = await prisma.person.findFirst({ where: { apiId: leader.playerId, role: "PLAYER", currentTeamId: teamId }, select: { apiId: true } });
-  if (!inArchive) {
-    warnings.push(`${leader.name} (gol + asist lideri) arşivde yok — elle seçin ya da kadroyu senkronlayın`);
-    return null;
-  }
-  return playerKey(leader.playerId, teamId);
+  if (!players.ok) return NO_SUGGESTIONS;
+  const leader = defaultLeader(players.data, teamId, domestic.id);
+  const leaders = Object.entries(positionLeaders(players.data, teamId, domestic.id)).flatMap(([position, pick]) => (pick ? [{ position: position as keyof PositionSuggestions, pick }] : []));
+  const ids = [...new Set([...(leader ? [leader.playerId] : []), ...leaders.map(({ pick }) => pick.playerId)])];
+  const people = await prisma.person.findMany({ where: { apiId: { in: ids }, role: "PLAYER", currentTeamId: teamId }, select: { apiId: true } });
+  const archived = new Set(people.map((person) => person.apiId));
+  const byPosition: PositionSuggestions = {};
+  for (const { position, pick } of leaders) if (archived.has(pick.playerId)) byPosition[position] = playerKey(pick.playerId, teamId);
+  if (leader && !archived.has(leader.playerId)) warnings.push(`${leader.name} (gol + asist lideri) arşivde yok — elle seçin ya da kadroyu senkronlayın`);
+  return { default: leader && archived.has(leader.playerId) ? playerKey(leader.playerId, teamId) : null, byPosition };
 }
 
 export async function h2hMatchContext(fixtureId: string, apiId: number): Promise<Result<H2HMatchContext>> {
@@ -75,7 +86,15 @@ export async function h2hMatchContext(fixtureId: string, apiId: number): Promise
   const [home, away] = await Promise.all([suggestFor(Number(homeTeam.id), warnings), suggestFor(Number(awayTeam.id), warnings)]);
   return {
     ok: true,
-    data: { fixtureId, homeTeam: { id: Number(homeTeam.id), name: homeTeam.name }, awayTeam: { id: Number(awayTeam.id), name: awayTeam.name }, kickoffUtc, suggestions: { home, away }, warnings },
+    data: {
+      fixtureId,
+      homeTeam: { id: Number(homeTeam.id), name: homeTeam.name },
+      awayTeam: { id: Number(awayTeam.id), name: awayTeam.name },
+      kickoffUtc,
+      suggestions: { home: home.default, away: away.default },
+      byPosition: { home: home.byPosition, away: away.byPosition },
+      warnings,
+    },
   };
 }
 

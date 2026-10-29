@@ -77,8 +77,16 @@ export interface H2HFreshness {
    * ya da — bu yapılamazsa — Sportmonks (tüm satırlar).
    */
   source: H2HSource;
-  /** Verinin güncel olduğu son maçın başlama zamanı (takımın kapsamdaki son bitmiş maçı); bilinmiyorsa null. */
+  /**
+   * Verinin güncel olduğu son maçın başlama zamanı — oyuncunun KENDİ takımının kapsamdaki son bitmiş (ve
+   * verisi gelmiş) maçı; bilinmiyorsa null. İki oyuncunun tarihi farklı olabilir (takımlar farklı günlerde oynar).
+   */
   asOfUtc: string | null;
+  /**
+   * Takımın kapsamdaki bitmiş maçlarından verisi henüz gelmeyenler (0 = güncel). Sportmonks yolunda
+   * bilinmez → null. Stüdyo uyarısı yalnızca bu > 0 iken.
+   */
+  missingMatches: number | null;
   /** Sezon toplamına maç bazlı veriden eklenen maç sayısı (API-Football yolunda). */
   addedMatches: number;
   /** Sportmonks'a neden geçildi ya da neden tarih bilinmiyor; yoksa null. */
