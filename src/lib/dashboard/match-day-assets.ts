@@ -1,4 +1,5 @@
 import { normalizeClock } from "@/lib/format/dates";
+import { MATCH_DAY_FONT_FILES } from "@/lib/dashboard/card-font-files";
 import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { cardVenueName } from "@/lib/names/venue-names";
 import { readFile } from "node:fs/promises";
@@ -15,18 +16,8 @@ const PUBLIC_ROOT = path.join(process.cwd(), "public");
 const REMOTE_TIMEOUT_MS = 8000;
 const PLACEHOLDER = "—";
 
-/**
- * Satori için gömülü fontlar — hepsi Türkçe karakterleri (Ç, Ğ, İ, Ş, Ö, Ü) kapsar:
- * Geist (gövde metni), Anton (yayın başlıkları) ve DM Serif Display (editoryal serif); hepsi OFL.
- */
-const FONT_FILES = [
-  { name: "Geist", file: "Geist-Regular.ttf", weight: 400, style: "normal" },
-  { name: "Geist", file: "Geist-Bold.ttf", weight: 700, style: "normal" },
-  { name: "Geist", file: "Geist-Black.ttf", weight: 900, style: "normal" },
-  { name: "Anton", file: "Anton-Regular.ttf", weight: 400, style: "normal" },
-  { name: "DM Serif Display", file: "DMSerifDisplay-Regular.ttf", weight: 400, style: "normal" },
-  { name: "DM Serif Display", file: "DMSerifDisplay-Italic.ttf", weight: 400, style: "italic" },
-] as const;
+/** Satori için gömülü fontlar — liste `card-font-files.ts`'te (build kontrolüyle ortak tek kaynak). */
+const FONT_FILES = MATCH_DAY_FONT_FILES;
 
 export interface MatchDayFont {
   name: string;

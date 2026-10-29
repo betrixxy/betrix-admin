@@ -1,0 +1,276 @@
+import type { TeamOrigin } from "@/lib/dashboard/name-case";
+import type { TeamAnalysisDraft } from "@/types/deep-analysis";
+import type { LineupCardInput, LineupSlot } from "@/types/lineup";
+import type { StandingRow, StandingsCardInput, StandingsGroup } from "@/types/standings";
+import type { SocialFormatId } from "@/types/studio-formats";
+import type { WeeklyFixturesCardInput, WeeklyMatch } from "@/types/weekly-fixtures";
+
+/**
+ * Muhtemel 11, Haftanın Maçları, Puan Durumu ve Derin Analiz görsel regresyon testinin kart
+ * senaryoları — KURGUSAL veri (bkz. CLAUDE.md 5.2). Oyuncu/teknik direktör adları uydurmadır;
+ * logo ve fotoğraf adresi yok (test çevrimdışı ve deterministik). Her kart dört durumu kapsar:
+ * Türkçe karakterli ad, yabancı ad, uzun ad ve iki satıra bölünen metin.
+ */
+
+type Slot = [name: string, number: string];
+const slots = (rows: Slot[], origin?: LineupSlot["origin"]): LineupSlot[] => rows.map(([name, number]) => ({ playerId: null, name, number, ...(origin ? { origin } : {}) }));
+
+/** Türk takımı: ı/İ/ğ/ş/ç/ö/ü'lü adlar, ASCII ama Türk kökenli "Demir" (→ DEMİR). */
+const TR_SLOTS = slots([
+  ["Ç. Güçlüoğlu", "1"],
+  ["İ. Şenyürek", "2"],
+  ["E. Demir", "4"],
+  ["Ö. Ağaoğlu", "5"],
+  ["K. Işıklı", "3"],
+  ["S. Kılıçarslan", "8"],
+  ["B. Gümüştekin", "6"],
+  ["T. Yiğitbaşı", "7"],
+  ["H. Çiftçi", "10"],
+  ["Ü. İnceoğlu", "11"],
+  ["D. Eğilmez", "9"],
+]);
+
+/** Yabancı takım: i'li adlar uluslararası kuralla (SILVA, NIKOLIĆ — noktalı İ yok). */
+const INTL_SLOTS = slots(
+  [
+    ["J. Wójcik", "1"],
+    ["L. Jørgensen", "2"],
+    ["N. Ijeoma", "4"],
+    ["R. Silva", "5"],
+    ["M. Nikolić", "3"],
+    ["F. Müller", "6"],
+    ["P. Ibáñez", "8"],
+    ["T. Kristiansen", "10"],
+    ["V. Dimitriou", "7"],
+    ["A. Mbeki", "11"],
+    ["G. Ricci", "9"],
+  ],
+  "intl",
+);
+
+/** Uzun adlar: kısaltma/kesme kuralı ve dar etiket. */
+const LONG_SLOTS = slots(
+  [
+    ["Konstantinos Papadopoulos-Alexandridis", "99"],
+    ["Mehmet Ali Karaosmanoğlu", "22"],
+    ["J. Wan-Bissaka-Longfellow", "23"],
+    ["A. Hernández de la Fuente", "15"],
+    ["W. Schweinsteiger-Hummels", "13"],
+    ["B. Abdurrahmanoğlu", "18"],
+    ["C. Oxlade-Chamberlainson", "17"],
+    ["D. Van der Westhuizen", "14"],
+    ["E. Kılıçdaroğlugil", "88"],
+    ["F. Diakhaby-Koulibaly", "77"],
+    ["G. Aubameyang-Ondoua", "19"],
+  ],
+  "intl",
+);
+
+export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
+  "tr-takim": {
+    templateStyle: "pitch",
+    team: { teamName: "Kurgu Gençlikspor", logoUrl: "", colorHex: "#0B6E3A", heroImageUrl: "", formation: "4-2-3-1", slots: TR_SLOTS, coach: "İlhan Şıkışık" },
+    opponentName: "Örnek İdmanyurdu",
+    opponentLogoUrl: "",
+    headline: "MUHTEMEL 11",
+    matchLabel: "Trendyol Süper Lig · 30.10 · 20:00",
+    origins: { team: { name: "tr", people: "tr" }, opponent: { name: "tr", people: "tr" } },
+  },
+  "yabanci-takim": {
+    templateStyle: "pitch",
+    team: { teamName: "Sporting Milano", logoUrl: "", colorHex: "#1D3E8A", heroImageUrl: "", formation: "4-3-3", slots: INTL_SLOTS, coach: "Dimitri Ivanović" },
+    opponentName: "Kurgu Gençlikspor",
+    opponentLogoUrl: "",
+    headline: "İLK 11",
+    matchLabel: "UEFA Şampiyonlar Ligi · 04.11 · 22:00",
+    origins: { team: { name: "intl", people: "intl" }, opponent: { name: "tr", people: "tr" } },
+  },
+  "uzun-adlar": {
+    templateStyle: "pitch",
+    team: { teamName: "Borussia Mönchengladbach", logoUrl: "", colorHex: "#111111", heroImageUrl: "", formation: "3-4-2-1", slots: LONG_SLOTS, coach: "Konstantin Alexandropoulos-Weißmann" },
+    opponentName: "Wolverhampton Wanderers",
+    opponentLogoUrl: "",
+    headline: "MUHTEMEL 11",
+    matchLabel: "UEFA Konferans Ligi · 27.11 · 20:45",
+    origins: { team: { name: "intl", people: "intl" }, opponent: { name: "intl", people: "intl" } },
+  },
+};
+
+function match(id: number, dateKey: string, time: string, home: string, away: string, extra: Partial<WeeklyMatch> = {}): WeeklyMatch {
+  return {
+    id: `api-football-${id}`,
+    kickoffUtc: `${dateKey}T${time.replace(".", ":")}:00+03:00`,
+    dateKey,
+    time,
+    status: "scheduled",
+    elapsed: null,
+    home: { name: home, logoUrl: "", goals: null },
+    away: { name: away, logoUrl: "", goals: null },
+    group: null,
+    ...extra,
+  };
+}
+
+const played = (m: WeeklyMatch, home: number, away: number, status: WeeklyMatch["status"] = "finished", elapsed: number | null = null): WeeklyMatch => ({
+  ...m,
+  status,
+  elapsed,
+  home: { ...m.home, goals: home },
+  away: { ...m.away, goals: away },
+});
+
+/** 9 maç, 4 gün: Türkçe karakterli kulüp adları, uzun ad (Gençlerbirliği, Çaykur Rizespor), canlı/bitmiş/ertelenmiş. */
+const SUPER_LIG_WEEK: WeeklyMatch[] = [
+  match(1, "2026-10-30", "20:00", "Konyaspor", "Galatasaray"),
+  played(match(2, "2026-10-31", "13:30", "Erzurumspor", "Çorum FK"), 2, 1),
+  played(match(3, "2026-10-31", "16:00", "Kocaelispor", "Çaykur Rizespor"), 1, 1, "live", 67),
+  match(4, "2026-10-31", "19:00", "Fenerbahçe", "Göztepe SK"),
+  match(5, "2026-11-01", "13:30", "Amed SFK", "Eyüpspor"),
+  match(6, "2026-11-01", "16:00", "Başakşehir", "Samsunspor", { status: "postponed" }),
+  match(7, "2026-11-01", "16:00", "Trabzonspor", "Gaziantep FK"),
+  match(8, "2026-11-01", "19:00", "Kasımpaşa", "Beşiktaş"),
+  match(9, "2026-11-02", "20:00", "Gençlerbirliği", "Alanyaspor"),
+];
+
+/** Kupa grup aşaması: yabancı adlar (i → I), çok uzun kulüp adı, iki satırlık başlık. */
+const CUP_GROUPS: WeeklyMatch[] = [
+  match(11, "2026-11-04", "20:45", "Borussia Mönchengladbach", "Wolverhampton Wanderers", { group: "A" }),
+  match(12, "2026-11-04", "23:00", "Sporting Milano", "Kurgu Gençlikspor", { group: "A" }),
+  played(match(13, "2026-11-05", "20:45", "Inter Lisboa", "Fiorentina Nicolić", { group: "B" }), 3, 2),
+  match(14, "2026-11-05", "23:00", "Dinamo Kiev", "Kızılyıldız", { group: "B" }),
+];
+
+export const WEEKLY_CASES: Record<string, Omit<WeeklyFixturesCardInput, "format">> = {
+  "super-lig-hafta": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: "", title: "10. HAFTA", grouping: "date", matches: SUPER_LIG_WEEK },
+  "kupa-grup-uzun-baslik": {
+    leagueId: "uecl",
+    leagueName: "UEFA Konferans Ligi",
+    leagueLogoUrl: "",
+    title: "GRUP AŞAMASI · 4. MAÇ GÜNÜ · İKİNCİ YARI",
+    grouping: "group",
+    matches: CUP_GROUPS,
+  },
+};
+
+/**
+ * Formatın taşıdığı kadar maç (stüdyo sığmayan kartı reddeder, admin maç çıkarır): sondan çıkarılır.
+ * `fits` = `weeklyPlan(...) !== null` (testte layout modülünden verilir).
+ */
+export function weeklyForFormat(input: Omit<WeeklyFixturesCardInput, "format">, format: SocialFormatId, fits: (matches: WeeklyMatch[]) => boolean): WeeklyFixturesCardInput {
+  let matches = input.matches;
+  while (matches.length > 1 && !fits(matches)) matches = matches.slice(0, -1);
+  return { ...input, format, matches };
+}
+
+const TEAMS_TR = [
+  "Galatasaray",
+  "Fenerbahçe",
+  "Trabzonspor",
+  "Beşiktaş",
+  "Göztepe SK",
+  "Çaykur Rizespor",
+  "Başakşehir",
+  "Samsunspor",
+  "Gençlerbirliği",
+  "Kasımpaşa",
+  "Eyüpspor",
+  "Konyaspor",
+  "Amed SFK",
+  "Gaziantep FK",
+  "Kocaelispor",
+  "Alanyaspor",
+  "Erzurumspor",
+  "Çorum FK",
+];
+
+function row(rank: number, teamName: string, total: number): StandingRow {
+  const played = 10;
+  const win = Math.max(0, Math.round((total - rank) / 2.2));
+  const draw = (rank * 3) % 4;
+  const lose = Math.max(0, played - win - draw);
+  const goalsFor = 8 + win * 2 + draw;
+  const goalsAgainst = 6 + lose * 2;
+  const zone = rank <= 2 ? "top" : rank <= 4 ? "playoff" : rank > total - 3 ? "relegation" : null;
+  return { rank, teamId: 9000 + rank, teamName, logoUrl: "", played, win, draw, lose, goalsFor, goalsAgainst, goalDiff: goalsFor - goalsAgainst, points: win * 3 + draw, zone };
+}
+
+const SUPER_LIG_TABLE: StandingsGroup = { key: "Süper Lig", label: "", rows: TEAMS_TR.map((name, index) => row(index + 1, name, TEAMS_TR.length)) };
+
+const UECL_GROUPS: StandingsGroup[] = [
+  { key: "Group A", label: "A GRUBU", rows: ["Borussia Mönchengladbach", "Wolverhampton Wanderers", "Sporting Milano", "Kurgu Gençlikspor"].map((name, i) => row(i + 1, name, 4)) },
+  { key: "Group B", label: "B GRUBU", rows: ["Inter Lisboa", "Kızılyıldız", "Dinamo Kiev", "Fiorentina Nicolić"].map((name, i) => ({ ...row(i + 1, name, 4), teamId: 9100 + i })) },
+];
+
+export const STANDINGS_CASES: Record<string, Omit<StandingsCardInput, "format">> = {
+  "super-lig-tablo": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: "", season: 2026, title: "PUAN DURUMU", kindLabel: "10. HAFTA SONU", sections: [SUPER_LIG_TABLE] },
+  "kupa-gruplar": { leagueId: "uecl", leagueName: "UEFA Konferans Ligi", leagueLogoUrl: "", season: 2026, title: "GRUPLARDA SON DURUM", kindLabel: "GRUP AŞAMASI", sections: UECL_GROUPS },
+};
+
+/** Tek tablolu senaryoda formatın taşıdığı kadar satır (stüdyo uzun tabloyu iki karta böler). */
+export function standingsForFormat(input: Omit<StandingsCardInput, "format">, format: SocialFormatId, capacity: number): StandingsCardInput {
+  if (input.sections.length !== 1) return { ...input, format };
+  const [section] = input.sections;
+  return { ...input, format, sections: [{ ...section!, rows: section!.rows.slice(0, capacity) }] };
+}
+
+const TR_ANALYSIS: TeamAnalysisDraft = {
+  teamName: "Kurgu Gençlikspor",
+  logoUrl: "",
+  colorHex: "#0B6E3A",
+  heroImageUrl: "",
+  strengths: [
+    "Son 5 maçta %86 pas isabeti — orta sahada topa sahip olma üstünlüğü",
+    "Maç başı 1,7 xG (son 5 maç) — net pozisyon üretiyor ve duran toplarda etkili",
+    "İç sahada 4 maçtır gol yemedi",
+  ],
+  cautions: ["Son 5 maçın 3'ünde ilk golü yedi", "Kanat beklerinin arkası açık kalıyor; geçiş savunması yavaş", "Deplasmanda şut isabeti %31"],
+  keyPlayers: [
+    { name: "D. Eğilmez", role: "Forvet · 5 gol · 7,4 puan", photoUrl: "" },
+    { name: "Ş. Çağlayan", role: "Orta saha · 4 asist · 7,1 puan", photoUrl: "" },
+    { name: "İ. Şenyürek", role: "Bek · 18 top kazanma · 6,9 puan", photoUrl: "" },
+  ],
+  stats: [
+    { label: "Topla oynama", value: "%58" },
+    { label: "Maç başı şut", value: "14,2" },
+    { label: "İsabetli şut", value: "5,1" },
+    { label: "Top kazanma", value: "17,8" },
+  ],
+  approach: "Rakibin kanat beklerinin arkasına erken top; ikinci toplarda orta sahayı kalabalık tutup geçişte hızlı çıkış.",
+  quote: "İç sahada seri sürüyor; ilk golü bulan taraf maçı kontrol eder.",
+};
+
+const LONG_ANALYSIS: TeamAnalysisDraft = {
+  teamName: "Borussia Mönchengladbach",
+  logoUrl: "",
+  colorHex: "#1D3E8A",
+  heroImageUrl: "",
+  strengths: [
+    "Son 5 maçta maç başı 2,1 gol; ceza sahası içinden şutların %64'ü isabetli ve dönüşüm oranı liginin en yükseği",
+    "Bu sezon ligde duran toplardan 7 gol — kafa vuruşlarında belirgin üstünlük",
+    "Pres yoğunluğu yüksek: PPDA 8,4 (son 5 maç)",
+  ],
+  cautions: [
+    "Son 5 maçta 9 gol yedi; savunma hattı yüksekte, arkaya atılan toplarda zorlanıyor ve geri dönüş hızı düşük",
+    "Deplasmanda son 3 maçta galibiyet yok",
+    "Kilit stoper Van der Westhuizen sakat",
+  ],
+  keyPlayers: [
+    { name: "Konstantinos Papadopoulos-Alexandridis", role: "Forvet · 7 gol · 7,6 puan", photoUrl: "" },
+    { name: "W. Schweinsteiger-Hummels", role: "Orta saha · 5 asist · 7,2 puan", photoUrl: "" },
+    { name: "Nikolić", role: "Kaleci · 3 gol yemediği maç · 6,8 puan", photoUrl: "" },
+  ],
+  stats: [
+    { label: "Topla oynama", value: "%61" },
+    { label: "Maç başı şut", value: "16,4" },
+    { label: "Büyük şans", value: "3,2" },
+    { label: "İkili mücadele", value: "%54" },
+  ],
+  approach: "Yüksek savunma hattının arkasına koşular; uzun toplarda ikinci topu kazanıp kanatlardan hızlı ortalar ve ceza sahasına geç gelen orta saha koşuları.",
+  quote: "Hücumda ligin en verimlisi ama arkada verdiği boşluklar her maç pozisyon veriyor.",
+};
+
+export const DEEP_ANALYSIS_CASES: Record<string, { team: TeamAnalysisDraft; opponentName: string; origins: { team: TeamOrigin; opponent: TeamOrigin } }> = {
+  "tr-takim": { team: TR_ANALYSIS, opponentName: "Örnek İdmanyurdu", origins: { team: { name: "tr", people: "tr" }, opponent: { name: "tr", people: "tr" } } },
+  // Yabancı takım ve rakip, i'li ASCII adlar (Borussia, Konstantinos, Inter): noktalı İ çıkmamalı.
+  "uzun-iki-satir": { team: LONG_ANALYSIS, opponentName: "Inter Lisboa Wanderers", origins: { team: { name: "intl", people: "intl" }, opponent: { name: "intl", people: "intl" } } },
+};

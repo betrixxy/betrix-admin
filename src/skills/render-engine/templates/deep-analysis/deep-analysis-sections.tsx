@@ -1,4 +1,4 @@
-import { upperName } from "@/lib/dashboard/name-case";
+import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import type { ReactNode } from "react";
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
@@ -28,9 +28,11 @@ export interface DeepAnalysisText {
   brandLogo: string;
   eyebrow: string;
   quoteAttribution: string;
+  /** Ad büyük harfi için takım kökenleri (bkz. team-origin.ts); yoksa adın kendi işareti, o da yoksa Türkçe. */
+  origins?: { team: TeamOrigin; opponent: TeamOrigin } | undefined;
 }
 
-export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quoteAttribution }: DeepAnalysisText, s: number): DeepAnalysisBlocks {
+export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quoteAttribution, origins }: DeepAnalysisText, s: number): DeepAnalysisBlocks {
   const strengths = filled(team.strengths).slice(0, 3);
   const cautions = filled(team.cautions).slice(0, 3);
   const players = team.keyPlayers.filter((player) => player.name.trim()).slice(0, 3);
@@ -50,7 +52,7 @@ export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quo
             {eyebrow}
           </Eyebrow>
           <span style={{ fontFamily: TEAM, fontWeight: 800, fontSize: Math.round((onHero ? 52 : 44) * s), letterSpacing: 0.3, lineHeight: 1.05, marginTop: 2 }}>
-            {upperName(team.teamName)}
+            {upperTeamName(team.teamName, origins?.team)}
           </span>
         </div>
       </div>
@@ -74,7 +76,7 @@ export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quo
           </div>
           <div tw={stacked ? "flex flex-col" : "flex"} style={{ gap: Math.round((stacked ? 10 : 18) * s) }}>
             {players.map((player, index) => (
-              <KeyPlayer key={index} {...player} s={s} stacked={stacked} />
+              <KeyPlayer key={index} {...player} s={s} stacked={stacked} origin={origins?.team.people ?? null} />
             ))}
           </div>
         </div>
@@ -95,7 +97,8 @@ export function deepAnalysisBlocks({ team, opponentName, brandLogo, eyebrow, quo
       >
         <div tw="flex items-center" style={{ marginBottom: Math.round(8 * s) }}>
           <GearGlyph />
-          <Eyebrow color={YELLOW} size={14 * s}>{`${opponentName} Karşısında Önerilen Yaklaşım`}</Eyebrow>
+          {/* Eyebrow Türkçe büyütür; rakip adı önce köken kuralıyla büyür (büyük I Türkçe büyütmede I kalır). */}
+          <Eyebrow color={YELLOW} size={14 * s}>{`${upperTeamName(opponentName, origins?.opponent)} Karşısında Önerilen Yaklaşım`}</Eyebrow>
         </div>
         <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 17.5 * s, lineHeight: 1.4 }}>{approach}</span>
       </div>

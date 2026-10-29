@@ -1,22 +1,9 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { STUDIO_FONT_FILES } from "@/lib/dashboard/card-font-files";
 
-/**
- * Derinlemesine Analiz kartının fontları — CheckMatch marka sisteminin rol bazlı tipografisi
- * (kaynak: CheckMatch içerik motoru `tokens.css`): Space Mono (küçük üst etiket), Bricolage
- * Grotesque (takım adı), Manrope (gövde/oyuncu adı), Archivo Black (büyük rakam). Hepsi OFL,
- * Türkçe karakterleri kapsar; Satori woff2 okumadığı için ağırlık başına sabit TTF.
- */
-const FONT_FILES = [
-  { name: "Manrope", file: "Manrope-Medium.ttf", weight: 500 },
-  { name: "Manrope", file: "Manrope-SemiBold.ttf", weight: 600 },
-  { name: "Manrope", file: "Manrope-ExtraBold.ttf", weight: 800 },
-  // Regular: küçük punto etiketler (bkz. `satori-text.tsx::legibleMonoStyle` — Bold'un N'si küçükte dolu blok).
-  { name: "Space Mono", file: "SpaceMono-Regular.ttf", weight: 400 },
-  { name: "Space Mono", file: "SpaceMono-Bold.ttf", weight: 700 },
-  { name: "Bricolage Grotesque", file: "BricolageGrotesque-ExtraBold.ttf", weight: 800 },
-  { name: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: 400 },
-] as const;
+/** Stüdyo kartlarının fontları — liste `card-font-files.ts`'te (build kontrolüyle ortak tek kaynak). */
+const FONT_FILES = STUDIO_FONT_FILES;
 
 export interface DeepAnalysisFont {
   name: string;

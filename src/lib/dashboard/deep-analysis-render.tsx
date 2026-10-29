@@ -1,3 +1,4 @@
+import type { TeamOrigin } from "@/lib/dashboard/name-case";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
@@ -49,10 +50,16 @@ async function sanitize(team: TeamAnalysisDraft): Promise<TeamAnalysisDraft> {
 }
 
 /** Tek takımlık Derinlemesine Analiz kartını PNG olarak çizer (Fal.ai yok, ücretsiz). */
-export async function renderDeepAnalysisCard(input: { team: TeamAnalysisDraft; opponentName: string; format: SocialFormatId }): Promise<Buffer> {
+export async function renderDeepAnalysisCard(input: {
+  team: TeamAnalysisDraft;
+  opponentName: string;
+  format: SocialFormatId;
+  /** Ad büyük harfi için takım kökenleri (bkz. team-origin.ts). */
+  origins?: { team: TeamOrigin; opponent: TeamOrigin };
+}): Promise<Buffer> {
   const [fonts, brandLogo, team] = await Promise.all([loadDeepAnalysisFonts(), loadBrandLogo(), sanitize(input.team)]);
   const { width, height } = SOCIAL_FORMATS[input.format];
-  const response = renderSatori(<DeepAnalysisCard team={team} opponentName={input.opponentName} format={input.format} brandLogo={brandLogo} />, {
+  const response = renderSatori(<DeepAnalysisCard team={team} opponentName={input.opponentName} format={input.format} brandLogo={brandLogo} origins={input.origins} />, {
     width,
     height,
     fonts,

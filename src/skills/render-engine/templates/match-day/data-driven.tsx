@@ -74,16 +74,14 @@ function StatBox({ caption, label, value, accent, size, width }: StatBoxData & {
 /** Takım adı kutuda iki satıra kırılabilir; yalnızca gerçekten aşırı uzun adlar kısaltılır. */
 const BOX_TEAM_CHARS = 18;
 
-/** Künye kutuları (istatistik yoksa): yalnızca bilinen alanlar — "—" kutusu çizilmez. */
-function venueBoxes(card: MatchDayCard): StatBoxData[] {
-  const boxes: StatBoxData[] = [];
-  const stadium = known(card.stadiumLabel);
+/**
+ * Künye kutuları (istatistik yoksa): yalnızca tarih bloğunda OLMAYAN bilinen alanlar. Stadyum tarih
+ * bloğunda yazar — tekrar kutuya konmaz; hakem yoksa kutu alanı hiç çizilmez ("—" kutusu da yok).
+ */
+export function venueBoxes(card: MatchDayCard): StatBoxData[] {
   const referee = known(card.refereeLabel);
-  // Tek kutu bütün genişliği kaplar: Türkçe stadyum adı ("Konya Büyükşehir Stadyumu") kesilmesin.
-  const chars = stadium && referee ? 16 : 28;
-  if (stadium) boxes.push({ label: "STADYUM", value: clip(stadium, chars) });
-  if (referee) boxes.push({ label: "HAKEM", value: clip(referee, chars) });
-  return boxes;
+  // Tek kutu bütün genişliği kaplar: uzun ad kesilmesin.
+  return referee ? [{ label: "HAKEM", value: clip(referee, 28) }] : [];
 }
 
 function statBoxes(card: MatchDayCard): StatBoxData[] {

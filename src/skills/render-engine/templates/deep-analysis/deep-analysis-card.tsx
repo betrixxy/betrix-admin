@@ -1,3 +1,4 @@
+import type { TeamOrigin } from "@/lib/dashboard/name-case";
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import { DeepAnalysisBackdrop, DeepAnalysisCorner } from "./deep-analysis-backdrop";
@@ -29,6 +30,8 @@ export interface DeepAnalysisCardData {
   eyebrow?: string;
   sideText?: string;
   quoteAttribution?: string;
+  /** Ad büyük harfi için takım kökenleri (Türkçe büyük harf yalnızca Türk adlarına, bkz. name-case.ts). */
+  origins?: { team: TeamOrigin; opponent: TeamOrigin } | undefined;
 }
 
 /** Kapak görseli kaynak oranı (analysis-hero-compose.ts HERO_SIZE: 1080×460). */
@@ -152,10 +155,11 @@ export function DeepAnalysisCard({
   eyebrow = "Derinlemesine Analiz",
   sideText = "Analiz",
   quoteAttribution = "CheckMatch Analiz",
+  origins,
 }: DeepAnalysisCardData) {
   const { width, height, safeTop, safeBottom } = SOCIAL_FORMATS[format];
   const hero = team.heroImageUrl;
-  const text = { team, opponentName, brandLogo, eyebrow, quoteAttribution };
+  const text = { team, opponentName, brandLogo, eyebrow, quoteAttribution, origins };
   const top = safeTop;
   const bottom = height - safeBottom;
 

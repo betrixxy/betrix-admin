@@ -23,6 +23,9 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Kart fontları (lib/dashboard/card-font-files.ts) public/fonts'ta yoksa ya da bozuksa build burada
+# durur — eksik font kartı çizim anında ENOENT ile düşürür. runner aynı public/'i kopyalar.
+RUN npx tsx scripts/check-fonts.ts
 # Gizli anahtar yok: lib/env.ts, `next build` aşamasında (NEXT_PHASE) yer tutucu kullanır.
 RUN npx prisma generate --config prisma7.config.ts \
  && npm run build

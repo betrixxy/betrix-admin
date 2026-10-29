@@ -1,4 +1,4 @@
-import { upperName } from "@/lib/dashboard/name-case";
+import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
 import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import { BODY, EYEBROW, GRAY, GREEN_BR, MAX_WIDTH, NAVY_700, PANEL, SCORE, YELLOW, upper } from "./deep-analysis-tokens";
 
@@ -58,7 +58,15 @@ export function PointColumn({ title, color, points, glyph, s = 1, stacked = fals
   );
 }
 
-export function KeyPlayer({ name, role, photoUrl, s = 1, stacked = false }: TeamAnalysisDraft["keyPlayers"][number] & { s?: number; stacked?: boolean }) {
+/** `origin`: oyuncu adının varsayılan kökeni (takımın ülkesi, bkz. name-case.ts). */
+export function KeyPlayer({
+  name,
+  role,
+  photoUrl,
+  s = 1,
+  stacked = false,
+  origin = null,
+}: TeamAnalysisDraft["keyPlayers"][number] & { s?: number; stacked?: boolean; origin?: NameOrigin | null }) {
   const photo = Math.round(56 * s);
   return (
     <div tw="flex items-start" style={{ ...fill(stacked), ...PANEL, padding: `${Math.round(14 * s)}px ${Math.round(16 * s)}px`, gap: Math.round(12 * s) }}>
@@ -73,7 +81,7 @@ export function KeyPlayer({ name, role, photoUrl, s = 1, stacked = false }: Team
         />
       ) : null}
       <div tw="flex flex-col" style={{ flex: 1 }}>
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5 * s, color: "white", marginBottom: 3 }}>{upperName(name)}</span>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: 16.5 * s, color: "white", marginBottom: 3 }}>{upperName(name, origin)}</span>
         {role ? <span data-wrap style={{ fontFamily: BODY, fontWeight: 500, fontSize: 14.5 * s, lineHeight: 1.32, color: GRAY }}>{role}</span> : null}
       </div>
     </div>
