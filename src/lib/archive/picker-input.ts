@@ -3,6 +3,7 @@ import { inspectImageUpload, type UploadedImage } from "@/lib/dashboard/studio-i
 import { prisma } from "@/lib/prisma";
 import { PHOTO_KINDS } from "@/types/archive";
 import type { Result } from "@/types/result";
+import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import { createArchivePhoto } from "./mutations";
 import { kitTeamOf } from "./picker-order";
 import { photoForCard } from "./storage";
@@ -23,6 +24,8 @@ export interface ResolvedArchivePhoto {
   /** Fotoğraftaki kişinin API-Football kimliği (oyuncuysa) — "MAÇIN OYUNCUSU" kuralı. */
   playerApiId: number | null;
   teamId: number;
+  /** Fotoğraftaki forma (eski forma olabilir) — Maç Sonucu "kaybeden takımın fotoğrafı" uyarısı. */
+  kitTeamId: number;
 }
 
 type Fail = { ok: false; error: { code: string; message: string } };
@@ -66,7 +69,7 @@ export async function resolveArchivePhoto(
     if (options.kitOnly && kitTeamOf(photo) !== teamId) return fail("KIT_MISMATCH", KIT_MISMATCH_MESSAGE);
     const card = await forCard(photo);
     if (!card.ok) return card;
-    return { ok: true, data: { image: card.data.image, fileUrl: card.data.url, photoId: photo.id, playerApiId: photo.person?.role === "PLAYER" ? photo.person.apiId : null, teamId } };
+    return { ok: true, data: { image: card.data.image, fileUrl: card.data.url, photoId: photo.id, playerApiId: photo.person?.role === "PLAYER" ? photo.person.apiId : null, teamId, kitTeamId: kitTeamOf(photo) } };
   }
 
   const file = formData.get(field);
@@ -95,6 +98,7 @@ export async function resolveArchivePhoto(
   const kitTeamId = Number(text(formData, `${field}KitTeamId`)) || teamId;
   if (options.kitOnly && kitTeamId !== teamId) return fail("KIT_MISMATCH", KIT_MISMATCH_MESSAGE);
   if (!(await prisma.team.findUnique({ where: { id: kitTeamId }, select: { id: true } }))) return fail("KIT_TEAM_UNKNOWN", "Forma takımı arşivde yok.");
+  reportJobStep("Fotoğraf arşive kaydediliyor");
   const inspected = await inspectImageUpload(file, "Fotoğraf");
   if (!inspected.ok) return inspected;
   const created = await createArchivePhoto({
@@ -114,6 +118,6 @@ export async function resolveArchivePhoto(
   const photo = await prisma.photo.findUniqueOrThrow({ where: { id }, select: { id: true, originalUrl: true, upscaledUrl: true } });
   const card = await forCard(photo);
   if (!card.ok) return card;
-  return { ok: true, data: { image: card.data.image, fileUrl: card.data.url, photoId: photo.id, playerApiId, teamId } };
+  return { ok: true, data: { image: card.data.image, fileUrl: card.data.url, photoId: photo.id, playerApiId, teamId, kitTeamId } };
 }
 

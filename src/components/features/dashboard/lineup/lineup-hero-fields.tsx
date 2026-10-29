@@ -4,7 +4,8 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { AlertCircle, LoaderCircle, Upload } from "lucide-react";
 import { uploadLineupHeroAction } from "@/app/dashboard/studio/lineup/actions";
 import { Button } from "@/components/ui/button";
-import { runGuarded } from "@/hooks/use-action-form";
+import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
 import { CropAdjust } from "@/components/features/dashboard/player-h2h/crop-adjust";
@@ -66,6 +67,7 @@ function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft
     [side, team.heroPhotoId, onHeroChange],
   );
 
+  const [progress, setProgress] = useState<JobProgress | null>(null);
   function upload() {
     if (!formRef.current) return;
     const formData = new FormData(formRef.current);
@@ -73,7 +75,7 @@ function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft
     formData.set("fixtureId", draft.fixtureId);
     setError(null);
     startUploading(() => runGuarded(async () => {
-      const result = await uploadLineupHeroAction(formData);
+      const result = await resultFromJob<{ photoId: string }>(await uploadLineupHeroAction(formData), setProgress);
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -100,6 +102,7 @@ function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft
           {isUploading ? "Arşive yükleniyor…" : "Arşive yükle ve seç"}
         </Button>
       ) : null}
+      <JobProgressLine progress={progress} />
       {error ? (
         <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
           <AlertCircle className="size-3.5 shrink-0" />

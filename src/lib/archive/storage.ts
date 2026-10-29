@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { falPhotoUpscaler, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import { parseStoredFileUrl, readStoredFile, saveStoredFile } from "@/lib/dashboard/storage";
 import { inspectImageBytes, type UploadedImage } from "@/lib/dashboard/studio-images";
+import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import type { Result } from "@/types/result";
 
 /**
@@ -33,6 +34,7 @@ export function storeArchiveOriginal(image: UploadedImage): Promise<string> {
 export async function createArchiveUpscale(image: UploadedImage, upscale: PhotoUpscaler = falPhotoUpscaler): Promise<Result<string | null>> {
   const scale = archiveUpscaleFactor(image.width, image.height);
   if (scale === 1) return { ok: true, data: null };
+  reportJobStep("Fotoğraf büyütülüyor (Fal ESRGAN)");
   const upscaled = await upscale(image, scale);
   if (!upscaled.ok) return upscaled;
   const portrait = image.height < image.width ? { height: ARCHIVE_TARGET_SHORT_SIDE } : { width: ARCHIVE_TARGET_SHORT_SIDE };

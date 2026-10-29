@@ -1,6 +1,6 @@
 import { ApiError } from "@fal-ai/client";
 import { z } from "zod";
-import { FAL_MODELS, getFalClient, isFalConfigured } from "@/lib/services/fal/client";
+import { FAL_MODELS, FAL_TIMEOUTS_MS, falTimeoutMessage, falTimeoutSignal, falUpload, getFalClient, isFalConfigured, isFalTimeout } from "@/lib/services/fal/client";
 import type { FalError } from "@/lib/services/fal/types";
 import type { Result } from "@/types/result";
 
@@ -30,13 +30,14 @@ export async function upscaleImage(input: UpscaleInput): Promise<Result<{ imageU
 
   let imageUrl: string;
   try {
-    imageUrl = await client.storage.upload(new Blob([new Uint8Array(input.bytes)], { type: input.contentType }));
+    imageUrl = await falUpload(client, new Blob([new Uint8Array(input.bytes)], { type: input.contentType }));
   } catch (cause) {
     return { ok: false, error: { code: "UPLOAD_FAILED", message: "Görsel büyütme için Fal.ai'ye yüklenemedi.", cause } };
   }
 
   try {
     const result = await client.subscribe(FAL_MODELS.UPSCALE, {
+      abortSignal: falTimeoutSignal(FAL_MODELS.UPSCALE),
       input: {
         image_url: imageUrl,
         scale: Math.min(MAX_UPSCALE_FACTOR, Math.max(1, input.scale)),
@@ -52,6 +53,7 @@ export async function upscaleImage(input: UpscaleInput): Promise<Result<{ imageU
     }
     return { ok: true, data: { imageUrl: parsed.data.image.url } };
   } catch (cause) {
+    if (isFalTimeout(cause)) return { ok: false, error: { code: "TIMEOUT", message: falTimeoutMessage("Fotoğraf büyütme (ESRGAN)", FAL_TIMEOUTS_MS[FAL_MODELS.UPSCALE]), cause } };
     const message = cause instanceof ApiError || cause instanceof Error ? cause.message : "";
     return { ok: false, error: { code: "REQUEST_FAILED", message: message || "AI upscale başarısız oldu.", cause } };
   }

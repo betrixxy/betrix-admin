@@ -10,7 +10,8 @@ import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
 import type { CropOffset } from "@/lib/dashboard/match-photo/crop";
 import { resolveMatchResultCard } from "@/lib/dashboard/match-result-card";
 import { buildMatchResultCaption, matchResultTitle } from "@/lib/dashboard/match-result-caption";
-import { mvpLineName } from "@/lib/dashboard/match-result-featured";
+import { loserPhotoWarning, mvpLineName } from "@/lib/dashboard/match-result-featured";
+import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { renderMatchStatsImage } from "@/lib/dashboard/match-stats-render";
@@ -50,6 +51,8 @@ export interface MatchPhotoInput {
   fileUrl: string;
   /** Fotoğrafın kütüphane oyuncu etiketi; yoksa null. */
   playerId: number | null;
+  /** Fotoğraftaki forma (arşiv); eski kütüphane fotoğrafında bilinmez. */
+  kitTeamId?: number | null;
 }
 
 export interface CreateMatchResultInput {
@@ -87,6 +90,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   const accentHex = resultAccentHex(facts);
 
   // 1-2. Fotoğraf hattı (kalite kapısı, yüz, kırpma, tonlama).
+  reportJobStep("Yüz tespiti ve kırpma");
   const prepared = await prepareMatchPhoto({
     image: input.photo.image,
     frame,
@@ -100,6 +104,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   const photo = prepared.data;
 
   // 3. Kart + yerleşim kapısı.
+  reportJobStep("Kart çiziliyor (01)");
   // Ad büyük harfi için takım kökeni (Türk takımı mı) + kart kişi adları (arşiv → Sportmonks → API, uyruk) — yalnızca okuma.
   const people = await withResultPeople(await withTeamOrigins(facts));
   const mvp = input.mvp ? (people.players.find((player) => player.playerId === input.mvp?.playerId) ?? input.mvp) : null;
@@ -121,6 +126,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   // 02 — aynı fotoğrafın (01 nihai görseli) bulanık zemini, aynı sütun tarafı; kendi yerleşim kapısı.
   let statsImage: Buffer | null = null;
   if (carousel) {
+    reportJobStep("İstatistik sayfası çiziliyor (02)");
     const rendered = await renderMatchStatsImage({ stats: carousel, frame, page: "SUMMARY", side: photo.side, resultImage: final, pageLabel: SET_PAGE_LABELS.STATS });
     if (!rendered.ok) return fail(rendered.error.code, rendered.error.message);
     statsImage = rendered.data;
@@ -130,8 +136,11 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   if (!photo.crop.facesInSafe) notes.push("Yüzler yazısız bölgeye tam sığmadı — kırpmayı elle kaydırmayı deneyin.");
   if (photo.side === "left") notes.push("16:9: özne sağda olduğu için yazı sütunu sola aynalandı.");
   if (photo.quality.upscaled && photo.quality.paidCalls === 0) notes.push("AI büyütme önbellekten");
+  const loser = loserPhotoWarning(facts, input.photo.kitTeamId ?? null);
+  if (loser) notes.unshift(loser);
   if (input.mvp && !mvpName) notes.push("\"MAÇIN OYUNCUSU\" satırı gizlendi — fotoğraftaki oyuncu MVP olarak işaretlenmedi.");
 
+  reportJobStep("Kaydediliyor");
   try {
     const [backgroundImageUrl, resultImageUrl, statsImageUrl] = await Promise.all([
       saveStoredFile("generated", `${randomUUID()}.jpg`, await sharp(photo.art).jpeg({ quality: 90 }).toBuffer()),

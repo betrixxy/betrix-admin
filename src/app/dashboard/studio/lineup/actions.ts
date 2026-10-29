@@ -17,6 +17,8 @@ import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { matchTeamIds } from "@/lib/archive/studio-photo";
 import { LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
+import type { StudioJobStart } from "@/types/studio-job";
+import { reportJobStep, startResultJob } from "@/lib/jobs/studio-jobs";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import type { Fixture } from "@/types/sports";
 
@@ -79,9 +81,33 @@ function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? "Form alanları geçersiz.";
 }
 
-/** Tek takımın kartını çizer — kaydetmez (yalnızca önizleme). */
-export async function previewLineupAction(input: unknown): Promise<Result<{ dataUrl: string; templateStyle: LineupTemplateStyle }>> {
+/** Bilinmeyen girdiden iş anahtarı parçası (doğrulama işin içinde yapılır). */
+function keyPart(input: unknown, name: string): string {
+  const value = typeof input === "object" && input !== null ? (input as Record<string, unknown>)[name] : undefined;
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * Lig/kapak işleri arka planda (Kahraman Liste kapağı ilk kullanımda Fal ile büyütülür; Cloudflare 100 sn
+ * sınırı): eylemler iş kimliğini hemen döner, stüdyo bitene kadar sorar (`resultFromJob`).
+ */
+export async function previewLineupAction(input: unknown): Promise<Result<StudioJobStart>> {
   if (!(await getCurrentSession())) return unauthorized();
+  return startResultJob("lineup-preview", `lineup-preview:${keyPart(input, "fixtureId")}:${keyPart(input, "side")}:${keyPart(input, "format")}`, "Kapak fotoğrafı hazırlanıyor", () => previewLineup(input));
+}
+
+export async function saveLineupAction(input: unknown): Promise<Result<StudioJobStart>> {
+  if (!(await getCurrentSession())) return unauthorized();
+  return startResultJob("lineup-save", `lineup-save:${keyPart(input, "fixtureId")}`, "Maç verisi alınıyor", () => saveLineup(input));
+}
+
+export async function uploadLineupHeroAction(formData: FormData): Promise<Result<StudioJobStart>> {
+  if (!(await getCurrentSession())) return unauthorized();
+  return startResultJob("lineup-hero-upload", `lineup-hero-upload:${String(formData.get("fixtureId"))}:${String(formData.get("side"))}`, "Fotoğraf arşive kaydediliyor", () => uploadLineupHero(formData));
+}
+
+/** Tek takımın kartını çizer — kaydetmez (yalnızca önizleme). */
+async function previewLineup(input: unknown): Promise<Result<{ dataUrl: string; templateStyle: LineupTemplateStyle }>> {
   const parsed = previewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
 
@@ -95,6 +121,7 @@ export async function previewLineupAction(input: unknown): Promise<Result<{ data
     if (!heroPhoto.ok) return heroPhoto;
     const origins = await fixtureOrigins(fixtureId ?? null);
     const sideOrigins = origins && side ? { team: side === "home" ? origins.home : origins.away, opponent: side === "home" ? origins.away : origins.home } : undefined;
+    reportJobStep("Kart çiziliyor");
     const rendered = await renderLineupCard({ ...input, heroPhoto: heroPhoto.data, ...(sideOrigins ? { origins: sideOrigins } : {}) });
     if (!rendered.ok) return rendered;
     const { png, templateStyle } = rendered.data;
@@ -106,8 +133,7 @@ export async function previewLineupAction(input: unknown): Promise<Result<{ data
 }
 
 /** "Kaydet / İçerik Üret": iki kartı çizip DRAFT olarak kaydeder (onaysız yayına hazır sayılmaz). */
-export async function saveLineupAction(input: unknown): Promise<Result<{ id: string }>> {
-  if (!(await getCurrentSession())) return unauthorized();
+async function saveLineup(input: unknown): Promise<Result<{ id: string }>> {
   const parsed = saveSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
 
@@ -119,10 +145,15 @@ export async function saveLineupAction(input: unknown): Promise<Result<{ id: str
   const fixture = await getFixtureById(apiId);
   if (!fixture.ok) return { ok: false, error: { code: fixture.error.code, message: fixture.error.message } };
 
+  reportJobStep("İki kart çiziliyor ve kaydediliyor");
   const saved = await createLineupDraft(parsed.data);
   if (!saved.ok) return saved;
-  revalidatePath("/dashboard/plan");
-  revalidatePath("/dashboard/matches");
+  try {
+    revalidatePath("/dashboard/plan");
+    revalidatePath("/dashboard/matches");
+  } catch {
+    // istek kapsamı kapanmış — sorun değil (sayfalar force-dynamic)
+  }
   return { ok: true, data: saved.data };
 }
 
@@ -131,8 +162,7 @@ export async function saveLineupAction(input: unknown): Promise<Result<{ id: str
  * (Fotoğraf Arşivi'nin kendi kuralı, `resolveArchivePhoto`), forma takımı o takım olmalı (`kitOnly`); dönen
  * kimlik formda seçilir. Kart çizilmez — önizleme ayrıca istenir.
  */
-export async function uploadLineupHeroAction(formData: FormData): Promise<Result<{ photoId: string }>> {
-  if (!(await getCurrentSession())) return unauthorized();
+async function uploadLineupHero(formData: FormData): Promise<Result<{ photoId: string }>> {
   const side = formData.get("side");
   const fixtureId = formData.get("fixtureId");
   if ((side !== "home" && side !== "away") || typeof fixtureId !== "string" || !fixtureId) {
@@ -148,7 +178,11 @@ export async function uploadLineupHeroAction(formData: FormData): Promise<Result
     const resolved = await resolveArchivePhoto(formData, `${side}Hero`, [teamId], fixtureId, { kitOnly: true });
     if (!resolved.ok) return resolved;
     if (!resolved.data) return { ok: false, error: { code: "INVALID_INPUT", message: "Yüklenecek fotoğrafı seçin." } };
-    revalidatePath("/dashboard/library");
+    try {
+      revalidatePath("/dashboard/library");
+    } catch {
+      // istek kapsamı kapanmış — sorun değil
+    }
     return { ok: true, data: { photoId: resolved.data.photoId } };
   } catch (cause) {
     console.error("[lineup] kapak fotoğrafı arşive yazılamadı:", cause);

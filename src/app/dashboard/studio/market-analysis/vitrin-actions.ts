@@ -1,10 +1,10 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { z } from "zod";
 import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { reportJobStep, startResultJob } from "@/lib/jobs/studio-jobs";
 import { createVitrinDraft, predictWithRuleReasons, renderVitrin, vitrinMeta, vitrinPrediction } from "@/lib/dashboard/vitrin-engine";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditedReasons, auditReasons, matchSides, vitrinFacts } from "@/lib/prediction/reasons";
@@ -17,6 +17,7 @@ import type { DeepAnalysisStats } from "@/types/deep-analysis";
 import { MATCH_DAY_FORMAT_IDS } from "@/types/match-day";
 import { REASON_MAX_LENGTH, SCENARIO_IDS, type ScenarioId } from "@/types/prediction";
 import type { Result } from "@/types/result";
+import type { StudioJobStart } from "@/types/studio-job";
 
 /**
  * Maç önü vitrin stüdyosu. Tahmin (yüzdeler) her çağrıda SUNUCUDA veriden hesaplanır; istemciden
@@ -52,6 +53,11 @@ const fail = (code: string, message: string): Fail => ({ ok: false, error: { cod
 
 async function loadStats(fixtureId: string): Promise<Result<DeepAnalysisStats>> {
   if (!(await getCurrentSession())) return fail("UNAUTHORIZED", UNAUTHORIZED_MESSAGE);
+  return fetchStats(fixtureId);
+}
+
+/** Oturumu çağıran doğrular (arka plan işi istekten sonra da sürer — orada oturum çerezi okunamaz). */
+async function fetchStats(fixtureId: string): Promise<Result<DeepAnalysisStats>> {
   const apiId = parseFixtureId(fixtureId);
   if (apiId === null) return fail("INVALID_INPUT", "Geçersiz maç.");
   const stats = await getDeepAnalysisStats(apiId);
@@ -98,14 +104,23 @@ export async function loadVitrinAction(fixtureId: string): Promise<Result<Vitrin
   return stats.ok ? buildRows(fixtureId, stats.data, {}) : stats;
 }
 
-/** Çelik Kasa analisti altı gerekçeyi yazar (tek çağrı); denetim sonuçları tabloya döner. */
-export async function writeReasonsAction(fixtureId: string): Promise<Result<VitrinLoadResult>> {
-  const stats = await loadStats(fixtureId);
+/**
+ * Çelik Kasa analisti altı gerekçeyi yazar (tek çağrı); denetim sonuçları tabloya döner. ARKA PLAN İŞİ:
+ * Anthropic çağrısı (60 sn zaman sınırı + 1 yeniden deneme) Cloudflare'in 100 sn sınırını aşabilir.
+ */
+export async function writeReasonsAction(fixtureId: string): Promise<Result<StudioJobStart>> {
+  if (!(await getCurrentSession())) return fail("UNAUTHORIZED", UNAUTHORIZED_MESSAGE);
+  return startResultJob("vitrin-reasons", `vitrin-reasons:${fixtureId}`, "Maç verisi alınıyor", () => writeReasons(fixtureId));
+}
+
+async function writeReasons(fixtureId: string): Promise<Result<VitrinLoadResult>> {
+  const stats = await fetchStats(fixtureId);
   if (!stats.ok) return stats;
   const base = await predictWithRuleReasons(stats.data);
   if (!base.ok) return base;
   const sides = matchSides(stats.data);
   const picks = base.data.scenarios.map((scenario) => ({ senaryo: scenarioTitle(scenario.id, sides, scenario.outcome), kimlik: scenario.id, secili_sonuc: openBoxLines(scenario, sides).find((line) => line.picked)?.label ?? "" }));
+  reportJobStep("AI analist gerekçeleri yazıyor (Claude)");
   const written = await generateScenarioReasons(vitrinFacts(stats.data), picks);
   if (!written.ok) return fail(written.error.code, written.error.message);
   // Yön/örneklem dahil denetimden geçmeyen AI gerekçesi, geçen kural tabanlı gerekçeyle değişir (uyarıyla).
@@ -147,11 +162,16 @@ async function resolvePhotos(formData: FormData, meta: ReturnType<typeof vitrinM
   return { ok: true as const, data: { home: home.data, away: away.data } };
 }
 
-/** Önizleme: kaydetmez, arşive yazmaz — yalnızca arşivden SEÇİLEN fotoğrafları kullanır (yeni yükleme kayıtta girer). */
-export async function previewVitrinAction(formData: FormData): Promise<Result<{ dataUrls: [string, string] }>> {
+/** Önizleme: kaydetmez, arşive yazmaz — yalnızca arşivden SEÇİLEN fotoğrafları kullanır (yeni yükleme kayıtta girer). Arka plan işi. */
+export async function previewVitrinAction(formData: FormData): Promise<Result<StudioJobStart>> {
+  if (!(await getCurrentSession())) return fail("UNAUTHORIZED", UNAUTHORIZED_MESSAGE);
+  return startResultJob("vitrin-preview", `vitrin-preview:${String(formData.get("fixtureId"))}:${String(formData.get("format"))}`, "Maç verisi alınıyor", () => previewVitrin(formData));
+}
+
+async function previewVitrin(formData: FormData): Promise<Result<{ dataUrls: [string, string] }>> {
   const parsed = readRequest(formData);
   if (!parsed.success) return fail("INVALID_INPUT", parsed.error.issues[0]?.message ?? "Form geçersiz.");
-  const stats = await loadStats(parsed.data.fixtureId);
+  const stats = await fetchStats(parsed.data.fixtureId);
   if (!stats.ok) return stats;
   const selection = { open: parsed.data.open, locked: parsed.data.locked };
   const prediction = await vitrinPrediction(stats.data, parsed.data.reasons, selection);
@@ -162,26 +182,38 @@ export async function previewVitrinAction(formData: FormData): Promise<Result<{ 
     const photoId = formData.get(`${field}PhotoId`);
     if (typeof photoId === "string" && photoId) preview.set(`${field}PhotoId`, photoId);
   }
+  reportJobStep("Fotoğraflar hazırlanıyor");
   const photos = await resolvePhotos(preview, meta, parsed.data.fixtureId);
   if (!photos.ok) return photos;
+  reportJobStep("Kart çiziliyor");
   const rendered = await renderVitrin({ stats: stats.data, prediction: prediction.data, selection, format: parsed.data.format, photos: { home: photos.data.home?.image ?? null, away: photos.data.away?.image ?? null } });
   if (!rendered.ok) return rendered;
   const [poster, analysis] = rendered.data.pages.map((png) => `data:image/png;base64,${png.toString("base64")}`);
   return { ok: true, data: { dataUrls: [poster ?? "", analysis ?? ""] } };
 }
 
-/** Kaydet: carousel'i çizer, DRAFT açar, inceleme ekranına yönlendirir. Yeni fotoğraflar arşive (doğru klasöre) girer. */
-export async function saveVitrinAction(formData: FormData): Promise<Result<never>> {
+/**
+ * Kaydet: carousel'i çizer, DRAFT açar; stüdyo inceleme ekranına yönlendirir. Yeni fotoğraflar arşive (doğru
+ * klasöre) girer. Arka plan işi (yeni fotoğrafın Fal büyütmesi + iki sayfa çizimi).
+ */
+export async function saveVitrinAction(formData: FormData): Promise<Result<StudioJobStart>> {
+  if (!(await getCurrentSession())) return fail("UNAUTHORIZED", UNAUTHORIZED_MESSAGE);
+  return startResultJob("vitrin-save", `vitrin-save:${String(formData.get("fixtureId"))}:${String(formData.get("format"))}`, "Maç verisi alınıyor", () => saveVitrin(formData));
+}
+
+async function saveVitrin(formData: FormData): Promise<Result<{ id: string }>> {
   const parsed = readRequest(formData);
   if (!parsed.success) return fail("INVALID_INPUT", parsed.error.issues[0]?.message ?? "Form geçersiz.");
-  const stats = await loadStats(parsed.data.fixtureId);
+  const stats = await fetchStats(parsed.data.fixtureId);
   if (!stats.ok) return stats;
   const selection = { open: parsed.data.open, locked: parsed.data.locked };
   const prediction = await vitrinPrediction(stats.data, parsed.data.reasons, selection);
   if (!prediction.ok) return prediction;
   const meta = vitrinMeta(stats.data);
+  reportJobStep("Fotoğraflar hazırlanıyor");
   const photos = await resolvePhotos(formData, meta, parsed.data.fixtureId);
   if (!photos.ok) return photos;
+  reportJobStep("Kart çiziliyor ve kaydediliyor");
   const saved = await createVitrinDraft({
     fixtureId: parsed.data.fixtureId,
     stats: stats.data,
@@ -192,6 +224,10 @@ export async function saveVitrinAction(formData: FormData): Promise<Result<never
     photoIds: { home: photos.data.home?.photoId ?? null, away: photos.data.away?.photoId ?? null },
   });
   if (!saved.ok) return saved;
-  refreshDashboard();
-  redirect(`/dashboard/drafts/${saved.data.id}`);
+  try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil (sayfalar force-dynamic)
+  }
+  return { ok: true, data: { id: saved.data.id } };
 }

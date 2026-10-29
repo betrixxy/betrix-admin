@@ -1,4 +1,5 @@
 import type { TeamOrigin } from "@/lib/dashboard/name-case";
+import type { StudioJobStart } from "@/types/studio-job";
 /** Maç Günü kartı tasarım şablonları — her biri kendi yerleşimini, tipografisini ve AI arka plan stilini taşır. */
 export const MATCH_DAY_TEMPLATE_IDS = ["PREMIUM_BROADCAST", "DATA_DRIVEN", "EDITORIAL_PORTRAIT"] as const;
 export type MatchDayTemplateId = (typeof MATCH_DAY_TEMPLATE_IDS)[number];
@@ -117,4 +118,6 @@ export interface MatchDayGenerationResult {
 export interface MatchDayActionState {
   error?: string;
   result?: MatchDayGenerationResult;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`). */
+  job?: StudioJobStart;
 }

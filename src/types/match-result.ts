@@ -1,4 +1,5 @@
 import type { SetCard } from "./checkmatch-set";
+import type { StudioJobStart } from "@/types/studio-job";
 import type { MatchDayFormatId } from "./match-day";
 import type { NameOrigin, TeamOrigin } from "@/lib/dashboard/name-case";
 
@@ -123,6 +124,8 @@ export interface MatchPhotoPreviewState {
 export interface MatchResultActionState {
   error?: string;
   result?: MatchResultGenerationResult;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`); stüdyo bitene kadar bekler. */
+  job?: StudioJobStart;
 }
 
 /**

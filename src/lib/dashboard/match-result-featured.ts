@@ -44,3 +44,14 @@ export const MATCH_RESULT_TEMPLATES: Record<MatchResultTemplateId, { label: stri
   BIG_SCORE: { label: "B · Dev Skor", description: "Skor ortada dev boyutta, oyuncuların önünde; golcüler skorun altında iki yan listede." },
   HEADLINE: { label: "C · Manşet", description: "Üstte büyük \"MAÇ SONUCU\", fotoğraf ortada, altta minimal skor." },
 };
+
+/**
+ * Kazanan takım kuralı (kurucu kararı 2026-10-29): Maç Sonucu fotoğrafı kazananın formasıyla önerilir.
+ * Fotoğrafın forması kaybeden takımınsa uyarı (engel değil); beraberlikte iki takım da olur. Forma bilinmiyorsa null.
+ */
+export function loserPhotoWarning(facts: Pick<MatchResultFacts, "outcome" | "home" | "away">, kitTeamId: number | null): string | null {
+  if (kitTeamId === null || facts.outcome === "DRAW") return null;
+  const loser = facts.outcome === "HOME" ? facts.away : facts.home;
+  const winner = facts.outcome === "HOME" ? facts.home : facts.away;
+  return kitTeamId === loser.id ? `${loser.name} bu maçı kaybetti; kazanan takımın (${winner.name}) fotoğrafı önerilir.` : null;
+}

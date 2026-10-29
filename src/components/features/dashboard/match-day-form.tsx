@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useActionForm } from "@/hooks/use-action-form";
+import { JobProgressLine } from "./job-progress";
 import { RANDOM_TEMPLATE } from "@/lib/dashboard/match-day-templates";
 import { MATCH_IMPORTANCE_OPTIONS } from "@/types/sports";
 import type { MatchDayActionState, MatchDayFixtureOption, MatchDayFormatId } from "@/types/match-day";
@@ -52,7 +53,7 @@ function infoFor(fixtures: MatchDayFixtureOption[], id: string): MatchDayInfoVal
 }
 
 export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = false }: MatchDayFormProps) {
-  const { state, isPending, onSubmit } = useActionForm(generateMatchDayAction, INITIAL_STATE);
+  const { state, isPending, onSubmit, progress } = useActionForm(generateMatchDayAction, INITIAL_STATE);
   const [fixtureId, setFixtureId] = useState(initialFixtureId ?? "");
   // Maç Merkezi'nden gelindiyse takımlar, logolar, stadyum, tarih/saat ilk çizimde dolu gelir.
   const [info, setInfo] = useState<MatchDayInfoValues>(() => infoFor(fixtures, initialFixtureId ?? ""));
@@ -168,6 +169,7 @@ export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = fal
               </p>
             ) : null}
 
+            <JobProgressLine progress={progress} />
             <Button type="submit" size="lg" disabled={disabled || isPending}>
               <Sparkles />
               {isPending ? "Üretiliyor…" : "Kartı Üret"}
