@@ -13,6 +13,8 @@ import { createLineupDraft } from "@/lib/dashboard/lineup-engine";
 import { renderLineupCard } from "@/lib/dashboard/lineup-render";
 import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/services/api-football";
 import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
+import { resolveArchivePhoto } from "@/lib/archive/picker-input";
+import { matchTeamIds } from "@/lib/archive/studio-photo";
 import { LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
@@ -122,4 +124,34 @@ export async function saveLineupAction(input: unknown): Promise<Result<{ id: str
   revalidatePath("/dashboard/plan");
   revalidatePath("/dashboard/matches");
   return { ok: true, data: saved.data };
+}
+
+/**
+ * Kahraman Liste kapağı için yeni fotoğraf: arşive o takım + "Fotoğraftaki kişi" ile etiketlenerek girer
+ * (Fotoğraf Arşivi'nin kendi kuralı, `resolveArchivePhoto`), forma takımı o takım olmalı (`kitOnly`); dönen
+ * kimlik formda seçilir. Kart çizilmez — önizleme ayrıca istenir.
+ */
+export async function uploadLineupHeroAction(formData: FormData): Promise<Result<{ photoId: string }>> {
+  if (!(await getCurrentSession())) return unauthorized();
+  const side = formData.get("side");
+  const fixtureId = formData.get("fixtureId");
+  if ((side !== "home" && side !== "away") || typeof fixtureId !== "string" || !fixtureId) {
+    return { ok: false, error: { code: "INVALID_INPUT", message: "Önce maçı seçin." } };
+  }
+  const teams = await matchTeamIds(fixtureId);
+  if (!teams.ok) return teams;
+  const teamId = teams.data[side === "home" ? 0 : 1];
+  if (teamId === undefined) return { ok: false, error: { code: "INVALID_FIXTURE", message: "Maçın takımları okunamadı." } };
+  const file = formData.get(`${side}Hero`);
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: { code: "INVALID_INPUT", message: "Yüklenecek fotoğrafı seçin." } };
+  try {
+    const resolved = await resolveArchivePhoto(formData, `${side}Hero`, [teamId], fixtureId, { kitOnly: true });
+    if (!resolved.ok) return resolved;
+    if (!resolved.data) return { ok: false, error: { code: "INVALID_INPUT", message: "Yüklenecek fotoğrafı seçin." } };
+    revalidatePath("/dashboard/library");
+    return { ok: true, data: { photoId: resolved.data.photoId } };
+  } catch (cause) {
+    console.error("[lineup] kapak fotoğrafı arşive yazılamadı:", cause);
+    return { ok: false, error: { code: "STORAGE_FAILED", message: "Fotoğraf arşive kaydedilemedi.", cause } };
+  }
 }
