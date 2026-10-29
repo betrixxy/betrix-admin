@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { createMatchDraft } from "@/lib/dashboard/draft-engine";
+import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
 import { resolveStudioImage, type ResolvedImage } from "@/lib/dashboard/studio-image-input";
@@ -11,7 +12,7 @@ import { readStatSelection } from "@/lib/dashboard/studio-stats";
 import { prisma } from "@/lib/prisma";
 import { isFalConfigured } from "@/lib/services/fal";
 import type { Result } from "@/types/result";
-import { STUDIO_FORMATS, type StudioActionState } from "@/types/ai-content";
+import { STUDIO_FORMATS, type StudioActionState, type StudioGenerationResult } from "@/types/ai-content";
 import { carouselUrls } from "@/lib/dashboard/publish-caption";
 
 const generateSchema = z.object({
@@ -27,7 +28,7 @@ const FAL_NOT_CONFIGURED_MESSAGE =
 /**
  * Stüdyo (manuel, yüklemeli) üretim: yüklemeleri doğrula → taslak motoruna devret (gerçek
  * istatistik + Fal.ai `flux`/`birefnet` + render, bkz. lib/dashboard/draft-engine.ts). Sonuç
- * her zaman DRAFT'tır; admin `/dashboard/drafts/<id>` ekranında onaylar (bkz. CLAUDE.md 1.10).
+ * her zaman DRAFT'tır; admin `/dashboard/drafts/<id>` ekranında onaylar (bkz. CLAUDE.md 1.10). Arka plan işi.
  */
 export async function generateAiContentAction(
   _prevState: StudioActionState,
@@ -46,6 +47,17 @@ export async function generateAiContentAction(
     return { error: parsed.error.issues[0]?.message ?? "Geçersiz form verisi." };
   }
   const { fixtureId, format, customPrompt, postId } = parsed.data;
+  const job = startStudioJob<StudioActionState>({
+    kind: "studio-draft",
+    key: `studio-draft:${fixtureId}:${format}`,
+    firstStep: "Görseller hazırlanıyor",
+    run: () => runStudioDraft(formData, { fixtureId, format, customPrompt, postId }),
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
+}
+
+async function runStudioDraft(formData: FormData, { fixtureId, format, customPrompt, postId }: { fixtureId: string; format: StudioGenerationResult["format"]; customPrompt: string; postId: string }): Promise<StudioActionState> {
 
   let player: Result<ResolvedImage | null>;
   let logo: Result<ResolvedImage | null>;
@@ -60,6 +72,7 @@ export async function generateAiContentAction(
   if (!player.ok) return { error: player.error.message };
   if (!logo.ok) return { error: logo.error.message };
 
+  reportJobStep("Maç verisi, Fal arka planı ve oyuncu kesimi");
   const draft = await createMatchDraft({
     fixtureId,
     format,
@@ -71,7 +84,11 @@ export async function generateAiContentAction(
   });
   if (!draft.ok) return { error: draft.error.message };
 
-  refreshDashboard();
+  try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil (sayfalar force-dynamic)
+  }
   return { result: { ...draft.data, format, status: "DRAFT" } };
 }
 

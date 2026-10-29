@@ -1,3 +1,5 @@
+import type { StudioJobStart } from "@/types/studio-job";
+
 /** Bkz. CLAUDE.md Bölüm 3 — Yapay Zeka İçerik Stüdyosu (AiContent) tipleri. */
 
 /** CLAUDE.md 3.3 çoklu format tablosuyla birebir: IG Feed 4:5, Story/Reels 9:16, X 16:9. */
@@ -42,6 +44,8 @@ export interface StudioGenerationResult {
 export interface StudioActionState {
   error?: string;
   result?: StudioGenerationResult;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`); istemci bitene kadar bekler. */
+  job?: StudioJobStart;
 }
 
 /** Bkz. prisma AiContentStatus — insan onaylı akış (CLAUDE.md 1.10); PUBLISHED = Yayın Merkezi'nden API ile paylaşıldı. */

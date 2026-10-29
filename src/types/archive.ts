@@ -1,3 +1,5 @@
+import type { StudioJobStart } from "@/types/studio-job";
+
 /** Fotoğraf arşivi — paylaşılan tipler (bkz. CLAUDE.md 1.11, `lib/archive/`). prisma `PhotoKind` ile birebir. */
 
 export const PHOTO_KINDS = ["CELEBRATION", "PORTRAIT", "ACTION", "TEAM"] as const;
@@ -13,6 +15,8 @@ export const PHOTO_KIND_LABELS: Record<PhotoKindId, string> = {
 export interface ArchiveActionState {
   error?: string;
   notice?: string;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`); istemci bitene kadar bekler. */
+  job?: StudioJobStart;
 }
 
 /** Stüdyo arşiv seçicisi — fotoğrafın sıradaki yeri (bu maç · güncel forma · eski forma). */

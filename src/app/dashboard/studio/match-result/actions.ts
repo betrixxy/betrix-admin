@@ -145,15 +145,27 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
 /**
  * Kırpma önizlemesi — kart ÜRETMEZ, kayıt açmaz: fotoğraf hattının sonucu (tonlanmış kırpma) +
  * yazısız bölge çerçevesi. Kaynak küçükse AI büyütme burada yapılır ve önbelleğe girer; üretim
- * aynı fotoğrafı ikinci kez ücretlendirmez.
+ * aynı fotoğrafı ikinci kez ücretlendirmez. Arka plan işi (büyütme 120 sn'ye kadar sürebilir).
  */
 export async function previewMatchPhotoAction(_prevState: MatchPhotoPreviewState, formData: FormData): Promise<MatchPhotoPreviewState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const job = startStudioJob<MatchPhotoPreviewState>({
+    kind: "match-photo-preview",
+    key: `match-photo-preview:${text(formData, "fixtureId")}:${text(formData, "format")}:${text(formData, "template")}`,
+    firstStep: "Maç verisi alınıyor",
+    run: () => previewMatchPhoto(formData),
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
+}
+
+async function previewMatchPhoto(formData: FormData): Promise<MatchPhotoPreviewState> {
   const input = await resolveInput(formData);
   if (!input.ok) return { error: input.error };
   const { data, facts, photo } = input;
 
   const frame = MATCH_DAY_FRAMES[data.format];
+  reportJobStep("Yüz tespiti ve kırpma");
   const prepared = await prepareMatchPhoto({
     image: photo.image,
     frame,

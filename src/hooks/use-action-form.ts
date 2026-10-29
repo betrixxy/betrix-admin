@@ -20,6 +20,37 @@ export function pollJob<T>(jobId: string): Promise<StudioJobView<T>> {
   return pollStudioJobAction(jobId) as Promise<StudioJobView<T>>;
 }
 
+type JobState = { error?: string | null | undefined; job?: StudioJobStart | undefined };
+
+/**
+ * `useActionState` + arka plan işi: eylem `job` dönerse iş bitene kadar beklenir (`isPending` sürer,
+ * `progress` adımı verir), sonuç işin değeridir. Eylem istisnası sayfayı düşürmez, `error`a tek satır yazılır.
+ */
+export function useJobActionState<State extends JobState>(
+  action: (previousState: Awaited<State>, formData: FormData) => State | Promise<State>,
+  initialState: Awaited<State>,
+) {
+  const [progress, setProgress] = useState<JobProgress | null>(null);
+  const [state, formAction, isPending] = useActionState(async (previous: Awaited<State>, formData: FormData) => {
+    const tooLarge = requestTooLargeMessage(formFileBytes(formData));
+    if (tooLarge) return { ...previous, job: undefined, error: tooLarge } as Awaited<State>;
+    try {
+      const started = await action(previous, formData);
+      if (!started.job) return started;
+      setProgress({ step: started.job.reused ? "Bu iş zaten çalışıyor — sonucu bekleniyor" : "Başlatıldı", elapsedMs: 0 });
+      const done = await awaitJob(started.job.jobId, pollJob<Awaited<State>>, (step, elapsedMs) => setProgress({ step, elapsedMs }));
+      return done.ok ? done.value : ({ ...previous, job: undefined, error: done.message } as Awaited<State>);
+    } catch (cause) {
+      if (isNavigationError(cause)) throw cause;
+      console.error("[action] sunucu eylemi tamamlanamadı:", cause);
+      return { ...previous, job: undefined, error: actionFailureMessage(formFileBytes(formData), cause) } as Awaited<State>;
+    } finally {
+      setProgress(null);
+    }
+  }, initialState);
+  return [state, formAction, isPending, progress] as const;
+}
+
 /**
  * React 19, form aksiyonu bittiğinde alanları otomatik sıfırlar — hatalı bir gönderimde
  * kullanıcının girdiği veri kaybolur. Bu hook, gönderimi elle bir transition içinde
@@ -32,26 +63,11 @@ export function pollJob<T>(jobId: string): Promise<StudioJobView<T>> {
  * Eylem `job` dönerse (uzun üretim arka planda) iş bitene kadar beklenir — `isPending` sürer, `progress` adımı
  * gösterir; sonuç işin değeridir.
  */
-export function useActionForm<State extends { error?: string | null | undefined; job?: StudioJobStart | undefined }>(
+export function useActionForm<State extends JobState>(
   action: (previousState: Awaited<State>, formData: FormData) => State | Promise<State>,
   initialState: Awaited<State>,
 ) {
-  const [progress, setProgress] = useState<JobProgress | null>(null);
-  const [state, formAction, isPending] = useActionState(async (previous: Awaited<State>, formData: FormData) => {
-    try {
-      const started = await action(previous, formData);
-      if (!started.job) return started;
-      setProgress({ step: started.job.reused ? "Bu kart zaten üretiliyor — sonucu bekleniyor" : "Başlatıldı", elapsedMs: 0 });
-      const done = await awaitJob(started.job.jobId, pollJob<Awaited<State>>, (step, elapsedMs) => setProgress({ step, elapsedMs }));
-      return done.ok ? done.value : ({ ...previous, job: undefined, error: done.message } as Awaited<State>);
-    } catch (cause) {
-      if (isNavigationError(cause)) throw cause;
-      console.error("[action] sunucu eylemi tamamlanamadı:", cause);
-      return { ...previous, job: undefined, error: actionFailureMessage(formFileBytes(formData), cause) } as Awaited<State>;
-    } finally {
-      setProgress(null);
-    }
-  }, initialState);
+  const [state, formAction, isPending, progress] = useJobActionState(action, initialState);
   const [, startTransition] = useTransition();
   const [clientError, setClientError] = useState<string | null>(null);
 

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { startStudioJob } from "@/lib/jobs/studio-jobs";
 import { decideDraft, regenerateDraftBackground, updateDraft, type PublishDecision } from "@/lib/dashboard/draft-engine";
 import { derbyIntensitySchema } from "@/lib/dashboard/draft-snapshot";
 import { readStatSelection } from "@/lib/dashboard/studio-stats";
@@ -51,7 +52,11 @@ export async function updateDraftAction(_prev: DraftActionState, formData: FormD
   return { notice: "Kaydedildi — görsel yeniden çizildi." };
 }
 
-/** Arka planı Fal.ai ile yeniden üretir (ücretli); istatistik ve metin korunur. */
+/**
+ * Arka planı Fal.ai ile yeniden üretir (ücretli); istatistik ve metin korunur. ARKA PLAN İŞİ: flux zaman sınırı
+ * (150 sn) Cloudflare'in 100 sn yanıt sınırını aşar — eylem iş kimliğini hemen döner; aynı taslakta çalışan
+ * iş varsa ona bağlanılır (ikinci ücretli çağrı yok).
+ */
 export async function regenerateBackgroundAction(_prev: DraftActionState, formData: FormData): Promise<DraftActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
   if (!isFalConfigured()) return { error: "FAL_KEY tanımlı değil — arka plan üretilemiyor." };
@@ -64,15 +69,24 @@ export async function regenerateBackgroundAction(_prev: DraftActionState, formDa
   if (!caption.success) return { error: caption.error.issues[0]?.message ?? "Geçersiz metin." };
   if (!prompt.success) return { error: prompt.error.issues[0]?.message ?? "Geçersiz prompt." };
 
-  const result = await regenerateDraftBackground(id, {
-    caption: caption.data,
-    customPrompt: prompt.data || undefined,
-    renderOptions,
+  const input = { caption: caption.data, customPrompt: prompt.data || undefined, renderOptions };
+  const job = startStudioJob<DraftActionState>({
+    kind: "draft-background",
+    key: `draft-background:${id}`,
+    firstStep: "Stadyum arka planı üretiliyor (Fal flux)",
+    run: async () => {
+      const result = await regenerateDraftBackground(id, input);
+      if (!result.ok) return { error: result.error.message };
+      try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil (sayfalar force-dynamic)
+  }
+      return { notice: "Yeni arka plan üretildi." };
+    },
+    fail: (message) => ({ error: message }),
   });
-  if (!result.ok) return { error: result.error.message };
-
-  refreshDashboard();
-  return { notice: "Yeni arka plan üretildi." };
+  return { job };
 }
 
 const decisionSchema = z.enum(["APPROVED", "REJECTED"]);

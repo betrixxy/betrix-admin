@@ -1,4 +1,5 @@
 import type { PublishedInfo, PublishMedia, PublishSettings } from "@/types/publishing";
+import type { StudioJobStart } from "@/types/studio-job";
 import type { SocialFormatId } from "@/types/studio-formats";
 import type { AiContentStatus, StudioFormat } from "@/types/ai-content";
 import type { LineupTemplateStyle } from "@/types/lineup";
@@ -61,6 +62,8 @@ export interface DraftActionState {
   error?: string;
   /** Başarılı kaydetme/yeniden render sonrası kısa bilgi mesajı. */
   notice?: string;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`); istemci bitene kadar bekler. */
+  job?: StudioJobStart;
 }
 
 /** AI Market Tahmin & Analiz taslağı — iki takımın kartı + market tahmini (bkz. market-analysis-engine.ts). */

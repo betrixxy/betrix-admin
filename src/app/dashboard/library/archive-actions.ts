@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
+import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { createArchivePhoto, hideArchivePhoto, renamePerson, resolvePendingTransfer, tagLegacyAsset, transferPerson, updateArchivePhoto } from "@/lib/archive/mutations";
 import { syncLeague, syncTeam } from "@/lib/archive/sync";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
@@ -45,6 +46,7 @@ async function personBelongs(personId: string | null, team: number): Promise<boo
 
 const uploadSchema = z.object({ teamId, personId: optionalPersonId, kitTeamId: teamId, fixtureId, kind, caption: text(300), credit: text(120) });
 
+/** Yükleme arka plan işidir: kısa kenar < 2000 ise Fal ESRGAN büyütmesi (120 sn sınırı) yapılır. */
 export async function uploadArchivePhotoAction(_prev: ArchiveActionState, formData: FormData): Promise<ArchiveActionState> {
   const denied = await guard();
   if (denied) return denied;
@@ -54,12 +56,27 @@ export async function uploadArchivePhotoAction(_prev: ArchiveActionState, formDa
   if (!(await personBelongs(data.personId, data.teamId))) return { error: "Seçilen kişi bu takımın kadrosunda değil." };
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Bir fotoğraf seçin." };
+  const job = startStudioJob<ArchiveActionState>({
+    kind: "archive-upload",
+    key: `archive-upload:${data.teamId}:${data.personId ?? "team"}:${file.name}:${file.size}`,
+    firstStep: "Fotoğraf denetleniyor",
+    run: () => storeUpload(file, data),
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
+}
+
+async function storeUpload(file: File, data: z.infer<typeof uploadSchema>): Promise<ArchiveActionState> {
   const image = await inspectImageUpload(file, "Fotoğraf");
   if (!image.ok) return { error: image.error.message };
-
+  reportJobStep("Fotoğraf arşive kaydediliyor");
   const created = await createArchivePhoto({ image: image.data, ...data });
   if (!created.ok) return { error: created.error.message };
-  refreshDashboard();
+  try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil (sayfalar force-dynamic)
+  }
   const upscaleNote = created.data.upscaled ? " Kart için kısa kenarı 2000'e büyütülmüş sürüm de hazır." : created.data.upscaleError ? ` Büyütme yapılamadı (${created.data.upscaleError}) — kartta ilk kullanımda tekrar denenecek.` : "";
   return { notice: `Fotoğraf arşive eklendi.${upscaleNote}` };
 }

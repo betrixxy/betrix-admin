@@ -119,6 +119,8 @@ export interface MatchPhotoPreview {
 export interface MatchPhotoPreviewState {
   error?: string;
   preview?: MatchPhotoPreview;
+  /** Arka plan işi başladı (bkz. `lib/jobs/studio-jobs.ts`); istemci bitene kadar bekler. */
+  job?: StudioJobStart;
 }
 
 export interface MatchResultActionState {
