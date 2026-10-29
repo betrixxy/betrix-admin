@@ -6,6 +6,7 @@ import { AlertCircle, CircleCheck, Info, LoaderCircle, RefreshCw, Save } from "l
 import { loadLineupAction, saveLineupAction, type LineupLoadResult } from "@/app/dashboard/studio/lineup/actions";
 import { GlobalFormatSelector } from "@/components/features/dashboard/studio/global-format-selector";
 import { Button } from "@/components/ui/button";
+import { runGuarded } from "@/hooks/use-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -76,7 +77,7 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
 
   function load(id: string) {
     setError(null);
-    startLoading(async () => {
+    startLoading(() => runGuarded(async () => {
       const result = await loadLineupAction(id);
       if (!result.ok) {
         setError(`Kadro verisi alınamadı: ${result.error.message} — pozisyonları elle doldurabilirsiniz.`);
@@ -84,7 +85,7 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
       }
       setLoaded(result.data);
       setDraft((current) => keepVisuals(result.data.draft, current));
-    });
+    }, setError));
   }
 
   function selectFixture(id: string) {
@@ -110,14 +111,14 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
   function save() {
     setSaveError(null);
     setSavedId(null);
-    startSaving(async () => {
+    startSaving(() => runGuarded(async () => {
       const result = await saveLineupAction(draft);
       if (!result.ok) {
         setSaveError(result.error.message);
         return;
       }
       setSavedId(result.data.id);
-    });
+    }, setSaveError));
   }
 
   return (

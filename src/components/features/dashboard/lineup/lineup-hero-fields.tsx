@@ -4,6 +4,7 @@ import { useCallback, useRef, useState, useTransition } from "react";
 import { AlertCircle, LoaderCircle, Upload } from "lucide-react";
 import { uploadLineupHeroAction } from "@/app/dashboard/studio/lineup/actions";
 import { Button } from "@/components/ui/button";
+import { runGuarded } from "@/hooks/use-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
 import { CropAdjust } from "@/components/features/dashboard/player-h2h/crop-adjust";
@@ -71,7 +72,7 @@ function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft
     formData.set("side", side);
     formData.set("fixtureId", draft.fixtureId);
     setError(null);
-    startUploading(async () => {
+    startUploading(() => runGuarded(async () => {
       const result = await uploadLineupHeroAction(formData);
       if (!result.ok) {
         setError(result.error.message);
@@ -79,7 +80,7 @@ function HeroSide({ side, draft, teamId, onHeroChange }: { side: TeamSide; draft
       }
       // Arşiv yeniden yüklenir, yeni fotoğraf seçili gelir (seçici onu forma bildirir).
       setReload((current) => ({ key: (current?.key ?? 0) + 1, selectPhotoId: result.data.photoId }));
-    });
+    }, setError, formData));
   }
 
   return (

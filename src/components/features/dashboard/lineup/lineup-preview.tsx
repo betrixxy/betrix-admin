@@ -5,6 +5,7 @@ import { AlertCircle, ImageIcon, LoaderCircle, RefreshCw } from "lucide-react";
 import { previewLineupAction } from "@/app/dashboard/studio/lineup/actions";
 import { FormatPreviewFrame } from "@/components/features/dashboard/studio/format-preview-frame";
 import { Button } from "@/components/ui/button";
+import { runGuarded } from "@/hooks/use-action-form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import type { TeamSide } from "@/types/deep-analysis";
@@ -28,7 +29,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
     setSide(target);
     setError(null);
     const opponent = target === "home" ? draft.away : draft.home;
-    startRendering(async () => {
+    startRendering(() => runGuarded(async () => {
       const result = await previewLineupAction({
         templateStyle: cardTemplateStyle(draft.templateStyle, draft[target]),
         team: draft[target],
@@ -47,7 +48,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
       }
       setDrawn({ dataUrl: result.data.dataUrl, format: draft.format });
       setDrawnStyle(result.data.templateStyle);
-    });
+    }, setError));
   }
 
   return (
