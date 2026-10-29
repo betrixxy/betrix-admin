@@ -80,7 +80,7 @@ export async function vitrinPrediction(stats: DeepAnalysisStats, reasons: Partia
   const scenarios = base.data.scenarios.map((scenario) => ({ ...scenario, reason: (reasons[scenario.id] ?? scenario.reason).trim() }));
   const problems = selection.open.flatMap((id) => {
     const scenario = scenarios.find((entry) => entry.id === id);
-    const issues = scenario ? auditReason(scenario.reason, id, facts, sides) : ["senaryo yok"];
+    const issues = scenario ? auditReason(scenario.reason, scenario.outcome, facts, sides) : ["senaryo yok"];
     return issues.length ? [`${id}: ${issues.join(", ")}`] : [];
   });
   if (problems.length) return fail("REASON_AUDIT", `Gerekçe denetimi geçmedi — kart üretilmedi: ${problems.join(" · ")}`);
