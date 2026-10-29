@@ -5,10 +5,10 @@ import { z } from "zod";
 import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { drawParticipants, searchDrawTeams } from "@/lib/dashboard/draw-data";
+import { drawParticipants, searchDrawTeams, seasonEuropeanDraws, type DrawParticipantsResult } from "@/lib/dashboard/draw-data";
 import { compareDraws, createDrawDraft, renderDraw, type DrawComparison } from "@/lib/dashboard/draw-engine";
 import { drawRequestSchema, drawStateSchema, type DrawRequest } from "@/lib/draw/state-schema";
-import type { DrawTeam } from "@/types/draw";
+import type { DrawState, DrawTeam } from "@/types/draw";
 import type { Result } from "@/types/result";
 
 type Fail = { ok: false; error: { code: string; message: string } };
@@ -43,11 +43,19 @@ async function teamPhoto(formData: FormData, request: DrawRequest, allowUpload: 
 }
 
 /** Kura öncesi hazırlık: turnuvanın katılımcıları API'den. */
-export async function loadParticipantsAction(competitionId: unknown, season: unknown): Promise<Result<DrawTeam[]>> {
+export async function loadParticipantsAction(competitionId: unknown, season: unknown): Promise<Result<DrawParticipantsResult>> {
   if (!(await getCurrentSession())) return unauthorized();
   const parsed = z.object({ competitionId: z.number().int().positive(), season: z.number().int().min(2000).max(2100) }).safeParse({ competitionId, season });
   if (!parsed.success) return fail("INVALID_INPUT", "Geçersiz turnuva ya da sezon.");
   return drawParticipants(parsed.data.competitionId, parsed.data.season);
+}
+
+/** Bitmiş kuralar: sezonun ŞL/AL/KL lig aşaması fikstürlerinden Türk takımlarının rakipleri (tek tık). */
+export async function loadSeasonDrawsAction(season: unknown): Promise<Result<{ states: DrawState[]; skipped: string[] }>> {
+  if (!(await getCurrentSession())) return unauthorized();
+  const parsed = z.number().int().min(2000).max(2100).safeParse(season);
+  if (!parsed.success) return fail("INVALID_INPUT", "Geçersiz sezon.");
+  return seasonEuropeanDraws(parsed.data);
 }
 
 /** Elle katılımcı: adla API araması. */

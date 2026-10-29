@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Download, Plus, X } from "lucide-react";
-import { loadParticipantsAction } from "@/app/dashboard/studio/draw/actions";
+import { CalendarCheck, Download, Plus, X } from "lucide-react";
+import { loadParticipantsAction, loadSeasonDrawsAction } from "@/app/dashboard/studio/draw/actions";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 import { emptyDraw } from "@/lib/draw/entry";
 import { DRAW_COMPETITIONS, DRAW_ROUNDS, drawCompetition, drawRound, seasonText } from "@/lib/draw/rounds";
+import { mergeSeasonDraws, seasonDrawsSummary } from "@/lib/draw/season-draws";
 import { cn } from "@/lib/utils";
 import type { DrawState } from "@/types/draw";
 
@@ -34,10 +35,12 @@ interface DrawSetupProps {
   active: number;
   onActive: (index: number) => void;
   onSessions: (sessions: DrawSession[]) => void;
+  /** "Bu sezonun Avrupa kuralarını getir" sonrası (stüdyo B varyantına geçer). */
+  onSeasonDraws?: () => void;
 }
 
-export function DrawSetup({ sessions, active, onActive, onSessions }: DrawSetupProps) {
-  const [message, setMessage] = useState<string | null>(null);
+export function DrawSetup({ sessions, active, onActive, onSessions, onSeasonDraws }: DrawSetupProps) {
+  const [message, setMessage] = useState<{ text: string; warn: boolean } | null>(null);
   const [isLoading, startLoading] = useTransition();
   const session = sessions[active]!;
   const { state } = session;
@@ -53,13 +56,29 @@ export function DrawSetup({ sessions, active, onActive, onSessions }: DrawSetupP
   function load() {
     startLoading(async () => {
       const result = await loadParticipantsAction(state.competition.id, state.season);
-      if (!result.ok) return setMessage(result.error.message);
+      if (!result.ok) return setMessage({ text: result.error.message, warn: true });
       const known = new Map(state.teams.map((team) => [team.id, team]));
-      const teams = [...state.teams, ...result.data.filter((team) => !known.has(team.id))];
-      replace({ ...session, state: { ...state, teams } });
-      setMessage(result.data.length ? `${result.data.length} takım API'den geldi (torbaları elle girin).` : "API bu turnuva/sezon için takım vermedi — elle ekleyin.");
+      const added = result.data.teams.filter((team) => !known.has(team.id));
+      replace({ ...session, state: { ...state, teams: [...state.teams, ...added] } });
+      if (result.data.emptyReason) return setMessage({ text: result.data.emptyReason, warn: true });
+      setMessage({ text: `${result.data.teams.length} takım API'den geldi${added.length < result.data.teams.length ? ` (${result.data.teams.length - added.length} zaten listedeydi)` : ""} — torbaları elle girin.`, warn: false });
     });
   }
+
+  function loadSeason() {
+    startLoading(async () => {
+      const result = await loadSeasonDrawsAction(state.season);
+      if (!result.ok) return setMessage({ text: result.error.message, warn: true });
+      if (result.data.states.length) {
+        onSessions(mergeSeasonDraws(sessions, result.data.states));
+        onActive(0);
+        onSeasonDraws?.();
+      }
+      setMessage({ text: seasonDrawsSummary(result.data.states, result.data.skipped), warn: result.data.states.length === 0 });
+    });
+  }
+
+  const empty = sessions.every((s) => s.state.teams.length === 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -84,7 +103,8 @@ export function DrawSetup({ sessions, active, onActive, onSessions }: DrawSetupP
         ) : null}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      {/* 2×2: turnuva adı ("UEFA Şampiyonlar Ligi") dar sütunda kesilmesin. */}
+      <div className="grid gap-3 sm:grid-cols-2">
         <label className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
           Turnuva
           <NativeSelect disabled={locked} value={state.competition.id} onChange={(event) => reset(Number(event.target.value), state.season, session.roundId)}>
@@ -118,6 +138,7 @@ export function DrawSetup({ sessions, active, onActive, onSessions }: DrawSetupP
         <label className="flex flex-col gap-1.5 text-xs font-medium text-muted-foreground">
           Kura tarihi (künye)
           <input
+            autoComplete="off"
             type="date"
             value={state.drawDateUtc?.slice(0, 10) ?? ""}
             onChange={(event) => replace({ ...session, state: { ...state, drawDateUtc: event.target.value ? new Date(`${event.target.value}T12:00:00Z`).toISOString() : null } })}
@@ -125,12 +146,27 @@ export function DrawSetup({ sessions, active, onActive, onSessions }: DrawSetupP
           />
         </label>
       </div>
+      {empty ? (
+        <ol className="flex list-decimal flex-col gap-1 rounded-lg border border-dashed border-border/70 px-4 py-3 pl-8 text-xs text-muted-foreground">
+          <li>Turnuva, tur ve sezonu seçin.</li>
+          <li>
+            <span className="text-foreground">Kura bittiyse:</span> &quot;Bu sezonun Avrupa kuralarını getir&quot; — Türk takımlarının lig aşaması rakipleri, iç saha / deplasman ve tarihler dolar; B (Temsilcilerimiz) ya da A (takım seçerek) doğrudan üretilir.
+          </li>
+          <li>
+            <span className="text-foreground">Canlı kura için:</span> &quot;Katılımcıları API&apos;den yükle&quot; (ya da aşağıda adla arayıp ekleyin), torbaları girin; kura sırasında eşleşmeleri 2 · Eşleşmeler&apos;e yazın.
+          </li>
+        </ol>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" size="sm" variant="outline" onClick={loadSeason} disabled={isLoading}>
+          <CalendarCheck />
+          Bu sezonun Avrupa kuralarını getir
+        </Button>
         <Button type="button" size="sm" variant="outline" onClick={load} disabled={isLoading}>
           <Download />
           Katılımcıları API&apos;den yükle
         </Button>
-        <span className="text-xs text-muted-foreground">{message ?? `${state.teams.length} katılımcı`}</span>
+        <span className={cn("text-xs", message?.warn ? "text-amber-300" : "text-muted-foreground")}>{message?.text ?? `${state.teams.length} katılımcı`}</span>
       </div>
     </div>
   );

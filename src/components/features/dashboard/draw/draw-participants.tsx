@@ -48,8 +48,16 @@ export function DrawParticipants({ state, onChange }: DrawParticipantsProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
-        <Input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={`${state.teams.length} katılımcı içinde süz…`} className="h-8" />
+        <Input name="draw-participant-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={`${state.teams.length} katılımcı içinde süz…`} className="h-8" />
       </div>
+      {filter.trim() && visible.length < state.teams.length ? (
+        <p className="flex items-center gap-2 text-xs text-amber-300">
+          Süzgeç &quot;{filter}&quot;: {visible.length}/{state.teams.length} katılımcı gösteriliyor.
+          <button type="button" onClick={() => setFilter("")} className="underline hover:text-foreground">
+            Süzgeci temizle
+          </button>
+        </p>
+      ) : null}
       <div className="max-h-80 overflow-y-auto rounded-lg border border-border/60">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background text-left text-xs text-muted-foreground">
@@ -68,6 +76,7 @@ export function DrawParticipants({ state, onChange }: DrawParticipantsProps) {
                 </td>
                 <td className="px-2 py-1">
                   <input
+                    autoComplete="off"
                     aria-label={`${team.apiName} kart adı`}
                     value={state.nameOverrides[team.id] ?? ""}
                     placeholder={cardTeamName(team.apiName)}
@@ -78,6 +87,7 @@ export function DrawParticipants({ state, onChange }: DrawParticipantsProps) {
                 </td>
                 <td className="px-2 py-1">
                   <input
+                    autoComplete="off"
                     type="number"
                     min={1}
                     max={6}
@@ -110,7 +120,7 @@ export function DrawParticipants({ state, onChange }: DrawParticipantsProps) {
           search();
         }}
       >
-        <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Elle ekle: API'de takım ara…" className="h-8" />
+        <Input name="draw-team-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Elle ekle: API'de takım ara…" className="h-8" />
         <Button type="submit" size="sm" variant="outline" disabled={isSearching || query.trim().length < 3}>
           Ara
         </Button>

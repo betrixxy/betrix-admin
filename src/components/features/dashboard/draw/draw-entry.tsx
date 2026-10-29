@@ -86,6 +86,7 @@ export function DrawEntry({ state, onChange, leagueTeamId, onLeagueTeam }: DrawE
               </span>
               {(["firstLegUtc", "secondLegUtc"] as const).map((leg, legIndex) => (
                 <input
+                  autoComplete="off"
                   key={leg}
                   type="date"
                   aria-label={`${legIndex + 1}. maç tarihi`}
@@ -146,6 +147,7 @@ export function DrawEntry({ state, onChange, leagueTeamId, onLeagueTeam }: DrawE
                 {fixture.venue === "HOME" ? "İç saha" : "Deplasman"}
               </button>
               <input
+                autoComplete="off"
                 type="date"
                 aria-label="Maç tarihi"
                 value={dateValue(fixture.dateUtc)}
