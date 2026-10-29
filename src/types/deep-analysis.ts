@@ -1,10 +1,9 @@
-import type { SocialFormatId } from "@/types/studio-formats";
 import type { Fixture, HeadToHeadSummary, TeamRecentForm } from "@/types/sports";
 
 /**
- * "AI Market Tahmin & Analiz" (Derinlemesine Analiz) içerik türünün tipleri — bkz.
- * lib/services/api-football/deep-analysis.ts (veri), lib/dashboard/deep-analysis-insights.ts
- * (veriden form önerileri) ve /dashboard/studio/market-analysis (stüdyo).
+ * Maç önü derin istatistik paketinin tipleri — bkz. lib/services/api-football/deep-analysis.ts (veri);
+ * Maç Önü Vitrin (/dashboard/studio/market-analysis) modeli ve gerekçeleri bu paketi okur. Eski
+ * "Derinlemesine Analiz" kartı kaldırıldı (2026-10-29); kayıtlı PNG'leri inceleme ekranında görünür.
  */
 
 /** API-Football oyuncu pozisyonu: Kaleci, Defans, Orta saha, Forvet. */
@@ -116,67 +115,5 @@ export interface DeepAnalysisStats {
   fetchedAtUtc: string;
 }
 
-// ---- Stüdyo formu ----
-
-export const ANALYSIS_POINT_COUNT = 3;
-export const KEY_PLAYER_COUNT = 3;
-export const STAT_TILE_COUNT = 4;
-
-export interface KeyPlayerDraft {
-  name: string;
-  /** Taktiksel rol — ör. "Forvet · 3 gol · 7.4 puan" ya da elle "Oyun kurucu". */
-  role: string;
-  photoUrl: string;
-}
-
-export interface StatTileDraft {
-  label: string;
-  value: string;
-}
-
-/** Görseldeki tek takımlık analiz kartının düzenlenebilir içeriği. */
-export interface TeamAnalysisDraft {
-  teamName: string;
-  logoUrl: string;
-  /** Kart arka planındaki takım rengi parıltısı (#RRGGBB); boşsa CheckMatch yeşili. */
-  colorHex: string;
-  /**
-   * Kapak görseli: kilit oyuncunun kesimi + sahne (bkz. lib/dashboard/analysis-hero.ts) — boşsa kart
-   * kapaksız, yalnızca programatik çizilir.
-   */
-  heroImageUrl: string;
-  strengths: string[];
-  cautions: string[];
-  keyPlayers: KeyPlayerDraft[];
-  stats: StatTileDraft[];
-  /** Rakibe karşı önerilen yaklaşım (taktiksel analiz metni). */
-  approach: string;
-  /** Kartın altındaki alıntı/yorum. */
-  quote: string;
-}
-
-export interface MarketSuggestion {
-  pick: string;
-  /** Önerinin dayandığı sayılar — "Beklenen toplam gol 3.1". */
-  reason: string;
-}
-
-export interface MarketAnalysisDraft {
-  fixtureId: string;
-  /** Platform/format (küresel kayıt) — iki kart da bu boyutta çizilir. */
-  format: SocialFormatId;
-  home: TeamAnalysisDraft;
-  away: TeamAnalysisDraft;
-  /** Olası market tahmini — admin'in son kararı. */
-  marketPick: string;
-  marketRationale: string;
-}
-
+/** İki takımlı formlarda taraf (Muhtemel 11 kapak seçimi). */
 export type TeamSide = "home" | "away";
-
-/** Kapak sahnesi: Premium = Fal.ai flux (ücretli, takım rengi başına önbellekli) · Ekonomik = programatik. */
-export const HERO_QUALITIES = ["PREMIUM", "ECONOMY"] as const;
-export type HeroQuality = (typeof HERO_QUALITIES)[number];
-
-/** Kart şablonu yalnızca bu desendeki (kapak motorunun yazdığı) depolama dosyasını kabul eder. */
-export const HERO_FILE_PATTERN = /^\/api\/files\/generated\/analysis-hero-[a-f0-9]{64}\.png$/;

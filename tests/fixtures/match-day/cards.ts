@@ -65,4 +65,37 @@ export const MATCH_DAY_SCENARIOS: Record<string, MatchDayCard> = {
     refereeLabel: "—",
     stats: { ...STATS, homeForm: [], awayForm: [], h2h: { played: 0, homeWins: 0, draws: 0, awayWins: 0 } },
   },
+  /**
+   * Gerçek veri anlık görüntüsü — Konyaspor–Galatasaray, 30.10.2026 (API-Football, stüdyonun ön doldurması +
+   * `loadMatchDayStats`): istatistik kutularının hepsi dolu (2 gol ortalaması + 3 aralarındaki maç). Bu
+   * senaryoda CheckMatch logosu son kutuya biniyordu; yerleşim kapısı artık logoyu da ölçer.
+   */
+  gercek_konya_gs: {
+    ...BASE,
+    homeTeam: "KONYASPOR",
+    awayTeam: "GALATASARAY",
+    homeTeamName: "Konyaspor",
+    awayTeamName: "Galatasaray",
+    leagueLabel: "TRENDYOL SÜPER LİG",
+    weekLabel: "10. HAFTA",
+    dateLabel: "30 Ekim 2026",
+    weekdayLabel: "Cuma",
+    timeLabel: "20:00",
+    stadiumLabel: "Konya Büyükşehir Stadyumu",
+    refereeLabel: "—",
+    homeLogo: MARK,
+    awayLogo: MARK,
+    leagueLogo: null,
+    homeColorHex: "#00843D",
+    awayColorHex: "#A90432",
+    stats: {
+      homeForm: ["D", "D", "D", "L", "W"],
+      awayForm: ["W", "L", "W", "W", "W"],
+      homeGoalsForAvg: 0.8,
+      awayGoalsForAvg: 2.2,
+      homeGoalsAgainstAvg: 1.4,
+      awayGoalsAgainstAvg: 0.8,
+      h2h: { played: 5, homeWins: 1, draws: 1, awayWins: 3 },
+    },
+  },
 };

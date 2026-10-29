@@ -13,7 +13,7 @@ import { scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source
 import { matchProbabilities } from "@/lib/prediction/poisson";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import type { PredictionSet } from "@/types/prediction";
-import { diffPng } from "./image-diff";
+import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -26,7 +26,6 @@ const ROOT = path.join(process.cwd(), "tests", "visual");
 const BASELINE_DIR = path.join(ROOT, "__baseline__", "vitrin");
 const OUTPUT_DIR = path.join(ROOT, "__output__", "vitrin-diff");
 const UPDATE = process.env.npm_lifecycle_event === "test:visual:update" || process.env.UPDATE_BASELINE === "1";
-const MAX_DIFF_RATIO = 0.002;
 
 const REASONS: Record<string, string> = {
   RESULT_1X2: "Galatasaray son 5 maçında 4 galibiyet aldı.",

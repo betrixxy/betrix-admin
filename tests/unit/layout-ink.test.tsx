@@ -47,7 +47,7 @@ function row(name: string, gap: number, only?: BlockFilter) {
 describe("yerleşim kapısı — mürekkep (kuyruk/nokta)", () => {
   it("eski aralık (14px): Ç kuyruğu alt satırla çakışıyor → kapı yakalar", async () => {
     const report = await checkLayout(FRAME, (only) => png(titlePage("FENERBAHÇE", 14, only)), ["draw-hero", "draw-subtitle"]);
-    assert.deepEqual(report.issues.map((issue) => [issue.kind, issue.kind === "OUTSIDE_SAFE" ? null : issue.b]), [["OVERLAP", "draw-subtitle"]]);
+    assert.deepEqual(report.issues.map((issue) => [issue.kind, issue.kind === "OUTSIDE_SAFE" || issue.kind === "UNMEASURED" ? null : issue.b]), [["OVERLAP", "draw-subtitle"]]);
   });
 
   it("kuyruksuz ad aynı aralıkta geçer; yeni aralık (kuyruk payı + 12) Ç ile de geçer", async () => {

@@ -1,7 +1,7 @@
 import { upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import type { MatchCenter } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyMatch, WeeklyTeam } from "@/types/weekly-fixtures";
-import { EYEBROW, SCORE, TEAM } from "../deep-analysis/deep-analysis-tokens";
+import { EYEBROW, SCORE, TEAM } from "../studio-tokens";
 import type { WeeklyTheme } from "./weekly-theme";
 
 /**

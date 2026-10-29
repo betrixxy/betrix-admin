@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildMarketAnalysisDraft } from "@/lib/dashboard/deep-analysis-insights";
-import { applyExpertAnalysis } from "@/lib/dashboard/expert-analysis-apply";
 import {
   allowedNumbersBySide,
   buildAnalysisFacts,
@@ -11,7 +9,6 @@ import {
 import { computeTeamDeepStats } from "@/lib/services/api-football/deep-analysis-mappers";
 import { computeSportmonksMetrics, isSameTeam, normalizeTeamName } from "@/lib/services/sportmonks/advanced-stats-mappers";
 import type { DeepAnalysisStats, TeamDeepStats } from "@/types/deep-analysis";
-import { EXPERT_ANALYSIS_OUTPUT } from "../fixtures/anthropic/expert-analysis";
 import { DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM } from "../fixtures/api-football/deep-analysis";
 
 const home = computeTeamDeepStats(DEEP_ANALYSIS_FIXTURES, DEEP_ANALYSIS_TEAM);
@@ -68,53 +65,6 @@ describe("kısaltma/lakap denetimi", () => {
   });
   it("resmi adı ve ekli hâllerini kabul eder", () => {
     assert.deepEqual(findTeamAbbreviations("Galatasaray'ın presi ve Kasımpaşa'nın kontrası", names), []);
-  });
-});
-
-describe("analist çıktısının uygulanması (Çelik Kasa)", () => {
-  const base = buildMarketAnalysisDraft("api-football-1", stats);
-  const { draft, warnings } = applyExpertAnalysis(base, EXPERT_ANALYSIS_OUTPUT, stats, scopes);
-  const has = (text: string) => warnings.some((w) => w.includes(text));
-
-  it("ev sahibi metnindeki rakip sayısını takım karışması olarak işaretler", () => {
-    assert.ok(has("Ev sahibi metninde dayanaksız sayı: 41 (güçlü yön 2; rakibin verisine ait — takım karışmış)"));
-  });
-
-  it("uydurma sayıyı 'veride yok' olarak işaretler", () => {
-    assert.ok(has("Ev sahibi metninde dayanaksız sayı: 4.2 (güçlü yön 3; veride yok)"));
-  });
-
-  it("lakap kullanımını işaretler", () => {
-    assert.ok(has('Ev sahibi metninde kısaltma/lakap: "Gala" (alıntı)'));
-  });
-
-  it("meşru kullanımlarda uyarı üretmez", () => {
-    assert.ok(!has("önerilen yaklaşım"), "yaklaşım rakibin sayısını kullanabilir");
-    assert.ok(!has("Market gerekçesi"), "market çizgisi ve iki takımın sayıları geçerli");
-    assert.ok(!has("dikkat 1"), "'Son 3 maçta 1 galibiyet' — iki sayı da ev sahibi paketinde var");
-  });
-
-  it("yanlış takıma atanan oyuncuyu reddeder (oyuncu izolasyonu)", () => {
-    assert.ok(has("Ev sahibi metninde rakip/uydurma oyuncu kullanıldı: Deplasman Golcü (rakip takımın kadrosunda) — karta eklenmedi"));
-    assert.ok(has("Deplasman metninde rakip/uydurma oyuncu kullanıldı: Forvet Bir (rakip takımın kadrosunda) — karta eklenmedi"));
-    assert.ok(!draft.home.keyPlayers.some((p) => p.name === "Deplasman Golcü"), "rakip oyuncu ev sahibi kartına girmez");
-    assert.ok(!draft.away.keyPlayers.some((p) => p.name === "Forvet Bir"), "ev sahibi oyuncusu deplasman kartına girmez");
-    assert.equal(draft.away.keyPlayers[0]?.name, "Deplasman Golcü", "doğru oyuncu yerinde kalır");
-  });
-
-  it("uydurma oyuncuyu atar, uzunlukları kırpar, görselleri korur", () => {
-    assert.ok(has("Ev sahibi metninde rakip/uydurma oyuncu kullanıldı: Uydurma Oyuncu (olgu paketinde yok) — karta eklenmedi"));
-    assert.deepEqual(
-      draft.home.keyPlayers.map((p) => p.name),
-      ["Forvet Bir", "Orta Saha", "Defans"],
-      "uydurma oyuncu atlanır, boşluk kural tabanlı seçimle dolar",
-    );
-    assert.ok(draft.home.keyPlayers[0]?.photoUrl.includes("/players/11.png"), "fotoğraf gerçek oyuncu verisinden");
-    assert.equal(draft.away.keyPlayers[0]?.name, "Deplasman Golcü", "ad büyük/küçük harf farkıyla eşlenir, paketteki yazım kullanılır");
-    assert.ok(draft.home.approach.length <= 400 && draft.home.approach.endsWith("…"));
-    assert.equal(draft.home.colorHex, base.home.colorHex);
-    assert.deepEqual(draft.home.stats, base.home.stats);
-    assert.equal(draft.marketPick, "2.5 Üst");
   });
 });
 

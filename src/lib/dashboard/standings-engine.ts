@@ -63,7 +63,10 @@ export async function createStandingsDraft(draft: StandingsDraft, anchorFixtureI
 
   let png: Buffer;
   try {
-    png = await renderStandingsCard(card.data);
+    // Yerleşim kapısına takılan kart üretilmez; sebep stüdyoda gösterilir.
+    const rendered = await renderStandingsCard(card.data);
+    if (!rendered.ok) return rendered;
+    png = rendered.data;
   } catch (cause) {
     console.error("[standings] kart çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kart çizilemedi.", cause } };

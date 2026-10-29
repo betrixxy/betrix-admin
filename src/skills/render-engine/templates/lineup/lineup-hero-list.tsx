@@ -1,8 +1,9 @@
 import { formationGroups } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot, SquadPosition } from "@/types/lineup";
 import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
-import { rgba } from "../deep-analysis/deep-analysis-tokens";
-import { LineupBackground, TYPE, displayName, labelStyle, nameStyle } from "./lineup-chrome";
+import { rgba } from "../studio-tokens";
+import type { BlockFilter } from "../checkmatch-set/blocks";
+import { LineupBackground, TYPE, displayName, labelStyle, nameStyle, shown } from "./lineup-chrome";
 import type { LineupGeometry } from "./lineup-geometry";
 
 /**
@@ -66,7 +67,23 @@ function PlayerRow({ slot, name, role, fontSize, goalkeeper, palette, divider, k
 }
 
 /** `peopleOrigin`: oyuncu adlarının varsayılan kökeni (takımın ülkesi, bkz. name-case.ts). */
-export function LineupHeroList({ g, formation, slots, palette, hero, peopleOrigin = null }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; hero: LineupHeroImage; peopleOrigin?: NameOrigin | null }) {
+export function LineupHeroList({
+  g,
+  formation,
+  slots,
+  palette,
+  hero,
+  peopleOrigin = null,
+  only,
+}: {
+  g: LineupGeometry;
+  formation: string;
+  slots: LineupSlot[];
+  palette: LineupPalette;
+  hero: LineupHeroImage;
+  peopleOrigin?: NameOrigin | null;
+  only?: BlockFilter;
+}) {
   const { k, panel } = g;
   const night = palette.backgroundBottom;
   const padX = Math.round(PANEL_PAD_X * k);
@@ -86,11 +103,13 @@ export function LineupHeroList({ g, formation, slots, palette, hero, peopleOrigi
 
   return (
     <>
-      <LineupBackground g={g} palette={palette} glow={{ left: Math.max(0, g.hero.centerX - 380), top: g.header.top + 248, size: 760 }} />
+      <LineupBackground g={g} palette={palette} only={only} glow={{ left: Math.max(0, g.hero.centerX - 380), top: g.header.top + 248, size: 760 }} />
       {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-      <img src={hero.src} alt="" width={hero.width} height={hero.height} style={{ position: "absolute", left: heroLeft, bottom: 0 }} />
-      {/* Okunabilirlik perdesi: kapağın sağ kenarı listenin arkasında yumuşar. */}
-      <div style={{ position: "absolute", left: 0, top: 0, width: g.width, height: g.height, backgroundImage: `linear-gradient(90deg, ${rgba(night, 0)} ${veilStart}%, ${rgba(night, 0.5)} ${veilMid}%, ${rgba(night, 0.7)} 100%)` }} />
+      <img src={hero.src} alt="" width={hero.width} height={hero.height} style={{ position: "absolute", left: heroLeft, bottom: 0, ...shown(only, "card-body") }} />
+      {/* Okunabilirlik perdesi: kapağın sağ kenarı listenin arkasında yumuşar (yerleşim kapısında ölçülmez). */}
+      {only ? null : (
+        <div style={{ position: "absolute", left: 0, top: 0, width: g.width, height: g.height, backgroundImage: `linear-gradient(90deg, ${rgba(night, 0)} ${veilStart}%, ${rgba(night, 0.5)} ${veilMid}%, ${rgba(night, 0.7)} 100%)` }} />
+      )}
 
       <div
         tw="flex flex-col"
@@ -105,6 +124,7 @@ export function LineupHeroList({ g, formation, slots, palette, hero, peopleOrigi
           backgroundImage: `linear-gradient(180deg, ${rgba(night, 0.74)} 0%, ${rgba(night, 0.6)} 100%)`,
           border: `1px solid ${rgba(palette.accent, 0.18)}`,
           boxShadow: "0 30px 60px rgba(0,0,0,0.45)",
+          ...shown(only, "card-body"),
         }}
       >
         {groups.map((group, groupIndex) => (

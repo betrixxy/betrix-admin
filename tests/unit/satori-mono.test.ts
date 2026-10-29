@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createElement, type ReactElement } from "react";
 import sharp from "sharp";
-import { loadDeepAnalysisFonts } from "@/lib/dashboard/deep-analysis-fonts";
+import { loadStudioFonts } from "@/lib/dashboard/studio-fonts";
 import { legibleMonoStyle, legibleMonoTree, MONO_BOLD_MIN_PX, MONO_FAMILY } from "@/skills/render-engine/satori-mono";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 
@@ -30,7 +30,7 @@ describe("legibleMonoStyle", () => {
 
 /** "HNH" çizer; N harfinin mürekkep kutusu doluluğu (0–1). Bold'da ~0,7 (blok), Regular'da ≤ ~0,53. */
 async function nInkDensity(fontSize: number): Promise<number> {
-  const fonts = await loadDeepAnalysisFonts();
+  const fonts = await loadStudioFonts();
   const element = createElement(
     "div",
     { style: { display: "flex", background: "#000", color: "#fff", width: 200, height: 60, padding: 10 } },

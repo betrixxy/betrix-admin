@@ -65,7 +65,8 @@ export async function previewWeeklyFixturesAction(input: unknown): Promise<Resul
   if (!card.ok) return card;
   try {
     const png = await renderWeeklyFixturesCard(card.data);
-    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}` } };
+    if (!png.ok) return png;
+    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.data.toString("base64")}` } };
   } catch (cause) {
     console.error("[weekly-fixtures] önizleme çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Önizleme çizilemedi.", cause } };

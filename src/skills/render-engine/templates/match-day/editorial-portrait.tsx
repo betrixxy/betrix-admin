@@ -1,12 +1,18 @@
 import type { MatchDayCard } from "@/types/match-day";
+import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
 import type { TemplateGeometry } from "./geometry";
-import { BrandLogo, Canvas, Eyebrow, LeagueLogo, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px, upperReferee, upperStadium } from "./shared";
+import { BrandLogo, Canvas, Eyebrow, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px, upperReferee, upperStadium } from "./shared";
 
 /**
  * EDITORIAL PORTRAIT — spor dergisi kapağı: dramatik stüdyo ışığında oyuncu portreleri,
  * serif takım adları kademeli dizilir ("Italy / vs / Türkiye"), künye açık harf aralıklı
  * küçük başlıklarla. Takım adları kullanıcının yazdığı haliyle (büyük harf zorlanmaz).
  */
+
+/** Kartın blokları (yerleşim kapısı) — logo dahil her öğe birine aittir. */
+export const EDITORIAL_PORTRAIT_BLOCKS = ["header-label", "headline", "footer-text", "footer-logo"] as const satisfies readonly LayoutBlockId[];
+
+const shown = (only: BlockFilter, id: LayoutBlockId) => ({ opacity: blockOpacity(only, id) });
 
 function Rule({ width }: { width: number }) {
   return <div tw="flex" style={{ width, height: 1, backgroundColor: "rgba(255,255,255,0.45)" }} />;
@@ -15,7 +21,6 @@ function Rule({ width }: { width: number }) {
 function Masthead({ card, k, width }: { card: MatchDayCard; k: number; width: number }) {
   return (
     <div tw="flex items-center justify-between" style={{ width }}>
-      <LeagueLogo card={card} size={px(46, k)} />
       <div tw="flex items-center">
         <Rule width={px(70, k)} />
         <div tw="flex" style={{ margin: `0 ${px(18, k)}px` }}>
@@ -78,20 +83,22 @@ function Credits({ card, k }: { card: MatchDayCard; k: number }) {
   );
 }
 
-function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
+function Vertical({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only: BlockFilter }) {
   const { k } = g;
   const width = g.right - g.left;
   return (
     <Canvas>
-      <div tw="absolute flex" style={{ left: g.left, top: g.top }}>
+      <div tw="absolute flex" style={{ left: g.left, top: g.top, ...shown(only, "header-label") }}>
         <Masthead card={card} k={k} width={width} />
       </div>
-      <div tw="absolute flex" style={{ left: g.left, top: g.blockTop }}>
+      <div tw="absolute flex" style={{ left: g.left, top: g.blockTop, ...shown(only, "headline") }}>
         <Names card={card} k={k} width={width} />
       </div>
       <div tw="absolute flex flex-col items-center" style={{ left: 0, right: 0, bottom: g.frame.height - g.bottom }}>
-        <Credits card={card} k={k} />
-        <div tw="flex" style={{ marginTop: px(18, k) }}>
+        <div tw="flex" style={shown(only, "footer-text")}>
+          <Credits card={card} k={k} />
+        </div>
+        <div tw="flex" style={{ marginTop: px(18, k), ...shown(only, "footer-logo") }}>
           <BrandLogo card={card} height={px(26, k)} />
         </div>
       </div>
@@ -99,27 +106,29 @@ function Vertical({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
   );
 }
 
-function Landscape({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
+function Landscape({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only: BlockFilter }) {
   const left = 650;
   const width = g.right - left;
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left, top: g.top, width }}>
-        <Masthead card={card} k={0.8} width={width} />
-        <div tw="flex" style={{ marginTop: 56 }}>
+        <div tw="flex" style={shown(only, "header-label")}>
+          <Masthead card={card} k={0.8} width={width} />
+        </div>
+        <div tw="flex" style={{ marginTop: 56, ...shown(only, "headline") }}>
           <Names card={card} k={0.78} width={width} />
         </div>
-        <div tw="flex" style={{ marginTop: 36, justifyContent: "center" }}>
+        <div tw="flex" style={{ marginTop: 36, justifyContent: "center", ...shown(only, "footer-text") }}>
           <Credits card={card} k={0.72} />
         </div>
       </div>
-      <div tw="absolute flex" style={{ right: g.left, bottom: 30 }}>
+      <div tw="absolute flex" style={{ right: g.left, bottom: 30, ...shown(only, "footer-logo") }}>
         <BrandLogo card={card} height={22} />
       </div>
     </Canvas>
   );
 }
 
-export function EditorialPortraitTemplate({ card, g }: { card: MatchDayCard; g: TemplateGeometry }) {
-  return g.frame.orientation === "landscape" ? <Landscape card={card} g={g} /> : <Vertical card={card} g={g} />;
+export function EditorialPortraitTemplate({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; only?: BlockFilter }) {
+  return g.frame.orientation === "landscape" ? <Landscape card={card} g={g} only={only} /> : <Vertical card={card} g={g} only={only} />;
 }

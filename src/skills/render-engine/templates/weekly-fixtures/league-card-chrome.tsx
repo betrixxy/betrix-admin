@@ -1,6 +1,7 @@
 import { LEAGUE_BADGE_PAD, type WeeklyLayout } from "@/lib/dashboard/weekly-fixtures-layout";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
-import { EYEBROW, SCORE, TEAM, rgba, upper } from "../deep-analysis/deep-analysis-tokens";
+import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
+import { EYEBROW, SCORE, TEAM, rgba, upper } from "../studio-tokens";
 import type { WeeklyTheme } from "./weekly-theme";
 
 /**
@@ -11,13 +12,18 @@ import type { WeeklyTheme } from "./weekly-theme";
 
 const BRAND_LOGO_HEIGHT = 46;
 
+/** Lig kartlarının blokları (yerleşim kapısı) — logo dahil her öğe birine aittir; zemin, ışıma ve bant zemini ölçülmez. */
+export const LEAGUE_CARD_BLOCKS = ["card-header", "card-body", "footer-text", "footer-logo"] as const satisfies readonly LayoutBlockId[];
+
+export const shown = (only: BlockFilter, id: LayoutBlockId) => ({ opacity: blockOpacity(only, id) });
+
 /** Büyük başlık tek satıra sığacak boyutta (Archivo Black büyük harf ≈ 0.78 em/karakter). */
 function titleSize(title: string, available: number, max: number): number {
   return Math.max(48, Math.min(max, Math.floor(available / (Math.max(1, title.length) * 0.78))));
 }
 
-export function LeagueCardGlow({ layout, theme }: { layout: WeeklyLayout; theme: WeeklyTheme }) {
-  if (!theme.glow) return null;
+export function LeagueCardGlow({ layout, theme, only }: { layout: WeeklyLayout; theme: WeeklyTheme; only?: BlockFilter }) {
+  if (!theme.glow || only) return null;
   return (
     <div
       style={{
@@ -39,9 +45,11 @@ export function LeagueCardHeader({
   kicker,
   title,
   kindLabel,
+  only,
 }: {
   layout: WeeklyLayout;
   theme: WeeklyTheme;
+  only?: BlockFilter;
   leagueLogoUrl: string;
   /** Üst künye satırı (Space Mono), ör. "SÜPER LİG · 2025/26". */
   kicker: string;
@@ -56,7 +64,7 @@ export function LeagueCardHeader({
   const textWidth = contentWidth - (leagueLogoUrl ? logo + badge + 36 : 0);
   const size = titleSize(title, textWidth, layout.titleMax);
   return (
-    <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 36 }}>
+    <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 36, ...shown(only, "card-header") }}>
       {leagueLogoUrl ? (
         <div
           tw="flex items-center justify-center"
@@ -95,7 +103,7 @@ export function LeagueCardDivider({ label, height, theme }: { label: string; hei
 }
 
 /** Alt imza bandı: kanvasın altına kadar iner; içerik üstteki `footerHeight` şeridinde ortalanır (Story alt bandı boş kalır). */
-export function LeagueCardFooter({ layout, theme, brandLogo, note }: { layout: WeeklyLayout; theme: WeeklyTheme; brandLogo: string; note: string }) {
+export function LeagueCardFooter({ layout, theme, brandLogo, note, only }: { layout: WeeklyLayout; theme: WeeklyTheme; brandLogo: string; note: string; only?: BlockFilter }) {
   const { width: W, height: H, pad: PAD } = layout;
   return (
     <div
@@ -107,13 +115,16 @@ export function LeagueCardFooter({ layout, theme, brandLogo, note }: { layout: W
         width: W,
         height: H - layout.footerTop,
         padding: `0 ${PAD}px ${H - layout.footerTop - layout.footerHeight}px`,
-        backgroundColor: theme.footerBg,
-        borderTop: `2px solid ${theme.mode === "night" ? rgba(theme.accent, 0.35) : theme.accent}`,
+        // Bant zemini ölçülmez (yerleşim kapısı); logo ve not ayrı bloklar.
+        backgroundColor: only ? "transparent" : theme.footerBg,
+        borderTop: only ? "2px solid transparent" : `2px solid ${theme.mode === "night" ? rgba(theme.accent, 0.35) : theme.accent}`,
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-      <img src={brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(BRAND_LOGO_HEIGHT)} height={BRAND_LOGO_HEIGHT} />
-      <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 14, letterSpacing: 3, color: theme.footerText, lineHeight: 1 }}>{note}</span>
+      <div tw="flex" style={shown(only, "footer-logo")}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+        <img src={brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(BRAND_LOGO_HEIGHT)} height={BRAND_LOGO_HEIGHT} />
+      </div>
+      <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 14, letterSpacing: 3, color: theme.footerText, lineHeight: 1, ...shown(only, "footer-text") }}>{note}</span>
     </div>
   );
 }

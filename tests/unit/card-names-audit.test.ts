@@ -18,7 +18,7 @@ describe("takım kart adı — names.ts tek kaynak", () => {
     assert.equal(cardTeamName("Goztepe"), "Göztepe SK");
   });
 
-  it("Derin Analiz takım adı API adı değil kart adı", () => {
+  it("form paketinde takım adı API adı değil kart adı (vitrin gerekçeleri)", () => {
     const form = computeRecentForm([], { id: 549, name: "Besiktas", logoUrl: "" });
     assert.equal(form.teamName, "Beşiktaş");
   });
@@ -29,10 +29,25 @@ describe("stadyum kart adı", () => {
     assert.deepEqual(cardVenueName("Konya Buyuksehir Belediye Stadium"), { name: "Konya Büyükşehir Stadyumu", source: "table" });
   });
 
-  it("kural: Stadium → Stadyumu (yalnızca ek)", () => {
-    assert.equal(venueRule("Corum Sehir Stadium"), "Corum Sehir Stadyumu");
+  it("kural: Stadium/Stadi → Stadyumu + bilinen sözcüklerde Türkçe harf", () => {
+    assert.equal(venueRule("Corum Sehir Stadium"), "Çorum Şehir Stadyumu");
     assert.equal(venueRule("Stadium Galatasaray"), "Galatasaray Stadyumu");
+    assert.equal(venueRule("Van Ataturk Stadi"), "Van Atatürk Stadyumu");
+    assert.equal(venueRule("Basaksehir Fatih Terim Stadium"), "Başakşehir Fatih Terim Stadyumu");
+    assert.equal(venueRule("Chobani Stadium Fenerbahce Sukru Saracoglu"), "Chobani Stadyumu Fenerbahçe Şükrü Saracoğlu");
+    assert.equal(venueRule("Turka Arac Muayene Kocaeli Stadyumu"), "Turka Araç Muayene Kocaeli Stadyumu");
+    assert.equal(venueRule("ISTANBUL Stadium"), "İSTANBUL Stadyumu", "büyük harf sözcük büyük kalır");
+  });
+
+  it("kural: sponsorlu/yabancı/zaten Türkçe ad değişmez (API adı kalır, raporda görünür)", () => {
     assert.equal(venueRule("RAMS Park"), null);
+    assert.equal(venueRule("Papara Park"), null);
+    assert.equal(venueRule("Weser-Stadion"), null, "tireli yabancı ad");
+    assert.equal(venueRule("Bursa Büyükşehir Stadyumu"), null);
+    assert.equal(venueRule("Esenler Erokspor Arena"), null, "sözlükte olmayan sözcük tahmin edilmez");
+    assert.equal(venueNeedsReview(cardVenueName("Papara Park")), true);
+    assert.equal(venueNeedsReview(cardVenueName("Diyarbakir Stadium")), true);
+    assert.deepEqual(cardVenueName("Diyarbakir Stadium"), { name: "Diyarbakır Stadyumu", source: "rule" });
   });
 
   it("admin düzeltmesi tabloyu ve kuralı ezer; Türkçe ad değişmeden kalır", () => {

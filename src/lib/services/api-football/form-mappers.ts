@@ -66,7 +66,7 @@ export function computeRecentForm(
 
   return {
     teamId: String(team.id),
-    // Kart adı (`names.ts`) — Derin Analiz kartı ve öneri metinleri bunu yazar; API adı ("Besiktas") yazılmaz.
+    // Kart adı (`names.ts`) — vitrin gerekçeleri ve öneri metinleri bunu yazar; API adı ("Besiktas") yazılmaz.
     teamName: cardTeamName(team.name),
     logoUrl: team.logoUrl,
     last5: goals.map(resultLetter),

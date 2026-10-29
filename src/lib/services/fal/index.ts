@@ -12,7 +12,6 @@ import type { Result } from "@/types/result";
 
 export { isFalConfigured, toFalImageSize };
 export { generateFluxScene, generateMatchDayBackground, harmonizeComposite, harmonizeMatchDayComposite } from "@/lib/services/fal/match-day";
-export { buildAnalysisHeroPrompt } from "@/lib/services/fal/analysis-hero-prompts";
 export type { FalGeneratedImage } from "@/lib/services/fal/match-day";
 export { buildMatchDayBackgroundPrompt } from "@/lib/services/fal/match-day-prompts";
 export { MAX_UPSCALE_FACTOR, upscaleImage } from "@/lib/services/fal/upscale";

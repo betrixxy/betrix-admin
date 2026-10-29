@@ -29,7 +29,7 @@ import { MATCH_RESULT_TEMPLATE_IDS, type MatchResultTemplateId } from "@/types/m
 import { RAW_GENCLERBIRLIGI_GALATASARAY } from "../fixtures/api-football/match-result";
 import { RAW_BESIKTAS_MIDTJYLLAND, RAW_HOFFENHEIM_BESIKTAS_STATS } from "../fixtures/api-football/match-stats";
 import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
-import { diffPng } from "./image-diff";
+import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -51,7 +51,6 @@ const ROOT = path.join(process.cwd(), "tests", "visual");
 const BASELINE_DIR = path.join(ROOT, "__baseline__", "checkmatch-set");
 const OUTPUT_DIR = path.join(ROOT, "__output__", "checkmatch-set-diff");
 const UPDATE = process.env.npm_lifecycle_event === "test:visual:update" || process.env.UPDATE_BASELINE === "1";
-const MAX_DIFF_RATIO = 0.002;
 
 interface Match {
   raw: ApiFootballFixtureResultRaw;

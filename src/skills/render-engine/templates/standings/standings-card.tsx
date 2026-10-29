@@ -2,8 +2,9 @@ import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { seasonLabel, standingsLayout, standingsPlan, standingsStatColumns } from "@/lib/dashboard/standings-layout";
 import { bodyOffsetTop } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { StandingsCardInput } from "@/types/standings";
-import { BODY, upper } from "../deep-analysis/deep-analysis-tokens";
-import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader } from "../weekly-fixtures/league-card-chrome";
+import { BODY, upper } from "../studio-tokens";
+import type { BlockFilter } from "../checkmatch-set/blocks";
+import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader, shown } from "../weekly-fixtures/league-card-chrome";
 import { weeklyTheme } from "../weekly-fixtures/weekly-theme";
 import { StandingsHeaderRow, StandingsRow, standingsNameSize } from "./standings-row";
 
@@ -20,9 +21,11 @@ export interface StandingsCardData extends StandingsCardInput {
   brandLogo: string;
   /** Gömülü (data URL) takım logoları, takım kimliğine göre; okunamayan logo boş. */
   teamLogos: Record<number, string>;
+  /** Yerleşim kapısı: yalnızca bu blok görünür (bkz. `LEAGUE_CARD_BLOCKS`). */
+  only?: BlockFilter | undefined;
 }
 
-export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, title, kindLabel, sections, format, brandLogo, teamLogos }: StandingsCardData) {
+export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, title, kindLabel, sections, format, brandLogo, teamLogos, only }: StandingsCardData) {
   const theme = weeklyTheme(leagueId);
   const nameOrigin = getSupportedLeague(leagueId).nameOrigin;
   const layout = standingsLayout(format);
@@ -42,11 +45,12 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
   const legend = columns.map((column) => `${column.label} ${upper(column.name)}`).join(" · ");
 
   return (
-    <div tw="relative flex h-full w-full flex-col" style={{ fontFamily: BODY, color: theme.text, backgroundImage: theme.background, overflow: "hidden" }}>
-      <LeagueCardGlow layout={layout} theme={theme} />
+    <div tw="relative flex h-full w-full flex-col" style={{ fontFamily: BODY, color: theme.text, ...(only ? {} : { backgroundImage: theme.background }), overflow: "hidden" }}>
+      <LeagueCardGlow layout={layout} theme={theme} only={only} />
       <LeagueCardHeader
         layout={layout}
         theme={theme}
+        only={only}
         leagueLogoUrl={leagueLogoUrl}
         kicker={`${upper(leagueName)} · ${seasonLabel(season)}`}
         title={upper(title)}
@@ -54,7 +58,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
       />
 
       {/* Tablo: tek sütun (dikey formatlar) ya da yan yana iki sütun (yatay) — her sütunun üstünde başlık satırı. */}
-      <div tw="flex" style={{ position: "absolute", left: layout.pad, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap }}>
+      <div tw="flex" style={{ position: "absolute", left: layout.pad, top: bodyOffsetTop(layout, plan.height), width: contentWidth, gap: layout.columnGap, ...shown(only, "card-body") }}>
         {plan.columns.map((column, columnIndex) => (
           <div key={columnIndex} tw="flex flex-col" style={{ width: columnWidth }}>
             <StandingsHeaderRow columns={columns} wide={wide} height={layout.tableHeader - layout.rowGap} theme={theme} />
@@ -83,7 +87,7 @@ export function StandingsCard({ leagueId, leagueName, leagueLogoUrl, season, tit
         ))}
       </div>
 
-      <LeagueCardFooter layout={layout} theme={theme} brandLogo={brandLogo} note={legend} />
+      <LeagueCardFooter layout={layout} theme={theme} brandLogo={brandLogo} note={legend} only={only} />
     </div>
   );
 }

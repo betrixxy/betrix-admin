@@ -11,7 +11,7 @@ import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import { DRAW_KNOCKOUT, DRAW_LEAGUE } from "../fixtures/draw";
-import { diffPng } from "./image-diff";
+import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -26,7 +26,6 @@ const ROOT = path.join(process.cwd(), "tests", "visual");
 const BASELINE_DIR = path.join(ROOT, "__baseline__", "draw");
 const OUTPUT_DIR = path.join(ROOT, "__output__", "draw");
 const UPDATE = process.env.npm_lifecycle_event === "test:visual:update" || process.env.UPDATE_BASELINE === "1";
-const MAX_DIFF_RATIO = 0.002;
 
 const CASES: Record<string, Omit<DrawCardInput, "logos" | "brandLogo">> = {
   "a-eleme": { variant: "TEAM", states: [DRAW_KNOCKOUT], focusTeamId: 163, headToHead: { played: 4, wins: 1, draws: 1, losses: 2 } },

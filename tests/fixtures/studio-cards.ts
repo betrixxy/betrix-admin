@@ -1,12 +1,10 @@
-import type { TeamOrigin } from "@/lib/dashboard/name-case";
-import type { TeamAnalysisDraft } from "@/types/deep-analysis";
 import type { LineupCardInput, LineupSlot } from "@/types/lineup";
 import type { StandingRow, StandingsCardInput, StandingsGroup } from "@/types/standings";
 import type { SocialFormatId } from "@/types/studio-formats";
 import type { WeeklyFixturesCardInput, WeeklyMatch } from "@/types/weekly-fixtures";
 
 /**
- * Muhtemel 11, Haftanın Maçları, Puan Durumu ve Derin Analiz görsel regresyon testinin kart
+ * Muhtemel 11, Haftanın Maçları ve Puan Durumu görsel regresyon testinin kart
  * senaryoları — KURGUSAL veri (bkz. CLAUDE.md 5.2). Oyuncu/teknik direktör adları uydurmadır;
  * logo ve fotoğraf adresi yok (test çevrimdışı ve deterministik). Her kart dört durumu kapsar:
  * Türkçe karakterli ad, yabancı ad, uzun ad ve iki satıra bölünen metin.
@@ -212,65 +210,3 @@ export function standingsForFormat(input: Omit<StandingsCardInput, "format">, fo
   const [section] = input.sections;
   return { ...input, format, sections: [{ ...section!, rows: section!.rows.slice(0, capacity) }] };
 }
-
-const TR_ANALYSIS: TeamAnalysisDraft = {
-  teamName: "Kurgu Gençlikspor",
-  logoUrl: "",
-  colorHex: "#0B6E3A",
-  heroImageUrl: "",
-  strengths: [
-    "Son 5 maçta %86 pas isabeti — orta sahada topa sahip olma üstünlüğü",
-    "Maç başı 1,7 xG (son 5 maç) — net pozisyon üretiyor ve duran toplarda etkili",
-    "İç sahada 4 maçtır gol yemedi",
-  ],
-  cautions: ["Son 5 maçın 3'ünde ilk golü yedi", "Kanat beklerinin arkası açık kalıyor; geçiş savunması yavaş", "Deplasmanda şut isabeti %31"],
-  keyPlayers: [
-    { name: "D. Eğilmez", role: "Forvet · 5 gol · 7,4 puan", photoUrl: "" },
-    { name: "Ş. Çağlayan", role: "Orta saha · 4 asist · 7,1 puan", photoUrl: "" },
-    { name: "İ. Şenyürek", role: "Bek · 18 top kazanma · 6,9 puan", photoUrl: "" },
-  ],
-  stats: [
-    { label: "Topla oynama", value: "%58" },
-    { label: "Maç başı şut", value: "14,2" },
-    { label: "İsabetli şut", value: "5,1" },
-    { label: "Top kazanma", value: "17,8" },
-  ],
-  approach: "Rakibin kanat beklerinin arkasına erken top; ikinci toplarda orta sahayı kalabalık tutup geçişte hızlı çıkış.",
-  quote: "İç sahada seri sürüyor; ilk golü bulan taraf maçı kontrol eder.",
-};
-
-const LONG_ANALYSIS: TeamAnalysisDraft = {
-  teamName: "Borussia Mönchengladbach",
-  logoUrl: "",
-  colorHex: "#1D3E8A",
-  heroImageUrl: "",
-  strengths: [
-    "Son 5 maçta maç başı 2,1 gol; ceza sahası içinden şutların %64'ü isabetli ve dönüşüm oranı liginin en yükseği",
-    "Bu sezon ligde duran toplardan 7 gol — kafa vuruşlarında belirgin üstünlük",
-    "Pres yoğunluğu yüksek: PPDA 8,4 (son 5 maç)",
-  ],
-  cautions: [
-    "Son 5 maçta 9 gol yedi; savunma hattı yüksekte, arkaya atılan toplarda zorlanıyor ve geri dönüş hızı düşük",
-    "Deplasmanda son 3 maçta galibiyet yok",
-    "Kilit stoper Van der Westhuizen sakat",
-  ],
-  keyPlayers: [
-    { name: "Konstantinos Papadopoulos-Alexandridis", role: "Forvet · 7 gol · 7,6 puan", photoUrl: "" },
-    { name: "W. Schweinsteiger-Hummels", role: "Orta saha · 5 asist · 7,2 puan", photoUrl: "" },
-    { name: "Nikolić", role: "Kaleci · 3 gol yemediği maç · 6,8 puan", photoUrl: "" },
-  ],
-  stats: [
-    { label: "Topla oynama", value: "%61" },
-    { label: "Maç başı şut", value: "16,4" },
-    { label: "Büyük şans", value: "3,2" },
-    { label: "İkili mücadele", value: "%54" },
-  ],
-  approach: "Yüksek savunma hattının arkasına koşular; uzun toplarda ikinci topu kazanıp kanatlardan hızlı ortalar ve ceza sahasına geç gelen orta saha koşuları.",
-  quote: "Hücumda ligin en verimlisi ama arkada verdiği boşluklar her maç pozisyon veriyor.",
-};
-
-export const DEEP_ANALYSIS_CASES: Record<string, { team: TeamAnalysisDraft; opponentName: string; origins: { team: TeamOrigin; opponent: TeamOrigin } }> = {
-  "tr-takim": { team: TR_ANALYSIS, opponentName: "Örnek İdmanyurdu", origins: { team: { name: "tr", people: "tr" }, opponent: { name: "tr", people: "tr" } } },
-  // Yabancı takım ve rakip, i'li ASCII adlar (Borussia, Konstantinos, Inter): noktalı İ çıkmamalı.
-  "uzun-iki-satir": { team: LONG_ANALYSIS, opponentName: "Inter Lisboa Wanderers", origins: { team: { name: "intl", people: "intl" }, opponent: { name: "intl", people: "intl" } } },
-};

@@ -49,6 +49,16 @@ export const LAYOUT_BLOCKS = [
   // Genel: bir blok içinde alt alta duran satırlar (ad/soyad, başlık/alt başlık, satır satır liste) sırayla.
   "stack-a",
   "stack-b",
+  // Lig kartları (Haftanın Maçları, Puan Durumu) ve Muhtemel 11.
+  "card-header",
+  "card-body",
+  "card-footer",
+  "opponent",
+  // Maç Günü: tarih/saat/stadyum bloğu ve istatistik/künye kutuları.
+  "md-date",
+  "md-boxes",
+  /** SONDA — hiçbir şablon kullanmaz: bununla çizilince bütün bloklar gizlenir, görünen kalan öğe bloksuzdur. */
+  "unassigned",
 ] as const;
 export type LayoutBlockId = (typeof LAYOUT_BLOCKS)[number];
 
@@ -90,6 +100,13 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   "md-name-b": "takım adı satırı (çift)",
   "stack-a": "alt alta satır (tek)",
   "stack-b": "alt alta satır (çift)",
+  "card-header": "başlık",
+  "card-body": "kart gövdesi",
+  "card-footer": "alt bant",
+  opponent: "rakip",
+  "md-date": "tarih, saat ve stadyum",
+  "md-boxes": "istatistik kutuları",
+  unassigned: "hiçbir bloğa ait olmayan öğe",
 };
 
 /**

@@ -53,10 +53,14 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
   let home: RenderedLineupCard;
   let away: RenderedLineupCard;
   try {
-    [home, away] = await Promise.all([
+    const [homeCard, awayCard] = await Promise.all([
       card(draft.home, draft.away, origins && { team: origins.home, opponent: origins.away }),
       card(draft.away, draft.home, origins && { team: origins.away, opponent: origins.home }),
     ]);
+    // Yerleşim kapısına takılan kart üretilmez; sebep stüdyoda gösterilir.
+    if (!homeCard.ok) return homeCard;
+    if (!awayCard.ok) return awayCard;
+    [home, away] = [homeCard.data, awayCard.data];
   } catch (cause) {
     console.error("[lineup] kartlar çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Kadro kartları çizilemedi.", cause } };

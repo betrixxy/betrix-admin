@@ -87,7 +87,9 @@ export async function previewLineupAction(input: unknown): Promise<Result<{ data
     const { fixtureId, side, ...input } = parsed.data;
     const origins = await fixtureOrigins(fixtureId ?? null);
     const sideOrigins = origins && side ? { team: side === "home" ? origins.home : origins.away, opponent: side === "home" ? origins.away : origins.home } : undefined;
-    const { png, templateStyle } = await renderLineupCard({ ...input, ...(sideOrigins ? { origins: sideOrigins } : {}) });
+    const rendered = await renderLineupCard({ ...input, ...(sideOrigins ? { origins: sideOrigins } : {}) });
+    if (!rendered.ok) return rendered;
+    const { png, templateStyle } = rendered.data;
     return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle } };
   } catch (cause) {
     console.error("[lineup] önizleme çizilemedi:", cause);

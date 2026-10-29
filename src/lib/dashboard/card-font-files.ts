@@ -18,7 +18,7 @@ export const MATCH_DAY_FONT_FILES = [
 ] as const;
 
 /**
- * Stüdyo kartları (Muhtemel 11, Haftanın Maçları, Puan Durumu, Derin Analiz…) — CheckMatch marka
+ * Stüdyo kartları (Muhtemel 11, Haftanın Maçları, Puan Durumu) — CheckMatch marka
  * sisteminin rol bazlı tipografisi (kaynak: CheckMatch içerik motoru `tokens.css`): Space Mono (küçük
  * üst etiket), Bricolage Grotesque (takım adı), Manrope (gövde/oyuncu adı), Archivo Black (büyük rakam).
  */

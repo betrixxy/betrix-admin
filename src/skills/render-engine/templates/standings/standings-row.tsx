@@ -1,7 +1,7 @@
 import { upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { formatGoalDiff, type StandingsStatColumn, type StandingsStatKey } from "@/lib/dashboard/standings-layout";
 import type { StandingRow, StandingZone } from "@/types/standings";
-import { EYEBROW, SCORE, TEAM, upper } from "../deep-analysis/deep-analysis-tokens";
+import { EYEBROW, SCORE, TEAM, upper } from "../studio-tokens";
 import type { WeeklyTheme } from "../weekly-fixtures/weekly-theme";
 
 /**

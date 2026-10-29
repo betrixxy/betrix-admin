@@ -1,8 +1,9 @@
 import { pitchPositions } from "@/lib/dashboard/lineup-formations";
 import type { LineupPalette, LineupSlot } from "@/types/lineup";
 import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
-import { rgba } from "../deep-analysis/deep-analysis-tokens";
-import { LineupBackground, TYPE, displayName, nameStyle } from "./lineup-chrome";
+import { rgba } from "../studio-tokens";
+import type { BlockFilter } from "../checkmatch-set/blocks";
+import { LineupBackground, TYPE, displayName, nameStyle, shown } from "./lineup-chrome";
 import type { LineupGeometry } from "./lineup-geometry";
 
 /**
@@ -116,7 +117,21 @@ function PlayerMarker({ slot, name, fontSize, goalkeeper, palette, labelWidth, m
 }
 
 /** `peopleOrigin`: oyuncu adlarının varsayılan kökeni (takımın ülkesi, bkz. name-case.ts). */
-export function LineupPitch({ g, formation, slots, palette, peopleOrigin = null }: { g: LineupGeometry; formation: string; slots: LineupSlot[]; palette: LineupPalette; peopleOrigin?: NameOrigin | null }) {
+export function LineupPitch({
+  g,
+  formation,
+  slots,
+  palette,
+  peopleOrigin = null,
+  only,
+}: {
+  g: LineupGeometry;
+  formation: string;
+  slots: LineupSlot[];
+  palette: LineupPalette;
+  peopleOrigin?: NameOrigin | null;
+  only?: BlockFilter;
+}) {
   const { width, height } = g.content;
   const marker = Math.round(MARKER * g.k);
   // Yatay sahada kaleci solda, hücum sağda: (x, y) → (1 - y, x).
@@ -134,7 +149,7 @@ export function LineupPitch({ g, formation, slots, palette, peopleOrigin = null 
 
   return (
     <>
-      <LineupBackground g={g} palette={palette} glow={{ left: Math.round(g.content.left + g.content.width / 2 - glowSize / 2), top: g.header.top - 52 - 540, size: glowSize }} />
+      <LineupBackground g={g} palette={palette} only={only} glow={{ left: Math.round(g.content.left + g.content.width / 2 - glowSize / 2), top: g.header.top - 52 - 540, size: glowSize }} />
       <div
         tw="flex"
         style={{
@@ -145,6 +160,7 @@ export function LineupPitch({ g, formation, slots, palette, peopleOrigin = null 
           border: `${LINE_WIDTH}px solid ${rgba(palette.accent, 0.6)}`,
           boxShadow: `0 0 34px ${rgba(palette.accent, 0.14)}, 0 30px 60px rgba(0,0,0,0.5)`,
           backgroundImage: `linear-gradient(${g.horizontalPitch ? 270 : 180}deg, ${rgba(palette.glow, 0.1)} 0%, rgba(255,255,255,0.03) 45%, ${rgba(palette.backgroundBottom, 0.6)} 100%)`,
+          ...shown(only, "card-body"),
         }}
       >
         <Markings width={width} height={height} accent={palette.accent} horizontal={g.horizontalPitch} circle={Math.round(200 * g.k)} />

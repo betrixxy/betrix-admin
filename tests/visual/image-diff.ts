@@ -6,6 +6,13 @@ import sharp from "sharp";
  * Fark görseli: farklı pikseller kırmızı, geri kalanı soluk gri.
  */
 
+/**
+ * Bütün görsel testlerin ORTAK eşiği: farklı piksel oranı ≤ %0,002 (4:5 kartta ≈ 27 piksel). Satori + sharp
+ * çizimi aynı makinede bayt bayt deterministik; eski %0,2 eşik tek harflik / tarih biçimi değişikliğini
+ * (kartın %0,1–0,3ü) göremiyordu. Kanal toleransı (32) kenar yumuşatma gürültüsünü yine yok sayar.
+ */
+export const MAX_DIFF_RATIO = 0.00002;
+
 export interface ImageDiff {
   sizeMismatch: boolean;
   diffRatio: number;

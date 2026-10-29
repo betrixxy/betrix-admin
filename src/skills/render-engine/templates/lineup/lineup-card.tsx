@@ -1,6 +1,7 @@
 import { upperTeamName } from "@/lib/dashboard/name-case";
 import type { LineupCardInput, LineupPalette } from "@/types/lineup";
-import { BODY } from "../deep-analysis/deep-analysis-tokens";
+import type { BlockFilter } from "../checkmatch-set/blocks";
+import { BODY } from "../studio-tokens";
 import { LineupFooter, LineupHeader } from "./lineup-chrome";
 import { lineupGeometry } from "./lineup-geometry";
 import { LineupHeroList, type LineupHeroImage } from "./lineup-hero-list";
@@ -29,24 +30,26 @@ export type LineupCardData = Omit<LineupCardInput, "templateStyle"> &
     /** CheckMatch logosu (".net"siz, data URL). */
     brandLogo: string;
     palette: LineupPalette;
+    /** Yerleşim kapısı: yalnızca bu blok görünür (bkz. `lineup-chrome.tsx::LINEUP_BLOCKS`). */
+    only?: BlockFilter | undefined;
   };
 
 export function LineupCard(props: LineupCardData) {
-  const { team, opponentName, opponentLogoUrl, headline, matchLabel, format, brandLogo, palette } = props;
+  const { team, opponentName, opponentLogoUrl, headline, matchLabel, format, brandLogo, palette, only } = props;
   const g = lineupGeometry(format);
   // Adlar köken kuralıyla büyür (Türkçe büyük harf yalnızca Türk adlarına, bkz. name-case.ts).
   const people = props.origins?.team.people ?? null;
   const teamLabel = upperTeamName(team.teamName, props.origins?.team);
   const opponentLabel = opponentName ? upperTeamName(opponentName, props.origins?.opponent) : "";
   return (
-    <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: palette.backgroundBottom, overflow: "hidden" }}>
+    <div tw="relative flex h-full w-full" style={{ fontFamily: BODY, color: palette.text, backgroundColor: only ? "transparent" : palette.backgroundBottom, overflow: "hidden" }}>
       {props.templateStyle === "hero_list" ? (
-        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} peopleOrigin={people} />
+        <LineupHeroList g={g} formation={team.formation} slots={team.slots} palette={palette} hero={props.hero} peopleOrigin={people} only={only} />
       ) : (
-        <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} peopleOrigin={people} />
+        <LineupPitch g={g} formation={team.formation} slots={team.slots} palette={palette} peopleOrigin={people} only={only} />
       )}
-      <LineupHeader g={g} headline={headline} teamName={teamLabel} opponentName={opponentLabel} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} />
-      <LineupFooter g={g} brandLogo={brandLogo} formation={team.formation} matchLabel={matchLabel} coach={team.coach} palette={palette} />
+      <LineupHeader g={g} headline={headline} teamName={teamLabel} opponentName={opponentLabel} logoUrl={team.logoUrl} opponentLogoUrl={opponentLogoUrl} palette={palette} only={only} />
+      <LineupFooter g={g} brandLogo={brandLogo} formation={team.formation} matchLabel={matchLabel} coach={team.coach} palette={palette} only={only} />
     </div>
   );
 }

@@ -6,24 +6,20 @@ import { describe, test } from "node:test";
 import { weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import { SOCIAL_FORMATS, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import { WEEKLY_CASES } from "../fixtures/studio-cards";
-import { diffPng } from "./image-diff";
+import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { STUDIO_CARDS, renderStudioCase, studioCases, weeklyCase } from "./studio-cards-render";
 
 /**
- * Stüdyo kartları görsel regresyon testi (bkz. CLAUDE.md 5.3): Muhtemel 11, Haftanın Maçları, Puan
- * Durumu ve Derin Analiz × 4 format × senaryo (Türkçe karakterli ad, yabancı ad, uzun ad, iki satırlık
- * metin). KURGUSAL veri, logo/fotoğraf yok — ağ, Fal ve AI yok. Baseline YALNIZCA kullanıcı onayıyla.
+ * Stüdyo kartları görsel regresyon testi (bkz. CLAUDE.md 5.3): Muhtemel 11, Haftanın Maçları ve Puan
+ * Durumu × 4 format × senaryo (Türkçe karakterli ad, yabancı ad, uzun ad, iki satırlık metin). KURGUSAL
+ * veri, logo/fotoğraf yok — ağ, Fal ve AI yok. Çizim üretim yolundan geçer (yerleşim kapısı dahil).
+ * Baseline YALNIZCA kullanıcı onayıyla.
  */
 
 const ROOT = path.join(process.cwd(), "tests", "visual");
 const BASELINE_DIR = path.join(ROOT, "__baseline__", "studio-cards");
 const OUTPUT_DIR = path.join(ROOT, "__output__", "studio-cards");
 const UPDATE = process.env.npm_lifecycle_event === "test:visual:update" || process.env.UPDATE_BASELINE === "1";
-/**
- * Sıkı eşik (%0,002 ≈ 4:5'te 27 piksel): çizim aynı makinede bayt bayt deterministik. Diğer testlerin
- * %0,2'si küçük punto değişikliğini (tek harf, tarih biçimi — kartın %0,1–0,3'ü) yakalamıyordu.
- */
-const MAX_DIFF_RATIO = 0.00002;
 
 describe("Stüdyo kartları — görsel regresyon", async () => {
   await rm(OUTPUT_DIR, { recursive: true, force: true });
