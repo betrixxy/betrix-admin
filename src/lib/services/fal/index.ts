@@ -1,5 +1,5 @@
 import { ApiError } from "@fal-ai/client";
-import { FAL_MODELS, getFalClient, isFalConfigured, toFalImageSize } from "@/lib/services/fal/client";
+import { FAL_MODELS, FAL_TIMEOUTS_MS, falTimeoutMessage, falTimeoutSignal, falUpload, getFalClient, isFalConfigured, isFalTimeout, toFalImageSize } from "@/lib/services/fal/client";
 import { buildStadiumPrompt, type StadiumPromptInput } from "@/lib/services/fal/prompt-builder";
 import {
   birefnetOutputSchema,
@@ -22,7 +22,8 @@ const NOT_CONFIGURED_ERROR: FalError = {
   message: "FAL_KEY tanımlı değil — .env.local dosyasını doldurun.",
 };
 
-function toFalError(cause: unknown, fallbackMessage: string): FalError {
+function toFalError(cause: unknown, fallbackMessage: string, model?: keyof typeof FAL_TIMEOUTS_MS): FalError {
+  if (model && isFalTimeout(cause)) return { code: "TIMEOUT", message: falTimeoutMessage(fallbackMessage.replace(/ (isteği|üretimi) başarısız oldu\.$/u, ""), FAL_TIMEOUTS_MS[model]), cause };
   const message = cause instanceof ApiError || cause instanceof Error ? cause.message : fallbackMessage;
   return { code: "REQUEST_FAILED", message: message || fallbackMessage, cause };
 }
@@ -46,13 +47,14 @@ export async function removePlayerBackground(
 
   let imageUrl: string;
   try {
-    imageUrl = await client.storage.upload(new Blob([new Uint8Array(image.bytes)], { type: image.contentType }));
+    imageUrl = await falUpload(client, new Blob([new Uint8Array(image.bytes)], { type: image.contentType }));
   } catch (cause) {
     return { ok: false, error: { code: "UPLOAD_FAILED", message: "Oyuncu fotoğrafı Fal.ai'ye yüklenemedi.", cause } };
   }
 
   try {
     const result = await client.subscribe(FAL_MODELS.BACKGROUND_REMOVAL, {
+      abortSignal: falTimeoutSignal(FAL_MODELS.BACKGROUND_REMOVAL),
       input: { image_url: imageUrl, refine_foreground: true },
       logs: false,
     });
@@ -74,7 +76,7 @@ export async function removePlayerBackground(
       },
     };
   } catch (cause) {
-    return { ok: false, error: toFalError(cause, "Arka plan temizleme isteği başarısız oldu.") };
+    return { ok: false, error: toFalError(cause, "Arka plan temizleme isteği başarısız oldu.", FAL_MODELS.BACKGROUND_REMOVAL) };
   }
 }
 
@@ -99,6 +101,7 @@ export async function generateStadiumBackground(
 
   try {
     const result = await client.subscribe(FAL_MODELS.STADIUM_BACKGROUND, {
+      abortSignal: falTimeoutSignal(FAL_MODELS.STADIUM_BACKGROUND),
       input: { prompt, image_size: imageSize, num_images: 1, enable_safety_checker: true },
       logs: false,
     });
@@ -118,6 +121,6 @@ export async function generateStadiumBackground(
 
     return { ok: true, data: { imageUrl: image.url, prompt, width: image.width, height: image.height } };
   } catch (cause) {
-    return { ok: false, error: toFalError(cause, "Stadyum arka planı üretimi başarısız oldu.") };
+    return { ok: false, error: toFalError(cause, "Stadyum arka planı üretimi başarısız oldu.", FAL_MODELS.STADIUM_BACKGROUND) };
   }
 }

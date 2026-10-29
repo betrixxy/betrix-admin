@@ -21,6 +21,7 @@ import type {
   MatchDayQualityMode,
   MatchDayTemplateId,
 } from "@/types/match-day";
+import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import type { ContentTypeId } from "@/types/content-type";
 import type { Result } from "@/types/result";
 import type { DerbyIntensity } from "@/types/sports";
@@ -165,6 +166,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   const target = { template: input.template, frame };
 
   // 2. Kaba kompozit.
+  reportJobStep("Kompozit hazırlanıyor");
   let composite: Buffer;
   try {
     composite = await composeMatchDayArt(background.data.bytes, target, home, away);
@@ -176,6 +178,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   let art = composite;
   let prompt = background.data.prompt;
   if (meta.harmonize && input.quality === "PREMIUM") {
+    reportJobStep("AI harmanlama (Fal image-to-image)");
     const harmonized = await harmonizeMatchDayComposite({ ...promptInput, composite, contentType: "image/png", strength: input.strength });
     if (!harmonized.ok) return fail(harmonized.error.code, `Harmanlama: ${harmonized.error.message}`);
     paidCalls += 1;
@@ -193,6 +196,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
 
   // 5. Tipografi katmanı → nihai PNG. Depolamadan ayrı yakalanır: Satori/sharp hatası
   // "kaydedilemedi" diye görünmesin, gerçek neden loglansın.
+  reportJobStep("Kart çiziliyor");
   let final: Buffer;
   try {
     final = await finalizeMatchDayImage(art, await renderMatchDayOverlay(card, input.template, frame), frame);

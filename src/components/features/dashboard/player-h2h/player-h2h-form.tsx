@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, LoaderCircle, Save } from "lucide-react";
 import { analyzeH2HAction, matchContextAction, previewH2HAction, saveH2HAction, type H2HAnalysis, type H2HStudioRequest } from "@/app/dashboard/studio/player-h2h/actions";
 import { Button } from "@/components/ui/button";
-import { runGuarded } from "@/hooks/use-action-form";
+import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -55,6 +57,8 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
   const analysisError = current?.error ?? null;
   const preview = previewState && previewState.key === [selectionKey, format, JSON.stringify([left, right])].join("|") ? previewState : null;
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<JobProgress | null>(null);
+  const router = useRouter();
   const [busy, setBusy] = useState<"preview" | "save" | null>(null);
   const [matchLoading, startMatch] = useTransition();
   const [analyzing, startAnalysis] = useTransition();
@@ -213,17 +217,19 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
             </div>
           ) : null}
 
+          <JobProgressLine progress={progress} />
           {error ? <Notes items={[error]} tone="error" /> : null}
           <div className="flex gap-2">
             <Button type="button" variant="secondary" disabled={blockers.length > 0} onClick={() => run("preview", async () => {
-              const result = await previewH2HAction(request());
+              const result = await resultFromJob<{ dataUrls: [string, string]; warnings: string[] }>(await previewH2HAction(request()), setProgress);
               if (result.ok) { setPreview({ key: [selectionKey, format, JSON.stringify([left, right])].join("|"), urls: result.data.dataUrls, warnings: result.data.warnings }); setError(null); } else setError(result.error.message);
             })}>
               {busy === "preview" ? <LoaderCircle className="animate-spin" /> : <Eye />} Önizle
             </Button>
             <Button type="button" disabled={blockers.length > 0} onClick={() => run("save", async () => {
-              const result = await saveH2HAction(request());
-              if (!result.ok) setError(result.error.message);
+              const result = await resultFromJob<{ id: string }>(await saveH2HAction(request()), setProgress);
+              if (result.ok) router.push(`/dashboard/drafts/${result.data.id}`);
+              else setError(result.error.message);
             })}>
               {busy === "save" ? <LoaderCircle className="animate-spin" /> : <Save />} Kaydet (taslak)
             </Button>

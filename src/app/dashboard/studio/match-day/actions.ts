@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { createMatchDayCard } from "@/lib/dashboard/match-day-engine";
 import { RANDOM_TEMPLATE, isMatchDayTemplateId, pickRandomTemplate } from "@/lib/dashboard/match-day-templates";
 import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
@@ -70,7 +71,8 @@ function text(formData: FormData, name: string): string {
 /**
  * "Maç Günü" kartı üretimi: form → doğrulama → oyuncu görselleri (kütüphane/yükleme) →
  * `createMatchDayCard` (Fal.ai birefnet + flux + image-to-image, bkz. match-day-engine.ts).
- * Sonuç DRAFT olarak kaydedilir.
+ * Sonuç DRAFT olarak kaydedilir. Üretim ARKA PLAN İŞİdir (birefnet + flux + harmanlama 100 sn'yi aşabilir):
+ * eylem iş kimliğini hemen döner; aynı maç + format + şablon için çalışan iş varsa ona bağlanılır.
  */
 export async function generateMatchDayAction(
   _prevState: MatchDayActionState,
@@ -78,6 +80,17 @@ export async function generateMatchDayAction(
 ): Promise<MatchDayActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
   if (!isFalConfigured()) return { error: "FAL_KEY tanımlı değil — .env.local dosyasına ekleyip sunucuyu yeniden başlatın." };
+  const job = startStudioJob<MatchDayActionState>({
+    kind: "match-day",
+    key: `match-day:${text(formData, "fixtureId") || text(formData, "homeTeam") + "-" + text(formData, "awayTeam")}:${text(formData, "format")}:${text(formData, "template")}`,
+    firstStep: "Oyuncu fotoğrafları hazırlanıyor",
+    run: () => runMatchDay(formData),
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
+}
+
+async function runMatchDay(formData: FormData): Promise<MatchDayActionState> {
 
   const fields = [
     "fixtureId", "homeTeam", "awayTeam", "league", "week", "date", "time", "stadium", "referee",
@@ -104,6 +117,7 @@ export async function generateMatchDayAction(
   if (!home.ok) return { error: home.error.message };
   if (!away.ok) return { error: away.error.message };
   if (!home.data || !away.data) return { error: "İki takım için de oyuncu fotoğrafı seçin veya yükleyin." };
+  reportJobStep("Oyuncu kesimi ve stadyum arka planı (Fal)");
 
   const result = await createMatchDayCard({
     fixtureId: data.fixtureId ?? null,
@@ -135,6 +149,11 @@ export async function generateMatchDayAction(
   });
   if (!result.ok) return { error: result.error.message };
 
-  refreshDashboard();
+  // İş istek bittikten sonra da sürebilir; önbellek tazeleme isteğe bağlı (sayfalar force-dynamic).
+  try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil
+  }
   return { result: result.data };
 }

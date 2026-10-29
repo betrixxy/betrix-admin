@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export interface FalError {
-  code: "NOT_CONFIGURED" | "UPLOAD_FAILED" | "REQUEST_FAILED" | "INVALID_RESPONSE";
+  code: "NOT_CONFIGURED" | "UPLOAD_FAILED" | "REQUEST_FAILED" | "INVALID_RESPONSE" | "TIMEOUT";
   message: string;
   cause?: unknown;
 }

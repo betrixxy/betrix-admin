@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { ArchivePickerTeam, PickerPhoto } from "@/types/archive";
 import { displayPersonName } from "./names";
-import { orderPickerPhotos, ownKitOnly, photoBucket } from "./picker-order";
+import { orderPickerPhotos, ownKitOnly, photoBucket, kitTeamOf } from "./picker-order";
 import { groupPeople } from "./structure";
 import { syncTeam } from "./sync";
 
@@ -51,6 +51,7 @@ export async function loadPickerTeams(teamIds: number[], fixtureId: string | nul
       caption: row.caption,
       kind: row.kind,
       kitTeamName: row.kitTeam.officialName,
+      kitTeamId: kitTeamOf(row),
       bucket: photoBucket(row, teamId, fixtureId),
       width: row.width,
       height: row.height,

@@ -64,8 +64,19 @@ export function isNavigationError(cause: unknown): boolean {
   return digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_HTTP_ERROR_FALLBACK") || digest === "NEXT_NOT_FOUND";
 }
 
-/** Sunucu eylemi istisna ile döndüğünde (413, gövde sınırı, ağ kopması, zaman aşımı) gösterilecek tek satır. */
-export function actionFailureMessage(totalBytes: number): string {
+/**
+ * Sayfa yeni sürümden önce açılmış: eski sunucu eylemi kimliği yeni sunucuda yok (Next `UnrecognizedActionError`,
+ * 404 "Server action not found"). Deploy sırasında açık kalan stüdyo sekmesinde olur; tekrar denemek işe yaramaz.
+ */
+export function isStaleActionError(cause: unknown): boolean {
+  return cause instanceof Error && (cause.name === "UnrecognizedActionError" || /was not found on the server|failed-to-find-server-action/iu.test(cause.message));
+}
+
+export const STALE_ACTION_MESSAGE = "Stüdyo güncellendi (bu sayfa eski sürümden açık kalmış) — sayfayı yenileyip tekrar deneyin.";
+
+/** Sunucu eylemi istisna ile döndüğünde (413, gövde sınırı, ağ kopması, eski sürüm sayfası) gösterilecek tek satır. */
+export function actionFailureMessage(totalBytes: number, cause?: unknown): string {
+  if (isStaleActionError(cause)) return STALE_ACTION_MESSAGE;
   return (
     requestTooLargeMessage(totalBytes) ??
     "Sunucu isteği tamamlayamadı (bağlantı koptu ya da yanıt alınamadı) — form ve seçtiğiniz fotoğraf korunuyor, tekrar deneyin."

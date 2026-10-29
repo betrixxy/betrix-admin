@@ -5,6 +5,7 @@ import { z } from "zod";
 import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
 import { loadMediaAssetImage, matchPhotoTag } from "@/lib/dashboard/media-library";
@@ -85,20 +86,36 @@ async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema
     const resolved = await resolveArchivePhoto(formData, "photo", [facts.home.id, facts.away.id], data.fixtureId);
     if (!resolved.ok) return resolved;
     if (!resolved.data) return { ok: false, error: { code: "PHOTO_MISSING", message: "Maç fotoğrafı yok — arşivden seçin ya da yükleyin. Kart üretilmedi." } };
-    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId } };
+    return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId, kitTeamId: resolved.data.kitTeamId } };
   } catch (error: unknown) {
     console.error("[match-result] arşiv fotoğrafı çözülemedi:", error);
     return { ok: false, error: { code: "ARCHIVE_FAILED", message: "Maç fotoğrafı arşivden alınamadı ya da arşive kaydedilemedi." } };
   }
 }
 
-/** "Maç Sonucu" kartı: form → doğrulama → maç → fotoğraf → motor (kalite + yerleşim kapıları). DRAFT doğar. */
+/**
+ * "Maç Sonucu" kartı: form → doğrulama → maç → fotoğraf → motor (kalite + yerleşim kapıları). DRAFT doğar.
+ * Üretim ARKA PLAN İŞİdir (Fal büyütme + iki çizim 100 sn'yi aşabilir — Cloudflare yanıt sınırı): eylem iş
+ * kimliğini hemen döner, stüdyo durumu sorar. Aynı maç + format + şablon için çalışan iş varsa ona bağlanılır.
+ */
 export async function generateMatchResultAction(_prevState: MatchResultActionState, formData: FormData): Promise<MatchResultActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const job = startStudioJob<MatchResultActionState>({
+    kind: "match-result",
+    key: `match-result:${text(formData, "fixtureId")}:${text(formData, "format")}:${text(formData, "template")}`,
+    firstStep: "Maç verisi alınıyor",
+    run: () => runMatchResult(formData),
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
+}
+
+async function runMatchResult(formData: FormData): Promise<MatchResultActionState> {
   const input = await resolveInput(formData);
   if (!input.ok) return { error: input.error };
   const { data, facts, photo } = input;
   // "İstatistik sayfasını da ekle": 02 aynı DRAFT'ta carousel'in ikinci görseli.
+  if (data.includeStats) reportJobStep("İstatistik verisi alınıyor (02)");
   const stats = data.includeStats ? await loadMatchStatsFacts(input.raw) : null;
   if (data.includeStats && !stats) return { error: "Maç istatistikleri alınamadı — kart üretilmedi." };
 
@@ -116,7 +133,12 @@ export async function generateMatchResultAction(_prevState: MatchResultActionSta
   });
   if (!result.ok) return { error: result.error.message };
 
-  refreshDashboard();
+  // İş istek bittikten sonra da sürebilir; önbellek tazeleme isteğe bağlı (sayfalar force-dynamic).
+  try {
+    refreshDashboard();
+  } catch {
+    // istek kapsamı kapanmış — sorun değil
+  }
   return { result: result.data };
 }
 

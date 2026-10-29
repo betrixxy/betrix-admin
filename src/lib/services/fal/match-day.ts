@@ -1,5 +1,5 @@
 import { ApiError } from "@fal-ai/client";
-import { FAL_MODELS, getFalClient, isFalConfigured, toFalImageSize } from "@/lib/services/fal/client";
+import { FAL_MODELS, FAL_TIMEOUTS_MS, falTimeoutMessage, falTimeoutSignal, falUpload, getFalClient, isFalConfigured, isFalTimeout, toFalImageSize } from "@/lib/services/fal/client";
 import {
   buildMatchDayBackgroundPrompt,
   buildMatchDayHarmonizePrompt,
@@ -19,7 +19,8 @@ const NOT_CONFIGURED: { ok: false; error: FalError } = {
   error: { code: "NOT_CONFIGURED", message: "FAL_KEY tanımlı değil — .env.local dosyasını doldurun." },
 };
 
-function requestFailed(cause: unknown, fallback: string): { ok: false; error: FalError } {
+function requestFailed(cause: unknown, fallback: string, model?: keyof typeof FAL_TIMEOUTS_MS): { ok: false; error: FalError } {
+  if (model && isFalTimeout(cause)) return { ok: false, error: { code: "TIMEOUT", message: falTimeoutMessage(fallback.replace(/ başarısız oldu\.$/u, ""), FAL_TIMEOUTS_MS[model]), cause } };
   const message = cause instanceof ApiError || cause instanceof Error ? cause.message : "";
   return { ok: false, error: { code: "REQUEST_FAILED", message: message || fallback, cause } };
 }
@@ -48,6 +49,7 @@ export async function generateFluxScene(
   if (!isFalConfigured()) return NOT_CONFIGURED;
   try {
     const result = await getFalClient().subscribe(FAL_MODELS.STADIUM_BACKGROUND, {
+      abortSignal: falTimeoutSignal(FAL_MODELS.STADIUM_BACKGROUND),
       input: {
         prompt,
         image_size: toFalImageSize(width, height),
@@ -58,7 +60,7 @@ export async function generateFluxScene(
     });
     return firstImage(result.data, FAL_MODELS.STADIUM_BACKGROUND, prompt);
   } catch (cause) {
-    return requestFailed(cause, failureMessage);
+    return requestFailed(cause, failureMessage, FAL_MODELS.STADIUM_BACKGROUND);
   }
 }
 
@@ -95,13 +97,14 @@ export async function harmonizeComposite(input: CompositeInput & { prompt: strin
 
   let imageUrl: string;
   try {
-    imageUrl = await client.storage.upload(new Blob([new Uint8Array(input.composite)], { type: input.contentType }));
+    imageUrl = await falUpload(client, new Blob([new Uint8Array(input.composite)], { type: input.contentType }));
   } catch (cause) {
     return { ok: false, error: { code: "UPLOAD_FAILED", message: "Kompozit görsel Fal.ai'ye yüklenemedi.", cause } };
   }
 
   try {
     const result = await client.subscribe(FAL_MODELS.HARMONIZE, {
+      abortSignal: falTimeoutSignal(FAL_MODELS.HARMONIZE),
       input: {
         image_url: imageUrl,
         prompt,
@@ -118,6 +121,6 @@ export async function harmonizeComposite(input: CompositeInput & { prompt: strin
     });
     return firstImage(result.data, FAL_MODELS.HARMONIZE, prompt);
   } catch (cause) {
-    return requestFailed(cause, "Görsel harmanlama (image-to-image) başarısız oldu.");
+    return requestFailed(cause, "Görsel harmanlama (image-to-image) başarısız oldu.", FAL_MODELS.HARMONIZE);
   }
 }

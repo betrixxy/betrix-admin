@@ -5,7 +5,8 @@ import { AlertCircle, ImageIcon, LoaderCircle, RefreshCw } from "lucide-react";
 import { previewLineupAction } from "@/app/dashboard/studio/lineup/actions";
 import { FormatPreviewFrame } from "@/components/features/dashboard/studio/format-preview-frame";
 import { Button } from "@/components/ui/button";
-import { runGuarded } from "@/hooks/use-action-form";
+import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import type { TeamSide } from "@/types/deep-analysis";
@@ -24,13 +25,14 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
   const [drawnStyle, setDrawnStyle] = useState<LineupTemplateStyle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRendering, startRendering] = useTransition();
+  const [progress, setProgress] = useState<JobProgress | null>(null);
 
   function render(target: TeamSide) {
     setSide(target);
     setError(null);
     const opponent = target === "home" ? draft.away : draft.home;
     startRendering(() => runGuarded(async () => {
-      const result = await previewLineupAction({
+      const result = await resultFromJob<{ dataUrl: string; templateStyle: LineupTemplateStyle }>(await previewLineupAction({
         templateStyle: cardTemplateStyle(draft.templateStyle, draft[target]),
         team: draft[target],
         opponentName: opponent.teamName,
@@ -41,7 +43,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
         // Ad büyük harfi için köken sunucuda maçtan çözülür (bkz. team-origin.ts).
         fixtureId: draft.fixtureId,
         side: target,
-      });
+      }), setProgress);
       if (!result.ok) {
         setError(result.error.message);
         return;
@@ -86,6 +88,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
           )}
         </FormatPreviewFrame>
 
+        <JobProgressLine progress={progress} />
         {error ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
             <AlertCircle className="size-3.5 shrink-0" />

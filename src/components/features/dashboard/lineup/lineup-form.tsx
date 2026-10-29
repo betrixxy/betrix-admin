@@ -6,7 +6,8 @@ import { AlertCircle, CircleCheck, Info, LoaderCircle, RefreshCw, Save } from "l
 import { loadLineupAction, saveLineupAction, type LineupLoadResult } from "@/app/dashboard/studio/lineup/actions";
 import { GlobalFormatSelector } from "@/components/features/dashboard/studio/global-format-selector";
 import { Button } from "@/components/ui/button";
-import { runGuarded } from "@/hooks/use-action-form";
+import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -108,11 +109,12 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
   const missingHeroes =
     draft.templateStyle === "hero_list" ? (["home", "away"] as const).filter((key) => !draft[key].heroPhotoId).map((key) => draft[key].teamName || (key === "home" ? "Ev sahibi" : "Deplasman")) : [];
 
+  const [saveProgress, setSaveProgress] = useState<JobProgress | null>(null);
   function save() {
     setSaveError(null);
     setSavedId(null);
     startSaving(() => runGuarded(async () => {
-      const result = await saveLineupAction(draft);
+      const result = await resultFromJob<{ id: string }>(await saveLineupAction(draft), setSaveProgress);
       if (!result.ok) {
         setSaveError(result.error.message);
         return;
@@ -249,6 +251,7 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
               Fal.ai kullanılmaz — ücretsizdir.
             </p>
           )}
+          <JobProgressLine progress={saveProgress} />
           {saveError ? (
             <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
               <AlertCircle className="size-3.5 shrink-0" />

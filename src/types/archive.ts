@@ -25,6 +25,8 @@ export interface PickerPhoto {
   caption: string;
   kind: PhotoKindId;
   kitTeamName: string;
+  /** Forma takımının API-Football kimliği (eski forma olabilir). */
+  kitTeamId: number;
   bucket: PickerBucket;
   width: number;
   height: number;

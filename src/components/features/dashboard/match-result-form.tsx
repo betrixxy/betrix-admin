@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useActionForm, useSafeActionState } from "@/hooks/use-action-form";
-import { MATCH_RESULT_TEMPLATES, mvpLineName, mvpOptions, playerOptionLabel } from "@/lib/dashboard/match-result-featured";
+import { loserPhotoWarning, MATCH_RESULT_TEMPLATES, mvpLineName, mvpOptions, playerOptionLabel } from "@/lib/dashboard/match-result-featured";
 import { cn } from "@/lib/utils";
 import type { MatchDayFormatId } from "@/types/match-day";
 import {
@@ -22,6 +22,7 @@ import {
 import { MatchDayFormatPicker } from "./match-day-format-picker";
 import { MatchResultCropControls } from "./match-result-crop-controls";
 import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
+import { JobProgressLine } from "./job-progress";
 import { MatchResultPreview } from "./match-result-preview";
 
 interface MatchResultFormProps {
@@ -57,14 +58,14 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
 }
 
 export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchResultFormProps) {
-  const { state, isPending, onSubmit } = useActionForm(generateMatchResultAction, INITIAL_STATE);
+  const { state, isPending, onSubmit, progress } = useActionForm(generateMatchResultAction, INITIAL_STATE);
   const [previewState, previewAction, previewPending] = useSafeActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
   const [template, setTemplate] = useState<MatchResultTemplateId>(DEFAULT_MATCH_RESULT_TEMPLATE);
   // Arşiv seçicisinin seçtiği kişi — "MAÇIN OYUNCUSU" kuralı fotoğraftaki oyuncuyla karşılaştırılır.
-  const [selection, setSelection] = useState<PickerSelection>({ subject: null, photoId: null, upload: false });
+  const [selection, setSelection] = useState<PickerSelection>({ subject: null, photoId: null, upload: false, kitTeamId: null });
   const onPhotoChange = useCallback((next: PickerSelection) => setSelection(next), []);
   const matchTeams = useMemo(() => [{ id: facts.home.id, name: facts.home.name }, { id: facts.away.id, name: facts.away.name }], [facts.home.id, facts.home.name, facts.away.id, facts.away.name]);
   const [mvpId, setMvpId] = useState(facts.mvp ? String(facts.mvp.playerId) : "");
@@ -74,6 +75,7 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
   const mvp = players.find((player) => String(player.playerId) === mvpId) ?? null;
   const photoPlayerId = selection.subject?.isPlayer ? selection.subject.personApiId : null;
   const mvpShown = mvpLineName({ mvp, photoPlayerId, photoIsMvp }) !== null;
+  const loserWarning = loserPhotoWarning(facts, selection.kitTeamId);
 
   function onPreview() {
     if (!formRef.current) return;
@@ -97,6 +99,12 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
             <MatchDayFormatPicker value={format} onChange={setFormat} />
             <TemplatePicker value={template} onChange={setTemplate} />
             <ArchivePhotoPicker name="photo" label="Fotoğraftaki kişi (Fotoğraf Arşivi)" teams={matchTeams} fixtureId={fixtureId} onChange={onPhotoChange} />
+            {loserWarning ? (
+              <p className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-200" role="status">
+                <AlertCircle className="size-3.5 shrink-0" />
+                {loserWarning} Kart yine de üretilebilir.
+              </p>
+            ) : null}
             <MatchResultCropControls state={previewState} isPending={previewPending} onPreview={onPreview} />
 
             <div className="flex flex-col gap-1.5">
@@ -134,6 +142,8 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
                 {state.error}
               </p>
             ) : null}
+
+            <JobProgressLine progress={progress} />
 
             <Button type="submit" size="lg" disabled={disabled || isPending}>
               <Sparkles />

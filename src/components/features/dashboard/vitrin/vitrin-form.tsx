@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, LoaderCircle, Save, Sparkles } from "lucide-react";
 import { loadVitrinAction, previewVitrinAction, saveVitrinAction, writeReasonsAction, type VitrinLoadResult } from "@/app/dashboard/studio/market-analysis/vitrin-actions";
 import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { Button } from "@/components/ui/button";
-import { runGuarded } from "@/hooks/use-action-form";
+import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -34,6 +36,8 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"load" | "ai" | "preview" | "save" | null>(null);
   const [, startTransition] = useTransition();
+  const [progress, setProgress] = useState<JobProgress | null>(null);
+  const router = useRouter();
 
   const open = byRole(roles, "open");
   const locked = byRole(roles, "locked");
@@ -105,7 +109,7 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
               <Button type="button" variant="secondary" disabled={!fixtureId || busy !== null} onClick={() => run("load", async () => apply(await loadVitrinAction(fixtureId)))}>
                 {busy === "load" ? <LoaderCircle className="animate-spin" /> : null} Veriyi yükle
               </Button>
-              <Button type="button" variant="secondary" disabled={!data?.analystAvailable || busy !== null} onClick={() => run("ai", async () => apply(await writeReasonsAction(fixtureId)))} title={data && !data.analystAvailable ? "ANTHROPIC_API_KEY tanımlı değil" : undefined}>
+              <Button type="button" variant="secondary" disabled={!data?.analystAvailable || busy !== null} onClick={() => run("ai", async () => apply(await resultFromJob<VitrinLoadResult>(await writeReasonsAction(fixtureId), setProgress)))} title={data && !data.analystAvailable ? "ANTHROPIC_API_KEY tanımlı değil" : undefined}>
                 {busy === "ai" ? <LoaderCircle className="animate-spin" /> : <Sparkles />} Gerekçeleri AI analist yazsın
               </Button>
             </div>
@@ -137,18 +141,20 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
               </>
             ) : null}
 
+            <JobProgressLine progress={progress} />
             {error ? <p className="flex items-start gap-1.5 text-xs text-destructive" role="alert"><AlertCircle className="mt-0.5 size-3.5 shrink-0" />{error}</p> : null}
 
             <div className="flex gap-2">
               <Button type="button" variant="secondary" disabled={blockers.length > 0} onClick={() => run("preview", async () => {
-                const result = await previewVitrinAction(formData());
+                const result = await resultFromJob<{ dataUrls: [string, string] }>(await previewVitrinAction(formData()), setProgress);
                 if (result.ok) { setPreview(result.data.dataUrls); setError(null); } else setError(result.error.message);
               })}>
                 {busy === "preview" ? <LoaderCircle className="animate-spin" /> : <Eye />} Önizle
               </Button>
               <Button type="button" disabled={blockers.length > 0} onClick={() => run("save", async () => {
-                const result = await saveVitrinAction(formData());
-                if (!result.ok) setError(result.error.message);
+                const result = await resultFromJob<{ id: string }>(await saveVitrinAction(formData()), setProgress);
+                if (result.ok) router.push(`/dashboard/drafts/${result.data.id}`);
+                else setError(result.error.message);
               })}>
                 {busy === "save" ? <LoaderCircle className="animate-spin" /> : <Save />} Kaydet (taslak)
               </Button>

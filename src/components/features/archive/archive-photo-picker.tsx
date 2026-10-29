@@ -25,6 +25,8 @@ export interface PickerSelection {
   subject: PickerSubject | null;
   photoId: string | null;
   upload: boolean;
+  /** Seçilen fotoğrafın ya da yeni yüklemenin forma takımı; bilinmiyorsa null. */
+  kitTeamId: number | null;
 }
 
 interface ArchivePhotoPickerProps {
@@ -65,6 +67,8 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   const [subjectKey, setSubjectKey] = useState("");
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [upload, setUpload] = useState(false);
+  // Yükleme formasının elle seçimi, hangi konu için yapıldıysa o konuda geçerli (konu değişince konunun takımı).
+  const [uploadKit, setUploadKit] = useState<{ subjectKey: string; teamId: number } | null>(null);
   const [isLoading, startLoading] = useTransition();
   const teamKey = teams.map((team) => team.id).join(",");
   const reloadKey = reload?.key ?? 0;
@@ -115,9 +119,10 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   const subjectTeam = data?.teams.find((team) => team.groups.some((group) => group.subjects.some((entry) => entry.key === subjectKey)));
   const photos = useMemo(() => subjectTeam?.photos[subjectKey] ?? [], [subjectTeam, subjectKey]);
 
+  const kitTeamId = upload ? ((uploadKit?.subjectKey === subjectKey ? uploadKit.teamId : null) ?? subjectTeam?.teamId ?? null) : (photos.find((photo) => photo.id === photoId)?.kitTeamId ?? null);
   useEffect(() => {
-    onChange?.({ subject, photoId: upload ? null : photoId, upload });
-  }, [subject, photoId, upload, onChange]);
+    onChange?.({ subject, photoId: upload ? null : photoId, upload, kitTeamId });
+  }, [subject, photoId, upload, kitTeamId, onChange]);
 
   if (teams.length === 0) {
     return (
@@ -188,7 +193,7 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor={`${name}-kit`} className="text-[11px]">Forma takımı</Label>
-              <NativeSelect id={`${name}-kit`} name={`${name}KitTeamId`} key={subjectTeam?.teamId} defaultValue={String(subjectTeam?.teamId ?? teams[0]?.id ?? "")} className="h-8 text-xs">
+              <NativeSelect id={`${name}-kit`} name={`${name}KitTeamId`} key={subjectTeam?.teamId} defaultValue={String(subjectTeam?.teamId ?? teams[0]?.id ?? "")} onChange={(event) => setUploadKit(Number(event.target.value) ? { subjectKey, teamId: Number(event.target.value) } : null)} className="h-8 text-xs">
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>{team.name}</option>
                 ))}
