@@ -6,8 +6,11 @@ import type { FaceBox } from "./faces";
  * Akıllı kırpma (saf geometri + sharp saliency yardımcısı). Kadraj olabildiğince geniş tutulur
  * ("tam kadraj"); konum, yüzleri şablonun yazısız bölgesine (`ResultGeometry.photoSafe`, kart
  * pikseli) yerleştirecek şekilde seçilir. Yüzler o bölgeye birlikte sığmıyorsa en büyük yüz esas
- * alınır. Yüz yoksa sharp `attention` (saliency) odağı, o da yoksa merkez. Admin önizlemede
- * `offset` (−1..1, kadraj boyunun yarısı) ve `zoom` (1..1.6) ile elle düzeltir.
+ * alınır — TAKIM / GRUP fotoğrafı hariç (≥ `GROUP_MIN_FACES` belirgin yüz): orada bütün yüzler kadrajda
+ * kalır; dar kadraja sığmıyorsa kadraj fotoğrafın dışına taşar ("GROUP_FIT", kutu kaynak sınırını aşar —
+ * `cropAndGrade` taşan alanı fotoğrafın bulanık hâliyle doldurur). Yüz yoksa sharp `attention` (saliency)
+ * odağı, o da yoksa merkez. Admin önizlemede `offset` (−1..1, kadraj boyunun yarısı) ve `zoom` (1..1.6)
+ * ile elle düzeltir.
  */
 
 export interface Size {
@@ -27,9 +30,10 @@ export interface CropOffset {
   y: number;
 }
 
-export type CropAnchor = "FACES" | "LARGEST_FACE" | "SALIENCY" | "CENTER";
+export type CropAnchor = "FACES" | "LARGEST_FACE" | "GROUP" | "GROUP_FIT" | "SALIENCY" | "CENTER";
 
 export interface CropPlan {
+  /** Kaynak pikseli. Yalnızca `GROUP_FIT`'te kaynak sınırını aşabilir (negatif sol/üst, taşan genişlik/yükseklik). */
   box: CropBox;
   anchor: CropAnchor;
   /** Tüm yüzler yazısız bölgede mi — değilse formda uyarı gösterilir. */
@@ -63,6 +67,10 @@ const FOCUS_Y = 0.42;
  * (gerçek fotoğraflarda en büyüğün %25-40'ı) kadrajı yönlendirmez ve "güvenli" ölçütüne girmez.
  */
 const PROMINENT_SHARE = 0.5;
+/** Bu kadar (ya da daha çok) belirgin yüz → takım/grup fotoğrafı: hiçbir yüz kadraj dışında kalmaz. */
+export const GROUP_MIN_FACES = 5;
+/** Grup kadrajına sığdırırken yüz birleşiminin iki yanına bırakılan pay (birleşim genişliğinin oranı). */
+const GROUP_MARGIN = 0.06;
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -115,6 +123,7 @@ export function maxAutoZoom(source: Size, frame: Size): number {
  * (tam kadraj öncelikli, `maxAutoZoom` sınırı). Elle verilen zoom olduğu gibi uygulanır.
  */
 export function planCrop(input: CropInput): CropPlan {
+  if (prominentFaces(input.faces).length >= GROUP_MIN_FACES) return planGroup(input);
   let plan = planAtZoom(input, input.zoom ?? 1);
   if (input.zoom === undefined && input.faces.length > 0) {
     const limit = maxAutoZoom(input.source, input.frame);
@@ -187,6 +196,46 @@ function planAtZoom({ source, frame, safe, faces: detected, saliency, offset }: 
     facesInSafe: faces.filter((face) => intersects(face, box)).every((face) => insideSafe(face, box, scale, safe)),
     focusInSafe: focus.every((face) => insideSafe(face, box, scale, safe)),
     zoom: Math.round(z * 100) / 100,
+  };
+}
+
+/**
+ * Takım/grup fotoğrafı: bütün belirgin yüzlerin (baş paylı) birleşimi kadrajda. Tam kadraja sığıyorsa
+ * birleşim yatayda ortalanır, dikeyde yazısız bölgenin odak hizasına oturur ("GROUP", otomatik zoom yok —
+ * yakınlaştırma oyuncu keser). Sığmıyorsa kadraj birleşimi (+ pay) kapsayacak kadar büyür ve fotoğrafın
+ * dışına taşar ("GROUP_FIT"). Elle zoom > 1 verilirse olağan kırpmaya dönülür (admin bilerek yakınlaştırır).
+ */
+function planGroup(input: CropInput): CropPlan {
+  if (input.zoom !== undefined && input.zoom > 1) return planAtZoom(input, input.zoom);
+  const { source, frame, safe } = input;
+  const faces = prominentFaces(input.faces);
+  const all = union(faces.map(padded));
+  const aspect = frame.width / frame.height;
+  const fullWidth = Math.min(source.width, source.height * aspect);
+  const targetY = safe.top + (safe.bottom - safe.top) * FOCUS_Y;
+  const needWidth = all.width * (1 + 2 * GROUP_MARGIN);
+  const fits = needWidth <= fullWidth && all.height <= fullWidth / aspect;
+  const width = fits ? fullWidth : Math.max(fullWidth, needWidth);
+  const height = width / aspect;
+  const scale = width / frame.width;
+  // Taşan kadrajda sol/üst kaynak dışına düşebilir: aralık [kaynak − kutu, 0].
+  const range = (size: number, sourceSize: number) => (size <= sourceSize ? [0, sourceSize - size] : [sourceSize - size, 0]) as [number, number];
+  const [minX, maxX] = range(width, source.width);
+  const [minY, maxY] = range(height, source.height);
+  let left = clamp(all.x + all.width / 2 - width / 2, minX, maxX);
+  let top = clamp(all.y + all.height / 2 - targetY * scale, minY, maxY);
+  // Birleşim kadrajda kalsın (dikey hizalama yüzleri kesmesin).
+  top = clamp(top, Math.max(minY, all.y + all.height - height), Math.min(maxY, all.y));
+  if (input.offset) {
+    left = clamp(left + clamp(input.offset.x, -1, 1) * width * 0.5, minX, maxX);
+    top = clamp(top + clamp(input.offset.y, -1, 1) * height * 0.5, minY, maxY);
+  }
+  const box = { left: Math.round(left), top: Math.round(top), width: Math.round(width), height: Math.round(height) };
+  return {
+    box,
+    anchor: fits ? "GROUP" : "GROUP_FIT",
+    facesInSafe: faces.every((face) => insideSafe(face, box, scale, safe)),
+    zoom: Math.round((fullWidth / width) * 100) / 100,
   };
 }
 
