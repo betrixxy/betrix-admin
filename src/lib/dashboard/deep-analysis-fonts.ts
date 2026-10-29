@@ -11,6 +11,8 @@ const FONT_FILES = [
   { name: "Manrope", file: "Manrope-Medium.ttf", weight: 500 },
   { name: "Manrope", file: "Manrope-SemiBold.ttf", weight: 600 },
   { name: "Manrope", file: "Manrope-ExtraBold.ttf", weight: 800 },
+  // Regular: küçük punto etiketler (bkz. `satori-text.tsx::legibleMonoStyle` — Bold'un N'si küçükte dolu blok).
+  { name: "Space Mono", file: "SpaceMono-Regular.ttf", weight: 400 },
   { name: "Space Mono", file: "SpaceMono-Bold.ttf", weight: 700 },
   { name: "Bricolage Grotesque", file: "BricolageGrotesque-ExtraBold.ttf", weight: 800 },
   { name: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: 400 },
