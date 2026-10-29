@@ -8,7 +8,6 @@ import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 /** Logolar yalnızca API-Football medya sunucusundan gömülür — başka adres çizilmez (SSRF). */
 const ALLOWED_IMAGE_ORIGIN = "https://media.api-sports.io/";
 const TEAM_LOGO_SIDE = 160;
-const LEAGUE_LOGO_SIDE = 240;
 const MAX_CACHE = 400;
 
 /** Takım/lig logoları değişmez — süreç içinde bir kez indirilir (kartta 20'ye kadar logo var). */
@@ -35,7 +34,8 @@ export async function renderWeeklyFixturesCard(input: WeeklyFixturesCardInput): 
   const [fonts, brandLogo, leagueLogoUrl, teamLogoEntries] = await Promise.all([
     loadDeepAnalysisFonts(),
     loadBrandLogo(),
-    embedLogo(input.leagueLogoUrl, LEAGUE_LOGO_SIDE),
+    // Lig logosu kartta kullanılmaz — lig adı üst satırda tipografik.
+    Promise.resolve(""),
     Promise.all(
       input.matches.map(async (match) => {
         const [home, away] = await Promise.all([embedLogo(match.home.logoUrl, TEAM_LOGO_SIDE), embedLogo(match.away.logoUrl, TEAM_LOGO_SIDE)]);

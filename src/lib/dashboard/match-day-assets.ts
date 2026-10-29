@@ -1,3 +1,4 @@
+import { normalizeClock } from "@/lib/format/dates";
 import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { cardVenueName } from "@/lib/names/venue-names";
 import { readFile } from "node:fs/promises";
@@ -165,7 +166,8 @@ export async function resolveMatchDayCard(
     resolveImage(params.awayPlayerImg, 1350),
     resolveImage(params.homeLogo, 300),
     resolveImage(params.awayLogo, 300),
-    resolveImage(params.leagueLogo, 160),
+    // Lig logosu kartta kullanılmaz — lig adı tipografik (competitionLine).
+    Promise.resolve(null),
     loadBrandLogo(),
   ]);
 
@@ -180,7 +182,7 @@ export async function resolveMatchDayCard(
     leagueLabel: upper(params.league ?? "Süper Lig"),
     weekLabel: formatWeek(params.week),
     dateLabel: formatDate(params.date),
-    timeLabel: params.time ?? PLACEHOLDER,
+    timeLabel: params.time ? normalizeClock(params.time) : PLACEHOLDER,
     // Elle yazılan ad da aynı kuraldan ("… Stadium" → "… Stadyumu"); ön doldurma düzeltmeyi zaten uygular.
     stadiumLabel: params.stadium ? cardVenueName(params.stadium).name : PLACEHOLDER,
     refereeLabel: params.referee ?? PLACEHOLDER,

@@ -1,3 +1,4 @@
+import { shortDate } from "@/lib/format/dates";
 import type { H2HPosition, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
 import { POSITION_LABELS, SMALL_SAMPLE_MINUTES } from "./stats";
@@ -9,12 +10,9 @@ import { POSITION_LABELS, SMALL_SAMPLE_MINUTES } from "./stats";
 
 type Player = Pick<PlayerSeasonStats, "shortName" | "position" | "minutes" | "league" | "scope" | "seasonLabel" | "freshness">;
 
-const dayMonth = new Intl.DateTimeFormat("tr-TR", { timeZone: "Europe/Istanbul", day: "2-digit", month: "2-digit" });
 /** "2026-10-26T16:00:00Z" → "26.10" (İstanbul; tr-TR yalnız gün+ay'da "26/10" verir, parçalardan kurulur). */
 export function asOfDay(iso: string): string {
-  const parts = dayMonth.formatToParts(new Date(iso));
-  const part = (type: "day" | "month") => parts.find((p) => p.type === type)?.value ?? "";
-  return `${part("day")}.${part("month")}`;
+  return shortDate(iso);
 }
 
 /** Oyuncu kendi takımının bütün bitmiş maçlarıyla güncel mi (verisi gelmeyen maç yok). */

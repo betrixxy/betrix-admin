@@ -1,3 +1,4 @@
+import { dayHeading, shortDate as cardShortDate } from "@/lib/format/dates";
 import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import type { WeeklyGrouping, WeeklyMatch } from "@/types/weekly-fixtures";
 
@@ -10,23 +11,16 @@ export interface WeeklySection {
   matches: WeeklyMatch[];
 }
 
-const DAY_LABEL = new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC", day: "numeric", month: "long", weekday: "long" });
-const SHORT_DATE = new Intl.DateTimeFormat("tr-TR", { timeZone: "UTC", day: "2-digit", month: "2-digit" });
 
-const upper = (value: string) => value.toLocaleUpperCase("tr-TR");
-/** yyyy-MM-dd → UTC öğlen: saat dilimi kayması günü değiştirmesin (tarih zaten İstanbul'a göre). */
-const dateOf = (dateKey: string) => new Date(`${dateKey}T12:00:00Z`);
 
 /** "2026-08-14" → "14 AĞUSTOS CUMA". */
 export function dayLabel(dateKey: string): string {
-  const parts = DAY_LABEL.formatToParts(dateOf(dateKey));
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
-  return upper(`${get("day")} ${get("month")} ${get("weekday")}`);
+  return dayHeading(dateKey);
 }
 
 /** "2026-08-14" → "14.08". */
 export function shortDate(dateKey: string): string {
-  return SHORT_DATE.format(dateOf(dateKey));
+  return cardShortDate(dateKey);
 }
 
 /** Tüm maçların grup harfi varsa kart gruplara, yoksa günlere bölünür. */

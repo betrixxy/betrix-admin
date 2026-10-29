@@ -38,7 +38,8 @@ function toOption(fixture: Fixture, venues: ReadonlyMap<string, string>): MatchD
     awayTeamId: Number(fixture.awayTeam.id),
     homeLogoUrl: fixture.homeTeam.logoUrl,
     awayLogoUrl: fixture.awayTeam.logoUrl,
-    leagueLogoUrl: fixture.competition.logoUrl ?? "",
+    // Lig logosu kartlarda kullanılmaz (lig adı tipografik) — formdan da gönderilmez.
+    leagueLogoUrl: "",
     league: fixture.competition.name,
     week: parseRoundWeek(details?.round),
     date: ISTANBUL_DATE.format(kickoff),

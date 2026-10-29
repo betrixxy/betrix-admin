@@ -127,7 +127,7 @@ async function main() {
 
   const accentHex = resultAccentHex(facts);
   const deepHex = COMPETITION_COLORS[facts.competition.kind]?.deep;
-  const images = await resolveSetImages(facts, async () => null);
+  const images = await resolveSetImages(facts);
   const photoPlayerId = values["photo-player"] ? Number(values["photo-player"]) : null;
   const mvpName = mvpLineName({ mvp: facts.mvp, photoPlayerId, photoIsMvp: values["photo-is-mvp"] });
   const formats = values.formats === "all" ? [...MATCH_DAY_FORMAT_IDS] : (values.formats.split(",") as MatchDayFormatId[]);

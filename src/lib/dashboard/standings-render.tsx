@@ -7,7 +7,6 @@ import type { StandingsCardInput } from "@/types/standings";
 import { SOCIAL_FORMATS } from "@/types/studio-formats";
 
 const TEAM_LOGO_SIDE = 128;
-const LEAGUE_LOGO_SIDE = 240;
 
 /** "Puan Durumu" kartını PNG olarak çizer (Fal.ai yok — ücretsiz). Logolar yalnızca API-Football medya sunucusundan gömülür. */
 export async function renderStandingsCard(input: StandingsCardInput): Promise<Buffer> {
@@ -15,7 +14,8 @@ export async function renderStandingsCard(input: StandingsCardInput): Promise<Bu
   const [fonts, brandLogo, leagueLogoUrl, teamLogoEntries] = await Promise.all([
     loadDeepAnalysisFonts(),
     loadBrandLogo(),
-    embedLogo(input.leagueLogoUrl, LEAGUE_LOGO_SIDE),
+    // Lig logosu kartta kullanılmaz — lig adı üst satırda tipografik.
+    Promise.resolve(""),
     Promise.all(rows.map(async (row) => [row.teamId, await embedLogo(row.logoUrl, TEAM_LOGO_SIDE)] as const)),
   ]);
   const { width, height } = SOCIAL_FORMATS[input.format];

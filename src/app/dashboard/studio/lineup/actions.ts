@@ -1,5 +1,6 @@
 "use server";
 
+import { clock, shortDate } from "@/lib/format/dates";
 import { fixtureOrigins } from "@/lib/dashboard/team-origin";
 import { withCardNames } from "@/lib/dashboard/lineup-names";
 import { revalidatePath } from "next/cache";
@@ -25,17 +26,9 @@ export interface LineupLoadResult {
   away: Pick<TeamLineupReference, "source" | "squad">;
 }
 
-const KICKOFF_FORMAT = new Intl.DateTimeFormat("tr-TR", {
-  timeZone: "Europe/Istanbul",
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-});
-
 function matchLabelFor(fixture: Fixture): string {
-  return `${fixture.competition.name} · ${KICKOFF_FORMAT.format(new Date(fixture.kickoffUtc)).replace(" ", " · ")}`;
+  // Ortak tarih kuralı: kısa tarih "30.10" · saat "20:00" (tr-TR biçimi "30/10" verirdi).
+  return `${fixture.competition.name} · ${shortDate(fixture.kickoffUtc)} · ${clock(fixture.kickoffUtc)}`;
 }
 
 function unauthorized<T>(): Result<T> {

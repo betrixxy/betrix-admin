@@ -9,7 +9,7 @@ const match = (id: number, dateKey: string): WeeklyMatch => ({
   id: `api-football-${id}`,
   kickoffUtc: `${dateKey}T17:00:00Z`,
   dateKey,
-  time: "20.00",
+  time: "20:00",
   status: "scheduled",
   elapsed: null,
   home: { name: `Ev ${id}`, logoUrl: "", goals: null },
