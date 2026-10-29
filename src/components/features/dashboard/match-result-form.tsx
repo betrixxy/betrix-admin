@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { useActionForm, useSafeActionState } from "@/hooks/use-action-form";
+import { useActionForm, useJobActionState } from "@/hooks/use-action-form";
 import { loserPhotoWarning, MATCH_RESULT_TEMPLATES, mvpLineName, mvpOptions, playerOptionLabel } from "@/lib/dashboard/match-result-featured";
 import { cn } from "@/lib/utils";
 import type { MatchDayFormatId } from "@/types/match-day";
@@ -59,7 +59,7 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
 
 export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchResultFormProps) {
   const { state, isPending, onSubmit, progress } = useActionForm(generateMatchResultAction, INITIAL_STATE);
-  const [previewState, previewAction, previewPending] = useSafeActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
+  const [previewState, previewAction, previewPending, previewProgress] = useJobActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
@@ -106,6 +106,7 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
               </p>
             ) : null}
             <MatchResultCropControls state={previewState} isPending={previewPending} onPreview={onPreview} />
+            <JobProgressLine progress={previewProgress} />
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="mvpId">Maçın oyuncusu (gönderi metni)</Label>

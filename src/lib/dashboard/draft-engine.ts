@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import type { Prisma } from "@/generated/prisma/client";
 import { buildDraftCaption } from "@/lib/dashboard/draft-caption";
 import { deleteStoredUrl, persistBackground, renderDraftImage } from "@/lib/dashboard/draft-render";
@@ -98,6 +99,7 @@ export async function createMatchDraft(input: CreateDraftInput): Promise<Result<
   if (cutout && !cutout.ok) return fail(cutout.error.code, cutout.error.message);
 
   try {
+    reportJobStep("Görsel yeniden çiziliyor");
     const backgroundImageUrl = await persistBackground(background.data.imageUrl);
     const playerImageUrl = cutout
       ? await saveStoredFile("generated", `${randomUUID()}.png`, await downloadImage(cutout.data.transparentImageUrl))

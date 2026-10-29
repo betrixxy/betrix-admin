@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Textarea } from "@/components/ui/textarea";
 import { useActionForm } from "@/hooks/use-action-form";
+import { JobProgressLine } from "./job-progress";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { STUDIO_FORMATS, type StudioActionState, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import type { FixtureOption } from "@/types/social";
@@ -32,7 +33,7 @@ interface StudioFormProps {
 const INITIAL_STATE: StudioActionState = {};
 
 export function StudioForm({ fixtures, postOptions, logoOptions, fixtureTeams, disabled = false }: StudioFormProps) {
-  const { state, isPending, onSubmit } = useActionForm(generateAiContentAction, INITIAL_STATE);
+  const { state, isPending, onSubmit, progress } = useActionForm(generateAiContentAction, INITIAL_STATE);
   const [format, setFormat] = useState<StudioFormat>("IG_FEED");
   const [fixtureId, setFixtureId] = useState("");
   const isDisabled = disabled || isPending;
@@ -119,6 +120,7 @@ export function StudioForm({ fixtures, postOptions, logoOptions, fixtureTeams, d
               </p>
             ) : null}
 
+            <JobProgressLine progress={progress} />
             <Button type="submit" size="lg" disabled={isDisabled}>
               <Sparkles />
               {isPending ? "Üretiliyor…" : "Görseli Üret"}

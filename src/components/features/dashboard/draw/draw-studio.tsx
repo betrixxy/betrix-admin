@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, History, LoaderCircle, Save } from "lucide-react";
 import { compareDrawAction, previewDrawAction, saveDrawAction } from "@/app/dashboard/studio/draw/actions";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
+import { resultFromJob, type JobProgress } from "@/hooks/use-action-form";
+import { actionFailureMessage } from "@/lib/dashboard/upload-prep";
 import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { MatchDayFormatPicker } from "@/components/features/dashboard/match-day-format-picker";
 import { Button } from "@/components/ui/button";
@@ -63,6 +66,7 @@ export function DrawStudio({ initial, initialComparison, defaultCompetitionId, d
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveProgress, setSaveProgress] = useState<JobProgress | null>(null);
   const [comparison, setComparison] = useState<DrawComparison[] | null>(initialComparison);
   const [comparing, setComparing] = useState(false);
   const sequence = useRef(0);
@@ -116,7 +120,7 @@ export function DrawStudio({ initial, initialComparison, defaultCompetitionId, d
       const data = new FormData();
       data.set("request", requestJson);
       if (photoId) data.set("photoPhotoId", photoId);
-      const result = await previewDrawAction(data);
+      const result = await resultFromJob<{ dataUrls: string[] }>(await previewDrawAction(data), () => undefined).catch((cause: unknown) => ({ ok: false as const, error: { code: "ACTION_FAILED", message: actionFailureMessage(0, cause) } }));
       if (id !== sequence.current) return;
       setPreviewing(false);
       if (result.ok) {
@@ -131,7 +135,7 @@ export function DrawStudio({ initial, initialComparison, defaultCompetitionId, d
     setSaving(true);
     const data = formRef.current ? new FormData(formRef.current) : new FormData();
     data.set("request", requestJson);
-    const result = await saveDrawAction(data);
+    const result = await resultFromJob<{ id: string }>(await saveDrawAction(data), setSaveProgress).catch((cause: unknown) => ({ ok: false as const, error: { code: "ACTION_FAILED", message: actionFailureMessage(0, cause) } }));
     setSaving(false);
     if (!result.ok) return setSaveError(result.error.message);
     setSaveError(null);
@@ -228,6 +232,7 @@ export function DrawStudio({ initial, initialComparison, defaultCompetitionId, d
                 {preview?.map((url, index) => <img key={index} src={url} alt={`Kura kartı sayfa ${index + 1}`} className={cn("w-full rounded-lg border border-border", (blocker || previewError) && "opacity-40")} />)}
               </div>
             </div>
+            <JobProgressLine progress={saveProgress} />
             {saveError ? <p className="text-sm text-red-400">{saveError}</p> : null}
             <Button type="button" onClick={save} disabled={saving || blocker !== null}>
               {saving ? <LoaderCircle className="animate-spin" /> : <Save />}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition, type FormEvent } from "react";
+import { useJobActionState } from "@/hooks/use-action-form";
+import { JobProgressLine } from "./job-progress";
 import { AlertCircle, CheckCircle2, ImagePlus, LoaderCircle, Save } from "lucide-react";
 import { regenerateBackgroundAction, updateDraftAction } from "@/app/dashboard/drafts/actions";
 import { Button } from "@/components/ui/button";
@@ -30,7 +32,7 @@ interface DraftReviewFormProps {
  */
 export function DraftReviewForm({ id, caption, renderOptions, falConfigured }: DraftReviewFormProps) {
   const [saveState, saveAction, isSaving] = useActionState(updateDraftAction, INITIAL_STATE);
-  const [regenState, regenAction, isRegenerating] = useActionState(regenerateBackgroundAction, INITIAL_STATE);
+  const [regenState, regenAction, isRegenerating, regenProgress] = useJobActionState(regenerateBackgroundAction, INITIAL_STATE);
   const [lastIntent, setLastIntent] = useState<Intent>("save");
   const [, startTransition] = useTransition();
   const isPending = isSaving || isRegenerating;
@@ -94,6 +96,7 @@ export function DraftReviewForm({ id, caption, renderOptions, falConfigured }: D
             </p>
           ) : null}
 
+          <JobProgressLine progress={regenProgress} />
           <div className="grid gap-2 sm:grid-cols-2">
             <Button type="submit" name="intent" value="save" disabled={isPending}>
               {isSaving ? <LoaderCircle className="animate-spin" /> : <Save />}

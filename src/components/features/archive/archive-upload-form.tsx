@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useActionForm } from "@/hooks/use-action-form";
+import { JobProgressLine } from "@/components/features/dashboard/job-progress";
 import { PHOTO_KINDS, PHOTO_KIND_LABELS, type ArchiveActionState, type PhotoKindId } from "@/types/archive";
 
 const INITIAL: ArchiveActionState = {};
@@ -18,7 +19,7 @@ const INITIAL: ArchiveActionState = {};
  * için büyütülmüş sürüm de üretilir (1 Fal çağrısı, önbellekli).
  */
 export function ArchiveUploadForm({ teamId, personId, folderLabel, teams, defaultKind }: { teamId: number; personId: string | null; folderLabel: string; teams: { id: number; name: string }[]; defaultKind: PhotoKindId }) {
-  const { state, isPending, onSubmit } = useActionForm(uploadArchivePhotoAction, INITIAL);
+  const { state, isPending, onSubmit, progress } = useActionForm(uploadArchivePhotoAction, INITIAL);
   return (
     <form key={state.notice ?? "upload"} onSubmit={onSubmit} className="flex flex-col gap-3">
       <input type="hidden" name="teamId" value={teamId} />
@@ -60,6 +61,7 @@ export function ArchiveUploadForm({ teamId, personId, folderLabel, teams, defaul
       ) : state.notice ? (
         <p className="flex items-center gap-1.5 text-xs text-emerald-400" role="status"><CheckCircle2 className="size-3.5 shrink-0" />{state.notice}</p>
       ) : null}
+      <JobProgressLine progress={progress} />
       <Button type="submit" disabled={isPending}><Upload />{isPending ? "Yükleniyor…" : "Arşive ekle"}</Button>
     </form>
   );
