@@ -1,7 +1,7 @@
 import { fullDate } from "@/lib/format/dates";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
-import { upperName, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { upperCompetition, upperName, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import type { SetCard } from "@/types/checkmatch-set";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
@@ -43,7 +43,7 @@ export function buildSetCard(facts: SetFacts, images: SetImages, pageLabel: stri
     penaltyLabel: facts.penaltyScore ? `PEN ${facts.penaltyScore}` : null,
     homeScorers: upperLines(facts.home.scorers, facts.home.origin),
     awayScorers: upperLines(facts.away.scorers, facts.away.origin),
-    competitionLabel: upperTr(facts.competition.name),
+    competitionLabel: upperCompetition(facts.competition.name),
     roundLabel: upperTr(facts.roundLabel),
     accentHex: resultAccentHex(facts),
     pageLabel,

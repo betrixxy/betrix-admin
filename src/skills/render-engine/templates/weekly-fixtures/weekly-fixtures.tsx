@@ -1,7 +1,8 @@
 import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { bodyOffsetTop, matchCenter, splitTitle, weeklyKindLabel, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
-import { BODY, upper } from "../studio-tokens";
+import { upperCompetition } from "@/lib/dashboard/name-case";
+import { BODY } from "../studio-tokens";
 import type { BlockFilter } from "../checkmatch-set/blocks";
 import { LeagueCardDivider, LeagueCardFooter, LeagueCardGlow, LeagueCardHeader, shown } from "./league-card-chrome";
 import { WeeklyRow } from "./weekly-row";
@@ -46,7 +47,7 @@ export function WeeklyFixturesCard({ leagueId, leagueName, leagueLogoUrl, title,
         theme={theme}
         only={only}
         leagueLogoUrl={leagueLogoUrl}
-        kicker={kicker ? `${upper(leagueName)} · ${kicker}` : upper(leagueName)}
+        kicker={kicker ? `${upperCompetition(leagueName)} · ${kicker}` : upperCompetition(leagueName)}
         title={main}
         kindLabel={weeklyKindLabel(matches)}
       />

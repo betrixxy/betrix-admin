@@ -2,7 +2,7 @@ import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { clubColors } from "@/lib/dashboard/club-colors";
 import { isReadableOnCard, isSimilarColor } from "@/lib/dashboard/color-math";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
-import { upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { upperCompetition, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { openBoxLines, scenarioTitle, type MatchSides } from "@/lib/prediction/catalog";
 import type { PredictionSet, Scenario, ScenarioId } from "@/types/prediction";
@@ -118,7 +118,7 @@ export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSele
   return {
     pageLabels: VITRIN_PAGE_LABELS,
     dateLabel: setDateLabel(meta.kickoffUtc),
-    competitionLabel: upperTr(meta.competitionName),
+    competitionLabel: upperCompetition(meta.competitionName),
     roundLabel: upperTr(meta.roundLabel),
     accentHex: vitrinAccentHex(bar, colors),
     homeTeam: upperTeamName(meta.sides.home, meta.origins?.home),

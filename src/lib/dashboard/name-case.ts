@@ -80,3 +80,24 @@ export function teamNameOrigin(cardName: string, origin: TeamOrigin | undefined)
 
 /** Takım adını büyütür (kartın takım adı). */
 export const upperTeamName = (cardName: string, origin: TeamOrigin | undefined): string => upperName(cardName, teamNameOrigin(cardName, origin));
+
+/**
+ * Lig / turnuva adı da AD gibi büyür (kurucu kararı 2026-10-29): Türkçe ad Türkçe büyük harfle ("Trendyol Süper
+ * Lig" → "TRENDYOL SÜPER LİG", "Ziraat Türkiye Kupası"), yabancı ad uluslararası kuralla ("Serie A" →
+ * "SERIE A", "LaLiga" → "LALIGA", "Bundesliga" → "BUNDESLIGA"). Türkçe sayılan: Türkçeye özgü harf
+ * (ı İ ğ Ğ ş Ş) ya da Türkçe turnuva sözcüğü (Lig, Ligi, Kupa(sı), Süper, Avrupa…). Sözcük sözcük değil,
+ * adın tamamı tek kökenle büyür ("Premier Lig" Türkçe ad → "PREMİER LİG").
+ */
+const TURKISH_COMPETITION_WORD = /(^|[\s.·/-])(lig|ligi|kupa|kupası|süper|avrupa|konferans|şampiyonlar|uluslar|türkiye|milli|hazırlık|turnuvası|aşaması)(?=$|[\s.·/-])/iu;
+
+export function competitionOrigin(name: string): NameOrigin {
+  return TURKISH_ONLY.test(name) || TURKISH_COMPETITION_WORD.test(name) ? "tr" : "intl";
+}
+
+export const upperCompetition = (name: string): string => upperWith(name, competitionOrigin(name));
+
+/**
+ * " · " ile ayrılmış künye satırı (ör. Muhtemel 11 "Serie A · 30.10 · 20:00"): her parça kendi kökeniyle —
+ * lig adı yukarıdaki kural, Türkçe etiketler ("10. Hafta") Türkçe, tarih/saat etkilenmez.
+ */
+export const upperLabelLine = (line: string): string => line.split(" · ").map(upperCompetition).join(" · ");

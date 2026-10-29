@@ -1,6 +1,7 @@
 import type { LineupPalette } from "@/types/lineup";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
+import { upperLabelLine } from "@/lib/dashboard/name-case";
 import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../studio-tokens";
 import type { LineupGeometry } from "./lineup-geometry";
 
@@ -194,7 +195,7 @@ export function LineupFooter({
         <span style={labelStyle(Math.round(13 * k), palette.muted)}>DİZİLİŞ</span>
         <span style={{ fontFamily: TYPE.DISPLAY, fontSize: Math.round(34 * k), color: palette.accent, letterSpacing: 0.5, lineHeight: 1 }}>{formation}</span>
       </div>
-      {matchLabel ? <span style={labelStyle(Math.round(15 * k), palette.text)}>{upper(matchLabel)}</span> : null}
+      {matchLabel ? <span style={labelStyle(Math.round(15 * k), palette.text)}>{upperLabelLine(matchLabel)}</span> : null}
       {coach.trim() ? (
         <div tw="flex items-center" style={{ gap: 10 }}>
           <span style={labelStyle(Math.round(12 * k), palette.muted)}>TEKNİK DİREKTÖR</span>

@@ -1,5 +1,5 @@
 import { fullDate, shortDate as dayMonth } from "@/lib/format/dates";
-import { nameOrigin, originFromCountry, teamNameOrigin, upperName } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, teamNameOrigin, upperCompetition, upperName } from "@/lib/dashboard/name-case";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { cardTeamColor } from "@/lib/dashboard/vitrin-card";
 import { drawTeamName } from "@/lib/draw/entry";
@@ -44,7 +44,7 @@ export function teamCard(state: DrawState, id: number, logos: DrawCardInput["log
 }
 
 function footerLine(state: DrawState): string {
-  return [upperTr(state.competition.name), upperTr(state.roundLabel), state.drawDateUtc ? `KURA ${fullDate(state.drawDateUtc)}` : null].filter(Boolean).join(" · ");
+  return [upperCompetition(state.competition.name), upperTr(state.roundLabel), state.drawDateUtc ? `KURA ${fullDate(state.drawDateUtc)}` : null].filter(Boolean).join(" · ");
 }
 
 const venueLabel = (venue: "HOME" | "AWAY") => (venue === "HOME" ? "İÇ SAHA" : "DEPLASMAN");
@@ -76,7 +76,7 @@ function teamBody(state: DrawState, input: DrawCardInput): Result<DrawCardBody> 
 function turkishBody(input: DrawCardInput): Result<DrawCardBody> {
   const multi = input.states.length > 1;
   const rows: DrawTurkishRow[] = input.states.flatMap((state) => {
-    const tag = multi ? (SHORT_COMPETITION[state.competition.id] ?? upperTr(state.competition.name)) : "";
+    const tag = multi ? (SHORT_COMPETITION[state.competition.id] ?? upperCompetition(state.competition.name)) : "";
     return state.teams
       .filter((team) => team.country === "Turkey")
       .flatMap((team): DrawTurkishRow[] => {
@@ -94,7 +94,7 @@ function turkishBody(input: DrawCardInput): Result<DrawCardBody> {
   if (rows.length === 0) return fail("NO_ENTRY", "Türk takımları için eşleşme girilmedi.");
   if (rows.length > 5) return fail("TOO_MANY", `Temsilcilerimiz kartı en fazla 5 takım alır (${rows.length} girildi).`);
   const first = input.states[0]!;
-  const subtitle = multi ? `${first.season}/${String((first.season + 1) % 100).padStart(2, "0")} AVRUPA KUPALARI` : `${upperTr(first.competition.name)} · ${upperTr(first.roundLabel)}`;
+  const subtitle = multi ? `${first.season}/${String((first.season + 1) % 100).padStart(2, "0")} AVRUPA KUPALARI` : `${upperCompetition(first.competition.name)} · ${upperTr(first.roundLabel)}`;
   return { ok: true, data: { kind: "TURKISH", title: "TEMSİLCİLERİMİZ", subtitle, rows } };
 }
 
