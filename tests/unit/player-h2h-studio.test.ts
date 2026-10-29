@@ -7,7 +7,8 @@ import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { portraitCrop } from "@/lib/dashboard/player-h2h-photo";
 import { hashtagCount, hasLink, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
 import { parsePlayerKey, playerKey } from "@/lib/player-h2h/keys";
-import { goalContributionLeader } from "@/lib/player-h2h/leaders";
+import { defaultLeader, goalContributionLeader, positionLeaders } from "@/lib/player-h2h/leaders";
+import { counterpartSuggestion, slotPosition } from "@/lib/player-h2h/suggest";
 import { h2hStudioIssues, type H2HStudioState } from "@/lib/player-h2h/studio-issues";
 import { findBannedWords } from "@/lib/prediction/banned-words";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
@@ -33,6 +34,52 @@ describe("maçtan başla: gol + asist lideri önerisi", () => {
   it("gol ve asisti olmayan takımda öneri yok", () => {
     assert.equal(goalContributionLeader([season(1, "A", "Attacker", 0, 0, 90)], 998, 203), null);
     assert.equal(goalContributionLeader([], 998, 203), null);
+  });
+});
+
+describe("maçtan başla: aynı mevkiden öneri", () => {
+  const players = [
+    season(1, "Orta", "Midfielder", 6, 6, 800), // takımın genel gol + asist lideri ama forvet değil
+    season(2, "Forvet", "Attacker", 5, 2, 700),
+    season(3, "Defans", "Defender", 1, 2, 900),
+    season(4, "Defans 2", "Defender", 1, 2, 950), // eşit katkı, daha çok dakika
+    season(5, "Kaleci", "Goalkeeper", 0, 0, 900),
+    season(6, "Yedek kaleci", "Goalkeeper", 0, 0, 90),
+  ];
+
+  it("varsayılan: forvetlerin gol + asist lideri (genel lider orta saha olsa da)", () => {
+    assert.equal(defaultLeader(players, 998, 203)?.playerId, 2);
+  });
+
+  it("forvet katkısı yoksa kaleci dışı gol + asist liderine düşer", () => {
+    assert.equal(defaultLeader([season(1, "Orta", "Midfielder", 2, 1, 800), season(2, "Forvet", "Attacker", 0, 0, 300)], 998, 203)?.playerId, 1);
+  });
+
+  it("mevki liderleri: saha oyuncusu gol + asist (eşitlikte dakika), kaleci dakika", () => {
+    const leaders = positionLeaders(players, 998, 203);
+    assert.deepEqual(Object.fromEntries(Object.entries(leaders).map(([k, v]) => [k, v?.playerId])), { FWD: 2, MID: 1, DEF: 4, GK: 5 });
+  });
+
+  it("bir taraf değişince: diğer taraf öneride ise aynı mevkiden kendiliğinden", () => {
+    const other = { FWD: "20:645", MID: "21:645", DEF: "22:645" };
+    assert.deepEqual(counterpartSuggestion({ position: "MID", other, otherKey: "20:645", otherIsSuggested: true }), { apply: "21:645", hint: null });
+  });
+
+  it("diğer taraf elle seçildiyse dokunulmaz, öneri yalnızca gösterilir; zaten aynı mevki ise bir şey yok", () => {
+    const other = { FWD: "20:645", MID: "21:645" };
+    assert.deepEqual(counterpartSuggestion({ position: "MID", other, otherKey: "99:645", otherIsSuggested: false }), { apply: null, hint: "21:645" });
+    assert.deepEqual(counterpartSuggestion({ position: "MID", other, otherKey: "21:645", otherIsSuggested: false }), { apply: null, hint: null });
+  });
+
+  it("diğer takımda o mevkide öneri yoksa ya da mevki bilinmiyorsa değişmez (farklı mevki uyarısı kalır)", () => {
+    assert.deepEqual(counterpartSuggestion({ position: "GK", other: { FWD: "20:645" }, otherKey: "20:645", otherIsSuggested: true }), { apply: null, hint: null });
+    assert.deepEqual(counterpartSuggestion({ position: null, other: { FWD: "20:645" }, otherKey: null, otherIsSuggested: false }), { apply: null, hint: null });
+  });
+
+  it("arşiv mevkisi → karşılaştırma mevkisi", () => {
+    assert.equal(slotPosition("FWD"), "FWD");
+    assert.equal(slotPosition(null), null);
+    assert.equal(slotPosition("Attacker"), null);
   });
 });
 

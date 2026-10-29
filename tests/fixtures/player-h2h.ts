@@ -10,7 +10,7 @@ const base = {
   seasonLabel: "2026/27",
   scope: "LEAGUE" as const,
   penaltyGoals: 1,
-  freshness: { source: "api-football" as const, asOfUtc: "2026-11-02T17:00:00Z", addedMatches: 0, note: null },
+  freshness: { source: "api-football" as const, asOfUtc: "2026-11-02T17:00:00Z", missingMatches: 0, addedMatches: 0, note: null },
 };
 
 export const H2H_LEFT: PlayerSeasonStats = {
