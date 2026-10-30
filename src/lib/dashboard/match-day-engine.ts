@@ -8,6 +8,7 @@ import { MATCH_DAY_FRAMES, type MatchDayFrame } from "@/lib/dashboard/match-day-
 import { matchDayLayoutGate, renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
 import { loadMatchDayStats } from "@/lib/dashboard/match-day-stats";
 import { MATCH_DAY_TEMPLATES } from "@/lib/dashboard/match-day-templates";
+import { buildMatchDayCaption } from "@/lib/dashboard/match-day-caption";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
@@ -84,16 +85,6 @@ export function economyBackgroundSize(frame: MatchDayFrame): { width: number; he
   return { width: Math.round(frame.width * scale), height: Math.round(frame.height * scale) };
 }
 
-function buildCaption(card: MatchDayCard): string {
-  const header = [card.weekLabel, card.leagueLabel].filter(Boolean).join(" · ");
-  return [
-    `MAÇ GÜNÜ | ${card.homeTeam} - ${card.awayTeam}`,
-    header,
-    `📅 ${card.dateLabel}  ⏰ ${card.timeLabel}`,
-    `🏟️ ${card.stadiumLabel}  🧑‍⚖️ ${card.refereeLabel}`,
-  ].join("\n");
-}
-
 interface BackgroundResult {
   bytes: Buffer;
   prompt: string;
@@ -168,7 +159,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   // Yerleşim kapısı (DATA_DRIVEN ad satırları): harmanlama ve kayıttan önce — çakışma varsa kart üretilmez.
   const layout = await matchDayLayoutGate(card, input.template, frame);
   if (!layout.ok) return fail(layout.error.code, layout.error.message);
-  const language = contentLanguageGate({ card, caption: buildCaption(card) });
+  const language = contentLanguageGate({ card, caption: buildMatchDayCaption(card) });
   if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const savedSteps: string[] = [];
@@ -238,7 +229,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
       resultImageUrl,
       status: "DRAFT",
       format: DB_FORMAT[input.format],
-      caption: buildCaption(card),
+      caption: buildMatchDayCaption(card),
       renderOptions: {
         kind: "MATCH_DAY",
         template: input.template,

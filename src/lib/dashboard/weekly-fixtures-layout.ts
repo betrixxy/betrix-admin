@@ -1,3 +1,4 @@
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import { dayHeading, shortDate as cardShortDate } from "@/lib/format/dates";
 import { SOCIAL_FORMATS, type SocialFormatId } from "@/types/studio-formats";
 import type { WeeklyGrouping, WeeklyMatch } from "@/types/weekly-fixtures";
@@ -93,13 +94,16 @@ export function weeklyCaptionLine(match: WeeklyMatch, grouping: WeeklyGrouping):
   return center.kind === "score" ? `${match.home.name} ${center.primary} ${match.away.name}` : `${center.primary} ${match.home.name} - ${match.away.name}`;
 }
 
-/** Gönderi metni: başlık + bölüm bölüm "Ev 2-1 Dep" / "21.30 Ev - Dep" / "Ev - Dep (canlı)". */
+export const WEEKLY_QUESTION = "Haftanın en çok beklenen maçı hangisi? Yorumlara yazın 👇";
+
+/** Gönderi metni: başlık + bölüm bölüm "Ev 2-1 Dep" / "21.30 Ev - Dep" / "Ev - Dep (canlı)" + etkileşim sorusu + 3–5 hashtag. */
 export function weeklyCaption(leagueName: string, title: string, matches: WeeklyMatch[], grouping: WeeklyGrouping): string {
   const lines = [`${leagueName} | ${title}`];
   for (const section of weeklySections(matches, grouping)) {
     lines.push("", section.label);
     for (const match of section.matches) lines.push(weeklyCaptionLine(match, grouping));
   }
+  lines.push("", WEEKLY_QUESTION, "", hashtagLine({ competitions: [leagueName], type: CONTENT_TAGS.WEEKLY_FIXTURES }));
   return lines.join("\n");
 }
 

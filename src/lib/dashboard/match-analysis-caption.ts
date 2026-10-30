@@ -1,6 +1,6 @@
 import { matchResultTitle } from "@/lib/dashboard/match-result-caption";
 import { BREAK_CAPTIONS } from "@/lib/match-analysis/moments";
-import { hashtag, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import { SCORING_KINDS, type MatchAnalysisFacts } from "@/types/match-analysis";
 
 /**
@@ -21,6 +21,9 @@ export function buildMatchAnalysisCaption(facts: MatchAnalysisFacts): string {
       return `⏱ ${event.minuteLabel} ${event.breakMoment ? BREAK_CAPTIONS[event.breakMoment.kind] : ""} — ${team}${score}`;
     });
   const facts02 = facts.halves.available ? facts.facts.map((fact) => `📊 ${fact.text}`) : [];
-  const tags = [...new Set([hashtag(match.home.name), hashtag(match.away.name), hashtag(match.competition.name), "#MaçAnalizi", "#CheckMatch"])].slice(0, MAX_HASHTAGS);
-  return [`MAÇ ANALİZİ | ${matchResultTitle(match)}`, `${match.competition.name} · ${match.roundLabel}`, "", ...moments, ...(facts02.length > 0 ? ["", ...facts02] : []), "", ANALYSIS_QUESTION, "", tags.join(" ")].join("\n");
+  const tags = captionTags(match);
+  return [`MAÇ ANALİZİ | ${matchResultTitle(match)}`, `${match.competition.name} · ${match.roundLabel}`, "", ...moments, ...(facts02.length > 0 ? ["", ...facts02] : []), "", ANALYSIS_QUESTION, "", tags].join("\n");
 }
+
+const captionTags = (match: MatchAnalysisFacts["match"]) =>
+  hashtagLine({ names: [match.home.name, match.away.name], competitions: [match.competition.name], type: CONTENT_TAGS.MATCH_ANALYSIS });

@@ -1,4 +1,5 @@
 import { cardTeamName } from "@/lib/archive/names";
+import { hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import { formatNumber } from "@/lib/format/number";
 import { FORM_LETTER_TR } from "@/lib/dashboard/studio-stats";
 import type { MatchStats, TeamRecentForm } from "@/types/sports";
@@ -28,11 +29,6 @@ function pair(label: string, home: number | null, away: number | null, names: [s
   return `${label}: ${names[0]} ${formatNumber(home, { decimals: 2 })} · ${names[1]} ${formatNumber(away, { decimals: 2 })}`;
 }
 
-/** Hashtag'e uygun hale getirir — harf/rakam dışı her şey atılır (Türkçe harfler korunur). */
-export function toHashtag(value: string): string | null {
-  const cleaned = value.normalize("NFC").replace(/[^\p{L}\p{N}]/gu, "");
-  return cleaned.length > 1 ? `#${cleaned}` : null;
-}
 
 export function buildDraftCaption(stats: MatchStats): string {
   const { fixture, home, away, headToHead } = stats;
@@ -56,9 +52,7 @@ export function buildDraftCaption(stats: MatchStats): string {
       ? `🤝 Son ${headToHead.matches.length} karşılaşma: ${names[0]} ${headToHead.homeWins}G · ${headToHead.draws}B · ${names[1]} ${headToHead.awayWins}G`
       : null;
 
-  const hashtags = [homeName, awayName, fixture.competition.shortName]
-    .map(toHashtag)
-    .filter((tag): tag is string => tag !== null);
+  const hashtags = hashtagLine({ names: [homeName, awayName], competitions: [fixture.competition.name], type: null });
 
   return [
     header.join("\n"),
@@ -67,7 +61,7 @@ export function buildDraftCaption(stats: MatchStats): string {
     h2h,
     // Alan adı yok: şablon metni X'e de gider, X çıplak alan adını link yapar (`caption-format.ts`).
     "Detaylı analiz ve maç tahmini CheckMatch'te.",
-    hashtags.join(" "),
+    hashtags,
   ]
     .filter((block): block is string => block !== null && block.length > 0)
     .join("\n\n");

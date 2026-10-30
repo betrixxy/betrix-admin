@@ -86,6 +86,7 @@ describe("gönderi metni: aynı gerekçe iki kez yazılmaz (güvenlik ağı)", (
   it("ikinci kutuda tekrar eden gerekçe atlanır, başlık ve yüzdeler kalır", () => {
     const caption = buildVitrinCaption(card);
     assert.equal(caption.split("maç başı 1,8 gol attı").length - 1, 1, caption);
-    assert.match(caption, /📊 İki takım da gol bulur mu\?: Evet %58/u);
+    // "?:" biçim hatası yok (canlı test 2026-10-31): soru başlığından sonra iki nokta konmaz.
+    assert.match(caption, /📊 İki takım da gol bulur mu\? Evet %58/u);
   });
 });

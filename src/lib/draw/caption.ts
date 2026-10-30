@@ -1,4 +1,4 @@
-import { MAX_HASHTAGS, hashtag } from "@/lib/dashboard/vitrin-caption";
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import type { DrawState, DrawVariant } from "@/types/draw";
 import { drawTeamName } from "./entry";
 import { drawCompetition } from "./rounds";
@@ -12,7 +12,7 @@ import { drawCompetition } from "./rounds";
 export const DRAW_QUESTION = "En çok hangi maçı bekliyorsunuz? Yorumlara yazın 👇";
 
 const short = (state: DrawState) => drawCompetition(state.competition.id)?.short ?? state.competition.name;
-const tagsOf = (extra: string[]) => [...new Set([...extra, "#Kura", "#CheckMatch"])].slice(0, MAX_HASHTAGS).join(" ");
+const tagsOf = (names: string[], competitions: string[]) => hashtagLine({ names, competitions, type: CONTENT_TAGS.DRAWS_AND_PAIRINGS });
 const list = (state: DrawState, ids: number[]) => ids.map((id) => drawTeamName(state, id)).join(", ");
 
 function teamLines(state: DrawState, teamId: number): string[] {
@@ -36,7 +36,7 @@ export function buildDrawCaption(variant: DrawVariant, states: DrawState[], focu
   if (variant === "TEAM" && focusTeamId) {
     const team = drawTeamName(first, focusTeamId);
     const head = first.stage === "KNOCKOUT" ? `${team} | ${short(first)} ${first.roundLabel} rakibi belli oldu` : `${team} | ${short(first)} ${first.roundLabel} rakipleri belli oldu`;
-    return [head, "", ...teamLines(first, focusTeamId), "", DRAW_QUESTION, "", tagsOf([hashtag(team), hashtag(short(first))])].join("\n");
+    return [head, "", ...teamLines(first, focusTeamId), "", DRAW_QUESTION, "", tagsOf([team], [short(first)])].join("\n");
   }
   if (variant === "TURKISH") {
     const blocks = states.flatMap((state) =>
@@ -46,8 +46,8 @@ export function buildDrawCaption(variant: DrawVariant, states: DrawState[], focu
         .filter((lines) => lines.length > 0)
         .map((lines) => [`${short(state)} · ${state.roundLabel}`, ...lines].join("\n")),
     );
-    return ["Temsilcilerimizin rakipleri belli oldu", "", ...blocks.flatMap((block) => [block, ""]), DRAW_QUESTION, "", tagsOf(states.map((state) => hashtag(short(state))))].join("\n");
+    return ["Temsilcilerimizin rakipleri belli oldu", "", ...blocks.flatMap((block) => [block, ""]), DRAW_QUESTION, "", tagsOf([], states.map(short))].join("\n");
   }
   const ties = first.ties.map((tie) => `${drawTeamName(first, tie.first)} – ${drawTeamName(first, tie.second)}`);
-  return [`${short(first)} ${first.roundLabel} eşleşmeleri`, "", ...ties, "", DRAW_QUESTION, "", tagsOf([hashtag(short(first))])].join("\n");
+  return [`${short(first)} ${first.roundLabel} eşleşmeleri`, "", ...ties, "", DRAW_QUESTION, "", tagsOf([], [short(first)])].join("\n");
 }

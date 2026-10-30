@@ -1,4 +1,4 @@
-import { hashtag, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
+import { hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import type { H2HCard, PlayerSeasonStats } from "@/types/player-h2h";
 
 /**
@@ -14,6 +14,7 @@ export function buildH2HCaption(left: Player, right: Player, card: Pick<H2HCard,
   const scope = card.scopeLabel.toLocaleLowerCase("tr-TR").replace(/(^|\s)(\p{L})/gu, (_m, space: string, letter: string) => `${space}${letter.toLocaleUpperCase("tr-TR")}`).replace(" İtibarıyla", " itibarıyla");
   const mode = card.modeLabel === "90 DAKİKA BAŞINA" ? " (90 dakika başına)" : "";
   const lines = card.hero.map((row) => `📊 ${row.label}${mode}: ${left.shortName} ${row.leftText} · ${right.shortName} ${row.rightText}`);
-  const tags = [...new Set([hashtag(left.fullName), hashtag(right.fullName), hashtag(left.teamName), hashtag(right.teamName), "#CheckMatch"])].slice(0, MAX_HASHTAGS);
-  return [`${left.fullName} – ${right.fullName} | Oyuncu karşılaştırması`, scope, "", ...lines, ...(card.fact ? ["", card.fact] : []), "", H2H_QUESTION, "", tags.join(" ")].join("\n");
+  // Oyuncular + takımlar + marka (5 etiket dolu olduğundan tür etiketi yok).
+  const tags = hashtagLine({ names: [left.fullName, right.fullName, left.teamName, right.teamName], type: null });
+  return [`${left.fullName} – ${right.fullName} | Oyuncu karşılaştırması`, scope, "", ...lines, ...(card.fact ? ["", card.fact] : []), "", H2H_QUESTION, "", tags].join("\n");
 }

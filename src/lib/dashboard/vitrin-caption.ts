@@ -1,4 +1,5 @@
 import { MAX_HASHTAGS, hashtagCount, siteMentionFree } from "@/lib/dashboard/caption-format";
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import type { VitrinCard } from "@/types/vitrin";
 
 /**
@@ -11,9 +12,6 @@ import type { VitrinCard } from "@/types/vitrin";
 export { MAX_HASHTAGS, hashtagCount };
 
 export const VITRIN_QUESTION = "Sizce kim kazanır? Yorumlara yazın 👇";
-
-/** "Galatasaray" → "#Galatasaray", "Çaykur Rizespor" → "#ÇaykurRizespor" (harf/rakam dışı atılır). */
-export const hashtag = (text: string): string => `#${text.normalize("NFC").replace(/[^\p{L}\p{N}]+/gu, "")}`;
 
 /** Gerekçe karşılaştırma anahtarı: büyük/küçük harf, boşluk ve sondaki noktalama farkı yok sayılır. */
 export const reasonKey = (reason: string): string => reason.trim().toLocaleLowerCase("tr-TR").replace(/\s+/gu, " ").replace(/[.!…\s]+$/u, "");
@@ -28,11 +26,13 @@ export function buildVitrinCaption(card: VitrinCard): string {
     const key = reasonKey(box.reason);
     const repeated = key === "" || seen.has(key);
     seen.add(key);
-    return repeated ? `📊 ${box.title}: ${values}` : `📊 ${box.title}: ${values}\n${box.reason}`;
+    // Soru başlığından sonra iki nokta yok: "İki takım da gol bulur mu? Evet %69" ("?:" biçim hatası).
+    const head = `📊 ${box.title}${box.title.trimEnd().endsWith("?") ? "" : ":"} ${values}`;
+    return repeated ? head : `${head}\n${box.reason}`;
   });
-  const tags = [...new Set([hashtag(home), hashtag(away), hashtag(competition), "#MaçÖnüAnaliz", "#CheckMatch"])].slice(0, MAX_HASHTAGS);
+  const tags = hashtagLine({ names: [home, away], competitions: [competition], type: CONTENT_TAGS.AI_MARKET_PREDICTION });
   const hook = card.hook.map(siteMentionFree);
-  return [`${home} – ${away} | Maç önü analiz`, `${competition} · ${round}`, "", ...boxes.flatMap((box) => [box, ""]), ...hook, "", VITRIN_QUESTION, "", tags.join(" ")].join("\n");
+  return [`${home} – ${away} | Maç önü analiz`, `${competition} · ${round}`, "", ...boxes.flatMap((box) => [box, ""]), ...hook, "", VITRIN_QUESTION, "", tags].join("\n");
 }
 
 /**

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { captionWarnings, mergeMediaOrder } from "@/lib/dashboard/publish-caption";
+import { templateCaption } from "@/lib/dashboard/x-caption";
 import { findBannedWords } from "@/lib/prediction/banned-words";
 import { cn } from "@/lib/utils";
 import type { StudioPostOption } from "@/types/ai-content";
@@ -54,13 +55,13 @@ interface CaptionState {
 /**
  * Yayın Merkezi (bkz. CLAUDE.md 1.10): platform seçimi, platforma özel AI metni, çoklu görsel dizilimi,
  * galeriden görsel ekleme, sıralı indirme, onay/ret ve "Hemen Paylaş" (API ile doğrudan paylaşım). Onayda ya da
- * paylaşımda platform + düzen + dizilim + son metin kayda işlenir. Platform
- * değiştirildiğinde o platformun metni bir kez Claude ile yazılır (admin tıklaması — ücretli); ilk açılışta
- * çağrı yapılmaz, kayıttaki şablon metni gösterilir.
+ * paylaşımda platform + düzen + dizilim + son metin kayda işlenir. Her platform kural tabanlı şablonla açılır
+ * (X: kayıttaki metinden türetilen ≤280 sürüm, `x-caption.ts::templateCaption`) — otomatik AI çağrısı yok;
+ * "Yapay Zekayla Yeniden Yaz" isteğe bağlı iyileştirmedir (admin tıklaması — ücretli).
  */
 export function PublishingHub({ id, caption, media, format, postOptions, currentPostId, aiAvailable, downloadName, targets, vitrin = false, languageGate = false }: PublishingHubProps) {
   const [platform, setPlatform] = useState<PublishPlatform>("IG_POST");
-  const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: caption, source: "template" } });
+  const [captions, setCaptions] = useState<Partial<Record<PublishPlatform, CaptionState>>>({ IG_POST: { text: templateCaption(caption, "IG_POST"), source: "template" } });
   const [layout, setLayout] = useState<PublishLayout>(media.length > 1 ? "multi" : "single");
   const [order, setOrder] = useState<PublishMedia[]>(media);
   // Sunucudaki görsel listesi değişince (03 eklendi, router.refresh) yenilemeden güncellenir; admin sırası korunur.
@@ -104,10 +105,10 @@ export function PublishingHub({ id, caption, media, format, postOptions, current
 
   function selectPlatform(next: PublishPlatform) {
     setPlatform(next);
-    // Platformun metni yoksa bir kez yazılır; AI kapalıysa şablon metniyle başlar.
+    // Platformun metni yoksa kural tabanlı şablonla başlar (X: ≤280 sürüm, `x-caption.ts`); AI yeniden yazımı
+    // yalnızca "Yapay Zekayla Yeniden Yaz" düğmesiyle (isteğe bağlı, ücretli) — platform değişimi çağrı yapmaz.
     if (captions[next]) return;
-    if (aiAvailable) generate(next);
-    else setCaptions((previous) => ({ ...previous, [next]: { text: caption, source: "template" } }));
+    setCaptions((previous) => ({ ...previous, [next]: { text: templateCaption(caption, next), source: "template" } }));
   }
 
   async function download() {

@@ -7,6 +7,7 @@ import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
 import { renderLineupCard, type RenderedLineupCard } from "@/lib/dashboard/lineup-render";
+import { buildLineupCaption } from "@/lib/dashboard/lineup-caption";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import type { ContentTypeId } from "@/types/content-type";
@@ -22,14 +23,6 @@ function toJsonValue(value: object): Prisma.InputJsonObject {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonObject;
 }
 
-function teamLine(team: TeamLineupDraft): string {
-  return `${team.teamName} (${team.formation}): ${team.slots.map((slot) => slot.name.trim()).join(", ")}`;
-}
-
-function buildCaption(draft: LineupDraft): string {
-  return [`${draft.headline} | ${draft.home.teamName} - ${draft.away.teamName}`, "", teamLine(draft.home), "", teamLine(draft.away)].join("\n");
-}
-
 /**
  * İki takımın Muhtemel 11 kartını çizer, kalıcı depoya yazar ve tek `AiContent`
  * (contentType = PROBABLE_LINEUPS, DRAFT) açar — takvimde bu maç için planlanmış placeholder varsa
@@ -39,7 +32,7 @@ function buildCaption(draft: LineupDraft): string {
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
   // Ad büyük harfi için takım kökenleri (maçtan, bkz. team-origin.ts).
   // Bahis dili kapısı: kart metinleri (başlık, künye, adlar) + gönderi metni, çizimden önce.
-  const language = contentLanguageGate({ card: draft, caption: buildCaption(draft) });
+  const language = contentLanguageGate({ card: draft, caption: buildLineupCaption(draft) });
   if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
   const origins = await fixtureOrigins(draft.fixtureId);
   // Her kart kendi şablonuyla: kapağı olan takım liste, olmayan taktik tahtası (bkz. cardTemplateStyle).
@@ -93,7 +86,7 @@ export async function createLineupDraft(draft: LineupDraft): Promise<Result<Line
       resultImageUrl: homeImageUrl,
       status: "DRAFT",
       format: SOCIAL_FORMATS[draft.format].dbFormat,
-      caption: buildCaption(draft),
+      caption: buildLineupCaption(draft),
       // `templateStyle` admin'in seçimi; kartların gerçekte çizildiği şablon ayrıca saklanır.
       renderOptions: toJsonValue({ kind: "PROBABLE_LINEUPS", homeImageUrl, awayImageUrl, cardStyles: { home: home.templateStyle, away: away.templateStyle }, ...draft }),
     });
