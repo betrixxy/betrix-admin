@@ -78,22 +78,53 @@ async function frameRegion(bytes: Buffer, box: CropBox, frame: MatchDayFrame): P
   const height = (swap ? meta.width : meta.height) ?? 0;
   const inside = box.left >= 0 && box.top >= 0 && box.left + box.width <= width && box.top + box.height <= height;
   if (inside) return upright.extract(box).resize(frame.width, frame.height, { fit: "fill", kernel: "lanczos3" }).png().toBuffer();
-  const scale = box.width / frame.width;
-  const ix = Math.max(0, box.left);
-  const iy = Math.max(0, box.top);
-  const iw = Math.min(width, box.left + box.width) - ix;
-  const ih = Math.min(height, box.top + box.height) - iy;
   const fill = await sharp(bytes).rotate().resize(frame.width, frame.height, { fit: "cover" }).blur(FILL_BLUR).modulate({ brightness: FILL_BRIGHTNESS }).png().toBuffer();
+  const placement = overflowPlacement(box, { width, height }, frame);
+  // Kutu fotoğrafla hiç kesişmiyorsa (aşırı elle kaydırma) yalnızca dolgu.
+  if (!placement) return fill;
+  const { source: src, x, y } = placement;
   const part = await sharp(bytes)
     .rotate()
-    .extract({ left: ix, top: iy, width: iw, height: ih })
-    .resize(Math.max(1, Math.round(iw / scale)), Math.max(1, Math.round(ih / scale)), { fit: "fill", kernel: "lanczos3" })
+    .extract(src)
+    .resize(x.size, y.size, { fit: "fill", kernel: "lanczos3" })
     .png()
     .toBuffer();
-  return sharp(fill)
-    .composite([{ input: part, left: Math.round((ix - box.left) / scale), top: Math.round((iy - box.top) / scale) }])
-    .png()
-    .toBuffer();
+  return sharp(fill).composite([{ input: part, left: x.offset, top: y.offset }]).png().toBuffer();
+}
+
+export interface OverflowPlacement {
+  /** Kaynağın kutuyla kesişen bölgesi. */
+  source: CropBox;
+  x: { offset: number; size: number };
+  y: { offset: number; size: number };
+}
+
+/**
+ * Taşan kutuda kaynağın kart üstündeki yeri (saf — birim test edilir); kesişim yoksa null. Eksen ölçeği ayrı:
+ * kutu oranı yuvarlamayla kart oranından ±1 px sapabilir; kutu kartı tam kaplar, parça asla taşmaz.
+ */
+export function overflowPlacement(box: CropBox, source: { width: number; height: number }, frame: { width: number; height: number }): OverflowPlacement | null {
+  const left = Math.max(0, box.left);
+  const top = Math.max(0, box.top);
+  const width = Math.min(source.width, box.left + box.width) - left;
+  const height = Math.min(source.height, box.top + box.height) - top;
+  if (width <= 0 || height <= 0) return null;
+  return {
+    source: { left, top, width, height },
+    x: frameSpan(left, width, box.left, box.width / frame.width, frame.width),
+    y: frameSpan(top, height, box.top, box.height / frame.height, frame.height),
+  };
+}
+
+/**
+ * Kaynak aralığı `[start, start + size)` → kart ekseninde `{ offset, size }`. Uçlar AYRI yuvarlanıp karta
+ * sıkıştırılır: boyutu ve konumu ayrı yuvarlamak parçayı karttan 1 px taşırıyordu (2026-10-30, dikey
+ * fotoğraf + grup kadrajı → sharp "Image to composite must have same dimensions or smaller"). Saf.
+ */
+export function frameSpan(start: number, size: number, boxStart: number, scale: number, frameSize: number): { offset: number; size: number } {
+  const from = Math.min(frameSize - 1, Math.max(0, Math.round((start - boxStart) / scale)));
+  const to = Math.min(frameSize, Math.max(from + 1, Math.round((start + size - boxStart) / scale)));
+  return { offset: from, size: to - from };
 }
 
 /** Kırp → kart boyutuna ölçekle → kontrast/doygunluk → split-tone → PNG (kart boyutunda sanat katmanı). */

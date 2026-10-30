@@ -181,4 +181,4 @@ export function auditedReasons(scenarios: Scenario[], written: Partial<Record<Sc
   return { reasons, replaced };
 }
 
-export { ruleReason } from "./rule-reasons";
+export { ruleReason, ruleReasons } from "./rule-reasons";
