@@ -20,7 +20,8 @@ import type { VitrinCard } from "@/types/vitrin";
  * (`finalizeSetImage`, iki sayfa aynı tohum). Kapılardan biri geçmezse carousel üretilmez, sebep yazılır.
  */
 
-export const POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "teams", "win-bar", "headline", "footer-text", "footer-logo"];
+// Kazanma çubuğunun üç sütunu (yüzde + etiket) mürekkep katmanında (stack-a/b): sütunlar birbirine değerse kapı yakalar.
+export const POSTER_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "teams", "win-bar", "stack-a", "stack-b", "headline", "footer-text", "footer-logo"];
 export const ANALYSIS_BLOCKS: readonly LayoutBlockId[] = ["header-label", "header-date", "form", "stack-a", "stack-b", "open-2", "open-1", "locked", "hook", "footer-text", "footer-logo"];
 
 export function vitrinGeometries(frame: MatchDayFrame) {

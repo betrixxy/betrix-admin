@@ -87,6 +87,7 @@ function Gauge({ value, label, color, k }: { value: number; label: string; color
   const end = { x: cx + r * Math.cos(angle), y: cy - r * Math.sin(angle) };
   const height = px(VITRIN_SIZES.gauge, k);
   const size = px(104, k);
+  const labelSize = fitFontSize(label, width, px(22, k), 0.86, px(14, k));
   return (
     <div tw="relative flex flex-col items-center" style={{ width, height }}>
       <svg style={{ position: "absolute", left: 0, top: 0 }} width={width} height={cy + stroke} viewBox={`0 0 ${width} ${cy + stroke}`}>
@@ -96,7 +97,10 @@ function Gauge({ value, label, color, k }: { value: number; label: string; color
       <div tw="absolute flex justify-center" style={{ left: 0, width, top: cy - size + px(4, k) }}>
         <Percent value={value} size={size} color="#fff" />
       </div>
-      <span tw="absolute" style={{ top: cy + stroke / 2 + px(10, k), fontFamily: BODY, fontWeight: 800, fontSize: px(22, k), lineHeight: 1, letterSpacing: px(4, k), color }}>{label}</span>
+      {/* Seçenek adı yayın genişliğinde ortalı ve sığdırılmış (uzun takım adı yaydan taşmaz — kısa ad zaten kartta). */}
+      <div tw="absolute flex justify-center" style={{ left: 0, width, top: cy + stroke / 2 + px(10, k) }}>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: labelSize, lineHeight: 1, letterSpacing: Math.round(labelSize * 0.18), color }}>{label}</span>
+      </div>
     </div>
   );
 }

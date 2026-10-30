@@ -14,6 +14,7 @@ import { scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source
 import { matchProbabilities } from "@/lib/prediction/poisson";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import type { PredictionSet } from "@/types/prediction";
+import type { VitrinCard } from "@/types/vitrin";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { syntheticPhoto } from "./synthetic-photo";
 
@@ -60,15 +61,45 @@ const CASES = {
 } satisfies Record<string, { lambda: { home: number; away: number }; reasons: Record<string, string>; selection: { open: string[]; locked: string[] }; meta: VitrinMeta }>;
 type CaseName = keyof typeof CASES;
 
+/**
+ * Canlı test regresyonları (2026-10-31) — YENİ, baseline onay bekliyor: yerleşim kapısı koşar, çıktı
+ * `__output__/vitrin-new/` altına yazılır. Trabzonspor–Gaziantep FK %64/%19/%17 ("BERABERLİK" ↔ "GAZİANTEP FK"
+ * temas ediyordu, kapı geçiyordu); Borussia Mönchengladbach–SC Paderborn 07 (02 "2. açık kutu güvenli kenarı 15px
+ * aşıyor" — göstergede uzun takım adı; kısa ad "M'GLADBACH").
+ */
+const NEW_CASES = {
+  "tra-gfk": {
+    lambda: { home: 1.9, away: 0.7 },
+    reasons: { RESULT_1X2: "Trabzonspor son 5 maçında 4 galibiyet aldı.", BTTS: "Gaziantep FK maç başı 1,2 gol atıyor." },
+    selection: { open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] },
+    meta: { sides: { home: "Trabzonspor", away: "Gaziantep FK" }, homeTeamId: 998, awayTeamId: 3573, kickoffUtc: "2026-11-01T16:00:00Z", competitionName: "Trendyol Süper Lig", roundLabel: "10. Hafta", homeForm: ["W", "W", "D", "W", "L"], awayForm: ["L", "D", "W", "L", "D"] },
+    bar: { home: 64, draw: 19, away: 17 },
+  },
+  "bmg-scp": {
+    lambda: { home: 2.8, away: 0.5 },
+    reasons: { RESULT_1X2: "Borussia Mönchengladbach son 5 maçında 3 galibiyet aldı.", HT_RESULT: "Borussia Mönchengladbach ilk yarıda maç başı 0,9 gol atıyor." },
+    selection: { open: ["RESULT_1X2", "HT_RESULT"], locked: ["BTTS", "GOALS_4PLUS", "COMBO"] },
+    meta: { sides: { home: "Borussia Mönchengladbach", away: "SC Paderborn 07" }, homeTeamId: 163, awayTeamId: 185, kickoffUtc: "2026-10-31T16:30:00Z", competitionName: "Bundesliga", roundLabel: "9. Hafta", homeForm: ["W", "L", "W", "D", "W"], awayForm: ["L", "L", "D", "W", "L"], origins: { home: INTL, away: INTL } },
+    bar: null,
+  },
+} satisfies Record<string, { lambda: { home: number; away: number }; reasons: Record<string, string>; selection: { open: string[]; locked: string[] }; meta: VitrinMeta; bar: { home: number; draw: number; away: number } | null }>;
+const NEW_OUTPUT_DIR = path.join(ROOT, "__output__", "vitrin-new");
+
+async function newCard(name: keyof typeof NEW_CASES) {
+  const { lambda, reasons, selection, meta, bar } = NEW_CASES[name];
+  const built = buildVitrinCard(syntheticPrediction(lambda, reasons), selection as never, meta, { homeLogo: null, awayLogo: null, brandLogo: await loadBrandLogo() });
+  return bar ? { ...built, winBar: { ...built.winBar, ...bar } } : built;
+}
+
 async function card(name: CaseName = "gs-kas") {
   const { lambda, reasons, selection, meta } = CASES[name];
   return buildVitrinCard(syntheticPrediction(lambda, reasons), selection as never, meta, { homeLogo: null, awayLogo: null, brandLogo: await loadBrandLogo() });
 }
 
 /** [01 Poster, 02 Analiz] — iki sayfanın da yerleşim kontrolüyle. İki taraf aynı sentetik fotoğraf. */
-async function render(id: MatchDayFormatId, name: CaseName = "gs-kas"): Promise<[Buffer, Buffer]> {
+async function render(id: MatchDayFormatId, name: CaseName = "gs-kas", given?: VitrinCard): Promise<[Buffer, Buffer]> {
   const frame = MATCH_DAY_FRAMES[id];
-  const vitrin = await card(name);
+  const vitrin = given ?? (await card(name));
   const { poster, analysis } = vitrinGeometries(frame);
   for (const [g, blocks] of [[poster, POSTER_BLOCKS], [analysis, ANALYSIS_BLOCKS]] as const) {
     const { issues } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, g, only), blocks);
@@ -116,6 +147,24 @@ describe("Maç önü vitrin carousel'i — görsel regresyon + yerleşim", async
       await compare(`int-bvb_${id}_02-analiz`, analysis);
     });
   }
+
+  for (const name of Object.keys(NEW_CASES) as (keyof typeof NEW_CASES)[]) {
+    for (const id of MATCH_DAY_FORMAT_IDS) {
+      test(`YENİ ${name} ${id} (baseline onay bekliyor)`, async () => {
+        await mkdir(NEW_OUTPUT_DIR, { recursive: true });
+        const [poster, analysis] = await render(id, "gs-kas", await newCard(name));
+        await writeFile(path.join(NEW_OUTPUT_DIR, `${name}_${id}_01-poster.png`), poster);
+        await writeFile(path.join(NEW_OUTPUT_DIR, `${name}_${id}_02-analiz.png`), analysis);
+      });
+    }
+  }
+
+  test("Gladbach–Paderborn: dar alanlar kısa ad, poster uzun ad", async () => {
+    const vitrin = await newCard("bmg-scp");
+    assert.equal(vitrin.homeTeam, "BORUSSIA MÖNCHENGLADBACH");
+    assert.deepEqual(vitrin.shortTeams, { home: "M'GLADBACH", away: "PADERBORN", plain: { home: "M'gladbach", away: "Paderborn" } });
+    assert.equal(vitrin.open[1].lines.find((line) => line.picked)?.upperLabel, "M'GLADBACH");
+  });
 
   test("yabancı ad: kart köken kuralıyla, gönderi metni büyütülmemiş kart adıyla", async () => {
     const vitrin = await card("int-bvb");

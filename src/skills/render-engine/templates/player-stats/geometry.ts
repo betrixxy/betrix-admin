@@ -147,7 +147,9 @@ export function topPlayersGeometry(frame: MatchDayFrame, card: Pick<TopPlayersCa
   const title = { top: panel.top, height: px(s.title, k) };
   const top = title.top + title.height + px(s.titleGap, k);
   const bottom = base.footnote.top - px(s.gap, k);
-  const rowHeight = Math.min(px(220, k), Math.floor((bottom - top) / Math.max(1, card.rows.length)));
+  // Dikeyde (4:5 / 9:16) satır en fazla 290 (eskiden 220): üç satırlık listede başlık ile liste arasında ~180 px boşluk
+  // kalıyordu (canlı test 2026-10-31) — satırlar alanı doldurur, kalan pay liste üstü/altına eşit.
+  const rowHeight = Math.min(px(landscape ? 220 : 290, k), Math.floor((bottom - top) / Math.max(1, card.rows.length)));
   // Az satırda (3) liste alanın ortasında — altta boşluk birikmez.
   const height = rowHeight * card.rows.length;
   return { ...base, title, rowsArea: { top: top + Math.floor((bottom - top - height) / 2), height }, rowHeight };

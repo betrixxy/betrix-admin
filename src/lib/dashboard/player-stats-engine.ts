@@ -30,7 +30,8 @@ export const PLAYER_STATS_FORMATS: Record<MatchDayFormatId, { db: string; social
   X_LANDSCAPE: { db: "X_CARD", social: "landscape" },
 };
 
-export const PLAYER_PAGE_LABELS = { SPOTLIGHT: "MAÇIN OYUNCUSU", TOP_PLAYERS: "MAÇIN EN İYİLERİ" } as const;
+/** Set sayfa etiketi (üst satır). B'nin etiketi büyük başlığı ("MAÇIN EN İYİLERİ") tekrar etmez (canlı test 2026-10-31). */
+export const PLAYER_PAGE_LABELS = { SPOTLIGHT: "MAÇIN OYUNCUSU", TOP_PLAYERS: "OYUNCU PUANLARI" } as const;
 
 const asJson = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonObject;
 

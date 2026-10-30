@@ -57,6 +57,20 @@ const DENSE = analysis(
   chooseHalves(apiFootballHalfRows(syntheticHalves(KURGU_IDS, { possession: [58, 42, 39, 61], shots: [9, 3, 2, 11], onTarget: [4, 1, 0, 5], xg: ["1.42", "0.31", "0.12", "1.88"], corners: [5, 1, 0, 7] }), KURGU_IDS), null, false),
   { home: SM_SQUAD_KURGU, away: SM_SQUAD_KURGU },
 );
+/**
+ * Canlı test regresyonu (2026-10-31, YENİ — baseline onay bekliyor): Fiorentina–Atalanta 4:5 02 "olgu satırı güvenli
+ * kenarı 18px aşıyor" — uzun olgu cümlesi `renderSatori`'nin bölünmez boşluklarıyla tek satır kalıp sağdan taşıyordu.
+ * Konyaspor–Galatasaray devre verisi, takım adları ve kural tabanlı uzun olgular Fiorentina–Atalanta'nınki gibi.
+ */
+const FIO_ATA: MatchAnalysisFacts = {
+  ...KONYA_GS,
+  match: { ...KONYA_GS.match, home: { ...KONYA_GS.match.home, name: "Fiorentina", origin: { name: "intl", people: "intl" } }, away: { ...KONYA_GS.match.away, name: "Atalanta", origin: { name: "intl", people: "intl" } } },
+  facts: [
+    { kind: KONYA_GS.facts[0]?.kind ?? "COMEBACK", text: "Fiorentina ikinci yarıda topa sahip olmada 14 puan artış yakaladı (%38 → %52)." },
+    { kind: KONYA_GS.facts[0]?.kind ?? "COMEBACK", text: "Atalanta ikinci yarıda şut sayısını 3 katından fazlasına çıkardı (2 → 7)." },
+    { kind: KONYA_GS.facts[0]?.kind ?? "COMEBACK", text: "Atalanta geriye düştüğü maçta skoru eşitledi." },
+  ],
+};
 const RED = analysis(RAW_RED_CARD_MATCH, NO_HALVES, { home: SM_SQUAD_KURGU, away: SM_SQUAD_KURGU });
 const EXTRA = analysis(RAW_EXTRA_TIME_MATCH, NO_HALVES, { home: SM_SQUAD_KURGU, away: SM_SQUAD_KURGU });
 
@@ -115,6 +129,12 @@ describe("Maç Analizi (01 + 02) — görsel + yerleşim", async () => {
       await compare(`02-konya-gs_${id}`, await halves(id, KONYA_GS, "Konyaspor–Galatasaray"));
       await compare(`01-dense_${id}`, await timeline(id, DENSE, "kalabalık maç"));
       await compare(`02-dense_${id}`, await halves(id, DENSE, "kalabalık maç"));
+    });
+  }
+
+  for (const id of MATCH_DAY_FORMAT_IDS) {
+    test(`YENİ Fiorentina–Atalanta 02 (uzun olgular) — ${id}`, async () => {
+      await compare(`02-fio-ata_${id}`, await halves(id, FIO_ATA, "Fiorentina–Atalanta"));
     });
   }
 

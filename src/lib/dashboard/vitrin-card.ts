@@ -3,6 +3,7 @@ import { clubColors } from "@/lib/dashboard/club-colors";
 import { isReadableOnCard, isSimilarColor } from "@/lib/dashboard/color-math";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { upperCompetition, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { teamNameFor } from "@/lib/names/team-name-forms";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { openBoxLines, scenarioTitle, type MatchSides } from "@/lib/prediction/catalog";
 import type { PredictionSet, Scenario, ScenarioId } from "@/types/prediction";
@@ -109,7 +110,13 @@ export function winBar(prediction: PredictionSet, sides: MatchSides): VitrinWinB
 
 export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSelection, meta: VitrinMeta, images: VitrinImages): VitrinCard {
   // Göstergedeki seçenek adı: takım adı köken kuralıyla ("INTER"), diğerleri Türkçe ("BERABERLİK").
-  const upperLabel = (label: string) => (label === meta.sides.home ? upperTeamName(label, meta.origins?.home) : label === meta.sides.away ? upperTeamName(label, meta.origins?.away) : upperTr(label));
+  // Gösterge dar alan: takım adı kısa biçimle (`VITRIN_GAUGE_LABEL`, "M'GLADBACH").
+  const upperLabel = (label: string) =>
+    label === meta.sides.home
+      ? upperTeamName(teamNameFor("VITRIN_GAUGE_LABEL", label), meta.origins?.home)
+      : label === meta.sides.away
+        ? upperTeamName(teamNameFor("VITRIN_GAUGE_LABEL", label), meta.origins?.away)
+        : upperTr(label);
   const open = selection.open.map((id): VitrinOpenBox => {
     const scenario = scenarioOf(prediction, id);
     const lines = openBoxLines(scenario, meta.sides).map((line) => ({ ...line, upperLabel: upperLabel(line.label) }));
@@ -126,6 +133,11 @@ export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSele
     accentHex: vitrinAccentHex(bar, colors),
     homeTeam: upperTeamName(meta.sides.home, meta.origins?.home),
     awayTeam: upperTeamName(meta.sides.away, meta.origins?.away),
+    shortTeams: {
+      home: upperTeamName(teamNameFor("VITRIN_BAR_LABELS", meta.sides.home), meta.origins?.home),
+      away: upperTeamName(teamNameFor("VITRIN_BAR_LABELS", meta.sides.away), meta.origins?.away),
+      plain: { home: teamNameFor("VITRIN_BAR_LABELS", meta.sides.home), away: teamNameFor("VITRIN_BAR_LABELS", meta.sides.away) },
+    },
     names: { home: meta.sides.home, away: meta.sides.away, competition: meta.competitionName, round: meta.roundLabel },
     homeHex: colors[0],
     awayHex: colors[1],

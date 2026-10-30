@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
+import { backdropDarkenFor, brightLuminance } from "@/lib/dashboard/match-photo/legibility";
 
 /**
  * Maç İstatistikleri piksel zemini (CLAUDE.md 3.4: arka plan → ışık süzmesi). Premium'da Fal'ın
@@ -27,16 +28,17 @@ function lightsSvg(frame: MatchDayFrame, homeHex: string, awayHex: string, withB
 }
 
 const RESULT_BLUR = 40;
-const RESULT_DARKEN = 0.7;
 
 /**
- * Set zemini: aynı maçın Maç Sonucu kartı varsa onun nihai görseli — ağır bulanık (≈40px) ve %70
- * siyahla koyulaştırılmış. Carousel'de 01'den 02'ye geçişte renk ve ışık sürer; yazılar okunmaz
- * hale gelir (yalnızca doku kalır). Ücretsizdir, ağ çağrısı yok.
+ * Set zemini: aynı maçın Maç Sonucu kartı varsa onun nihai görseli — ağır bulanık (≈40px) ve okunurluk
+ * kuralıyla (`match-photo/legibility.ts::backdropDarkenFor`, ölçülen parlaklıktan; eskiden sabit %70)
+ * koyulaştırılmış. Carousel'de 01'den 02'ye geçişte renk ve ışık sürer; yazılar okunmaz hale gelir
+ * (yalnızca doku kalır). Ücretsizdir, ağ çağrısı yok.
  */
 export async function buildStatsBackgroundFromResult(frame: MatchDayFrame, resultImage: Buffer): Promise<Buffer> {
   const blurred = await sharp(resultImage).resize(frame.width, frame.height, { fit: "cover" }).blur(RESULT_BLUR).png().toBuffer();
-  const shade = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${frame.width}" height="${frame.height}"><rect width="100%" height="100%" fill="#000" fill-opacity="${RESULT_DARKEN}"/></svg>`);
+  const darken = backdropDarkenFor(await brightLuminance(blurred));
+  const shade = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${frame.width}" height="${frame.height}"><rect width="100%" height="100%" fill="#000" fill-opacity="${darken}"/></svg>`);
   return sharp(blurred).composite([{ input: shade }]).png().toBuffer();
 }
 

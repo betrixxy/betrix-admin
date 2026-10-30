@@ -3,6 +3,7 @@ import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { upperCompetition, upperName, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { teamHexes } from "@/lib/dashboard/player-stats-card";
+import { teamNameFor } from "@/lib/names/team-name-forms";
 import { formatNumber } from "@/lib/format/number";
 import { halfSourceLabel } from "@/lib/match-analysis/halves";
 import { planTimeline } from "@/lib/match-analysis/timeline";
@@ -54,8 +55,9 @@ function base(facts: MatchAnalysisFacts, images: AnalysisImages, pageLabel: stri
     pageLabel,
     dateLabel: setDateLabel(match.kickoffUtc),
     title: ANALYSIS_TITLE,
-    homeTeam: upperTeamName(match.home.name, match.home.origin),
-    awayTeam: upperTeamName(match.away.name, match.away.origin),
+    // Takımlar + skor tek satırda, dar: kısa ad ("M'GLADBACH"; `team-name-forms.ts`).
+    homeTeam: upperTeamName(teamNameFor("MATCH_ANALYSIS_TEAMS_ROW", match.home.name), match.home.origin),
+    awayTeam: upperTeamName(teamNameFor("MATCH_ANALYSIS_TEAMS_ROW", match.away.name), match.away.origin),
     homeGoals: match.home.goals,
     awayGoals: match.away.goals,
     homeLogo: images.homeLogo,

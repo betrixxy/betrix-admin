@@ -137,6 +137,7 @@ export interface AnalysisCardBase {
   pageLabel: string | null;
   dateLabel: string;
   title: string;
+  /** Takımlar + skor satırının adı — KISA biçim (`MATCH_ANALYSIS_TEAMS_ROW`). */
   homeTeam: string;
   awayTeam: string;
   homeGoals: number;
