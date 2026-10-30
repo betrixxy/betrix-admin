@@ -7,15 +7,20 @@ import type { FixtureScore, MatchScorecardData, MatchScorecardRow, PeriodScoreca
 import type { Result } from "@/types/result";
 
 /**
- * Tahmin Karnesi veri kurucuları (saf). SEÇME YOK: girdi bir maçın (A) ya da bütün yayınlanmış kayıtların (B)
- * TAMAMIDIR; fonksiyonların kayıt dışarıda bırakan bir parametresi yoktur, her kayıt ya karnede ya da
- * sebebiyle sayılır (bekleyen / sonuçlanmadı). Tutmayan kayıt düşürülemez (testle sabit:
+ * Tahmin Karnesi veri kurucuları (saf). SEÇME YOK: girdi bir maçın (A) ya da dönemin (B) BÜTÜN kayıtlarıdır;
+ * fonksiyonların kayıt dışarıda bırakan bir parametresi yoktur, her kayıt ya karnede ya da sebebiyle sayılır
+ * (bekleyen / sonuçlanmadı / tekrar onay). Tutmayan kayıt düşürülemez (testle sabit:
  * `tests/unit/prediction-scorecard.test.ts`).
  *
- * "Yayınlanmış" (veri katmanı, aşama 2): `PredictionRecord` onayda yazılır (= onaylı) VE kaydın içeriği
- * Yayın Merkezi'nden paylaşılmış (`AiContent.status = PUBLISHED`, `publishedAt` dolu; yayın kapısı yalnızca
- * kickoff öncesine izin verir — `vitrinPublishCheck`). Kurucular bu kümeyi olduğu gibi alır.
+ * SAYILAN TAHMİN (kurucu kararı 2026-10-30) = ONAYLANMIŞ tahmin: her `PredictionRecord` (vitrin onayında yazılır;
+ * yayınlanmış olması gerekmez). Aynı maç + senaryo için YALNIZCA İLK ONAY sayılır (`countedRecords`: en erken
+ * `recordedAt`, eşitlikte kimlik); sonraki onaylar karneye girmez ama SİLİNMEZ (tablo değiştirilemez) — yalnızca
+ * "tekrar onay" olarak sayılır. Kural sonuçtan bağımsızdır: hangi kaydın sayılacağı tuttu/tutmadı bilinmeden,
+ * yalnızca zamandan seçilir; tutmayan ilk onay, sonradan tutan bir onayla değiştirilemez.
  */
+
+/** Maç A için kayıt yok — stüdyo da bu metni gösterir (kart üretilmez). */
+export const NO_MATCH_RECORDS = "Bu maç için onaylanmış tahmin yok — kart üretilmez.";
 
 /** A'da en fazla bu kadar satır (6 senaryonun hepsi). Fazlası kartı taşırır: kart üretilmez, satır düşürülmez. */
 export const MAX_MATCH_ROWS = 6;
@@ -23,6 +28,27 @@ export const MAX_MATCH_ROWS = 6;
 export const STRIP_LENGTH = 10;
 
 const fail = (code: ScorecardError["code"], message: string): { ok: false; error: ScorecardError } => ({ ok: false, error: { code, message } });
+
+/**
+ * İlk onay kuralı (saf): aynı (maç, senaryo) çiftinden yalnızca en erken onaylanan kayıt sayılır (eşitlikte
+ * kimlik). `duplicates` = sayılmayan sonraki onaylar (karneye girmez, silinmez). Sonuca (HIT/MISS) bakmaz.
+ */
+export function countedRecords<T extends Pick<ScorecardRecord, "id" | "fixtureId" | "scenarioId" | "recordedAt">>(records: readonly T[]): { counted: T[]; duplicates: T[] } {
+  const first = new Map<string, T>();
+  for (const record of records) {
+    const key = `${record.fixtureId}|${record.scenarioId}`;
+    const current = first.get(key);
+    if (!current || record.recordedAt.localeCompare(current.recordedAt) < 0 || (record.recordedAt === current.recordedAt && record.id.localeCompare(current.id) < 0)) first.set(key, record);
+  }
+  const keep = new Set(first.values());
+  return { counted: records.filter((record) => keep.has(record)), duplicates: records.filter((record) => !keep.has(record)) };
+}
+
+/** B girdisinde ilk onay kuralı: kaydın kendisine göre (dönem filtresinden ÖNCE — tekrar başka döneme kaçamaz). */
+function countedEntries(entries: readonly ScorecardEntry[]): { counted: ScorecardEntry[] } {
+  const keep = new Set(countedRecords(entries.map((entry) => entry.record)).counted);
+  return { counted: entries.filter((entry) => keep.has(entry.record)) };
+}
 
 /** Kayıtların sabit sırası: onay anı, sonra senaryo kataloğu sırası, sonra kimlik. */
 function byRecordOrder(a: ScorecardRecord, b: ScorecardRecord): number {
@@ -34,10 +60,10 @@ function byRecordOrder(a: ScorecardRecord, b: ScorecardRecord): number {
  * yoksa, maç sonuçlanmadıysa (ertelendi/iptal) ya da henüz bitmediyse kart üretilmez — sebep yazılır.
  */
 export function buildMatchScorecard(input: { fixtureId: string; sides: MatchSides; score: FixtureScore; records: readonly ScorecardRecord[] }): Result<MatchScorecardData, ScorecardError> {
-  const { records } = input;
-  if (records.length === 0) return fail("NO_RECORDS", "Bu maç için yayınlanmış tahmin kaydı yok — Tahmin Karnesi üretilmedi.");
-  const foreign = records.find((record) => record.fixtureId !== input.fixtureId);
+  if (input.records.length === 0) return fail("NO_RECORDS", NO_MATCH_RECORDS);
+  const foreign = input.records.find((record) => record.fixtureId !== input.fixtureId);
   if (foreign) return fail("FOREIGN_RECORD", `Başka maçın kaydı karışmış (${foreign.fixtureId}) — Tahmin Karnesi üretilmedi.`);
+  const { counted: records, duplicates } = countedRecords(input.records);
   if (records.length > MAX_MATCH_ROWS) return fail("TOO_MANY_ROWS", `Bu maçın ${records.length} kaydı var, kart en fazla ${MAX_MATCH_ROWS} satır taşır — kayıt düşürülmez, Tahmin Karnesi üretilmedi.`);
   const rows: MatchScorecardRow[] = [];
   for (const record of [...records].sort(byRecordOrder)) {
@@ -55,7 +81,7 @@ export function buildMatchScorecard(input: { fixtureId: string; sides: MatchSide
     });
   }
   const hits = rows.filter((row) => row.status === "HIT").length;
-  return { ok: true, data: { fixtureId: input.fixtureId, rows, summary: hitSummary(rows.length, hits) } };
+  return { ok: true, data: { fixtureId: input.fixtureId, rows, summary: hitSummary(rows.length, hits), duplicates: duplicates.length } };
 }
 
 type Settled = ScorecardEntry & { status: SettledStatus };
@@ -70,13 +96,14 @@ function byKickoff(a: ScorecardEntry, b: ScorecardEntry): number {
  * sürümü varsa sürüme göre ayrı satırlar (null = "poisson-v1"); tek sürümde ayrım yok.
  */
 export function buildPeriodScorecard(input: { period: ScorecardPeriod; entries: readonly ScorecardEntry[]; splitByModelVersion: boolean }): Result<PeriodScorecardData, ScorecardError> {
-  const inside = input.entries.filter((entry) => inPeriod(input.period, entry.kickoffUtc));
+  const inside = countedEntries(input.entries).counted.filter((entry) => inPeriod(input.period, entry.kickoffUtc));
+  const duplicates = input.entries.filter((entry) => inPeriod(input.period, entry.kickoffUtc)).length - inside.length;
   const settled = inside.filter((entry): entry is Settled => entry.status === "HIT" || entry.status === "MISS").sort(byKickoff);
   const voided = inside.filter((entry) => entry.status === "VOID").length;
   const pending = inside.filter((entry) => entry.status === null).length;
   if (settled.length === 0) {
     const extra = pending + voided > 0 ? ` (${pending} bekleyen, ${voided} sonuçlanmadı)` : "";
-    return fail("NO_RECORDS", `${input.period.label}: sonuçlanmış yayınlanmış tahmin yok${extra} — Tahmin Karnesi üretilmedi.`);
+    return fail("NO_RECORDS", `${input.period.label}: sonuçlanmış onaylı tahmin yok${extra} — Tahmin Karnesi üretilmedi.`);
   }
   const count = (list: readonly Settled[]) => ({ total: list.length, hits: list.filter((entry) => entry.status === "HIT").length });
   const breakdown = SCENARIO_IDS.flatMap((scenarioId) => {
@@ -94,6 +121,6 @@ export function buildPeriodScorecard(input: { period: ScorecardPeriod; entries: 
   const { total, hits } = count(settled);
   return {
     ok: true,
-    data: { period: input.period, summary: hitSummary(total, hits), breakdown, strip: settled.slice(-STRIP_LENGTH).map((entry) => entry.status), versions, pending, voided },
+    data: { period: input.period, summary: hitSummary(total, hits), breakdown, strip: settled.slice(-STRIP_LENGTH).map((entry) => entry.status), versions, pending, voided, duplicates },
   };
 }

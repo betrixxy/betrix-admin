@@ -52,7 +52,7 @@ export function buildMatchScorecardCard(input: { match: ScorecardMatch; data: Ma
       status: row.status,
       statusLabel: row.status === "HIT" ? HIT_LABEL : MISS_LABEL,
     })),
-    footnote: "Yayınlanan bütün tahminler · normal süre skoru (90 dk)",
+    footnote: "Onaylanan bütün tahminler · normal süre skoru (90 dk)",
     footerLine: scorecardMetaLine(match),
     brandLogo: input.brandLogo,
     glowHexes: teamPairColors(match.home.id, match.away.id),
@@ -76,7 +76,7 @@ export function buildPeriodScorecardCard(input: { data: PeriodScorecardData; bra
     breakdown: data.breakdown.map((row) => ({ label: row.label, value: row.value, ratio: row.total > 0 ? row.hits / row.total : 0 })),
     versions: data.versions?.map((row) => ({ label: upperTr(row.label), value: versionValue(row.summary) })) ?? null,
     footnote: left ? `Normal süre skoru (90 dk) · ${left} (karneye girmez)` : "Normal süre skoru (90 dk)",
-    footerLine: "YAYINLANAN BÜTÜN TAHMİNLER",
+    footerLine: "ONAYLANAN BÜTÜN TAHMİNLER",
     brandLogo: input.brandLogo,
     glowHexes: NEUTRAL_GLOW,
   };

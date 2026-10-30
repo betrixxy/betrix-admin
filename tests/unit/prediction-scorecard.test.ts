@@ -6,7 +6,7 @@ import { buildMatchScorecardCard, buildPeriodScorecardCard } from "@/lib/dashboa
 import { hasLink, hashtagCount, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
 import { findBannedWords } from "@/lib/prediction/banned-words";
 import { contentLanguageGate } from "@/lib/prediction/content-language";
-import { buildMatchScorecard, buildPeriodScorecard, MAX_MATCH_ROWS, STRIP_LENGTH } from "@/lib/prediction/scorecard";
+import { buildMatchScorecard, buildPeriodScorecard, countedRecords, MAX_MATCH_ROWS, STRIP_LENGTH } from "@/lib/prediction/scorecard";
 import { hitSummary, RATE_LABEL, SCENARIO_KIND_LABELS, SMALL_SAMPLE_BADGE } from "@/lib/prediction/scorecard-labels";
 import { inPeriod, periodFor } from "@/lib/prediction/scorecard-period";
 import type { ScorecardEntry } from "@/types/prediction-scorecard";
@@ -62,14 +62,16 @@ describe("A · maç karnesi", () => {
     const base = { fixtureId: KONYA_GS.fixtureId, sides, score: KONYA_GS.score };
     const code = (result: ReturnType<typeof buildMatchScorecard>) => (result.ok ? "OK" : result.error.code);
     const empty = buildMatchScorecard({ ...base, records: [] });
-    assert.ok(!empty.ok && /yayınlanmış tahmin kaydı yok/u.test(empty.error.message));
+    assert.ok(!empty.ok && empty.error.message === "Bu maç için onaylanmış tahmin yok — kart üretilmez.");
     assert.equal(code(buildMatchScorecard({ ...base, records: [record("x", { scenario: "BTTS", pick: "YES" }, 0.5, { fixtureId: "api-football-1" })] })), "FOREIGN_RECORD");
     const postponed = buildMatchScorecard({ ...base, score: { ...KONYA_GS.score, statusShort: "PST" }, records: KONYA_GS_RECORDS });
     assert.ok(!postponed.ok && postponed.error.code === "VOID" && /ertelendi/u.test(postponed.error.message));
     assert.equal(code(buildMatchScorecard({ ...base, score: { ...KONYA_GS.score, statusShort: "2H" }, records: KONYA_GS_RECORDS })), "NOT_SETTLED");
+    // 7. kayıt aynı senaryonun SONRAKİ onayı: ilk onay kuralıyla sayılmaz → 6 satır, kapasite aşılmaz.
     const seven = [...KONYA_GS_ALL_SIX, record("rec-g", { scenario: "BTTS", pick: "NO" }, 0.42, { recordedAt: "2026-10-29T11:00:00.000Z" })];
     assert.equal(seven.length, MAX_MATCH_ROWS + 1);
-    assert.equal(code(buildMatchScorecard({ ...base, records: seven })), "TOO_MANY_ROWS");
+    const deduped = buildMatchScorecard({ ...base, records: seven });
+    assert.ok(deduped.ok && deduped.data.rows.length === MAX_MATCH_ROWS && deduped.data.duplicates === 1);
   });
 });
 
@@ -85,9 +87,9 @@ describe("B · dönem karnesi", () => {
   it("dönemin BÜTÜN kayıtları: tutmayan düşmez, VOID ve bekleyen karneye girmez ama sayılır", () => {
     const entries: ScorecardEntry[] = [
       ...octoberEntries(7),
-      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "void" }, status: "VOID" },
-      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "pending" }, status: null },
-      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "november" }, kickoffUtc: "2026-11-01T17:00:00.000Z" },
+      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "void", fixtureId: "api-football-9101" }, status: "VOID" },
+      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "pending", fixtureId: "api-football-9102" }, status: null },
+      { ...octoberEntries(1)[0]!, record: { ...octoberEntries(1)[0]!.record, id: "november", fixtureId: "api-football-9103" }, kickoffUtc: "2026-11-01T17:00:00.000Z" },
     ];
     const built = buildPeriodScorecard({ period: october, entries, splitByModelVersion: false });
     assert.ok(built.ok);
@@ -170,5 +172,52 @@ describe("dil kapısı — kart ve gönderi metni", () => {
     assert.equal(cards[0]?.hero.kind === "SMALL_SAMPLE" && cards[0].hero.badge, null, "maç karnesinde 'ilk tahminler' etiketi yok");
     assert.equal(cards[0]?.subtitle, "KONYASPOR 1–2 GALATASARAY");
     assert.equal(cards[0]?.footerLine, "TRENDYOL SÜPER LİG · 10. HAFTA · 30.10.2026");
+  });
+});
+
+describe("sayılan tahmin = onay; aynı maç + senaryo için yalnızca İLK onay (2026-10-30)", () => {
+  const base = { fixtureId: KONYA_GS.fixtureId, sides, score: KONYA_GS.score };
+  const first = (pick: "HOME" | "AWAY", id: string, at: string) => record(id, { scenario: "RESULT_1X2", pick }, 0.5, { recordedAt: at });
+
+  it("en erken onay sayılır, eşitlikte kimlik; sonrakiler 'tekrar' — kayıt dizisi değişmez (silme yok)", () => {
+    const records = [first("AWAY", "b-late", "2026-10-29T12:00:00.000Z"), first("HOME", "a-early", "2026-10-29T09:00:00.000Z"), first("AWAY", "c-tie", "2026-10-29T09:00:00.000Z")];
+    const copy = JSON.stringify(records);
+    const { counted, duplicates } = countedRecords(records);
+    assert.deepEqual(counted.map((entry) => entry.id), ["a-early"]);
+    assert.deepEqual(duplicates.map((entry) => entry.id), ["b-late", "c-tie"]);
+    assert.equal(JSON.stringify(records), copy);
+    const otherMatch = { ...first("AWAY", "z", "2026-10-29T08:00:00.000Z"), fixtureId: "api-football-1" };
+    assert.deepEqual(countedRecords([...records, otherMatch]).counted.map((entry) => entry.id), ["a-early", "z"], "başka maçın aynı senaryosu ayrı sayılır");
+  });
+
+  it("SEÇME YOK: tutmayan ilk onay, sonradan tutan onayla değiştirilemez", () => {
+    const missFirst = buildMatchScorecard({ ...base, records: [first("HOME", "miss", "2026-10-29T09:00:00.000Z"), first("AWAY", "hit", "2026-10-29T10:00:00.000Z")] });
+    assert.ok(missFirst.ok);
+    assert.deepEqual(missFirst.data.rows.map((row) => [row.recordId, row.status]), [["miss", "MISS"]]);
+    assert.equal(missFirst.data.duplicates, 1);
+    const hitFirst = buildMatchScorecard({ ...base, records: [first("HOME", "miss", "2026-10-29T10:00:00.000Z"), first("AWAY", "hit", "2026-10-29T09:00:00.000Z")] });
+    assert.ok(hitFirst.ok);
+    assert.deepEqual(hitFirst.data.rows.map((row) => [row.recordId, row.status]), [["hit", "HIT"]], "kural zamandan — sonuca bakmaz");
+  });
+
+  it("B: tekrar onay oranın ve şeridin dışında, ayrıca sayılır", () => {
+    const entries = octoberEntries(8);
+    const original = entries[0]!;
+    const repeat: ScorecardEntry = { ...original, record: { ...original.record, id: "oct-repeat", recordedAt: "2026-10-01T09:00:00.000Z" }, status: original.status === "HIT" ? "MISS" : "HIT" };
+    const without = buildPeriodScorecard({ period: october, entries, splitByModelVersion: false });
+    const withRepeat = buildPeriodScorecard({ period: october, entries: [...entries, repeat], splitByModelVersion: false });
+    assert.ok(without.ok && withRepeat.ok);
+    assert.equal(withRepeat.data.summary.total, without.data.summary.total);
+    assert.equal(withRepeat.data.summary.hits, without.data.summary.hits);
+    assert.deepEqual(withRepeat.data.strip, without.data.strip);
+    assert.equal(withRepeat.data.duplicates, 1);
+    assert.equal(without.data.duplicates, 0);
+  });
+
+  it("sezon 1 Temmuz 00:00 İstanbul'da başlar", () => {
+    const season = periodFor("SEASON", new Date("2026-10-30T12:00:00Z"));
+    assert.ok(inPeriod(season, "2026-06-30T21:00:00.000Z"), "1 Temmuz 00:00 İstanbul yeni sezonda");
+    assert.ok(!inPeriod(season, "2026-06-30T20:59:00.000Z"), "30 Haziran 23:59 İstanbul önceki sezonda");
+    assert.equal(periodFor("SEASON", new Date("2026-06-30T20:59:00.000Z")).label, "2025/26 SEZONU");
   });
 });
