@@ -8,11 +8,13 @@ import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-u
 import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
+import { precheckSharpness } from "@/lib/dashboard/match-photo/quality";
 import { loadMediaAssetImage, matchPhotoTag } from "@/lib/dashboard/media-library";
 import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/match-result-engine";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { loadMatchStatsFacts } from "@/lib/dashboard/match-stats-studio";
 import { loadPlayerStatsFacts } from "@/lib/dashboard/player-stats-studio";
+import { loadSetExtras } from "@/lib/dashboard/set-extra-data";
 import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { PLAYER_PAGE_MODES, playerPagePlan } from "@/lib/player-stats/plan";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
@@ -42,7 +44,7 @@ const photoSchema = z.object({
 const PLAYER_PAGES = { SPOTLIGHT: { template: "SPOTLIGHT", count: undefined }, TOP_3: { template: "TOP_PLAYERS", count: 3 }, TOP_5: { template: "TOP_PLAYERS", count: 5 } } as const;
 const playerPage = z.union([z.literal(""), z.enum(["SPOTLIGHT", "TOP_3", "TOP_5"])]);
 
-const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean(), playerPage, playerPageMode: z.enum(PLAYER_PAGE_MODES).catch("WHEN_READY") });
+const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean(), includeAnalysis: z.boolean(), includeScorecard: z.boolean(), playerPage, playerPageMode: z.enum(PLAYER_PAGE_MODES).catch("WHEN_READY") });
 
 const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId", "playerPage", "playerPageMode"] as const;
 
@@ -58,7 +60,7 @@ async function resolveInput(formData: FormData): Promise<
   | { ok: true; data: z.infer<typeof cardSchema>; facts: MatchResultFacts; photo: MatchPhotoInput; raw: ApiFootballFixtureResultRaw }
   | Fail
 > {
-  const parsed = cardSchema.safeParse({ ...Object.fromEntries(FIELDS.map((name) => [name, text(formData, name)])), photoIsMvp: formData.get("photoIsMvp") === "on", includeStats: formData.get("includeStats") === "on" });
+  const parsed = cardSchema.safeParse({ ...Object.fromEntries(FIELDS.map((name) => [name, text(formData, name)])), photoIsMvp: formData.get("photoIsMvp") === "on", includeStats: formData.get("includeStats") === "on", includeAnalysis: formData.get("includeAnalysis") === "on", includeScorecard: formData.get("includeScorecard") === "on" });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Geçersiz form verisi." };
   const data = parsed.data;
 
@@ -134,6 +136,10 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
   if (page && !playerFacts) return { error: "Oyuncu istatistikleri alınamadı — kart üretilmedi." };
   const plan = playerPagePlan(page !== null, playerFacts?.settlement ?? null, data.playerPageMode);
 
+  // "Maç analizini de ekle" / "Tahmin karnesini de ekle" — sabit sırada en sonda.
+  const extras = await loadSetExtras(input.raw, data.fixtureId, { analysis: data.includeAnalysis, scorecard: data.includeScorecard });
+  if (!extras.ok) return { error: extras.error };
+
   const mvp = (data.mvpId ? facts.players.find((player) => player.playerId === data.mvpId) : null) ?? facts.mvp;
   const result = await createMatchResultCard({
     facts,
@@ -146,6 +152,7 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
     zoom: data.zoom,
     stats,
     player: plan.action === "RENDER" && page && playerFacts ? { facts: playerFacts, template: page.template, count: page.count, provisional: plan.provisional } : null,
+    extras: extras.data,
     pendingPlayerPage: plan.action === "DEFER" && page ? { template: page.template, count: page.count ?? null, playerId: mvp?.playerId ?? null } : null,
   });
   if (!result.ok) return { error: result.error.message };
@@ -182,6 +189,10 @@ async function previewMatchPhoto(formData: FormData): Promise<MatchPhotoPreviewS
   const { data, facts, photo } = input;
 
   const frame = MATCH_DAY_FRAMES[data.format];
+  // Erken uyarı: üretimdeki keskinlik kapısı önizlemede, ücretli adımdan (ESRGAN) ÖNCE — aynı mesaj.
+  reportJobStep("Keskinlik denetimi");
+  const precheck = await precheckSharpness(photo.image);
+  if (precheck.warning) return { error: precheck.warning };
   reportJobStep("Yüz tespiti ve kırpma");
   const prepared = await prepareMatchPhoto({
     image: photo.image,

@@ -56,6 +56,9 @@ export interface DraftSummary {
   format: StudioFormat | null;
   resultImageUrl: string | null;
   createdAt: string;
+  /** Kuyruk satırının tür adı ve okunur başlığı için (`draft-queue-label.ts`). */
+  contentType: string | null;
+  renderOptions: unknown;
 }
 
 export interface DraftActionState {

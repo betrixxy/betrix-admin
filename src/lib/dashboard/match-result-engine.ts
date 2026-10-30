@@ -15,7 +15,9 @@ import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import { renderMatchResultOverlay } from "@/lib/dashboard/match-result-overlay";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { renderMatchStatsImage } from "@/lib/dashboard/match-stats-render";
-import { PLAYER_PAGE_LABELS } from "@/lib/dashboard/player-stats-engine";
+import { PLAYER_PAGE_LABELS, PLAYER_STATS_FORMATS } from "@/lib/dashboard/player-stats-engine";
+import { renderSetExtras, type SetExtrasRequest } from "@/lib/dashboard/set-extra-pages";
+import { pageNumber, setPageNumbers } from "@/lib/dashboard/set-pages";
 import { renderPlayerPage } from "@/lib/dashboard/player-stats-page";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
 import { saveStoredFile } from "@/lib/dashboard/storage";
@@ -29,7 +31,6 @@ import type { MatchStatsFacts } from "@/types/match-stats";
 import type { PlayerStatsFacts, PlayerStatsTemplateId, TopPlayerCount } from "@/types/player-match-stats";
 import type { PendingPlayerPage } from "@/lib/player-stats/plan";
 import type { Result } from "@/types/result";
-import type { SocialFormatId } from "@/types/studio-formats";
 import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
@@ -47,6 +48,7 @@ import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-l
  *   5. (isteğe bağlı) 02 İstatistikler aynı DRAFT'ta carousel'in ikinci görseli (`renderMatchStatsImage`).
  *   6. (isteğe bağlı) oyuncu sayfası (A Maçın Oyuncusu · B Maçın En İyileri) carousel'in son görseli
  *      (`renderPlayerPage`): aynı format, aynı vurgu rengi, aynı 16:9 sütun tarafı; B'nin zemini 01'in bulanık hâli.
+ *   7. (isteğe bağlı) Maç Analizi (01 + 02) ve Tahmin Karnesi sayfaları — sabit sırada en sonda (`set-extra-pages.ts`).
  */
 
 type EngineError = { code: string; message: string };
@@ -83,17 +85,14 @@ export interface CreateMatchResultInput {
   player?: { facts: PlayerStatsFacts; template: PlayerStatsTemplateId; count?: TopPlayerCount | undefined; provisional?: boolean | undefined } | null | undefined;
   /** Oyuncu verisi kesinleşmedi, "hazır olunca ekle": 01 (+ 02) şimdi, 03 taslak ekranından sonra (`player-page-append.ts`). */
   pendingPlayerPage?: PendingPlayerPage | null | undefined;
+  /** "Maç analizini de ekle" / "Tahmin karnesini de ekle": 02/03'ten sonra sabit sırada (`set-extra-pages.ts`). */
+  extras?: SetExtrasRequest | undefined;
   offset?: CropOffset | undefined;
   zoom?: number | undefined;
 }
 
-/** `AiContent.format` + `renderOptions.format` (sosyal format kaydı) eşlemesi. */
-const FORMATS: Record<MatchDayFormatId, { db: string; social: SocialFormatId }> = {
-  IG_PORTRAIT: { db: "IG_FEED", social: "post" },
-  IG_SQUARE: { db: "IG_SQUARE", social: "square" },
-  STORY: { db: "STORY", social: "story" },
-  X_LANDSCAPE: { db: "X_CARD", social: "landscape" },
-};
+/** `AiContent.format` + `renderOptions.format` (sosyal format kaydı) eşlemesi — set sayfalarıyla ortak. */
+const FORMATS = PLAYER_STATS_FORMATS;
 
 const asJson = (value: unknown) => JSON.parse(JSON.stringify(value)) as Prisma.InputJsonObject;
 
@@ -123,7 +122,11 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   const mvp = input.mvp ? (people.players.find((player) => player.playerId === input.mvp?.playerId) ?? input.mvp) : null;
   const mvpName = mvpLineName({ mvp, photoPlayerId: input.photo.playerId, photoIsMvp: input.photoIsMvp });
   const carousel = input.stats ? input.stats : null;
-  const card = await resolveMatchResultCard(people, mvpName, carousel || input.player ? SET_PAGE_LABELS.RESULT : null, mvp ? (people.mvpOrigins.get(mvp.playerId) ?? null) : null);
+  const extrasWanted = Boolean(input.extras?.analysis || input.extras?.scorecard);
+  // Sabit sıra: 01, 02, oyuncu sayfası (bekleyen de numarasını alır), sonra "…de ekle" sayfaları.
+  const before = { MATCH_RESULT: 1, MATCH_STATS: carousel ? 1 : 0, PLAYER_STATS: input.player || input.pendingPlayerPage ? 1 : 0 };
+  const numbers = setPageNumbers(before);
+  const card = await resolveMatchResultCard(people, mvpName, carousel || input.player || extrasWanted ? SET_PAGE_LABELS.RESULT : null, mvp ? (people.mvpOrigins.get(mvp.playerId) ?? null) : null);
   const caption = buildMatchResultCaption(people, mvp?.name ?? null);
   // Bahis dili kapısı: kart metni + gönderi metni (02 ve oyuncu sayfası kendi çiziminde aynı kapıdan).
   const language = contentLanguageGate({ card, caption });
@@ -152,7 +155,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   // 02/03 — oyuncu sayfası: carousel'in son görseli, sayfa numarası sıradan.
   let playerPage: { image: Buffer; label: string; notes: string[]; paidCalls: number } | null = null;
   if (input.player) {
-    const number = String(carousel ? 3 : 2).padStart(2, "0");
+    const number = pageNumber(numbers.PLAYER_STATS?.[0] ?? (carousel ? 3 : 2));
     const label = PLAYER_PAGE_LABELS[input.player.template];
     reportJobStep(`Oyuncu sayfası çiziliyor (${number})`);
     const rendered = await renderPlayerPage({
@@ -171,7 +174,12 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
     playerPage = { image: rendered.data.image, label: `${number} · ${label.charAt(0)}${label.slice(1).toLocaleLowerCase("tr-TR")}`, notes: rendered.data.notes.map((note) => `${number}: ${note}`), paidCalls: rendered.data.paidCalls };
   }
 
-  const notes = [...photo.quality.warnings, ...(carousel?.warnings ?? []), ...(playerPage?.notes ?? [])];
+  // "…de ekle" sayfaları: Maç Analizi (01 + 02), Tahmin Karnesi — 01'in bulanık zemini, aynı format.
+  const extras = input.extras && extrasWanted ? await renderSetExtras({ fixtureId: facts.fixtureId, format: input.format, resultImage: final, request: input.extras, counts: before }) : null;
+  if (extras && !extras.ok) return fail(extras.error.code, extras.error.message);
+  const extraSlides = extras?.data.slides ?? [];
+
+  const notes = [...photo.quality.warnings, ...(carousel?.warnings ?? []), ...(playerPage?.notes ?? []), ...(extras?.data.notes ?? [])];
   if (!photo.crop.facesInSafe) notes.push("Yüzler yazısız bölgeye tam sığmadı — kırpmayı elle kaydırmayı deneyin.");
   if (photo.side === "left") notes.push("16:9: özne sağda olduğu için yazı sütunu sola aynalandı.");
   if (photo.quality.upscaled && photo.quality.paidCalls === 0) notes.push("AI büyütme önbellekten");
@@ -182,6 +190,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
 
   reportJobStep("Kaydediliyor");
   try {
+    const extraUrls = await Promise.all(extraSlides.map((slide) => saveStoredFile("renders", `${randomUUID()}.png`, slide.image)));
     const [backgroundImageUrl, resultImageUrl, statsImageUrl, playerImageUrl] = await Promise.all([
       saveStoredFile("generated", `${randomUUID()}.jpg`, await sharp(photo.art).jpeg({ quality: 90 }).toBuffer()),
       saveStoredFile("renders", `${randomUUID()}.png`, final),
@@ -191,8 +200,10 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
     const extra = [
       ...(statsImageUrl ? [{ url: statsImageUrl, label: "02 · İstatistikler", type: "MATCH_STATS" as const }] : []),
       ...(playerImageUrl && playerPage ? [{ url: playerImageUrl, label: playerPage.label, type: "PLAYER_STATS" as const }] : []),
+      ...extraSlides.map((slide, index) => ({ url: extraUrls[index] ?? "", label: slide.label, type: slide.page })),
     ];
-    const slides = extra.length > 0 ? [{ url: resultImageUrl, label: "01 · Maç Sonucu" }, ...extra.map(({ url, label }) => ({ url, label }))] : null;
+    // Slayt türünü (`page`) taşır: sonradan eklenen oyuncu sayfası ayrılan yerine girer (`set-pages.ts::withPlayerSlide`).
+    const slides = extra.length > 0 ? [{ url: resultImageUrl, label: "01 · Maç Sonucu", page: "MATCH_RESULT" }, ...extra.map(({ url, label, type }) => ({ url, label, page: type }))] : null;
     const paidCalls = photo.quality.paidCalls + (playerPage?.paidCalls ?? 0);
     const format = FORMATS[input.format];
     const record = await createScheduledContent({
@@ -214,7 +225,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
         imageUrl: resultImageUrl,
         title: matchResultTitle(facts),
         subtitle: `${facts.competition.name} · ${facts.roundLabel}`,
-        mvp: input.mvp,
+        mvp, // kart adı kuralından (taslak ekranı "Maçın oyuncusu" da aynı adı yazar)
         mvpShown: mvpName !== null,
         photo: { fileUrl: input.photo.fileUrl, hash: input.photo.image.hash, playerId: input.photo.playerId, photoId: input.photo.photoId ?? null },
         crop: photo.crop,
@@ -223,14 +234,14 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
         sharpness: Math.round(photo.quality.sharpness),
         paidCalls,
         // Yayın Merkezi bu sırayla dizer (Instagram carousel); tek kartta yok. `pages`: karşılanan içerik türleri (set-pages.ts).
-        ...(slides ? { carousel: slides, pages: ["MATCH_RESULT", ...extra.map((slide) => slide.type)] } : {}),
+        ...(slides ? { carousel: slides, pages: [...new Set(["MATCH_RESULT", ...extra.map((slide) => slide.type)])] } : {}),
         ...(input.pendingPlayerPage ? { pendingPlayerPage: input.pendingPlayerPage } : {}),
         ...(playerPage && input.player?.provisional ? { provisionalPlayerPage: true } : {}),
       }),
     });
     return {
       ok: true,
-      data: { id: record.id, resultImageUrl, statsImageUrl, playerImageUrl, playerPageLabel: playerPage?.label ?? null, backgroundImageUrl, format: input.format, paidCalls, notes, zoom: photo.crop.zoom, facesInSafe: photo.crop.facesInSafe, side: photo.side },
+      data: { id: record.id, resultImageUrl, statsImageUrl, playerImageUrl, playerPageLabel: playerPage?.label ?? null, extraPages: extraSlides.map((slide, index) => ({ url: extraUrls[index] ?? "", label: slide.label })), backgroundImageUrl, format: input.format, paidCalls, notes, zoom: photo.crop.zoom, facesInSafe: photo.crop.facesInSafe, side: photo.side },
     };
   } catch (error: unknown) {
     console.error("[match-result] kart kaydedilemedi:", error);

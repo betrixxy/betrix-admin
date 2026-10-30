@@ -4,6 +4,7 @@ import { z } from "zod";
 import { WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/content-schedule";
 import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-snapshot";
 import { drawRecordOptionsSchema } from "@/lib/dashboard/draw-records";
+import { isSetDraftKind, SET_DRAFT_KIND_IDS, SET_DRAFT_KINDS } from "@/lib/dashboard/draft-kinds";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
 import { vitrinReviewSrc } from "@/lib/prediction/vitrin-files";
@@ -87,10 +88,10 @@ const standingsOptionsSchema = z.object({
   sections: z.array(z.object({ rows: z.array(z.unknown()) })),
 });
 
-/** `AiContent.renderOptions` — Maç Sonucu / İstatistikler / Oyuncu İstatistikleri kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
+/** `AiContent.renderOptions` — Maç Sonucu / İstatistikler / Oyuncu İstatistikleri / Maç Analizi / Tahmin Karnesi kaydı (inceleme ekranının okuduğu alanlar). */
 const slideSchema = z.object({ url: z.string(), label: z.string() });
 const matchResultOptionsSchema = z.object({
-  kind: z.enum(["MATCH_RESULT", "MATCH_STATS", "PLAYER_STATS"]),
+  kind: z.enum(SET_DRAFT_KIND_IDS),
   format: formatField,
   imageUrl: z.string(),
   title: z.string(),
@@ -295,11 +296,11 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
     }
   }
 
-  if (record.contentType === "MATCH_RESULT" || record.contentType === "MATCH_STATS" || record.contentType === "PLAYER_STATS") {
+  if (isSetDraftKind(record.contentType)) {
     const options = matchResultOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
       const { imageUrl, title, subtitle, mvp, format, carousel, kind, pendingPlayerPage, provisionalPlayerPage } = options.data;
-      const kindLabel = kind === "MATCH_STATS" ? "Maç İstatistikleri" : kind === "PLAYER_STATS" ? "Oyuncu İstatistikleri" : "Maç Sonucu";
+      const kindLabel = SET_DRAFT_KINDS[kind].label;
       return {
         kind: "match-result",
         draft: {
@@ -318,9 +319,9 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: kindLabel }],
           format,
           vitrin: false,
-          // Oyuncu sayfası (tek başına ya da carousel 03) analiz/bahis dili kapısından geçer.
-          languageGate: setPages(record.contentType, record.renderOptions).includes("PLAYER_STATS"),
-          slug: kind === "PLAYER_STATS" ? "oyuncu-istatistik" : "mac-sonucu",
+          // Oyuncu sayfası, Maç Analizi ve Tahmin Karnesi (tek başına ya da carousel'de) bahis dili kapısından geçer.
+          languageGate: setPages(record.contentType, record.renderOptions).some((page) => page === "PLAYER_STATS" || page === "MATCH_ANALYSIS" || page === "PREDICTION_SCORECARD"),
+          slug: SET_DRAFT_KINDS[kind].slug,
           playerPage:
             kind === "MATCH_RESULT"
               ? { has: setPages("MATCH_RESULT", record.renderOptions).includes("PLAYER_STATS"), pending: pendingPlayerPage ?? null, provisional: provisionalPlayerPage === true, mvpId: mvp?.playerId ?? null }
@@ -397,7 +398,7 @@ export async function getDraftQueue(limit = 20): Promise<DraftSummary[]> {
     where: { status: "DRAFT", ...WITHOUT_SCHEDULE_PLACEHOLDERS },
     orderBy: { createdAt: "desc" },
     take: limit,
-    select: { id: true, fixtureId: true, status: true, format: true, resultImageUrl: true, createdAt: true },
+    select: { id: true, fixtureId: true, status: true, format: true, resultImageUrl: true, createdAt: true, contentType: true, renderOptions: true },
   });
   return rows.map((row) => ({ ...row, format: toStudioFormat(row.format), createdAt: row.createdAt.toISOString() }));
 }

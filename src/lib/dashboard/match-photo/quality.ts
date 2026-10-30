@@ -99,6 +99,33 @@ const falUpscale: PhotoUpscaler = async (image, scale) => {
   }
 };
 
+/** Ücretsiz keskinlik ön denetimi (kırpma önizlemesi) — üretim kapısıyla aynı mesaj ve eşik. */
+export interface SharpnessPrecheck {
+  sharpness: number;
+  /** Kısa kenar < 1080: üretim AI büyütmeden SONRA ölçer — buradaki ölçüm büyütmesiz kaynakta (tahmini). */
+  beforeUpscale: boolean;
+  /** Eşiğin altındaysa gösterilecek Türkçe uyarı; geçtiyse null. */
+  warning: string | null;
+}
+
+export const softPhotoMessage = (sharpness: number, after: string): string =>
+  `Fotoğraf yeterince net değil${after}: keskinlik ${Math.round(sharpness)} < ${MIN_SHARPNESS}. Daha net bir kare seçin — kart üretilmedi.`;
+
+/**
+ * Erken uyarı (2026-10-30): üretimden ÖNCE, ücretli adım olmadan keskinlik. Kısa kenar ≥ 1080 → ölçüm üretim
+ * kapısınınkiyle birebir aynı (büyütme yok). < 1080 → ESRGAN tetiklenmez; kaynak büyütmesiz ölçülür ve uyarı
+ * bunu söyler (büyütme keskinliği değiştirebilir, son söz üretim kapısında).
+ */
+export async function precheckSharpness(image: Pick<UploadedImage, "bytes" | "width" | "height">): Promise<SharpnessPrecheck> {
+  const sharpness = await measureSharpness(image.bytes);
+  const beforeUpscale = photoUpscaleFactor(image) > 1;
+  if (sharpness >= MIN_SHARPNESS) return { sharpness, beforeUpscale, warning: null };
+  const message = beforeUpscale
+    ? `Fotoğraf yeterince net değil: keskinlik ${Math.round(sharpness)} < ${MIN_SHARPNESS} (AI büyütmeden önce, kaynakta ölçüldü — büyütme sonrası değişebilir). Daha net bir kare seçin; üretimde aynı kapı yeniden ölçer.`
+    : softPhotoMessage(sharpness, "");
+  return { sharpness, beforeUpscale, warning: message };
+}
+
 export interface PhotoQuality {
   image: UploadedImage;
   upscaled: boolean;
@@ -122,13 +149,7 @@ export async function checkPhotoQuality(image: UploadedImage, upscale: PhotoUpsc
   const sharpness = await measureSharpness(current.bytes);
   if (sharpness < MIN_SHARPNESS) {
     const after = scale > 1 ? " (AI büyütmeden sonra da)" : "";
-    return {
-      ok: false,
-      error: {
-        code: "PHOTO_TOO_SOFT",
-        message: `Fotoğraf yeterince net değil${after}: keskinlik ${Math.round(sharpness)} < ${MIN_SHARPNESS}. Daha net bir kare seçin — kart üretilmedi.`,
-      },
-    };
+    return { ok: false, error: { code: "PHOTO_TOO_SOFT", message: softPhotoMessage(sharpness, after) } };
   }
   // Uyarı KAYNAK boyutuna bakar: upscale edilmiş görsel büyük görünse de doku kaynağınkidir.
   const shortSide = Math.min(image.width, image.height);

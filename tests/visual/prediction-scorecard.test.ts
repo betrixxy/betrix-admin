@@ -22,7 +22,7 @@ import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
  * sürümü ayrımı) × 4 format. Kayıtlar SENTETİK (prod'da kayıt yok). Ağ yok: logolar yok. Her kartta YERLEŞİM
  * KAPISI.
  *
- * Baseline henüz ONAYLANMADI: baseline dosyası yoksa yalnızca yerleşim kapısı koşar ve çıktı
+ * Baseline onaylı (2026-10-31; prediction-scorecard 16, match-analysis 20). Baseline dosyası yoksa yalnızca yerleşim kapısı koşar ve çıktı
  * `__output__/prediction-scorecard/` altına yazılır; baseline varsa piksel karşılaştırması yapılır.
  *   UPDATE_BASELINE=1 npx tsx --test tests/visual/prediction-scorecard.test.ts   # yalnızca kullanıcı onayıyla
  */

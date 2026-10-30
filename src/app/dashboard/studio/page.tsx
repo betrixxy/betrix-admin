@@ -3,6 +3,7 @@ import { AlertTriangle } from "lucide-react";
 import { AiContentGallery } from "@/components/features/dashboard/ai-content-gallery";
 import { DrawEntryCard } from "@/components/features/dashboard/draw-entry-card";
 import { PageHeader } from "@/components/features/dashboard/page-header";
+import { ScorecardEntryCard } from "@/components/features/dashboard/scorecard-entry-card";
 import { StudioForm } from "@/components/features/dashboard/studio-form";
 import { getFixtureOptions, getFixtureTeams } from "@/lib/dashboard/fixtures";
 import { getMediaAssetOptions } from "@/lib/dashboard/media-library";
@@ -45,6 +46,7 @@ export default async function StudioPage() {
       ) : null}
 
       <DrawEntryCard />
+      <ScorecardEntryCard />
 
       <StudioForm
         fixtures={fixtureOptions}

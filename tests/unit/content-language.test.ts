@@ -23,10 +23,12 @@ const PRODUCTION_PATHS: Record<string, string[]> = {
   AI_MARKET_PREDICTION: ["src/lib/dashboard/vitrin-engine.ts"],
   PLAYER_H2H: ["src/lib/dashboard/player-h2h-engine.ts"],
   DRAWS_AND_PAIRINGS: ["src/lib/dashboard/draw-engine.ts"],
-  MATCH_RESULT: ["src/lib/dashboard/match-result-engine.ts", "src/lib/dashboard/match-stats-render.ts", "src/lib/dashboard/player-stats-render.tsx"],
+  MATCH_RESULT: ["src/lib/dashboard/match-result-engine.ts", "src/lib/dashboard/match-stats-render.ts", "src/lib/dashboard/player-stats-render.tsx", "src/lib/dashboard/match-analysis-render.tsx", "src/lib/dashboard/prediction-scorecard-render.tsx"],
   MATCH_STATS: ["src/lib/dashboard/match-stats-engine.ts", "src/lib/dashboard/match-stats-render.ts"],
   PLAYER_STATS: ["src/lib/dashboard/player-stats-engine.ts", "src/lib/dashboard/player-stats-render.tsx"],
   STANDINGS: ["src/lib/dashboard/standings-engine.ts"],
+  MATCH_ANALYSIS: ["src/lib/dashboard/match-analysis-engine.ts", "src/lib/dashboard/match-analysis-render.tsx"],
+  PREDICTION_SCORECARD: ["src/lib/dashboard/prediction-scorecard-engine.ts", "src/lib/dashboard/prediction-scorecard-render.tsx"],
 };
 
 describe("bahis dili — ortak tek kapı", () => {
@@ -49,7 +51,8 @@ describe("bahis dili — ortak tek kapı", () => {
   it("onay her türde, yayın platforma gitmeden önce denetler", () => {
     const approval = read("src/lib/prediction/approval.ts");
     const gate = approval.indexOf("contentLanguageGate(");
-    assert.ok(gate > 0 && gate < approval.indexOf("DRAWS_AND_PAIRINGS") && gate < approval.indexOf("AI_MARKET_PREDICTION"), "onay kapısı tür dallarından önce");
+    assert.ok(gate > 0 && gate < approval.indexOf("AI_MARKET_PREDICTION"), "onay kapısı tür dallarından önce");
+    assert.ok(!approval.includes("DRAWS_AND_PAIRINGS"), "Kura'ya özel hashtag dalı yok — sınır ortak kapıda (caption-format.ts)");
     const publish = read("src/lib/dashboard/publish-engine.ts");
     assert.ok(publish.indexOf("contentLanguageGate(") > 0 && publish.indexOf("contentLanguageGate(") < publish.indexOf("publishToPlatform("), "yayın kapısı platform çağrısından önce");
     assert.ok(read("src/lib/dashboard/draft-engine.ts").includes("contentLanguageGate("), "genel AI stüdyosu taslağı");

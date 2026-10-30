@@ -29,7 +29,7 @@ import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
  * (sabit Sportmonks yanıtı → `fixtureTeamPeople` → `withEventNames`). Ağ yok: logolar `null`. Her sayfada
  * YERLEŞİM KAPISI.
  *
- * Baseline henüz ONAYLANMADI: baseline dosyası yoksa yalnızca yerleşim kapısı koşar ve çıktı
+ * Baseline onaylı (2026-10-31; prediction-scorecard 16, match-analysis 20). Baseline dosyası yoksa yalnızca yerleşim kapısı koşar ve çıktı
  * `__output__/match-analysis/` altına yazılır; baseline varsa piksel karşılaştırması yapılır.
  *   npm run test:visual:update   # baseline'ı yazar — yalnızca kullanıcı onayıyla
  */

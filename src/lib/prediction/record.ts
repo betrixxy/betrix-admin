@@ -12,7 +12,7 @@ import type { VitrinRenderOptions } from "@/types/vitrin";
  */
 
 const scenarioId = z.enum(SCENARIO_IDS);
-const outcomeSchema = z.union([
+export const outcomeSchema = z.union([
   z.object({ scenario: z.enum(["RESULT_1X2", "HT_RESULT"]), pick: z.enum(["HOME", "DRAW", "AWAY"]) }),
   z.object({ scenario: z.enum(["BTTS", "GOALS_3PLUS", "GOALS_4PLUS"]), pick: z.enum(["YES", "NO"]) }),
   z.object({ scenario: z.literal("COMBO"), team: z.enum(["HOME", "AWAY"]), pick: z.enum(["YES", "NO"]) }),

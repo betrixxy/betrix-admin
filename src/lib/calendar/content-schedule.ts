@@ -7,23 +7,12 @@ import { APPROVED_STATUSES } from "@/types/ai-content";
 export { isSchedulePlaceholder, SCHEDULE_PLACEHOLDER_WHERE, WITHOUT_SCHEDULE_PLACEHOLDERS } from "@/lib/calendar/schedule-placeholder";
 import { SCHEDULE_PLACEHOLDER_WHERE } from "@/lib/calendar/schedule-placeholder";
 
-/**
- * Bir maçın bir içerik türü için yayın zamanını ayarlar (`publishAt = null` planı kaldırır).
- * Türün reddedilmemiş kayıtları varsa yalnızca `publishAt` güncellenir; hiç kayıt yoksa
- * placeholder oluşturulur. Plan kaldırılınca, artık hiçbir şey taşımayan placeholder silinir.
+/*
+ * Planlama placeholder'ı (`resultImageUrl = null` DRAFT) eskiden maç panelindeki İçerik Kontrol Merkezi'nin
+ * takvim ikonuyla (`setContentSchedule`) açılırdı; bileşen 2026-10-30'da kaldırıldı, YENİ placeholder açılmaz.
+ * Eski satırlar veritabanında kalabilir: okuyucular (onay kuyruğu, sayaçlar, İçerik Planı) onları süzmeye,
+ * stüdyo ilk üretimi onların üzerine yazmaya devam eder.
  */
-export async function setContentSchedule(fixtureId: string, contentType: ContentTypeId, publishAt: Date | null): Promise<void> {
-  const scope = { fixtureId, contentType, status: { in: ["DRAFT", ...APPROVED_STATUSES] } } satisfies Prisma.AiContentWhereInput;
-
-  await prisma.$transaction(async (tx) => {
-    const { count } = await tx.aiContent.updateMany({ where: scope, data: { publishAt } });
-    if (publishAt === null) {
-      await tx.aiContent.deleteMany({ where: { fixtureId, contentType, ...SCHEDULE_PLACEHOLDER_WHERE } });
-    } else if (count === 0) {
-      await tx.aiContent.create({ data: { fixtureId, contentType, publishAt, status: "DRAFT", prompt: "" } });
-    }
-  });
-}
 
 /**
  * Stüdyo üretiminin kaydı: bu maç+tür için planlama placeholder'ı varsa üretim onun üzerine

@@ -22,7 +22,7 @@ export interface ScorecardCardBase {
   /** ✅/❌ şeridi, eskiden yeniye. */
   strip: SettledStatus[];
   footnote: string;
-  /** Künye: A "TRENDYOL SÜPER LİG · 10. HAFTA · 30.10.2026"; B "YAYINLANAN BÜTÜN TAHMİNLER". */
+  /** Künye: A "TRENDYOL SÜPER LİG · 10. HAFTA · 30.10.2026"; B "ONAYLANAN BÜTÜN TAHMİNLER". */
   footerLine: string;
   brandLogo: string;
   /** Zemin ışığı (renk kuralı; altın/marka rengi değil). */

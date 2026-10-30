@@ -7,8 +7,11 @@ import type { IntegrationStatus } from "@/types/social-connection";
 interface IntegrationDef {
   name: string;
   description: string;
-  /** `adapter.ts` hesap bilgisi NOT_IMPLEMENTED ise bağlantı her zaman başarısız olur. */
-  comingSoon?: true;
+  /**
+   * Listede gösterilmez (bağlıysa gösterilir — kopar düğmesi için): `adapter.ts` hesap bilgisi NOT_IMPLEMENTED,
+   * bağlantı her zaman başarısız olur. OAuth / arka uç kodu yerinde; menüde "Yakında" satırı kalmasın (2026-10-30).
+   */
+  hidden?: true;
 }
 
 /** Platform başına OAuth bağlantısı (bkz. CLAUDE.md 4.1). Instagram ve Facebook aynı Meta uygulamasını kullanır. */
@@ -20,7 +23,7 @@ const INTEGRATION_DEFS: Record<SocialPlatformType, IntegrationDef> = {
   META_FACEBOOK: {
     name: "Facebook",
     description: "Graph API: tepki, yorum, paylaşım, erişim ve gösterim.",
-    comingSoon: true,
+    hidden: true,
   },
   TIKTOK: {
     name: "TikTok",
@@ -41,16 +44,15 @@ export async function getIntegrationStatuses(): Promise<IntegrationStatus[]> {
   const connections = await listConnections();
   const byPlatform = new Map(connections.map((row) => [row.platform, toConnectionView(row)]));
 
-  return SOCIAL_PLATFORM_TYPES.map((platform) => {
+  return SOCIAL_PLATFORM_TYPES.filter((platform) => !INTEGRATION_DEFS[platform].hidden || byPlatform.has(platform)).map((platform) => {
     const slug = PLATFORM_TO_SLUG[platform];
-    const { name, description, comingSoon } = INTEGRATION_DEFS[platform];
+    const { name, description } = INTEGRATION_DEFS[platform];
     return {
       platform,
       slug,
       name,
       description,
       configured: isProviderConfigured(slug),
-      comingSoon: comingSoon ?? false,
       connection: byPlatform.get(platform) ?? null,
     };
   });

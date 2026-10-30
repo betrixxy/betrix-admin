@@ -1,5 +1,4 @@
 import { DraftPublishPanel } from "@/components/features/dashboard/publishing/draft-publish-panel";
-import { CONTENT_MAX_HASHTAGS } from "@/lib/dashboard/publish-caption";
 import { DraftPreview } from "@/components/features/dashboard/draft-preview";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { PlayerPageAppend } from "@/components/features/dashboard/player-page-append";
@@ -53,7 +52,7 @@ export function MatchResultDraftView({ draft, postOptions }: { draft: MatchResul
         </div>
       ) : null}
 
-      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-${draft.slug}-${draft.id}`} vitrin={draft.vitrin} languageGate={draft.languageGate} maxHashtags={draft.slug === "kura" ? CONTENT_MAX_HASHTAGS.DRAWS_AND_PAIRINGS : null} />
+      <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-${draft.slug}-${draft.id}`} vitrin={draft.vitrin} languageGate={draft.languageGate} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
-import { format } from "date-fns";
 import { MATCH_CENTER_PAST_DAYS, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/match-center-window";
+import { shortDate } from "@/lib/format/dates";
 import { prisma } from "@/lib/prisma";
 import { getFixturesByIds, getUpcomingFixtures, parseFixtureId } from "@/lib/services/api-football";
 import type { ApiFootballError } from "@/lib/services/api-football";
@@ -23,7 +23,7 @@ export function getMatchCenterFixtures(): Promise<Result<Fixture[], ApiFootballE
 }
 
 export function formatFixtureLabel(fixture: Fixture): string {
-  return `${fixture.homeTeam.shortName} – ${fixture.awayTeam.shortName} · ${format(new Date(fixture.kickoffUtc), "d MMM")}`;
+  return `${fixture.homeTeam.shortName} – ${fixture.awayTeam.shortName} · ${shortDate(fixture.kickoffUtc)}`;
 }
 
 export function toFixtureOption(fixture: Fixture): FixtureOption {

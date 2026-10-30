@@ -4,7 +4,7 @@ import { TtlCache } from "@/lib/services/shared/ttl-cache";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { isSupportedLeagueId } from "@/lib/services/api-football/leagues";
 import { mapApiFootballFixtureToFixture } from "@/lib/services/api-football/mappers";
-import { isSettledPastDay, SETTLED_DAY_TTL_MS } from "@/lib/services/api-football/settled-day";
+import { dayCacheTtlMs } from "@/lib/services/api-football/settled-day";
 import {
   apiFootballFixtureDetailsResponseSchema,
   apiFootballFixturesResponseSchema,
@@ -30,25 +30,29 @@ const DAY_REQUEST_CONCURRENCY = 7;
 const MAX_IDS_PER_REQUEST = 20;
 /** Bitmiş maçların detayı değişmez — uzun süre önbellekte kalabilir. */
 const FINISHED_DETAIL_TTL_MS = 6 * 60 * 60 * 1000;
-/** Tamamen sonuçlanmış geçmiş günler (bkz. settled-day.ts) — uzun önbellek. */
-const settledDays = new TtlCache<Fixture[]>(64);
+/**
+ * Gün listeleri, içeriğe göre süreyle (bkz. settled-day.ts::dayCacheTtlMs): sonuçlanmış geçmiş gün 12 sa,
+ * canlı / başlamak üzere maçı olan gün 60 sn, diğerleri 15 dk. Ham yanıt istemci önbelleğine girmez
+ * (süre yanıtı görmeden seçilemez).
+ */
+const dayCache = new TtlCache<Fixture[]>(64);
 
 function invalidResponse(provider: string, error: z.ZodError): ApiFootballError {
   return { code: "INVALID_RESPONSE", message: `${provider} yanıtı beklenen şemaya uymuyor: ${error.message}` };
 }
 
 async function getFixturesForDate(date: string): Promise<Result<Fixture[], ApiFootballError>> {
-  const settled = settledDays.get(date);
-  if (settled) return { ok: true, data: settled };
+  const cached = dayCache.get(date);
+  if (cached) return { ok: true, data: cached };
 
-  const rawResult = await apiFootballRequest("/fixtures", { date, timezone: "Europe/Istanbul" });
+  const rawResult = await apiFootballRequest("/fixtures", { date, timezone: "Europe/Istanbul" }, { ttlMs: 0 });
   if (!rawResult.ok) return rawResult;
 
   const parsed = apiFootballFixturesResponseSchema.safeParse(rawResult.data);
   if (!parsed.success) return { ok: false, error: invalidResponse("API-Football /fixtures", parsed.error) };
 
   const fixtures = parsed.data.response.filter((raw) => isSupportedLeagueId(raw.league.id)).map(mapApiFootballFixtureToFixture);
-  if (isSettledPastDay(date, fixtures, new Date())) settledDays.set(date, fixtures, SETTLED_DAY_TTL_MS);
+  dayCache.set(date, fixtures, dayCacheTtlMs(date, fixtures, new Date()));
   return { ok: true, data: fixtures };
 }
 

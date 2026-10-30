@@ -9,11 +9,19 @@ import { auditReason, type VitrinFacts } from "./reasons";
  * her parçada örneklem yazılı ("son 5 maçta"). Aday parçalar seçili sonuca göre YÖN denetiminden geçer
  * (`reason-claims.ts`, AI denetimiyle aynı fonksiyon): yalnızca sonucu destekleyen parçalar yazılır,
  * çelişen hiçbir zaman. Destekleyen parça yoksa gerekçe boş kalır (kart kilitlenir, admin yazar).
+ * Gerekçeler KUTUYA ÖZGÜDÜR (2026-10-30): `ruleReasons` senaryoları katalog sırasıyla yazar, bir kutunun
+ * kullandığı parça sonrakilerde yeniden kullanılmaz — iki açık kutuya aynı cümle ("Fenerbahçe son 5 maçta
+ * maç başı 1,8 gol attı.") yazılmaz; her senaryonun aday sırası önce kendi konusunun verisini dener.
  */
 
 type Team = VitrinFacts["ev_sahibi"];
 
 const decimal = (value: number) => formatNumber(value);
+/** "İki takım da gol buldu" parçasının destek eşiği (son maçların oranı). */
+const BOTH_SCORED_SUPPORT = 0.6;
+/** Sayının bulunma eki ("4'ünde", "3'ünde", "5'inde") — "… tanesinde" 10 sözcük sınırını aşıyordu. */
+const LOCATIVE: Record<number, string> = { 1: "inde", 2: "sinde", 3: "ünde", 4: "ünde", 5: "inde", 6: "sında", 7: "sinde", 8: "inde", 9: "unda", 10: "unda" };
+const locative = (count: number) => `${count}'${LOCATIVE[count] ?? "inde"}`;
 
 /** Takımın aday parçaları (her biri tek iddia, kendi örneklemiyle). */
 function teamParts(team: Team, name: string, withXg: boolean): Record<string, string | null> {
@@ -27,6 +35,9 @@ function teamParts(team: Team, name: string, withXg: boolean): Record<string, st
     clean: team.gol_yemedigi_mac > 0 ? `${name} son ${n} maçta ${team.gol_yemedigi_mac} kez gol yemedi` : null,
     blank: team.gol_atamadigi_mac > 0 ? `${name} son ${n} maçta ${team.gol_atamadigi_mac} kez gol atamadı` : null,
     goalsSeen: `${name} son ${n} maçının ${team.uc_veya_daha_fazla_gollu_mac} tanesinde 3+ gol gördü`,
+    // "İki takım da gol bulur mu?"nun kendi verisi. Yön desenlerinde (`reason-claims.ts`) karşılığı yok —
+    // yalnızca açıkça destekliyorsa (≥ %60) aday olur, EVET seçiminde.
+    bothScored: team.iki_takimin_da_gol_buldugu_mac / Math.max(n, 1) >= BOTH_SCORED_SUPPORT ? `${name} son ${n} maçının ${locative(team.iki_takimin_da_gol_buldugu_mac)} iki takım da gol buldu` : null,
     xg: withXg && "xg_ort" in team && typeof team.xg_ort === "number" ? `${name} bu sezon ligde maç başına ${decimal(team.xg_ort)} xG üretiyor` : null,
   };
 }
@@ -44,7 +55,9 @@ function candidates(scenario: Scenario, facts: VitrinFacts, sides: MatchSides): 
       if ("pick" in outcome && outcome.pick === "DRAW") return [home.form, away.form];
       return [a.form, a.scoring, b.conceding, b.losses, a.clean, a.losses, b.form, b.blank];
     case "BTTS":
-      return outcome.pick === "YES" ? [a.scoring, b.scoring, a.conceding, b.conceding, a.goalsSeen, b.goalsSeen] : [a.clean, b.clean, a.blank, b.blank, a.scoring, b.scoring];
+      return outcome.pick === "YES"
+        ? [a.bothScored, b.bothScored, b.scoring, a.conceding, b.conceding, a.scoring, a.goalsSeen, b.goalsSeen]
+        : [a.clean, b.clean, a.blank, b.blank, a.scoring, b.scoring];
     case "GOALS_3PLUS":
     case "GOALS_4PLUS":
       return outcome.pick === "YES"
@@ -73,11 +86,29 @@ function compose(parts: string[]): string {
   return out ? `${out}.` : "";
 }
 
-export function ruleReason(scenario: Scenario, facts: VitrinFacts, sides: MatchSides): string {
-  const parts = candidates(scenario, facts, sides).filter((part): part is string => part !== null && supports(part, scenario, facts, sides));
+/** Gerekçenin parçaları ("a; b." → ["a", "b"]) — kullanılmış parça kümesi için. */
+const partsOf = (reason: string): string[] => reason.replace(/\.$/u, "").split("; ").filter(Boolean);
+
+/** Tek senaryonun gerekçesi; `used` verilirse o parçalar atlanır (başka kutunun gerekçesi). */
+export function ruleReason(scenario: Scenario, facts: VitrinFacts, sides: MatchSides, used: ReadonlySet<string> = new Set()): string {
+  const parts = candidates(scenario, facts, sides).filter((part): part is string => part !== null && !used.has(part) && supports(part, scenario, facts, sides));
   const passes = (text: string) => text !== "" && auditReason(text, scenario.outcome, facts, sides).length === 0;
   const joined = compose(parts);
   if (passes(joined)) return joined;
   // Birleşik metin denetime takılırsa (ör. konu) tek parçalar sırayla denenir.
   return parts.map((part) => `${part}.`).find(passes) ?? "";
+}
+
+/**
+ * Bütün senaryoların kural tabanlı gerekçeleri, KUTUYA ÖZGÜ: senaryolar verilen sırayla (katalog: önce
+ * kazanma olasılıkları) yazılır, bir gerekçenin parçası sonrakilerde kullanılmaz. Ayrı parça kalmazsa
+ * gerekçe boş (kutu açılırsa kart kilitlenir, admin yazar) — iki kutuda aynı cümle olmaz.
+ */
+export function ruleReasons(scenarios: readonly Scenario[], facts: VitrinFacts, sides: MatchSides): string[] {
+  const used = new Set<string>();
+  return scenarios.map((scenario) => {
+    const reason = ruleReason(scenario, facts, sides, used);
+    for (const part of partsOf(reason)) used.add(part);
+    return reason;
+  });
 }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { captionFacts, captionLength, captionWarnings, parsePublishSettings, publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { captionFacts, captionLength, captionWarnings, mediaOrderProblem, mergeMediaOrder, parsePublishSettings, publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
 
 const pair = {
   kind: "PROBABLE_LINEUPS",
@@ -54,6 +54,40 @@ describe("yayın merkezi — metin denetimi", () => {
     assert.equal(captionLength("Gol ⚽", "IG_POST"), 5);
     const long = `#Galatasaray #SüperLig ${"a".repeat(300)}`;
     assert.ok(captionWarnings(long, "X", facts).some((warning) => warning.includes("280")));
-    assert.ok(captionWarnings("Kısa metin #Galatasaray", "IG_POST", facts).some((warning) => warning.includes("5-8")));
+    assert.ok(captionWarnings("Kısa metin #Galatasaray", "IG_POST", facts).some((warning) => warning.includes("3-5")));
+  });
+
+  it("ortak kapı uyarıda başta: X'te link/alan adı, 5'ten fazla hashtag 'onaylanmaz'", () => {
+    assert.match(captionWarnings("Detaylar checkmatch.net'te #Galatasaray #SüperLig", "X", facts)[0] ?? "", /X metninde link.*onaylanmaz/u);
+    assert.ok(!captionWarnings("Detaylar checkmatch.net'te #Galatasaray #SüperLig #Futbol", "IG_POST", facts).some((warning) => warning.includes("onaylanmaz")));
+    const six = "Kısa metin #A1 #B2 #C3 #D4 #E5 #F6";
+    assert.match(captionWarnings(six, "IG_POST", facts)[0] ?? "", /en fazla 5 hashtag/u);
+  });
+});
+
+describe("yayın merkezi — set carousel'i güncel dizilim (03 sonradan)", () => {
+  const slides = [
+    { url: "/api/files/renders/01.png", label: "01 Maç Sonucu" },
+    { url: "/api/files/renders/02.png", label: "02 İstatistikler" },
+    { url: "/api/files/renders/03.png", label: "03 Oyuncular" },
+  ];
+  const record = { kind: "MATCH_RESULT", carousel: slides };
+  const urls = slides.map((slide) => slide.url);
+
+  it("çoklu düzende kayıttaki carousel'in her sayfası olmalı; eksikse okunur sebep, tekli düzen serbest", () => {
+    assert.equal(mediaOrderProblem({ platform: "IG_POST", layout: "multi", mediaOrder: [urls[2]!, urls[0]!, urls[1]!] }, urls, record), null);
+    assert.match(mediaOrderProblem({ platform: "IG_POST", layout: "multi", mediaOrder: [urls[0]!, urls[1]!] }, urls, record) ?? "", /03 Oyuncular/u);
+    assert.equal(mediaOrderProblem({ platform: "IG_POST", layout: "single", mediaOrder: [urls[0]!] }, urls, record), null);
+    assert.match(mediaOrderProblem({ platform: "IG_POST", layout: "multi", mediaOrder: ["/api/files/renders/x.png"] }, urls, record) ?? "", /geçersiz/u);
+    // Galeri eki serbest, carousel olmayan kayıtta kural yok.
+    assert.equal(mediaOrderProblem({ platform: "IG_POST", layout: "multi", mediaOrder: [...urls, "/api/files/renders/g.png"] }, [...urls, "/api/files/renders/g.png"], record), null);
+    assert.equal(mediaOrderProblem({ platform: "IG_POST", layout: "multi", mediaOrder: ["/api/files/renders/home.png"] }, publishMediaOf(pair, null).map((item) => item.url), pair), null);
+  });
+
+  it("sunucu listesi değişince dizilim: admin sırası + galeri korunur, yeni sayfa sona, düşen kart çıkar", () => {
+    const gallery = { url: "/api/files/renders/g.png", label: "Galeri", fromGallery: true };
+    const current = [slides[1]!, gallery, slides[0]!];
+    assert.deepEqual(mergeMediaOrder(current, slides), [slides[1], gallery, slides[0], slides[2]]);
+    assert.deepEqual(mergeMediaOrder(current, [slides[0]!]), [gallery, slides[0]]);
   });
 });

@@ -2,7 +2,7 @@ import type { TeamOrigin } from "@/lib/dashboard/name-case";
 import type { ScenarioId, ScenarioOutcome } from "@/types/prediction";
 
 /**
- * Tahmin Karnesi (bkz. CLAUDE.md 1.10). Kaynak yalnızca `PredictionRecord` (değiştirilemez); tuttu/tutmadı
+ * Tahmin Karnesi (bkz. CLAUDE.md 1.10). Kaynak yalnızca `PredictionRecord` (onaylanmış tahmin, değiştirilemez; aynı maç + senaryoda yalnızca ilk onay); tuttu/tutmadı
  * ayrı tabloda (`PredictionOutcome`), değerlendirici `lib/prediction/settle.ts`. A = maç karnesi (bir maçın
  * BÜTÜN kayıtları), B = dönem karnesi (hafta / ay / sezon, dönemin BÜTÜN kayıtları). Seçme yolu yok.
  */
@@ -105,6 +105,8 @@ export interface MatchScorecardData {
   fixtureId: string;
   rows: MatchScorecardRow[];
   summary: HitSummary;
+  /** Aynı senaryonun SONRAKİ onayları — ilk onay kuralıyla karneye girmez (kayıt silinmez). */
+  duplicates: number;
 }
 
 export interface PeriodScorecardData {
@@ -119,6 +121,8 @@ export interface PeriodScorecardData {
   pending: number;
   /** Sonuçlanmadı (ertelendi / iptal) — karneye girmez. */
   voided: number;
+  /** Dönemdeki tekrar onaylar (aynı maç + senaryo, ilk onaydan sonra) — karneye girmez. */
+  duplicates: number;
 }
 
 export interface ScorecardError {

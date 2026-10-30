@@ -30,6 +30,22 @@ function HalfColumn({ card, g, column, which, only }: { card: HalvesCard; g: Hal
   );
 }
 
+/**
+ * Değer: rakam Anton; yüzdede "%" küçük Geist, rakamın önünde — 02 İstatistik kartıyla aynı stil
+ * (`match-stats/parts.tsx::Value`; Anton'un "%" glifi "%o" / "0/0" gibi okunuyordu, 2026-10-30).
+ */
+function HalfValue({ text, size, width, align }: { text: string; size: number; width: number; align: "left" | "right" }) {
+  const percent = text.startsWith("%");
+  return (
+    <div tw="flex items-end" style={{ width, height: size, justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
+      {percent ? (
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: Math.round(size * 0.56), lineHeight: 1, color: "#fff", marginRight: Math.round(size * 0.06), paddingBottom: Math.round(size * 0.08), textShadow: TEXT_SHADOW }}>%</span>
+      ) : null}
+      <span style={{ fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", textShadow: TEXT_SHADOW }}>{percent ? text.slice(1) : text}</span>
+    </div>
+  );
+}
+
 function HalfRow({ row, card, g, width, which, layer, only }: { row: HalvesRowCard; card: HalvesCard; g: HalvesGeometry; width: number; which: "first" | "second"; layer: number; only: BlockFilter }) {
   const s = g.sizes;
   const scale = (value: number) => (g.landscape ? value : Math.round(value * g.k));
@@ -42,9 +58,9 @@ function HalfRow({ row, card, g, width, which, layer, only }: { row: HalvesRowCa
   return (
     <div tw="flex flex-col justify-center" style={{ width, height: g.rowHeight, opacity: layerOpacity(only, stackLayer(layer)) }}>
       <div tw="flex items-center justify-between" style={{ width, height: valueSize }}>
-        <span style={{ fontFamily: DISPLAY, fontSize: valueSize, lineHeight: 1, color: "#fff", width: valueWidth, textShadow: TEXT_SHADOW }}>{values.home}</span>
+        <HalfValue text={values.home} size={valueSize} width={valueWidth} align="left" />
         <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: labelSize, lineHeight: 1, letterSpacing: labelSize * 0.1, color: MUTED }}>{row.label}</span>
-        <span style={{ fontFamily: DISPLAY, fontSize: valueSize, lineHeight: 1, color: "#fff", width: valueWidth, textAlign: "right", textShadow: TEXT_SHADOW }}>{values.away}</span>
+        <HalfValue text={values.away} size={valueSize} width={valueWidth} align="right" />
       </div>
       <div tw="flex" style={{ width, height: bar, marginTop: scale(s.barGap), backgroundColor: TRACK, borderRadius: bar / 2 }}>
         <div tw="flex" style={{ width: homeWidth, height: bar, backgroundColor: card.homeHex, borderRadius: bar / 2 }} />

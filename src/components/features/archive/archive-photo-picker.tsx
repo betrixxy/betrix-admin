@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SearchCombobox, type ComboboxGroup } from "@/components/ui/search-combobox";
+import { preferredPickerDefault, type PreferredSubject } from "@/lib/archive/picker-default";
 import { cn } from "@/lib/utils";
 import { PHOTO_KINDS, PHOTO_KIND_LABELS, type ArchivePickerData, type PickerBucket, type PickerPhoto, type PickerSubject } from "@/types/archive";
 
@@ -38,6 +39,8 @@ interface ArchivePhotoPickerProps {
   fixtureId: string | null;
   /** Açılışta seçili konu: "team" takım fotoğrafı; yoksa listedeki ilk konu. */
   defaultSubject?: "team" | "player";
+  /** Açılış seçimi: bu takım (+ oyuncu) — Maç Sonucu'nda kazanan ve MVP'si (`picker-default.ts`). */
+  preferred?: PreferredSubject | null | undefined;
   /** Yalnızca forması o takımın olan fotoğraflar; yeni yüklemede forma takımı sabit (vitrin posteri). */
   kitOnly?: boolean;
   /**
@@ -62,7 +65,7 @@ function Thumb({ photo, selected, onSelect }: { photo: PickerPhoto; selected: bo
   );
 }
 
-export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", kitOnly = false, reload, onChange }: ArchivePhotoPickerProps) {
+export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", preferred = null, kitOnly = false, reload, onChange }: ArchivePhotoPickerProps) {
   const [data, setData] = useState<ArchivePickerData | null>(null);
   const [subjectKey, setSubjectKey] = useState("");
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -73,6 +76,8 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   const teamKey = teams.map((team) => team.id).join(",");
   const reloadKey = reload?.key ?? 0;
   const selectPhotoId = reload?.selectPhotoId ?? null;
+  const preferredTeamId = preferred?.teamId ?? null;
+  const preferredPlayerId = preferred?.playerId ?? null;
 
   /** Konu seçilince ızgaradaki ilk fotoğraf (sıralamada en uygun olan) seçili gelir; yoksa yükleme açılır. */
   function selectSubject(key: string, source: ArchivePickerData | null) {
@@ -95,11 +100,18 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
         setUpload(false);
         return;
       }
+      const chosen = preferredTeamId === null ? null : preferredPickerDefault(loaded, { teamId: preferredTeamId, playerId: preferredPlayerId });
+      if (chosen) {
+        setSubjectKey(chosen.subjectKey);
+        setPhotoId(chosen.photoId);
+        setUpload(chosen.photoId === null);
+        return;
+      }
       const subjects = loaded.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects));
       const first = defaultSubject === "team" ? subjects.find((subject) => subject.key.startsWith("team:")) : subjects.find((subject) => subject.isPlayer && (loaded.teams.find((team) => team.photos[subject.key]?.length)?.photos[subject.key]?.length ?? 0) > 0) ?? subjects.find((subject) => subject.isPlayer);
       selectSubject(first?.key ?? subjects[0]?.key ?? "", loaded);
     });
-  }, [teamKey, fixtureId, defaultSubject, kitOnly, reloadKey, selectPhotoId]);
+  }, [teamKey, fixtureId, defaultSubject, kitOnly, reloadKey, selectPhotoId, preferredTeamId, preferredPlayerId]);
 
   const subjects = useMemo(() => data?.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects)) ?? [], [data]);
   // Aramalı kutunun grupları: takım fotoğrafı, teknik direktör, mevkiler (takım adıyla); sağda fotoğraf sayısı.

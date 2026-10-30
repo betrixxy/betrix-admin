@@ -1,4 +1,4 @@
-import { CONTENT_PHASES, type ActiveContentType, type ContentPhase, type ContentTypeDef, type ContentTypeId } from "@/types/content-type";
+import { CONTENT_PHASES, LEGACY_CONTENT_TYPE_IDS, type ActiveContentType, type ContentPhase, type ContentTypeDef, type ContentTypeId } from "@/types/content-type";
 
 /**
  * Maç Merkezi'nin ve Takvim kontrol merkezinin içerik türü kataloğu — TEK kaynak. Yeni bir tür
@@ -82,14 +82,21 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
     status: "active",
     route: "/dashboard/studio/player-stats",
   },
-  { id: "MARKET_RESULTS", label: "Market Sonuçları", description: "Tahminlerin maç sonu tutma durumu.", phase: "post_match", status: "coming_soon", route: null },
   {
-    id: "POST_MATCH_REPORT",
-    label: "Maç Sonrası Analiz Raporu",
-    description: "Maçın veriye dayalı analiz raporu.",
+    id: "MATCH_ANALYSIS",
+    label: "Maç Analizi",
+    description: "Kural tabanlı maç analizi: 01 olay zaman çizelgesi (kırılma anları) + 02 devre devre istatistik — tek başına ya da Maç Sonucu carousel'inde (yalnızca biten maçlar).",
     phase: "post_match",
-    status: "coming_soon",
-    route: null,
+    status: "active",
+    route: "/dashboard/studio/match-analysis",
+  },
+  {
+    id: "PREDICTION_SCORECARD",
+    label: "Tahmin Karnesi",
+    description: "Onaylanan tahminlerin tuttu/tutmadı karnesi — maç karnesi (A) ya da hafta/ay/sezon karnesi (B); tutmayanlar dahil, seçme yok.",
+    phase: "post_match",
+    status: "active",
+    route: "/dashboard/studio/prediction-scorecard",
   },
   {
     id: "STANDINGS",
@@ -122,12 +129,19 @@ export function defaultContentTypeId(phase: ContentPhase): ContentTypeId | null 
   return contentTypesForPhase(phase).find((type) => type.status === "active")?.id ?? null;
 }
 
+/** Tür tanımı; eski kimlik (`LEGACY_CONTENT_TYPE_IDS`: MARKET_RESULTS, POST_MATCH_REPORT) yeni türe okunur. */
 export function getContentType(id: string): ContentTypeDef | undefined {
-  return CONTENT_TYPES.find((type) => type.id === id);
+  const resolved = resolveContentTypeId(id);
+  return resolved ? CONTENT_TYPES.find((type) => type.id === resolved) : undefined;
 }
 
 export function isContentTypeId(value: string): value is ContentTypeId {
   return CONTENT_TYPES.some((type) => type.id === value);
+}
+
+/** Veritabanından okunan tür kimliği → güncel kimlik (eski kimlik eşlenir); bilinmiyorsa null. */
+export function resolveContentTypeId(value: string): ContentTypeId | null {
+  return isContentTypeId(value) ? value : (LEGACY_CONTENT_TYPE_IDS[value] ?? null);
 }
 
 export function contentTypeOptionLabel(type: ContentTypeDef): string {

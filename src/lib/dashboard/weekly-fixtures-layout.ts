@@ -81,15 +81,24 @@ export function matchCenter(match: WeeklyMatch, grouping: WeeklyGrouping): Match
   }
 }
 
-/** Gönderi metni: başlık + bölüm bölüm "Ev 2-1 Dep" / "21.30 Ev - Dep". */
+/**
+ * Gönderi metninin maç satırı. Canlı maçın skoru YAZILMAZ (2026-10-30, kurucu kararı): gönderi kart
+ * üretildikten sonra paylaşılır, o anki skor bitmiş skor gibi okunur ("Konyaspor 0 - 4 Galatasaray" maç
+ * sürerken) — satır "Ev - Dep (canlı)". Yarıda kalan maç skorla ama "(yarıda kaldı)" notuyla. Saf.
+ */
+export function weeklyCaptionLine(match: WeeklyMatch, grouping: WeeklyGrouping): string {
+  if (match.status === "live") return `${match.home.name} - ${match.away.name} (canlı)`;
+  const center = matchCenter(match, grouping);
+  if (match.status === "abandoned") return `${match.home.name} ${center.primary} ${match.away.name} (yarıda kaldı)`;
+  return center.kind === "score" ? `${match.home.name} ${center.primary} ${match.away.name}` : `${center.primary} ${match.home.name} - ${match.away.name}`;
+}
+
+/** Gönderi metni: başlık + bölüm bölüm "Ev 2-1 Dep" / "21.30 Ev - Dep" / "Ev - Dep (canlı)". */
 export function weeklyCaption(leagueName: string, title: string, matches: WeeklyMatch[], grouping: WeeklyGrouping): string {
   const lines = [`${leagueName} | ${title}`];
   for (const section of weeklySections(matches, grouping)) {
     lines.push("", section.label);
-    for (const match of section.matches) {
-      const center = matchCenter(match, grouping);
-      lines.push(center.kind === "score" ? `${match.home.name} ${center.primary} ${match.away.name}` : `${center.primary} ${match.home.name} - ${match.away.name}`);
-    }
+    for (const match of section.matches) lines.push(weeklyCaptionLine(match, grouping));
   }
   return lines.join("\n");
 }

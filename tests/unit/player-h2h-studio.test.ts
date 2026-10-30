@@ -11,6 +11,7 @@ import { defaultLeader, goalContributionLeader, positionLeaders } from "@/lib/pl
 import { counterpartSuggestion, slotPosition } from "@/lib/player-h2h/suggest";
 import { h2hStudioIssues, type H2HStudioState } from "@/lib/player-h2h/studio-issues";
 import { findBannedWords } from "@/lib/prediction/banned-words";
+import { contentLanguageGate } from "@/lib/prediction/content-language";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
 import { H2H_LEFT, H2H_RIGHT } from "../fixtures/player-h2h";
 
@@ -118,6 +119,7 @@ describe("oyuncu anahtarı, gönderi metni, vesikalık ayarı, içerik türü", 
     assert.deepEqual(findBannedWords(caption), []);
     assert.equal(hasLink(caption), false);
     assert.ok(hashtagCount(caption) <= MAX_HASHTAGS, caption);
+    assert.equal(contentLanguageGate({ caption }), null, "ortak kapı: {…} yok, ≤5 hashtag, alan adı yok");
     assert.ok(caption.includes(H2H_QUESTION));
     assert.match(caption, /^Kerem Aktürkoğlu – Alassane Pléa \| Oyuncu karşılaştırması/);
     assert.ok(caption.includes("(90 dakika başına)"));

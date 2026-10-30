@@ -5,7 +5,7 @@ import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio"
 import { PLAYER_PAGE_LABELS } from "@/lib/dashboard/player-stats-engine";
 import { renderPlayerPage } from "@/lib/dashboard/player-stats-page";
 import { loadPlayerStatsFacts } from "@/lib/dashboard/player-stats-studio";
-import { setPages, withPlayerSlide } from "@/lib/dashboard/set-pages";
+import { pageNumber, playerSlideIndex, setPages, withPlayerSlide } from "@/lib/dashboard/set-pages";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { parseStoredFileUrl, readStoredFile, saveStoredFile } from "@/lib/dashboard/storage";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
@@ -21,7 +21,7 @@ import type { PendingPlayerPage } from "@/lib/player-stats/plan";
 /**
  * Maç Sonucu taslağına oyuncu sayfasını SONRADAN ekleme (kurucu kararı 2026-10-30: 03 seti kilitlemez). Yalnızca
  * DRAFT (yayından önce) ve henüz oyuncu sayfası olmayan kayıt; veri kesinleşmemişse yalnızca "şimdi üret
- * (veriler değişebilir)" ile. Sayfa carousel'in sonuna eklenir: aynı format, 01'in sütun tarafı, B zemini 01'in
+ * (veriler değişebilir)" ile. Sayfa yeri ayrıldıysa sabit sıradaki yerine, yoksa carousel'in sonuna eklenir: aynı format, 01'in sütun tarafı, B zemini 01'in
  * bulanık hâli, A 01'in fotoğrafını başka fotoğraf varsa tekrar kullanmaz. Arka plan işinde çalışır.
  */
 
@@ -75,7 +75,8 @@ export async function appendPlayerPage(id: string, page: PendingPlayerPage, forc
   const stored = parseStoredFileUrl(options.imageUrl);
   const resultImage = stored ? await readStoredFile(stored.bucket, stored.fileName) : null;
   const slides = options.carousel && options.carousel.length > 0 ? options.carousel : [{ url: options.imageUrl, label: "01 · Maç Sonucu" }];
-  const number = String(slides.length + 1).padStart(2, "0");
+  // Yeri ayrıldıysa (Maç Analizi / Tahmin Karnesi sayfalarından önce) o numara, yoksa carousel'in sonu.
+  const number = pageNumber(playerSlideIndex(record.renderOptions) + 1);
   const label = PLAYER_PAGE_LABELS[page.template];
   const rendered = await renderPlayerPage({
     facts,

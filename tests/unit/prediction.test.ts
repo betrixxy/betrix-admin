@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BANNED_WORDS, bannedWordsGate, findBannedWords } from "@/lib/prediction/banned-words";
+import { contentLanguageGate } from "@/lib/prediction/content-language";
 import { openBoxLines, outcomeLabel, scenarioTitle } from "@/lib/prediction/catalog";
 import { predictInternal, scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source";
 import { expectedGoals, matchProbabilities, scoreMatrix, sumWhere } from "@/lib/prediction/poisson";
@@ -196,7 +197,18 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
     assert.ok(result.ok);
     const btts = result.data.scenarios.find((s) => s.id === "BTTS");
     assert.ok(btts);
-    const reason = ruleReason({ ...btts, outcome: { scenario: "BTTS", pick: "YES" } }, facts, sides);
+    const pick = { ...btts, outcome: { scenario: "BTTS", pick: "YES" } } as const;
+    // BTTS EVET önce sayım parçasını ("… 2'sinde iki takım da gol buldu", ondalıksız) yazar (2026-10-30);
+    // o parça başka kutuda kullanılmış sayılınca sıradaki (ondalıklı) gol ortalaması gelir.
+    const counted = ruleReason(pick, facts, sides);
+    assert.match(counted, /iki takım da gol buldu\.$/u, counted);
+    // Sayım parçaları (iki takımın da) kullanılmış sayılınca sıradaki gol ortalaması gelir.
+    const used = new Set<string>();
+    let reason = counted;
+    while (/iki takım da gol buldu/u.test(reason)) {
+      used.add(reason.replace(/\.$/u, ""));
+      reason = ruleReason(pick, facts, sides, used);
+    }
     assert.match(reason, /\d,\d/, reason);
     assert.doesNotMatch(reason, /\d\.\d/, reason);
     assert.deepEqual(auditReason(reason, PICK.BTTS, facts, sides), [], reason);
@@ -345,6 +357,8 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
     assert.deepEqual(findBannedWords(caption), []);
     assert.ok(hashtagCount(caption) <= MAX_HASHTAGS, caption);
     assert.equal(hasLink(caption), false);
+    assert.equal(contentLanguageGate({ caption }), null, "ortak kapı: alan adı yok (kanca 'CheckMatch'te'), ≤5 hashtag, {…} yok");
+    assert.ok(!/checkmatch\.net/iu.test(caption), caption);
     assert.ok(caption.includes(VITRIN_QUESTION));
     assert.match(caption, /^Galatasaray – Kasımpaşa \| Maç önü analiz/);
   });
