@@ -32,6 +32,8 @@ export interface LeagueTeam {
   id: number;
   name: string;
   country: string | null;
+  /** Sağlayıcı logosu (takım rengi çıkarma için); yoksa null. */
+  logoUrl: string | null;
 }
 
 export interface SquadEntry {
@@ -80,7 +82,7 @@ export async function getLeagueTeams(
     ok: true,
     data: parsed.data.response
       .filter((r) => r.team.national !== true)
-      .map((r) => ({ id: r.team.id, name: r.team.name, country: r.team.country })),
+      .map((r) => ({ id: r.team.id, name: r.team.name, country: r.team.country, logoUrl: r.team.logo ?? null })),
   };
 }
 

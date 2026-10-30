@@ -1,3 +1,4 @@
+import { withFixturePlayerNames } from "@/lib/services/api-football/fixture-player-names";
 import { countedGoals, formatMinute } from "@/lib/services/api-football/match-result-mappers";
 import type { ApiFootballEventRaw, ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import type { AnalysisEvent, AnalysisEventKind, AnalysisPerson } from "@/types/match-analysis";
@@ -67,7 +68,9 @@ export function sortEvents<T extends Pick<AnalysisEvent, "elapsed" | "extra">>(e
   return events.map((event, index) => ({ event, index })).sort((a, b) => minuteOrder(a.event) - minuteOrder(b.event) || a.index - b.index).map(({ event }) => event);
 }
 
-export function toAnalysisEvents(raw: ApiFootballFixtureResultRaw): AnalysisEvent[] {
+export function toAnalysisEvents(input: ApiFootballFixtureResultRaw): AnalysisEvent[] {
+  // Oyuncu adları golcü satırlarıyla aynı tek kaynaktan (maç + oyuncu kimliği, `fixture-player-names.ts`).
+  const raw = withFixturePlayerNames(input);
   const counted = new Set(countedGoals(raw.events));
   const sideOf = (teamId: number): MatchSide | null => (teamId === raw.teams.home.id ? "HOME" : teamId === raw.teams.away.id ? "AWAY" : null);
   const events: AnalysisEvent[] = [];

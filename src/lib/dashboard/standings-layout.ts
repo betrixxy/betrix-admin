@@ -154,12 +154,25 @@ export function seasonLabel(season: number): string {
 
 const CUP_LEAGUES: ReadonlySet<SupportedLeagueId> = new Set(["ucl", "uel", "uecl"]);
 
-/** Başlığın altındaki etiket: grup aşamasında "GRUP AŞAMASI", tabloda oynanan en çok maça göre "8. HAFTA SONU". */
-export function standingsKindLabel(leagueId: SupportedLeagueId, sections: StandingsGroup[]): string {
+/** Tabloda oynanan en çok maç (son başlamış hafta). */
+export const maxPlayed = (sections: readonly StandingsGroup[]): number => Math.max(0, ...sections.flatMap((section) => section.rows.map((row) => row.played)));
+
+/** Oynanmamış ya da sürmekte olan maç durumları (API-Football `status.short`); ertelenen/iptal (PST, CANC, ABD, AWD, WO) turu bekletmez. */
+const PENDING_STATUSES: ReadonlySet<string> = new Set(["TBD", "NS", "1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"]);
+
+/**
+ * Başlığın altındaki etiket (2026-10-31): grup aşamasında "GRUP AŞAMASI"; değilse tablodaki en çok oynanan maç
+ * sayısı M ile "M. HAFTA SONU" YALNIZCA hafta tamamlandıysa, değilse "M. HAFTA DEVAM EDİYOR" (canlı test: GS ve
+ * Konya 10, diğer 16 takım 9 maçtayken "10. HAFTA SONU" yazıyordu). Tamamlanma: M. turun maç durumları
+ * (`roundStatuses`) biliniyorsa oynanmamış/süren maç yok demek (ertelenen maç turu bekletmez); bilinmiyorsa bütün
+ * takımlar M maç oynamış demek. `sections` TABLONUN TAMAMI olmalı (sıra aralığı seçimi değil).
+ */
+export function standingsKindLabel(leagueId: SupportedLeagueId, sections: readonly StandingsGroup[], roundStatuses: readonly string[] | null = null): string {
   if (sections.some((section) => section.label.endsWith("GRUBU"))) return "GRUP AŞAMASI";
-  const played = Math.max(0, ...sections.flatMap((section) => section.rows.map((row) => row.played)));
+  const played = maxPlayed(sections);
   if (played === 0) return "SEZON ÖNCESİ";
-  return `${played}. ${CUP_LEAGUES.has(leagueId) ? "MAÇ GÜNÜ" : "HAFTA"} SONU`;
+  const complete = roundStatuses && roundStatuses.length > 0 ? !roundStatuses.some((status) => PENDING_STATUSES.has(status)) : sections.every((section) => section.rows.every((row) => row.played === played));
+  return `${played}. ${CUP_LEAGUES.has(leagueId) ? "MAÇ GÜNÜ" : "HAFTA"} ${complete ? "SONU" : "DEVAM EDİYOR"}`;
 }
 
 /** Seçilen bölümler: tüm gruplar ya da tek tablo/grup (sıra aralığı yalnızca tek tabloda uygulanır). */

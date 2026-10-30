@@ -1,7 +1,7 @@
 "use client";
 
 import { renamePersonAction } from "@/app/dashboard/library/archive-actions";
-import { approveTeamColorAction, setVenueNameAction } from "@/app/dashboard/library/names/actions";
+import { approveTeamColorAction, extractLeagueTeamColorsAction, setVenueNameAction } from "@/app/dashboard/library/names/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useActionForm } from "@/hooks/use-action-form";
@@ -55,6 +55,20 @@ export function TeamColorFix({ teamId, primary, secondary }: { teamId: number; p
       <Button type="submit" size="xs" variant="outline" disabled={form.isPending}>
         Onayla
       </Button>
+      <Feedback state={form.state} />
+    </form>
+  );
+}
+
+/** "Bütün liglerin takım renklerini çıkar": kapsanan liglerin takımları → logodan AUTO renk (arka plan işi). */
+export function ExtractLeagueColorsButton() {
+  const form = useActionForm(extractLeagueTeamColorsAction, INITIAL);
+  return (
+    <form onSubmit={form.onSubmit} className="flex flex-wrap items-center gap-2">
+      <Button type="submit" size="xs" variant="outline" disabled={form.isPending}>
+        {form.isPending ? "Renkler çıkarılıyor…" : "Bütün liglerin takım renklerini çıkar"}
+      </Button>
+      {form.progress ? <span className="text-xs text-muted-foreground">{form.progress.step} · {Math.round(form.progress.elapsedMs / 1000)} sn</span> : null}
       <Feedback state={form.state} />
     </form>
   );

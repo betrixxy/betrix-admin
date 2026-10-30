@@ -45,9 +45,9 @@ export const PLAYER_STAT_DEFS: Record<PlayerStatKey, StatDef> = {
   },
   bigChances: { label: "BÜYÜK FIRSAT", source: "API_FOOTBALL", read: UNAVAILABLE },
   dribbles: {
-    label: "BAŞARILI DRİPLİNG",
+    label: "BAŞARILI ÇALIM",
     source: "API_FOOTBALL",
-    read: (l) => (l.numbers.dribblesAttempts === null ? count(l.numbers.dribblesSuccess, (v) => `${v} başarılı dripling`) : pair(l.numbers.dribblesSuccess, l.numbers.dribblesAttempts, "dripling")),
+    read: (l) => (l.numbers.dribblesAttempts === null ? count(l.numbers.dribblesSuccess, (v) => `${v} başarılı çalım`) : pair(l.numbers.dribblesSuccess, l.numbers.dribblesAttempts, "çalım")),
   },
   keyPasses: { label: "KİLİT PAS", source: "API_FOOTBALL", read: (l) => count(l.numbers.keyPasses, (v) => `${v} kilit pas`) },
   touches: { label: "DOKUNUŞ", source: "API_FOOTBALL", read: UNAVAILABLE },

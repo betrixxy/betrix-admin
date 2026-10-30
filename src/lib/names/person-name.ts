@@ -224,9 +224,35 @@ export function cardNameInTeams(entry: PersonEntry, teams: readonly [TeamPeople,
   return results.find((result) => result.source !== "api") ?? results[0]!;
 }
 
-/** Teknik direktör adı: adaylardan yalnızca ilki (takımı çalıştırmış olan öne sıralı, `coachPeople`). */
+/**
+ * API alanı baş harfsiz YAYGIN ad olan kişiler (teknik direktör, hakem): Sportmonks yaygın adı yoksa ad soyada
+ * İNDİRİLMEZ — eşleşen kayıt yalnızca harfleri geri yükler. "Orhan Ak" (Gaziantep FK, 2026-10-31) kartta "Ak"
+ * çıkıyordu. Baş harfli API adı ("B. Yılmaz") ortak kuralda kalır (soyad).
+ */
+function keepCommonApiName(card: CardPersonName, apiName: string, people: readonly SportmonksPerson[], hint: NameOrigin | null): CardPersonName {
+  if (card.source !== "api" || hasInitial(apiName)) return card;
+  const person = matchPerson(apiName, people);
+  const full = person ? restoreName(apiName, person) : apiName.trim();
+  return { ...card, name: full, short: shortForm(full), origin: personOrigin(full, person?.nationality ?? null, hint) };
+}
+
+/**
+ * Sportmonks koç araması: soyadı (≥ 3 harf); kısa soyadda ("Orhan Ak") tam ad — eskiden 2 harfli soyadda aday
+ * hiç aranmıyordu. Baş harfler atılır ("B. Yılmaz" → "Yılmaz").
+ */
+export function coachSearchTerm(apiName: string): string | null {
+  const named = tokens(apiName).filter((token) => !INITIAL.test(token));
+  const surname = named.at(-1) ?? "";
+  if (surname.length >= 3) return surname;
+  const full = named.join(" ");
+  return named.length > 1 && full.length >= 3 ? full : null;
+}
+
+/** Teknik direktör adı: adaylardan yalnızca ilki (takımı çalıştırmış olan öne sıralı, `coachPeople`); API alanı yaygın ad (bkz. `keepCommonApiName`). */
 export function cardCoachName(coach: PersonEntry, team: TeamPeople): CardPersonName {
-  return cardPersonName({ apiName: coach.apiName, override: coach.apiId === null ? null : team.overrides.get(coach.apiId), people: team.people.slice(0, 1), teamHint: team.teamHint });
+  const people = team.people.slice(0, 1);
+  const card = cardPersonName({ apiName: coach.apiName, override: coach.apiId === null ? null : team.overrides.get(coach.apiId), people, teamHint: team.teamHint });
+  return keepCommonApiName(card, coach.apiName, people, team.teamHint);
 }
 
 /** API-Football hakem alanı "Ad Soyad, Ülke" → ad + ülke (ülke yoksa null). */
@@ -244,11 +270,7 @@ export function splitReferee(raw: string): { name: string; country: string | nul
 export function cardRefereeName(raw: string, people: readonly SportmonksPerson[]): CardPersonName {
   const { name, country } = splitReferee(raw);
   const hint = originFromCountry(country);
-  const card = cardPersonName({ apiName: name, people, teamHint: hint });
-  if (card.source !== "api" || hasInitial(name)) return card;
-  const person = matchPerson(name, people);
-  const full = person ? restoreName(name, person) : name;
-  return { ...card, name: full, short: shortForm(full), origin: personOrigin(full, person?.nationality ?? null, hint) };
+  return keepCommonApiName(cardPersonName({ apiName: name, people, teamHint: hint }), name, people, hint);
 }
 
 /** Yalnızca ASCII harf — Türkçe karakter içermesi muhtemel API adı (rapor süzgeci). */

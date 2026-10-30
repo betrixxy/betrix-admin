@@ -2,12 +2,12 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
-import { seasonLabel, selectSections, standingsCaption, standingsCapacity, standingsKindLabel, standingsLayout, standingsPlan } from "@/lib/dashboard/standings-layout";
+import { maxPlayed, seasonLabel, selectSections, standingsCaption, standingsCapacity, standingsKindLabel, standingsLayout, standingsPlan } from "@/lib/dashboard/standings-layout";
 import { renderStandingsCard } from "@/lib/dashboard/standings-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { getSupportedLeague } from "@/lib/services/api-football/leagues";
-import { getStandings } from "@/lib/services/api-football/standings";
+import { getRoundStatuses, getStandings } from "@/lib/services/api-football/standings";
 import type { ContentTypeId } from "@/types/content-type";
 import type { Result } from "@/types/result";
 import type { StandingsCardInput, StandingsDraft } from "@/types/standings";
@@ -34,6 +34,11 @@ export async function resolveStandingsCard(draft: StandingsDraft): Promise<Resul
       error: { code: "INVALID_INPUT", message: `Tablo ${format.label} formatına sığmıyor — en fazla ${standingsCapacity(draft.format)} takım; sıra aralığını daraltın, kartı bölün ya da yatay formatı seçin.` },
     };
   }
+  // Hafta etiketi TABLONUN TAMAMINDAN (sıra aralığı değil) + lig turunun maç durumlarından.
+  const groups = table.data.groups;
+  const cup = groups.length > 1 || ["ucl", "uel", "uecl"].includes(draft.leagueId);
+  const played = maxPlayed(groups);
+  const statuses = !cup && played > 0 ? await getRoundStatuses(league.apiFootballId, draft.season, `Regular Season - ${played}`) : null;
   return {
     ok: true,
     data: {
@@ -42,7 +47,7 @@ export async function resolveStandingsCard(draft: StandingsDraft): Promise<Resul
       leagueLogoUrl: table.data.leagueLogoUrl,
       season: draft.season,
       title: draft.title,
-      kindLabel: standingsKindLabel(draft.leagueId, sections.data),
+      kindLabel: standingsKindLabel(draft.leagueId, groups, statuses),
       sections: sections.data,
       format: draft.format,
     },

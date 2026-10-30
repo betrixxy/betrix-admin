@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { upperName } from "@/lib/dashboard/name-case";
-import { cardPersonName, foldName, isAsciiName, isFamilyFirst, matchPerson, posterName, restoreName, shortNameOf, surnameOf } from "@/lib/names/person-name";
+import { cardCoachName, cardPersonName, coachSearchTerm, foldName, isAsciiName, isFamilyFirst, matchPerson, posterName, restoreName, shortNameOf, surnameOf } from "@/lib/names/person-name";
 import { h2hPosterName } from "@/lib/player-h2h/names";
+import { pickSportmonksTeam } from "@/lib/services/sportmonks/people-mappers";
 import type { SportmonksPerson } from "@/types/person-name";
 
 /**
@@ -103,6 +104,24 @@ describe("kart kişi adı — resmi tam ad yok (2026-10-30)", () => {
   it("teknik direktör aynı kuraldan geçer", () => {
     const coach = cardPersonName({ apiName: "Ilhan Palut", people: [p("İlhan Palut", "Turkey")] });
     assert.deepEqual(coach, { name: "İlhan Palut", short: "İ. Palut", origin: "tr", source: "sportmonks", reliable: true, familyFirst: false });
+  });
+
+  it("teknik direktör: API diziliş alanı yaygın ad — kayıt yoksa soyada indirilmez (Gaziantep FK \"Ak\", 2026-10-31)", () => {
+    const team = (people: SportmonksPerson[]) => ({ people, overrides: new Map<number, string>(), teamHint: "tr" as const });
+    assert.deepEqual(cardCoachName({ apiId: null, apiName: "Orhan Ak" }, team([])), { name: "Orhan Ak", short: "O. Ak", origin: "tr", source: "api", reliable: false, familyFirst: false });
+    // Sportmonks gerçek kaydı (`/coaches/search/Orhan Ak`): yaygın ad "Orhan Ak".
+    assert.equal(cardCoachName({ apiId: null, apiName: "Orhan Ak" }, team([p("Orhan Ak", "Turkey")])).name, "Orhan Ak");
+    // ASCII API adı, yaygın adsız kayıt: yalnızca harfler geri yüklenir, ad kısalmaz.
+    assert.equal(cardCoachName({ apiId: null, apiName: "Ilhan Palut" }, team([{ displayName: null, firstname: "İlhan", lastname: "Palut", nationality: "Turkey", jersey: null }])).name, "İlhan Palut");
+    // Baş harfli API adı ortak kuralda kalır (soyad).
+    assert.equal(cardCoachName({ apiId: null, apiName: "B. Yilmaz" }, team([])).name, "Yilmaz");
+  });
+
+  it("koç araması: soyadı ≥ 3 harf, kısa soyadda tam ad, baş harf atılır", () => {
+    assert.equal(coachSearchTerm("Orhan Ak"), "Orhan Ak");
+    assert.equal(coachSearchTerm("Ilhan Palut"), "Palut");
+    assert.equal(coachSearchTerm("B. Yılmaz"), "Yılmaz");
+    assert.equal(coachSearchTerm("Ak"), null);
   });
 
   it("öncelik: arşiv düzeltmesi → Sportmonks yaygın adı → API soyadı", () => {
@@ -220,5 +239,14 @@ describe("soyadı önde gelen adlar (2026-10-30)", () => {
     assert.deepEqual(posterName("Koki Machida", true, false), { firstName: "Koki", lastName: "Machida" });
     const h2h = h2hPosterName(cardPersonName({ apiName: "Oh Hyeon-gyu", people: [OH] }), null, { name: "Oh Hyeon-gyu", nationality: "Korea Republic" });
     assert.deepEqual([h2h.fullName, h2h.shortName, h2h.nameFamilyFirst], ["Oh Hyeon-Gyu", "Oh Hyeon-Gyu", true]);
+  });
+});
+
+describe("Sportmonks takım eşlemesi (2026-10-31)", () => {
+  it("noktalı kısaltma aynı takım: \"Gaziantep F.K.\" = \"Gaziantep FK\"; başka takım (Gaziantepspor) seçilmez", () => {
+    const found = [{ id: 2763, name: "Gaziantepspor", country: { name: "Turkey" } }, { id: 4192, name: "Gaziantep F.K.", country: { name: "Turkey" } }];
+    assert.equal(pickSportmonksTeam(found, "Gaziantep FK", "Turkey"), 4192);
+    assert.equal(pickSportmonksTeam(found, "Gaziantep FK", "Italy"), null);
+    assert.equal(pickSportmonksTeam([{ id: 2763, name: "Gaziantepspor" }], "Gaziantep FK", "Turkey"), null);
   });
 });

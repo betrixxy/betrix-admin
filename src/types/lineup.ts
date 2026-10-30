@@ -138,7 +138,15 @@ export interface LogoSwatches {
    * Juventus) küçük bir renkli detay Vibrant'ı ele geçirir — oran düşükse palet tek renkli kurulur.
    */
   chromaticShare: number;
+  /**
+   * Swatch başına piksel sayısı (MMCQ kutusunun nüfusu ≈ logodaki alan). Logodan takım rengi seçilirken alan
+   * ağırlığı için (`team-color-pick.ts`): küçük ama çok doygun bir detay (Fiorentina logosunda kırmızı zambak)
+   * baskın mor alanı geçemez. Eski test girdilerinde yok — o zaman sabit swatch sırası kullanılır.
+   */
+  populations?: Partial<Record<LogoSwatchName, number>>;
 }
+
+export type LogoSwatchName = "vibrant" | "darkVibrant" | "lightVibrant" | "muted" | "darkMuted" | "lightMuted";
 
 /** Kartın renk paleti — logodan türetilir (`lib/dashboard/lineup-palette.ts`), şablonlar yalnızca bunu okur. */
 export interface LineupPalette {

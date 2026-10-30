@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
 import { standingsResponseRawSchema, toStandingsGroups } from "@/lib/services/api-football/standings-mappers";
 import type { ApiFootballError } from "@/lib/services/api-football/types";
@@ -28,4 +29,19 @@ export async function loadStandings(leagueId: number, season?: number): Promise<
   const table = await getStandings(leagueId, chosen);
   if (!table.ok) return table;
   return { ok: true, data: { ...table.data, seasons: seasons.data.seasons.includes(chosen) ? seasons.data.seasons : [chosen, ...seasons.data.seasons] } };
+}
+
+const roundStatusSchema = z.object({ response: z.array(z.object({ fixture: z.object({ status: z.object({ short: z.string() }) }) })) });
+/** Tur durumu canlı maçta değişir. */
+const ROUND_TTL_MS = 60 * 1000;
+
+/**
+ * Lig turunun ("Regular Season - 10") maç durumları — Puan Durumu "HAFTA SONU / DEVAM EDİYOR" etiketi için
+ * (yalnızca okuma). Okunamazsa null (etiket oynanan maç sayılarına düşer).
+ */
+export async function getRoundStatuses(leagueId: number, season: number, round: string): Promise<string[] | null> {
+  const raw = await apiFootballRequest("/fixtures", { league: String(leagueId), season: String(season), round }, { ttlMs: ROUND_TTL_MS });
+  if (!raw.ok) return null;
+  const parsed = roundStatusSchema.safeParse(raw.data);
+  return parsed.success ? parsed.data.response.map((entry) => entry.fixture.status.short) : null;
 }

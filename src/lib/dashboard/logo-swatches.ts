@@ -96,8 +96,17 @@ async function extract(bytes: Buffer): Promise<LogoSwatches> {
     chromaticShare(bytes),
   ]);
   const hex = (name: keyof typeof palette) => palette[name]?.hex ?? null;
+  const population = (name: keyof typeof palette) => palette[name]?.population ?? 0;
   return {
     chromaticShare: share,
+    populations: {
+      vibrant: population("Vibrant"),
+      darkVibrant: population("DarkVibrant"),
+      lightVibrant: population("LightVibrant"),
+      muted: population("Muted"),
+      darkMuted: population("DarkMuted"),
+      lightMuted: population("LightMuted"),
+    },
     vibrant: hex("Vibrant"),
     darkVibrant: hex("DarkVibrant"),
     lightVibrant: hex("LightVibrant"),

@@ -1,6 +1,7 @@
 import { cardTeamName } from "@/lib/archive/names";
 import { competitionKind, competitionName, resultRoundLabel } from "@/lib/dashboard/match-result-labels";
 import { teamColorHex } from "@/lib/dashboard/match-result-theme";
+import { withFixturePlayerNames } from "@/lib/services/api-football/fixture-player-names";
 import { findTeamLineup, lineupColorHex } from "@/lib/services/api-football/lineup-mappers";
 import type { ApiFootballEventRaw, ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import type { MatchOutcome, MatchResultFacts, MatchSide, MvpCandidate, ResultTeam, ScorerLine } from "@/types/match-result";
@@ -154,7 +155,9 @@ function resultTeam(raw: ApiFootballFixtureResultRaw, side: MatchSide, goals: Ap
 }
 
 /** Bitmemiş maç (FT/AET/PEN dışı) için null — kart yalnızca kesinleşmiş skorla üretilir. */
-export function toMatchResultFacts(raw: ApiFootballFixtureResultRaw): MatchResultFacts | null {
+export function toMatchResultFacts(input: ApiFootballFixtureResultRaw): MatchResultFacts | null {
+  // Olay adları maçın tek oyuncu adına çevrilir ("Samuel Mbangula Tshifunda" → "S. Mbangula"), bkz. fixture-player-names.ts.
+  const raw = withFixturePlayerNames(input);
   const status = raw.fixture.status.short;
   if (!isFinished(status)) return null;
 

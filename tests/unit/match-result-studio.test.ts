@@ -66,8 +66,9 @@ describe("gönderi metni", () => {
       [
         "MAÇ SONUCU | Hoffenheim 2-3 Beşiktaş",
         "UEFA Avrupa Ligi · Lig Aşaması · 2. Maç",
-        "⚽ Hoffenheim: Fisnik Asllani 68' · Koki Machida 87'",
-        "⚽ Beşiktaş: Amir Murillo 60' · Oh Hyeon-gyu 72', 79'",
+        // Olay akışının tam adı değil, maçın tek oyuncu adı (oyuncu bloğu, `fixture-player-names.ts`).
+        "⚽ Hoffenheim: F. Asllani 68' · K. Machida 87'",
+        "⚽ Beşiktaş: A. Murillo 60' · Oh Hyeon-Gyu 72', 79'",
         "⭐ Maçın oyuncusu: Oh Hyeon-Gyu",
         "",
         "Maçın yıldızı sizce kimdi? Yorumlara yazın 👇",

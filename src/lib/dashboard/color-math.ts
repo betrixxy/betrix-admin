@@ -92,6 +92,22 @@ export function liftLightness(hex: string, background = CARD_SHADE_HEX): string 
   return null;
 }
 
+/**
+ * Vitrin / Oyuncu Karşılaştırması / Kura için "olduğu gibi okunur" sınırının hoşgörüsü (2026-10-31): bu kartlar
+ * açıklığı yükseltmez (bordo → pembe yok), ama sınırın hemen altındaki doygun renk (Göztepe kırmızısı #E30613:
+ * kontrast 4,10) nötr gümüşe düşüyordu. Açıklık en fazla bu kadar (HSL, 0..1) yükseltilerek okunuyorsa renk kimliği
+ * değişmez (#E30613 → ≈#F20614) ve kullanılır; daha fazlası gerekiyorsa (Galatasaray bordo #A90432) aday düşer.
+ */
+export const NEAR_READABLE_LIFT = 0.06;
+
+/** Olduğu gibi okunur renk aynen; açıklığı en fazla `NEAR_READABLE_LIFT` yükseltilince okunuyorsa o hâli; değilse null. */
+export function nearReadable(hex: string | null | undefined): string | null {
+  if (!isHex(hex)) return null;
+  if (isReadableOnCard(hex)) return hex;
+  const lifted = liftLightness(hex);
+  return lifted && toHsl(lifted)[2] - toHsl(hex)[2] <= NEAR_READABLE_LIFT + 1e-9 ? lifted : null;
+}
+
 /** Sırayla ilk okunur aday (ör. birincil → ikincil); hiçbiri değilse null. */
 export function firstReadable(candidates: (string | null | undefined)[]): string | null {
   for (const candidate of candidates) {

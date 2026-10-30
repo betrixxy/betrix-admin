@@ -69,6 +69,18 @@ describe("puan durumu yerleşimi", () => {
     assert.equal(standingsKindLabel("super-lig", league), "8. HAFTA SONU");
     assert.equal(standingsKindLabel("ucl", leaguePhase), "8. MAÇ GÜNÜ SONU");
     assert.equal(standingsKindLabel("ucl", groups), "GRUP AŞAMASI");
+  });
+
+  it("hafta tamamlanmadıysa \"SONU\" yazılmaz (canlı test 2026-10-31: 2 takım 10, 16 takım 9 maç)", () => {
+    const base = league[0]!;
+    const inProgress = [{ ...base, rows: base.rows.map((row, index) => ({ ...row, played: index < 2 ? 10 : 9 })) }];
+    assert.equal(standingsKindLabel("super-lig", inProgress), "10. HAFTA DEVAM EDİYOR");
+    // Tur durumları biliniyorsa onlar karar verir: oynanmamış maç → devam; ertelenen maç turu bekletmez.
+    assert.equal(standingsKindLabel("super-lig", inProgress, ["FT", "FT", "NS"]), "10. HAFTA DEVAM EDİYOR");
+    assert.equal(standingsKindLabel("super-lig", inProgress, ["FT", "FT", "PST"]), "10. HAFTA SONU");
+    assert.equal(standingsKindLabel("super-lig", inProgress, ["FT", "2H"]), "10. HAFTA DEVAM EDİYOR");
+    assert.equal(standingsKindLabel("super-lig", league, []), "8. HAFTA SONU", "boş tur listesi → oynanan maç sayısı");
+    assert.equal(standingsKindLabel("ucl", [{ ...leaguePhase[0]!, rows: leaguePhase[0]!.rows.map((row, index) => ({ ...row, played: index === 0 ? 8 : 7 })) }]), "8. MAÇ GÜNÜ DEVAM EDİYOR");
     const caption = standingsCaption("Süper Lig", "2026/27", "Puan Durumu", league);
     assert.ok(caption.startsWith("Süper Lig 2026/27 | Puan Durumu"));
     assert.match(caption, /^1\. Kurgu Takım 1 — \d+ P \(8 O, \+\d+ AV\)$/m);

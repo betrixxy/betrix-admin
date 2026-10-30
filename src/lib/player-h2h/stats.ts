@@ -27,7 +27,7 @@ export const STAT_META: Record<H2HStatKey, StatMeta> = {
   xa: { label: "xA", short: "xA", group: "YARATICILIK", kind: "xg" },
   bigChancesCreated: { label: "Büyük fırsat yaratma", short: "BÜYÜK FIRSAT", group: "YARATICILIK", kind: "count" },
   keyPasses: { label: "Kilit pas", short: "KİLİT PAS", group: "YARATICILIK", kind: "count" },
-  dribbles: { label: "Başarılı dripling", short: "DRİPLİNG", group: "YARATICILIK", kind: "count" },
+  dribbles: { label: "Başarılı çalım", short: "ÇALIM", group: "YARATICILIK", kind: "count" },
   passAccuracy: { label: "Pas isabeti", short: "PAS İSABETİ", group: "PAS", kind: "pct" },
   duelsWonPct: { label: "Kazanılan ikili mücadele", short: "İKİLİ MÜCADELE", group: "TOP KAZANMA", kind: "pct" },
   interceptions: { label: "Top kesme", short: "TOP KESME", group: "TOP KAZANMA", kind: "count" },
