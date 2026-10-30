@@ -12,7 +12,6 @@ import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } f
 import { teamOrigin } from "@/lib/dashboard/team-origin";
 import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { internalSource } from "@/lib/prediction/internal-source";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
@@ -24,6 +23,7 @@ import type { MatchDayFormatId } from "@/types/match-day";
 import type { PredictionSet, ScenarioId } from "@/types/prediction";
 import type { Result } from "@/types/result";
 import type { VitrinCard, VitrinSelection } from "@/types/vitrin";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Maç önü vitrin kartının motoru (AI_MARKET_PREDICTION). Tahmin kaynaktan SUNUCUDA hesaplanır —
@@ -124,8 +124,8 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
   const rendered = await renderVitrin({ ...request, allowPast: false });
   if (!rendered.ok) return rendered;
   const caption = buildVitrinCaption(rendered.data.card);
-  const language = bannedWordsGate({ "gönderi metni": caption });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
+  const language = contentLanguageGate({ card: rendered.data.card, caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const urls: string[] = [];
   try {

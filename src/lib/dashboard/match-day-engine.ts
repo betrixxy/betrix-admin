@@ -22,6 +22,7 @@ import type {
   MatchDayTemplateId,
 } from "@/types/match-day";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { nameFor } from "@/lib/names/card-name-forms";
 import { resolveRefereeName } from "@/lib/names/person-directory";
 import type { ContentTypeId } from "@/types/content-type";
@@ -147,6 +148,10 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     customPrompt: input.customPrompt,
   };
 
+  // Bahis dili kapısı ücretli adımlardan önce (form metinleri); kart + gönderi metni kayıttan önce yine.
+  const early = contentLanguageGate({ card: input.info });
+  if (early) return fail(BANNED_LANGUAGE, `${early} — kart üretilmedi.`);
+
   // 1. Bağımsız adımlar paralel.
   const [homeCut, awayCut, background, baseCard, stats, referee] = await Promise.all([
     getPlayerCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
@@ -163,6 +168,8 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   // Yerleşim kapısı (DATA_DRIVEN ad satırları): harmanlama ve kayıttan önce — çakışma varsa kart üretilmez.
   const layout = await matchDayLayoutGate(card, input.template, frame);
   if (!layout.ok) return fail(layout.error.code, layout.error.message);
+  const language = contentLanguageGate({ card, caption: buildCaption(card) });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const savedSteps: string[] = [];
   if (homeCut.data.fromCache) savedSteps.push("Ev sahibi oyuncu kesimi önbellekten");

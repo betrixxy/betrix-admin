@@ -3,6 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { weeklyCaption, weeklyGrouping, weeklyLayout, weeklyPlan } from "@/lib/dashboard/weekly-fixtures-layout";
 import { renderWeeklyFixturesCard } from "@/lib/dashboard/weekly-fixtures-render";
 import { getSupportedLeague } from "@/lib/services/api-football/leagues";
@@ -51,6 +52,10 @@ function toJsonValue(value: object): Prisma.InputJsonObject {
 export async function createWeeklyFixturesDraft(draft: WeeklyFixturesDraft, anchorFixtureId: string | null): Promise<Result<{ id: string }>> {
   const card = await resolveWeeklyCard(draft);
   if (!card.ok) return card;
+  const caption = weeklyCaption(card.data.leagueName, draft.title, card.data.matches, card.data.grouping);
+  // Bahis dili kapısı: kart metinleri (başlık, takım adları) + gönderi metni, çizimden önce.
+  const language = contentLanguageGate({ card: card.data, caption });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
 
   let png: Buffer;
   try {
@@ -74,7 +79,7 @@ export async function createWeeklyFixturesDraft(draft: WeeklyFixturesDraft, anch
       resultImageUrl: imageUrl,
       status: "DRAFT",
       format: SOCIAL_FORMATS[draft.format].dbFormat,
-      caption: weeklyCaption(card.data.leagueName, draft.title, card.data.matches, card.data.grouping),
+      caption,
       renderOptions: toJsonValue({ kind: "WEEKLY_FIXTURES", imageUrl, leagueName: card.data.leagueName, ...draft, matches: card.data.matches }),
     });
     return { ok: true, data: { id: record.id } };

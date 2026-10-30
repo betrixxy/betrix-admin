@@ -21,6 +21,7 @@ import { STUDIO_FORMATS, type StudioFormat } from "@/types/ai-content";
 import type { DraftRenderOptions } from "@/types/draft";
 import type { PublishedInfo, PublishSettings } from "@/types/publishing";
 import type { MatchStats } from "@/types/sports";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Yarı otomatik (human-in-the-loop) içerik motoru — bkz. CLAUDE.md 1.10. Hiçbir şey kendi
@@ -106,6 +107,10 @@ export async function createMatchDraft(input: CreateDraftInput): Promise<Result<
       : null;
     const logoImageUrl = input.logoImageUrl ?? null;
 
+    const caption = buildDraftCaption(stats);
+    // Bahis dili kapısı: gönderi metni + kartın metin ayarları (başlık vb.).
+    const language = contentLanguageGate({ card: input.renderOptions, caption });
+    if (language) return fail(BANNED_LANGUAGE, `${language} — taslak açılmadı.`);
     const assets = { backgroundImageUrl, playerImageUrl, logoImageUrl };
     const resultImageUrl = await renderDraftImage(stats, input.format, input.renderOptions, assets);
 
@@ -118,7 +123,7 @@ export async function createMatchDraft(input: CreateDraftInput): Promise<Result<
         resultImageUrl,
         status: "DRAFT",
         format: input.format,
-        caption: buildDraftCaption(stats),
+        caption,
         statsSnapshot: toJsonValue(stats),
         renderOptions: toJsonValue(input.renderOptions),
       },

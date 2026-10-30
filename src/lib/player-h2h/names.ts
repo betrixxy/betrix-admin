@@ -1,4 +1,4 @@
-import { nameOrigin, originFromCountry, upperCompetition, upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, upperCompetition, type NameOrigin } from "@/lib/dashboard/name-case";
 import { nameFor } from "@/lib/names/card-name-forms";
 import { hasInitial, shortNameOf } from "@/lib/names/person-name";
 import { competitionShortName } from "@/lib/names/competition-names";

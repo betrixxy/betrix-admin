@@ -11,6 +11,7 @@ import { generateCaption, isAnthropicConfigured } from "@/lib/services/anthropic
 import { publishToPlatform, type PublishMediaFile } from "@/lib/services/social/publish";
 import { PUBLISH_PLATFORM_DEFS, type CaptionDraft, type PublishedInfo, type PublishPlatform } from "@/types/publishing";
 import type { Result } from "@/types/result";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Yayın Merkezi'nin platforma özel metni. Olgu kaynağı her zaman veritabanındaki kayıttır (formdan gelen
@@ -90,6 +91,9 @@ export async function publishDraftNow(id: string, decision: PublishDecision): Pr
     if (!validMediaOrder(settings.mediaOrder, await allowedMediaUrls(record, settings.mediaOrder), settings.layout, settings.platform)) {
       return { ok: false, error: { code: "INVALID_INPUT", message: "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin." } };
     }
+    // Bahis dili kapısı: platforma giden SON metin (AI uyarlaması ya da elle düzenleme dahil).
+    const language = contentLanguageGate({ caption });
+    if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — paylaşılmadı.` } };
     const limit = PUBLISH_PLATFORM_DEFS[settings.platform].captionLimit;
     if (captionLength(caption, settings.platform) > limit) return { ok: false, error: { code: "INVALID_INPUT", message: `Metin ${limit} karakter sınırını aşıyor.` } };
 

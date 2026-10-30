@@ -6,13 +6,13 @@ import { buildSpotlightCaption, buildTopPlayersCaption } from "@/lib/dashboard/p
 import { renderPlayerPage, type PlayerPage, type PlayerPageInput } from "@/lib/dashboard/player-stats-page";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { toFixtureId } from "@/lib/services/api-football/mappers";
 import type { ContentTypeId } from "@/types/content-type";
 import type { MatchDayFormatId } from "@/types/match-day";
 import type { PlayerStatsFacts, PlayerStatsGenerationResult } from "@/types/player-match-stats";
 import type { Result } from "@/types/result";
 import type { SocialFormatId } from "@/types/studio-formats";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Oyuncu İstatistikleri tek başına üretim → DRAFT `AiContent` (`PLAYER_STATS`). Yarı otomatik (admin
@@ -44,8 +44,8 @@ export async function createPlayerStatsDraft(input: Omit<PlayerPageInput, "pageL
   const page = await renderPlayerPage({ ...input, pageLabel: null });
   if (!page.ok) return page;
   const caption = playerPageCaption(facts, input, page.data);
-  const language = bannedWordsGate({ "gönderi metni": caption });
-  if (language) return { ok: false, error: { code: "BANNED_LANGUAGE", message: `${language} — kart üretilmedi.` } };
+  const language = contentLanguageGate({ caption });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
 
   reportJobStep("Kaydediliyor");
   try {
