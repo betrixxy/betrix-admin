@@ -1,6 +1,7 @@
 import { cardTeamName } from "@/lib/archive/names";
 import { loadVenueOverrides } from "@/lib/names/venue-directory";
 import { cardVenueName } from "@/lib/names/venue-names";
+import { matchDayRoundLabel } from "@/lib/dashboard/match-result-labels";
 import { getSelectableFixtures, formatFixtureLabel } from "@/lib/dashboard/fixtures";
 import type { MatchDayFixtureOption } from "@/types/match-day";
 import type { Result } from "@/types/result";
@@ -19,12 +20,6 @@ const ISTANBUL_TIME = new Intl.DateTimeFormat("tr-TR", {
   hour12: false,
 });
 
-/** "Regular Season - 3" / "League A - 3" → "3"; eleme turları (ör. "Quarter-finals") olduğu gibi kalır. */
-export function parseRoundWeek(round: string | null | undefined): string {
-  if (!round) return "";
-  const match = /-\s*(\d{1,2})$/.exec(round);
-  return match?.[1] ?? round;
-}
 
 function toOption(fixture: Fixture, venues: ReadonlyMap<string, string>): MatchDayFixtureOption {
   const kickoff = new Date(fixture.kickoffUtc);
@@ -41,7 +36,8 @@ function toOption(fixture: Fixture, venues: ReadonlyMap<string, string>): MatchD
     // Lig logosu kartlarda kullanılmaz (lig adı tipografik) — formdan da gönderilmez.
     leagueLogoUrl: "",
     league: fixture.competition.name,
-    week: parseRoundWeek(details?.round),
+    // Tur etiketi Türkçe ("3. Hafta", UEFA lig aşaması "3. Maç", "Çeyrek Final") — `matchDayRoundLabel`.
+    week: matchDayRoundLabel(details?.round),
     date: ISTANBUL_DATE.format(kickoff),
     time: ISTANBUL_TIME.format(kickoff),
     // Stadyum kart adı: admin düzeltmesi → Türkçe karşılık → "Stadium → Stadyumu" (bkz. venue-names.ts).

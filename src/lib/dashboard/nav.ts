@@ -3,7 +3,6 @@ import {
   Globe,
   Images,
   LayoutDashboard,
-  Layers,
   ListOrdered,
   Newspaper,
   Shuffle,
@@ -95,23 +94,13 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
   },
 ];
 
-/** FAZ 2-4'te kurulan, dashboard dışındaki mevcut araçlar — menüde ikincil grupta durur. */
-export const LEGACY_NAV: readonly NavItem[] = [
-  {
-    href: "/studio",
-    label: "Render Stüdyosu",
-    description: "Maç kartı şablonları",
-    icon: Layers,
-  },
-];
-
 /** `/dashboard` yalnızca tam eşleşmede aktiftir; diğerleri alt yollarda da aktif kalır. */
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === href;
   const matches = (candidate: string) => pathname === candidate || pathname.startsWith(`${candidate}/`);
   if (!matches(href)) return false;
   // Alt rotası ayrı bir menü öğesi olan modül (ör. studio → studio/match-day) orada aktif sayılmaz.
-  return ![...DASHBOARD_NAV, ...LEGACY_NAV].some(
+  return !DASHBOARD_NAV.some(
     (item) => item.href.length > href.length && item.href.startsWith(`${href}/`) && matches(item.href),
   );
 }

@@ -6,6 +6,7 @@ import { parseRenderOptions, parseStatsSnapshot } from "@/lib/dashboard/draft-sn
 import { drawRecordOptionsSchema } from "@/lib/dashboard/draw-records";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
+import { vitrinReviewSrc } from "@/lib/prediction/vitrin-files";
 import { APPROVED_STATUSES, STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-caption";
 import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
@@ -163,7 +164,10 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "AI_MARKET_PREDICTION") {
     const vitrin = vitrinViewSchema.safeParse(record.renderOptions);
     if (vitrin.success) {
-      const { imageUrl, title, subtitle, format, carousel } = vitrin.data;
+      const { title, subtitle, format, carousel } = vitrin.data;
+      // Onaysız vitrin görseli dosya adresinden verilmez (`vitrin-files.ts`): inceleme gömülü önizlemeyle.
+      const imageUrl = await vitrinReviewSrc(vitrin.data.imageUrl, record.status);
+      const slides = carousel && carousel.length > 0 ? await Promise.all(carousel.map(async (slide) => ({ ...slide, url: await vitrinReviewSrc(slide.url, record.status) }))) : [{ url: imageUrl, label: "Maç Önü Analiz" }];
       return {
         kind: "match-result",
         draft: {
@@ -179,7 +183,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           kindLabel: "Maç Önü Analiz",
           mvpName: null,
           imageUrl,
-          slides: carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Maç Önü Analiz" }],
+          slides,
           format: VITRIN_SOCIAL_FORMAT[format],
           vitrin: true,
           languageGate: true,

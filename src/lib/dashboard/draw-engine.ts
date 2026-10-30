@@ -10,7 +10,7 @@ import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { saveStoredFile } from "@/lib/dashboard/storage";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { buildDrawCaption } from "@/lib/draw/caption";
 import { compareWithApi } from "@/lib/draw/compare";
 import { drawTeamName } from "@/lib/draw/entry";
@@ -98,8 +98,8 @@ export async function createDrawDraft(request: DrawRequest, photo: { image: Uplo
   const rendered = await renderDraw(request, photo?.image ?? null);
   if (!rendered.ok) return rendered;
   const caption = buildDrawCaption(request.variant, request.variant === "TURKISH" ? request.states : request.states.slice(0, 1), request.focusTeamId);
-  const language = bannedWordsGate({ "gönderi metni": caption });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
+  const language = contentLanguageGate({ card: rendered.data.card, caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const urls: string[] = [];
   try {

@@ -11,6 +11,8 @@ import type { MatchResultLetter } from "@/types/sports";
 export interface VitrinOpenLine {
   /** "Galatasaray" · "Beraberlik" · "Evet" */
   label: string;
+  /** Kartta büyük harfle (takım adı köken kuralıyla: "INTER", "BORUSSIA"; diğerleri Türkçe: "BERABERLİK"). */
+  upperLabel: string;
   /** "%64" */
   value: string;
   /** Seçilen (en olası) sonuç — vurgu renginde. */
@@ -42,6 +44,8 @@ export interface VitrinCard {
   accentHex: string;
   homeTeam: string;
   awayTeam: string;
+  /** Büyütülmemiş kart adları (gönderi metni bunları yazar — büyük harften geri üretilmez). */
+  names: { home: string; away: string; competition: string; round: string };
   homeLogo: string | null;
   awayLogo: string | null;
   /** Kulüp renkleri — koyu zeminde okunur, birbirine ve beraberlik grisine benzemez. */

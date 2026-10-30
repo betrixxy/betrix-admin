@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import { verifyPublicMedia } from "@/lib/dashboard/public-media";
 import { readStoredFile } from "@/lib/dashboard/storage";
+import { isUnapprovedVitrinFile, VITRIN_FILE_FORBIDDEN } from "@/lib/prediction/vitrin-files";
 
 // İmzası ve süresi her istekte denetlenir — statik önbelleğe alınmaz (bkz. CLAUDE.md 1.5).
 export const dynamic = "force-dynamic";
@@ -16,6 +17,8 @@ export async function GET(request: Request): Promise<Response> {
   const stored = verifyPublicMedia(url.searchParams.get("f"), url.searchParams.get("e"), url.searchParams.get("s"));
   if (!stored) return new Response("Yetkisiz ya da süresi dolmuş bağlantı", { status: 403 });
 
+  // İmza geçerli olsa da onaysız vitrin görseli verilmez (yayın kapısının arkasındaki ikinci savunma).
+  if (await isUnapprovedVitrinFile(stored.bucket, stored.fileName)) return new Response(VITRIN_FILE_FORBIDDEN, { status: 403 });
   const data = await readStoredFile(stored.bucket, stored.fileName);
   if (!data) return new Response("Bulunamadı", { status: 404 });
 

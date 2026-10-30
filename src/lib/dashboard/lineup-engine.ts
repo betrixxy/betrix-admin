@@ -8,6 +8,7 @@ import { cardTemplateStyle } from "@/lib/dashboard/lineup-draft";
 import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
 import { renderLineupCard, type RenderedLineupCard } from "@/lib/dashboard/lineup-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import type { ContentTypeId } from "@/types/content-type";
 import type { LineupDraft, TeamLineupDraft } from "@/types/lineup";
 import type { Result } from "@/types/result";
@@ -37,6 +38,9 @@ function buildCaption(draft: LineupDraft): string {
  */
 export async function createLineupDraft(draft: LineupDraft): Promise<Result<LineupSaved>> {
   // Ad büyük harfi için takım kökenleri (maçtan, bkz. team-origin.ts).
+  // Bahis dili kapısı: kart metinleri (başlık, künye, adlar) + gönderi metni, çizimden önce.
+  const language = contentLanguageGate({ card: draft, caption: buildCaption(draft) });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
   const origins = await fixtureOrigins(draft.fixtureId);
   // Her kart kendi şablonuyla: kapağı olan takım liste, olmayan taktik tahtası (bkz. cardTemplateStyle).
   // Kapak fotoğrafları (Kahraman Liste): arşivden, o tarafın takımına + formasına ait olduğu doğrulanır.

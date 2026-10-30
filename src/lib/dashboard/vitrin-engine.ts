@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
-import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
+import { competitionCardName } from "@/lib/names/competition-names";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
@@ -12,7 +12,6 @@ import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } f
 import { teamOrigin } from "@/lib/dashboard/team-origin";
 import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { internalSource } from "@/lib/prediction/internal-source";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
@@ -24,6 +23,7 @@ import type { MatchDayFormatId } from "@/types/match-day";
 import type { PredictionSet, ScenarioId } from "@/types/prediction";
 import type { Result } from "@/types/result";
 import type { VitrinCard, VitrinSelection } from "@/types/vitrin";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Maç önü vitrin kartının motoru (AI_MARKET_PREDICTION). Tahmin kaynaktan SUNUCUDA hesaplanır —
@@ -46,7 +46,7 @@ export function vitrinMeta(stats: DeepAnalysisStats): VitrinMeta {
     homeTeamId: Number(fixture.homeTeam.id),
     awayTeamId: Number(fixture.awayTeam.id),
     kickoffUtc: fixture.kickoffUtc,
-    competitionName: OFFICIAL_COMPETITION_NAMES[leagueId] ?? fixture.competition.name,
+    competitionName: competitionCardName(leagueId, fixture.competition.name),
     roundLabel: fixture.details?.round ? roundLabel(fixture.details.round) : "",
     homeForm: stats.home.form.last5,
     awayForm: stats.away.form.last5,
@@ -124,8 +124,8 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
   const rendered = await renderVitrin({ ...request, allowPast: false });
   if (!rendered.ok) return rendered;
   const caption = buildVitrinCaption(rendered.data.card);
-  const language = bannedWordsGate({ "gönderi metni": caption });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
+  const language = contentLanguageGate({ card: rendered.data.card, caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const urls: string[] = [];
   try {

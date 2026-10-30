@@ -5,6 +5,7 @@ import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { seasonLabel, selectSections, standingsCaption, standingsCapacity, standingsKindLabel, standingsLayout, standingsPlan } from "@/lib/dashboard/standings-layout";
 import { renderStandingsCard } from "@/lib/dashboard/standings-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { getSupportedLeague } from "@/lib/services/api-football/leagues";
 import { getStandings } from "@/lib/services/api-football/standings";
 import type { ContentTypeId } from "@/types/content-type";
@@ -60,6 +61,10 @@ function toJsonValue(value: object): Prisma.InputJsonObject {
 export async function createStandingsDraft(draft: StandingsDraft, anchorFixtureId: string | null): Promise<Result<{ id: string }>> {
   const card = await resolveStandingsCard(draft);
   if (!card.ok) return card;
+  const caption = standingsCaption(card.data.leagueName, seasonLabel(draft.season), draft.title, card.data.sections);
+  // Bahis dili kapısı: kart metinleri (başlık, takım adları) + gönderi metni, çizimden önce.
+  const language = contentLanguageGate({ card: card.data, caption });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
 
   let png: Buffer;
   try {
@@ -82,7 +87,7 @@ export async function createStandingsDraft(draft: StandingsDraft, anchorFixtureI
       resultImageUrl: imageUrl,
       status: "DRAFT",
       format: SOCIAL_FORMATS[draft.format].dbFormat,
-      caption: standingsCaption(card.data.leagueName, seasonLabel(draft.season), draft.title, card.data.sections),
+      caption,
       renderOptions: toJsonValue({ kind: "STANDINGS", imageUrl, leagueName: card.data.leagueName, kindLabel: card.data.kindLabel, ...draft, sections: card.data.sections }),
     });
     return { ok: true, data: { id: record.id } };

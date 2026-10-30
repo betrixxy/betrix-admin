@@ -108,9 +108,12 @@ export function winBar(prediction: PredictionSet, sides: MatchSides): VitrinWinB
 }
 
 export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSelection, meta: VitrinMeta, images: VitrinImages): VitrinCard {
+  // Göstergedeki seçenek adı: takım adı köken kuralıyla ("INTER"), diğerleri Türkçe ("BERABERLİK").
+  const upperLabel = (label: string) => (label === meta.sides.home ? upperTeamName(label, meta.origins?.home) : label === meta.sides.away ? upperTeamName(label, meta.origins?.away) : upperTr(label));
   const open = selection.open.map((id): VitrinOpenBox => {
     const scenario = scenarioOf(prediction, id);
-    return { title: scenarioTitle(id, meta.sides, scenario.outcome), lines: openBoxLines(scenario, meta.sides), reason: scenario.reason.trim() };
+    const lines = openBoxLines(scenario, meta.sides).map((line) => ({ ...line, upperLabel: upperLabel(line.label) }));
+    return { title: scenarioTitle(id, meta.sides, scenario.outcome), lines, reason: scenario.reason.trim() };
   }) as [VitrinOpenBox, VitrinOpenBox];
   const locked = selection.locked.map((id) => scenarioTitle(id, meta.sides, scenarioOf(prediction, id).outcome)) as [string, string, string];
   const colors = sideColors(meta.homeTeamId, meta.awayTeamId);
@@ -123,6 +126,7 @@ export function buildVitrinCard(prediction: PredictionSet, selection: VitrinSele
     accentHex: vitrinAccentHex(bar, colors),
     homeTeam: upperTeamName(meta.sides.home, meta.origins?.home),
     awayTeam: upperTeamName(meta.sides.away, meta.origins?.away),
+    names: { home: meta.sides.home, away: meta.sides.away, competition: meta.competitionName, round: meta.roundLabel },
     homeHex: colors[0],
     awayHex: colors[1],
     homeForm: meta.homeForm,

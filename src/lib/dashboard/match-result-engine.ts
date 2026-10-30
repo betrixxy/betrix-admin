@@ -30,6 +30,7 @@ import type { PlayerStatsFacts, PlayerStatsTemplateId, TopPlayerCount } from "@/
 import type { PendingPlayerPage } from "@/lib/player-stats/plan";
 import type { Result } from "@/types/result";
 import type { SocialFormatId } from "@/types/studio-formats";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Maç Sonucu kartı üretim hattı — TAM KADRAJ gerçek maç fotoğrafı (yarı otomatik: admin
@@ -123,6 +124,10 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   const mvpName = mvpLineName({ mvp, photoPlayerId: input.photo.playerId, photoIsMvp: input.photoIsMvp });
   const carousel = input.stats ? input.stats : null;
   const card = await resolveMatchResultCard(people, mvpName, carousel || input.player ? SET_PAGE_LABELS.RESULT : null, mvp ? (people.mvpOrigins.get(mvp.playerId) ?? null) : null);
+  const caption = buildMatchResultCaption(people, mvp?.name ?? null);
+  // Bahis dili kapısı: kart metni + gönderi metni (02 ve oyuncu sayfası kendi çiziminde aynı kapıdan).
+  const language = contentLanguageGate({ card, caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
   const options = { template: input.template, shadeStrength: photo.shadeStrength, side: photo.side };
   let final: Buffer;
   try {
@@ -199,7 +204,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
       playerImageUrl: null,
       status: "DRAFT",
       format: format.db,
-      caption: buildMatchResultCaption(people, mvp?.name ?? null),
+      caption,
       statsSnapshot: asJson(facts),
       renderOptions: asJson({
         kind: "MATCH_RESULT",

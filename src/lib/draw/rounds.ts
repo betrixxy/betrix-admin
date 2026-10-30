@@ -1,3 +1,4 @@
+import { COMPETITION_NAMES } from "@/lib/names/competition-names";
 import type { DrawStage } from "@/types/draw";
 
 /**
@@ -5,11 +6,9 @@ import type { DrawStage } from "@/types/draw";
  * kayıtta yazılır; `apiRound` kura sonrası API fikstürünü (API-Football `league.round`) bu tura süzer.
  */
 
-export const DRAW_COMPETITIONS = [
-  { id: 2, name: "UEFA Şampiyonlar Ligi", short: "Şampiyonlar Ligi" },
-  { id: 3, name: "UEFA Avrupa Ligi", short: "Avrupa Ligi" },
-  { id: 848, name: "UEFA Konferans Ligi", short: "Konferans Ligi" },
-] as const;
+/** Kura turnuvaları — adlar tek tablodan (`competition-names.ts`). */
+const cup = <Id extends 2 | 3 | 848>(id: Id) => ({ id, name: COMPETITION_NAMES[id]?.name ?? "", short: COMPETITION_NAMES[id]?.short ?? "" });
+export const DRAW_COMPETITIONS = [cup(2), cup(3), cup(848)] as const;
 export type DrawCompetitionId = (typeof DRAW_COMPETITIONS)[number]["id"];
 /** Doğrudan açılışta (AI İçerik Stüdyosu / menü) seçili turnuva: Şampiyonlar Ligi. */
 export const DEFAULT_DRAW_COMPETITION_ID: DrawCompetitionId = 2;

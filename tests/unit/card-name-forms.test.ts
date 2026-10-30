@@ -25,6 +25,7 @@ describe("kart ad biçimleri", () => {
       SET_SCORERS: "short",
       MATCH_RESULT_MVP: "short",
       PLAYER_STATS_TOP: "short",
+      MATCH_DAY_REFEREE: "long",
     });
   });
 
@@ -41,6 +42,7 @@ describe("kart ad biçimleri", () => {
       "src/lib/names/scorer-names.ts": ["SET_SCORERS"],
       "src/lib/dashboard/player-stats-card.ts": ["PLAYER_STATS_SPOTLIGHT", "PLAYER_STATS_TOP"],
       "src/lib/player-h2h/names.ts": ["PLAYER_H2H_POSTER"],
+      "src/lib/dashboard/match-day-engine.ts": ["MATCH_DAY_REFEREE"],
     };
     for (const [file, slots] of Object.entries(uses)) {
       const source = read(file);

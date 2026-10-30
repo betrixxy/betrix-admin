@@ -15,6 +15,7 @@ import type { MatchDayFormatId } from "@/types/match-day";
 import type { MatchStatsFacts, MatchStatsGenerationResult, MatchStatsPage } from "@/types/match-stats";
 import type { Result } from "@/types/result";
 import type { SocialFormatId } from "@/types/studio-formats";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Maç İstatistikleri (02) üretim hattı — set kartı. Ağ/Fal çağrısı yok; yarı otomatik (admin
@@ -78,6 +79,10 @@ export async function createMatchStatsCard(input: CreateMatchStatsInput): Promis
   const notes = [...stats.warnings];
   notes.push(base ? "Zemin: aynı maçın Maç Sonucu kartı (bulanık)" : "Bu format için Maç Sonucu kartı yok — programatik zemin kullanıldı");
   if (!stats.sportmonksMatched) notes.push("Sportmonks maçı eşleşmedi — yalnızca API-Football satırları");
+  const caption = buildMatchStatsCaption(stats);
+  // Bahis dili kapısı: gönderi metni (kart metni çizimde, `renderMatchStatsImage`).
+  const language = contentLanguageGate({ caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
   try {
     const resultImageUrl = await saveStoredFile("renders", `${randomUUID()}.png`, rendered.data);
     const format = FORMATS[input.format];
@@ -88,7 +93,7 @@ export async function createMatchStatsCard(input: CreateMatchStatsInput): Promis
       resultImageUrl,
       status: "DRAFT",
       format: format.db,
-      caption: buildMatchStatsCaption(stats),
+      caption,
       statsSnapshot: asJson(stats),
       renderOptions: asJson({
         kind: "MATCH_STATS",

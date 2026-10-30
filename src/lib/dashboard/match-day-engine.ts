@@ -22,6 +22,9 @@ import type {
   MatchDayTemplateId,
 } from "@/types/match-day";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
+import { nameFor } from "@/lib/names/card-name-forms";
+import { resolveRefereeName } from "@/lib/names/person-directory";
 import type { ContentTypeId } from "@/types/content-type";
 import type { Result } from "@/types/result";
 import type { DerbyIntensity } from "@/types/sports";
@@ -128,6 +131,12 @@ async function saveJpeg(bytes: Buffer): Promise<string> {
   return saveStoredFile("generated", `${randomUUID()}.jpg`, jpeg);
 }
 
+/** Hakem kişi adı kuralından (`MATCH_DAY_REFEREE`, uzun biçim + uyruk kökeni); boşsa formdaki değer kalır. */
+async function refereeFields(raw: string | undefined): Promise<Partial<Pick<MatchDayCard, "refereeLabel" | "refereeOrigin">>> {
+  const card = raw?.trim() ? await resolveRefereeName(raw) : null;
+  return card ? { refereeLabel: nameFor("MATCH_DAY_REFEREE", card), refereeOrigin: card.origin } : {};
+}
+
 export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Result<MatchDayGenerationResult, EngineError>> {
   const frame = MATCH_DAY_FRAMES[input.format];
   const meta = MATCH_DAY_TEMPLATES[input.template];
@@ -139,21 +148,28 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     customPrompt: input.customPrompt,
   };
 
+  // Bahis dili kapısı ücretli adımlardan önce (form metinleri); kart + gönderi metni kayıttan önce yine.
+  const early = contentLanguageGate({ card: input.info });
+  if (early) return fail(BANNED_LANGUAGE, `${early} — kart üretilmedi.`);
+
   // 1. Bağımsız adımlar paralel.
-  const [homeCut, awayCut, background, baseCard, stats] = await Promise.all([
+  const [homeCut, awayCut, background, baseCard, stats, referee] = await Promise.all([
     getPlayerCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
     getPlayerCutout(input.awayPlayer, "Deplasman oyuncu fotoğrafı"),
     getBackground(input, frame, promptInput),
     fixtureOrigins(input.fixtureId).then((origins) => resolveMatchDayCard(input.info, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }, origins)),
     input.template === "DATA_DRIVEN" ? loadMatchDayStats(input.fixtureId) : Promise.resolve(null),
+    refereeFields(input.info.referee),
   ]);
   if (!homeCut.ok) return fail(homeCut.error.code, homeCut.error.message);
   if (!awayCut.ok) return fail(awayCut.error.code, awayCut.error.message);
   if (!background.ok) return background;
-  const card: MatchDayCard = { ...baseCard, stats };
+  const card: MatchDayCard = { ...baseCard, ...referee, stats };
   // Yerleşim kapısı (DATA_DRIVEN ad satırları): harmanlama ve kayıttan önce — çakışma varsa kart üretilmez.
   const layout = await matchDayLayoutGate(card, input.template, frame);
   if (!layout.ok) return fail(layout.error.code, layout.error.message);
+  const language = contentLanguageGate({ card, caption: buildCaption(card) });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const savedSteps: string[] = [];
   if (homeCut.data.fromCache) savedSteps.push("Ev sahibi oyuncu kesimi önbellekten");

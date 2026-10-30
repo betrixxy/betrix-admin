@@ -20,6 +20,8 @@ export const CARD_NAME_FORMS = {
   MATCH_RESULT_MVP: "short",
   /** Oyuncu İstatistikleri B · Maçın En İyileri. */
   PLAYER_STATS_TOP: "short",
+  /** Maç Günü künyesindeki hakem ("HAKEM REŞAT ONUR COŞKUNSES"). */
+  MATCH_DAY_REFEREE: "long",
 } as const satisfies Record<string, NameForm>;
 
 export type CardNameSlot = keyof typeof CARD_NAME_FORMS;

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_HASHTAGS, hashtagCount } from "@/lib/dashboard/vitrin-caption";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { vitrinPublishGate } from "@/lib/prediction/publish-gate";
 import { parseVitrinOptions, predictionRecordsFor, type PredictionRecordInput } from "@/lib/prediction/record";
@@ -11,7 +11,8 @@ import type { Fixture } from "@/types/sports";
 import type { Result } from "@/types/result";
 
 /**
- * Vitrin onayı ve yayını. Onay (`draft-engine.ts::decideDraft`): kayıt vitrin değilse boş dizi. Onay
+ * Onay kapısı (BÜTÜN içerik türleri) + vitrin onayı ve yayını. Onay (`draft-engine.ts::decideDraft`): her
+ * türde gönderi metni ortak bahis dili kapısından geçer; kayıt vitrin değilse boş dizi. Vitrin onayı
  * reddedilir ve kayıt YAZILMAZ: gönderi metninde bahis dili varsa ya da onay anı kickoff'tan önce
  * değilse (`kickoff.ts`). Kickoff önce API'den (erteleme/saat değişikliği görülsün), API'ye
  * ulaşılamazsa kayıttaki anlık görüntüden okunur; ikisi de yoksa onay reddedilir. Yayın
@@ -35,23 +36,18 @@ async function approvalFixture(fixtureId: string, renderOptions: unknown): Promi
 /** `approvedAt` — onayın anı; kayıt satırlarının `recordedAt`'i de budur (denetlenen an = yazılan an). */
 export async function vitrinApproval(id: string, publishCaption: string | null, approvedAt: Date): Promise<Result<(PredictionRecordInput & { recordedAt: Date })[], Fail["error"]>> {
   const record = await prisma.aiContent.findUnique({ where: { id }, select: { contentType: true, fixtureId: true, caption: true, renderOptions: true } });
-  // Oyuncu karşılaştırması: tahmin kaydı yok, ama gönderi metni aynı dil kapısından geçer.
-  if (record?.contentType === "PLAYER_H2H") {
-    const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
-    return language ? fail("BANNED_LANGUAGE", `${language} — onaylanmadı.`) : { ok: true, data: [] };
-  }
-  // Kura sonucu: tahmin kaydı yok, yalnızca gönderi metninin dil kapısı (bahis dili yok).
-  if (record?.contentType === "DRAWS_AND_PAIRINGS") {
-    const text = publishCaption ?? record.caption ?? "";
-    const draw = bannedWordsGate({ "gönderi metni": text });
-    if (draw) return fail("BANNED_LANGUAGE", `${draw} — onaylanmadı.`);
+  if (!record) return { ok: true, data: [] };
+  // BÜTÜN içerik türleri: onaylanan gönderi metni ortak bahis dili kapısından (`content-language.ts`).
+  const text = publishCaption ?? record.caption ?? "";
+  const language = contentLanguageGate({ caption: text });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — onaylanmadı.`);
+  // Kura sonucu: ayrıca hashtag sınırı.
+  if (record.contentType === "DRAWS_AND_PAIRINGS") {
     const tags = hashtagCount(text);
     return tags > MAX_HASHTAGS ? fail("TOO_MANY_HASHTAGS", `Kura metninde en fazla ${MAX_HASHTAGS} hashtag (${tags} var) — onaylanmadı.`) : { ok: true, data: [] };
   }
-  const options = record?.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
-  if (!record || !options) return { ok: true, data: [] };
-  const language = bannedWordsGate({ "gönderi metni": publishCaption ?? record.caption ?? "" });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — onaylanmadı.`);
+  const options = record.contentType === "AI_MARKET_PREDICTION" ? parseVitrinOptions(record.renderOptions) : null;
+  if (!options) return { ok: true, data: [] };
   const fixture = await approvalFixture(record.fixtureId, record.renderOptions);
   if (!fixture) return fail("KICKOFF_UNKNOWN", "Maçın başlama saati doğrulanamadı — tahmin kaydı yazılmadı, onaylanmadı.");
   const late = kickoffGate(fixture, approvedAt);

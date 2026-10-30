@@ -1,6 +1,8 @@
+import { competitionCardName } from "@/lib/names/competition-names";
 import { normalizeClock } from "@/lib/format/dates";
 import { MATCH_DAY_FONT_FILES } from "@/lib/dashboard/card-font-files";
 import { upperCompetition, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
+import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { cardVenueName } from "@/lib/names/venue-names";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -117,14 +119,14 @@ export async function resolveImage(ref: string | undefined, maxSide: number): Pr
   }
 }
 
-function upper(value: string): string {
-  return value.toLocaleUpperCase("tr-TR");
-}
+/** Türkçe tur etiketi (`matchDayRoundLabel`: "3. Hafta", "3. Maç", "Çeyrek Final", "Son 16 Turu") Türkçe büyür. */
+const TURKISH_ROUND = /(^|\s)(hafta|maç|maçı|turu|final|eleme|grup|aşaması|play-off|üçüncülük)(?=$|\s)/iu;
 
-/** "3" → "3. HAFTA"; serbest metin olduğu gibi (büyük harfle) kullanılır. */
-function formatWeek(week: string | undefined): string | null {
+/** "3" → "3. HAFTA"; tur etiketi Türkçe büyük harfle; tanınmayan (İngilizce) tur köken kuralıyla ("ROUND OF 64"). */
+export function formatWeek(week: string | undefined): string | null {
   if (!week) return null;
-  return /^\d{1,2}$/.test(week) ? `${week}. HAFTA` : upper(week);
+  if (/^\d{1,2}$/.test(week)) return `${week}. HAFTA`;
+  return TURKISH_ROUND.test(week) ? upperTr(week) : upperCompetition(week);
 }
 
 /** `yyyy-MM-dd` → "Pazartesi"; tarih serbest metinse null. */
@@ -170,7 +172,7 @@ export async function resolveMatchDayCard(
     weekdayLabel: formatWeekday(params.date),
     stats: null,
     ...(origins ? { origins } : {}),
-    leagueLabel: upperCompetition(params.league ?? "Süper Lig"),
+    leagueLabel: upperCompetition(params.league ?? competitionCardName(203, "")),
     weekLabel: formatWeek(params.week),
     dateLabel: formatDate(params.date),
     timeLabel: params.time ? normalizeClock(params.time) : PLACEHOLDER,

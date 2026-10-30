@@ -16,11 +16,11 @@ import { saveStoredFile } from "@/lib/dashboard/storage";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import type { CropAdjust } from "@/lib/dashboard/vitrin-photo";
 import { defaultMode } from "@/lib/player-h2h/stats";
-import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import type { ContentTypeId } from "@/types/content-type";
 import type { MatchDayFormatId } from "@/types/match-day";
 import type { H2HMode, H2HScope, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 
 /**
  * Oyuncu karşılaştırma kartının motoru (PLAYER_H2H). Veri her önizleme/kayıtta SUNUCUDA yeniden okunur
@@ -125,8 +125,8 @@ export async function createH2HDraft(request: H2HRequest): Promise<Result<{ id: 
   if (!rendered.ok) return rendered;
   const [left, right] = rendered.data.players;
   const caption = buildH2HCaption(left, right, rendered.data.card);
-  const language = bannedWordsGate({ "gönderi metni": caption });
-  if (language) return fail("BANNED_LANGUAGE", `${language} — kart üretilmedi.`);
+  const language = contentLanguageGate({ card: rendered.data.card, caption });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const urls: string[] = [];
   try {

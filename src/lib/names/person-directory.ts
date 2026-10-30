@@ -1,7 +1,7 @@
 import type { NameOrigin } from "@/lib/dashboard/name-case";
-import { cardCoachName, cardPlayerNames, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
+import { cardCoachName, cardPlayerNames, cardRefereeName, splitReferee, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
 import { prisma } from "@/lib/prisma";
-import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches } from "@/lib/services/sportmonks/people";
+import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches, searchSportmonksReferees } from "@/lib/services/sportmonks/people";
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
 
 /**
@@ -55,4 +55,12 @@ export async function resolveCoachName(team: TeamRefForNames, coach: PersonEntry
   const people = surname.length >= 3 ? await searchSportmonksCoaches(surname, teamId) : [];
   // Birden çok aday tutarsa takımı çalıştırmış olan (ilk sırada) seçilir.
   return cardCoachName(coach, { people, overrides: fixes, teamHint: team.peopleHint });
+}
+
+/** Hakem adı ("Resat Onur Coskunses, Türkiye" → "Reşat Onur Coşkunses"); boşsa null. Sportmonks okunamazsa API adı. */
+export async function resolveRefereeName(raw: string): Promise<CardPersonName | null> {
+  const { name } = splitReferee(raw);
+  if (!name) return null;
+  const surname = name.split(/\s+/u).at(-1) ?? "";
+  return cardRefereeName(raw, surname.length >= 3 ? await searchSportmonksReferees(surname) : []);
 }

@@ -1,5 +1,6 @@
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { isSafeFileName, isStorageBucket, parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
+import { isUnapprovedVitrinFile, VITRIN_FILE_FORBIDDEN } from "@/lib/prediction/vitrin-files";
 
 const CONTENT_TYPES: Record<string, string> = {
   png: "image/png",
@@ -32,6 +33,9 @@ export async function GET(request: Request): Promise<Response> {
   if (!bucket || !fileName || !isStorageBucket(bucket) || !isSafeFileName(fileName)) {
     return new Response("Bulunamadı", { status: 404 });
   }
+
+  // Onaysız vitrin görseli dosya adresinden verilmez (inceleme ekranı gömülü önizleme kullanır).
+  if (await isUnapprovedVitrinFile(bucket, fileName)) return new Response(VITRIN_FILE_FORBIDDEN, { status: 403, headers: { "Cache-Control": "no-store" } });
 
   const contentType = CONTENT_TYPES[fileName.split(".").pop()?.toLowerCase() ?? ""];
   const data = await readStoredFile(bucket, fileName);

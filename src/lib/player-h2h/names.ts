@@ -1,7 +1,7 @@
-import { nameOrigin, originFromCountry, upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, upperCompetition, type NameOrigin } from "@/lib/dashboard/name-case";
 import { nameFor } from "@/lib/names/card-name-forms";
 import { hasInitial, shortNameOf } from "@/lib/names/person-name";
-import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
+import { competitionShortName } from "@/lib/names/competition-names";
 import type { CardPersonName } from "@/types/person-name";
 
 /**
@@ -39,9 +39,10 @@ export function fullNameFromApi(name: string, firstname: string | null | undefin
 }
 
 /** Lig: kartta kısa adı (desteklenen liglerde "Süper Lig") ve büyük harfi (Türk ligi Türkçe, diğeri uluslararası). */
-export function leagueDisplay(id: number, providerName: string, country: string | null): { id: number; name: string; label: string } {
-  const name = SUPPORTED_LEAGUES.find((league) => league.apiFootballId === id)?.shortName ?? providerName;
-  return { id, name, label: upperName(name, originFromCountry(country) ?? "intl") };
+export function leagueDisplay(id: number, providerName: string): { id: number; name: string; label: string } {
+  // Kısa kart adı tek tablodan; büyük harf lig adı köken kuralıyla ("PREMİER LİG", "SERIE A").
+  const name = competitionShortName(id, providerName);
+  return { id, name, label: upperCompetition(name) };
 }
 
 /** "2026" → "2026/27"; takvim yılı sezonunda (MLS, Brezilya…) "2026". */

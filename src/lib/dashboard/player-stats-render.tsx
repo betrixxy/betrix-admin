@@ -5,6 +5,7 @@ import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { buildStatsBackground, buildStatsBackgroundFromResult } from "@/lib/dashboard/match-stats-background";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 import type { BlockFilter } from "@/skills/render-engine/templates/checkmatch-set/blocks";
 import type { ColumnSide } from "@/skills/render-engine/templates/checkmatch-set/landscape";
@@ -78,6 +79,9 @@ export interface SpotlightImageInput {
 export async function renderSpotlightImage(input: SpotlightImageInput): Promise<Result<Buffer, RenderError>> {
   const { card, frame } = input;
   const options = { side: input.side, shadeStrength: input.shadeStrength };
+  // Bahis dili kapısı (kart metni) — ortak tek kapı.
+  const language = contentLanguageGate({ card });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
   try {
     const gate = await layoutGate("Maçın Oyuncusu", frame, (only) => renderSpotlightOverlay(card, frame, { ...options, only }));
     if (!gate.ok) return { ok: false, error: gate.error };
@@ -100,6 +104,8 @@ export interface TopPlayersImageInput {
 
 export async function renderTopPlayersImage(input: TopPlayersImageInput): Promise<Result<Buffer, RenderError>> {
   const { card, frame } = input;
+  const language = contentLanguageGate({ card });
+  if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — kart üretilmedi.` } };
   try {
     const gate = await layoutGate("Maçın En İyileri", frame, (only) => renderTopPlayersOverlay(card, frame, { only }));
     if (!gate.ok) return { ok: false, error: gate.error };

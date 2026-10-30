@@ -118,8 +118,8 @@ describe("Türkçe yazım", () => {
     assert.equal(shortNameOf("Virgil van Dijk"), "van Dijk");
     assert.equal(firstNameOf("Mohamed Salah"), "Mohamed");
     assert.equal(seasonLabel(2026), "2026/27");
-    assert.deepEqual(leagueDisplay(203, "Süper Lig", "Turkey"), { id: 203, name: "Süper Lig", label: "SÜPER LİG" });
-    assert.equal(leagueDisplay(135, "Serie A", "Italy").label, "SERIE A");
+    assert.deepEqual(leagueDisplay(203, "Süper Lig"), { id: 203, name: "Süper Lig", label: "SÜPER LİG" });
+    assert.equal(leagueDisplay(135, "Serie A").label, "SERIE A");
   });
 
   it("kapsam etiketi: lig, tüm turnuvalar, farklı ligler", () => {

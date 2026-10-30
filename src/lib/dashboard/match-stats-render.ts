@@ -5,6 +5,7 @@ import { buildStatsBackground, buildStatsBackgroundFromResult } from "@/lib/dash
 import { buildMatchStatsCard, resolveMatchStatsImages } from "@/lib/dashboard/match-stats-card";
 import { renderMatchStatsOverlay } from "@/lib/dashboard/match-stats-overlay";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
+import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import type { ColumnSide } from "@/skills/render-engine/templates/checkmatch-set/landscape";
 import type { MatchStatsFacts, MatchStatsPage } from "@/types/match-stats";
 import type { Result } from "@/types/result";
@@ -35,6 +36,9 @@ export interface StatsImageInput {
 export async function renderMatchStatsImage(input: StatsImageInput): Promise<Result<Buffer, RenderError>> {
   const { stats, frame, side } = input;
   const card = buildMatchStatsCard(stats, input.page, input.images ?? (await resolveMatchStatsImages(stats)), input.pageLabel);
+  // Bahis dili kapısı (kart metni) — ortak tek kapı; 02 tek başına ve carousel'de bu yoldan.
+  const language = contentLanguageGate({ card });
+  if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
   try {
     const gate = await layoutGate("Maç İstatistikleri", frame, (only) => renderMatchStatsOverlay(card, frame, { side, only }));
     if (!gate.ok) return fail(gate.error.code, gate.error.message);
