@@ -31,9 +31,8 @@ import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
  * Veri gerçek maçtan (Milan 2-4 Bologna, API-Football + Sportmonks xG) — fotoğraf SENTETİK. Ağ yok: logolar
  * `null`, vesikalık yok (takım logosu yedeği). Her kartta YERLEŞİM KAPISI.
  *
- * Baseline henüz ONAYLANMADI: baseline dosyası yoksa yalnızca yerleşim kapısı koşar ve çıktı
- * `__output__/player-stats/` altına yazılır; baseline varsa piksel karşılaştırması yapılır.
- *   npm run test:visual:update   # baseline'ı yazar — yalnızca kullanıcı onayıyla
+ * Baseline onaylandı (2026-10-30, 25 dosya): piksel karşılaştırması + yerleşim kapısı.
+ *   npm run test:visual:update   # baseline'ı yeniden yazar — yalnızca kullanıcı onayıyla
  */
 
 const ROOT = path.join(process.cwd(), "tests", "visual");
