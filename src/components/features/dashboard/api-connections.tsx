@@ -45,10 +45,6 @@ function IntegrationRow({ integration }: { integration: IntegrationStatus }) {
               Bağlantıyı kopar
             </Button>
           </form>
-        ) : integration.comingSoon ? (
-          <Button size="xs" variant="outline" disabled title="Hesap bilgisi entegrasyonu henüz tamamlanmadı">
-            Yakında
-          </Button>
         ) : integration.configured ? (
           // Tam sayfa gezinme: route handler sağlayıcıya yönlendirir (Link ön-yüklemesi istenmez).
           <a href={`/api/auth/${integration.slug}/connect`} className={buttonVariants({ size: "xs", variant: "outline" })}>

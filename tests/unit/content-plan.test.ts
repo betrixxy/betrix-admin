@@ -86,10 +86,10 @@ describe("Yıldız anlık görüntüsü", () => {
 describe("İçerik paketi ilerlemesi", () => {
   const row = (id: string, contentType: string, status: string, resultImageUrl: string | null = "/api/files/renders/x.png"): ProductionRow => ({ id, fixtureId: "f1", status, contentType, resultImageUrl, publishAt: null });
 
-  it("payda yalnızca aktif türler — 'Yakında' sayılmaz", () => {
+  it("payda yalnızca aktif türler — 'Yakında' tür kalmadı (2026-10-30), payda bütün katalog", () => {
     const active = CONTENT_TYPES.filter((type) => type.status === "active").length;
     assert.equal(summarizeProduction({}).total, active);
-    assert.ok(active < CONTENT_TYPES.length);
+    assert.equal(active, CONTENT_TYPES.length);
   });
 
   it("onaylı kazanır, placeholder taslak sayılmaz: '1/N hazır · 1 onay bekliyor'", () => {
