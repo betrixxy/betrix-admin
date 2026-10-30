@@ -4,7 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { buildDraftCaption } from "@/lib/dashboard/draft-caption";
 import { deleteStoredUrl, persistBackground, renderDraftImage } from "@/lib/dashboard/draft-render";
 import { parseStatsSnapshot, toJsonValue } from "@/lib/dashboard/draft-snapshot";
-import { validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { mediaOrderProblem } from "@/lib/dashboard/publish-caption";
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { ensurePlayerResolution } from "@/lib/dashboard/player-upscale";
 import { recordPanelPublish } from "@/lib/dashboard/post-registry";
@@ -233,15 +233,15 @@ export async function decideDraft(
     const record = await prisma.aiContent.findUnique({ where: { id }, select: { id: true, renderOptions: true, resultImageUrl: true } });
     if (!record) return fail("NOT_EDITABLE", "Taslak bulunamadı.");
     const { settings } = publish;
-    if (!validMediaOrder(settings.mediaOrder, await allowedMediaUrls(record, settings.mediaOrder), settings.layout, settings.platform)) {
-      return fail("INVALID_INPUT", "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin.");
-    }
+    // Dizilim kayıttaki GÜNCEL carousel'e göre (03 sonradan eklendiyse eksik dizilim reddedilir).
+    const order = mediaOrderProblem(settings, await allowedMediaUrls(record, settings.mediaOrder), record.renderOptions);
+    if (order) return fail("INVALID_INPUT", order);
     const current = record.renderOptions && typeof record.renderOptions === "object" && !Array.isArray(record.renderOptions) ? record.renderOptions : {};
     publishData = { caption: publish.caption, renderOptions: JSON.parse(JSON.stringify({ ...current, publish: settings })) as Prisma.InputJsonObject };
   }
   // Maç önü vitrin: gönderi metninde bahis dili yok; onay anı kickoff'tan önce; açık 2 senaryo değiştirilemez kayda geçer.
   const decidedAt = new Date();
-  const vitrin = decision === "APPROVED" ? await vitrinApproval(id, publishData?.caption ?? null, decidedAt) : null;
+  const vitrin = decision === "APPROVED" ? await vitrinApproval(id, publishData?.caption ?? null, decidedAt, publish?.settings.platform ?? null) : null;
   if (vitrin && !vitrin.ok) return vitrin;
   try {
     const approved = await prisma.$transaction(async (tx) => {

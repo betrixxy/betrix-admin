@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { captionFormatGate } from "@/lib/dashboard/caption-format";
 import { buildMatchResultCaption, matchResultTitle } from "@/lib/dashboard/match-result-caption";
 import { mvpLineName, mvpOptions } from "@/lib/dashboard/match-result-featured";
 import { toMatchResultFacts } from "@/lib/services/api-football/match-result-mappers";
@@ -70,5 +71,6 @@ describe("gönderi metni", () => {
         "⭐ Maçın oyuncusu: Oh Hyeon-Gyu",
       ].join("\n"),
     );
+    assert.equal(captionFormatGate(buildMatchResultCaption(WIN, "Oh Hyeon-Gyu")), null);
   });
 });

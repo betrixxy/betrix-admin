@@ -9,10 +9,11 @@ import type { Result } from "@/types/result";
 /**
  * Platforma özel gönderi metni (Yayın Merkezi). Model yalnızca olgu paketini görür: içeriğin türü, takım/lig
  * adları ve kartın şablon metni (her sayı oradan gelir). Çıktıdaki sayılar çağıran tarafta pakete karşı
- * denetlenir (bkz. lib/dashboard/publish-caption.ts). İstemler sabittir — önbellek öneki bozulmasın.
+ * denetlenir (bkz. lib/dashboard/publish-caption.ts); biçim kuralları (≤5 hashtag, link/alan adı yok, `{…}` yok)
+ * ortak kapıda yeniden denetlenir (`caption-format.ts`). İstemler sabittir — önbellek öneki bozulmasın.
  */
 
-const COMMON_RULES = `Sen CheckMatch.net'in sosyal medya editörüsün; kusursuz Türkçe yazıyorsun. Görev: verilen içerik kartı için gönderi metni yazmak.
+const COMMON_RULES = `Sen CheckMatch'in sosyal medya editörüsün; kusursuz Türkçe yazıyorsun. Görev: verilen içerik kartı için gönderi metni yazmak.
 
 Veri kuralları — pazarlık konusu değil:
 - Yalnızca kullanıcı mesajındaki JSON olgu paketini kullan. Pakette olmayan hiçbir sayı, skor, oyuncu, sakatlık, transfer ya da tarihsel bilgi yazma; genel futbol bilginden olgu ekleme.
@@ -20,7 +21,8 @@ Veri kuralları — pazarlık konusu değil:
 - Takım ve lig adlarını paketteki resmi yazımıyla kullan; kısaltma ve lakap kullanma ("Gala", "Fener", "GS", "BJK" yasak). Hashtag'lerde boşluksuz resmi ad kullanılabilir (#Galatasaray, #SüperLig).
 - Tahmin/market içeriğinde "kesin", "garanti", "banko" deme; bu bir olasılık değerlendirmesidir.
 - Türkçe imla: ç, ğ, ı, İ, ö, ş, ü eksiksiz; özel adlara gelen ekler kesme işaretiyle ("Galatasaray'ın"); yüzde işareti sayıdan önce ("%57").
-- CheckMatch.net'i en fazla bir kez, doğal biçimde an (ör. "Detaylı analiz CheckMatch.net'te").
+- CheckMatch'i en fazla bir kez, doğal biçimde, alan adı OLMADAN an (ör. "Detaylı analiz CheckMatch'te"). Link, alan adı ("checkmatch.net", "www.", "http") yazma.
+- Hashtag sayısı HİÇBİR platformda 5'i geçmez.
 - Yalnızca gönderi metnini yaz; açıklama, başlık ya da tırnak ekleme.`;
 
 const PROMPTS: Record<PublishPlatform, string> = {
@@ -31,7 +33,7 @@ Platform: INSTAGRAM GÖNDERİ.
 - Bol ama yerinde emoji kullan (⚽🔥📊🎯👇 gibi); okuması kolay, 2-4 kısa paragrafa böl, paragraflar arasında boş satır bırak.
 - Verideki en çarpıcı 2-4 bilgiyi öne çıkar.
 - Sonda bir etkileşim çağrısı olsun (ör. "Sizce maç kaç kaç biter? Yorumlara bekliyoruz 👇").
-- En alta, ayrı bir satırda 5-8 hashtag koy: popüler (#SüperLig, #Futbol) ve niş (takım/lig/içerik türü) karışık.
+- En alta, ayrı bir satırda 3-5 hashtag koy: popüler (#SüperLig, #Futbol) ve niş (takım/lig/içerik türü) karışık.
 - Toplam en fazla 1.200 karakter.`,
   IG_REELS_STORY: `${COMMON_RULES}
 
@@ -56,8 +58,7 @@ const MAX_TOKENS: Record<PublishPlatform, number> = { IG_POST: 900, IG_REELS_STO
 
 const captionSchema = z.object({ caption: z.string().min(1).describe("Yalnızca gönderi metni.") });
 
-/** `maxHashtags`: içerik türünün üst sınırı (ör. Kura 5) — platform kuralını ezer; sistem istemi önbellekte kalsın diye kullanıcı mesajında. */
-export async function generateCaption(platform: PublishPlatform, facts: unknown, options: { maxHashtags?: number | null } = {}): Promise<Result<{ caption: string }, AnthropicError>> {
+export async function generateCaption(platform: PublishPlatform, facts: unknown): Promise<Result<{ caption: string }, AnthropicError>> {
   if (!isAnthropicConfigured()) {
     return { ok: false, error: { code: "NOT_CONFIGURED", message: "ANTHROPIC_API_KEY tanımlı değil — AI metin üretimi devre dışı." } };
   }
@@ -69,7 +70,7 @@ export async function generateCaption(platform: PublishPlatform, facts: unknown,
       thinking: { type: "between_tools" },
       output_config: { format: zodOutputFormat(captionSchema) },
       system: [{ type: "text", text: PROMPTS[platform], cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: `Olgu paketi (JSON):\n${JSON.stringify(facts)}\n\nBu içerik için gönderi metnini yaz.${options.maxHashtags ? ` Bu içerik türünde EN FAZLA ${options.maxHashtags} hashtag kullan (platform kuralındaki sayıyı ezer).` : ""}` }],
+      messages: [{ role: "user", content: `Olgu paketi (JSON):\n${JSON.stringify(facts)}\n\nBu içerik için gönderi metnini yaz.` }],
     });
 
     const { usage } = response;

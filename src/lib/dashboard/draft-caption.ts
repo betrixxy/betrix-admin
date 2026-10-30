@@ -65,7 +65,8 @@ export function buildDraftCaption(stats: MatchStats): string {
     forms.length > 0 ? `📊 Son 5 maç formu\n${forms.join("\n")}` : null,
     numbers.length > 0 ? numbers.join("\n") : null,
     h2h,
-    "Detaylı analiz ve maç tahmini checkmatch.net'te 👉",
+    // Alan adı yok: şablon metni X'e de gider, X çıplak alan adını link yapar (`caption-format.ts`).
+    "Detaylı analiz ve maç tahmini CheckMatch'te.",
     hashtags.join(" "),
   ]
     .filter((block): block is string => block !== null && block.length > 0)

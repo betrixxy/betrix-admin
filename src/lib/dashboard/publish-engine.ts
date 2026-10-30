@@ -1,7 +1,7 @@
 import sharp, { type Metadata } from "sharp";
 import { getContentType } from "@/lib/dashboard/content-types";
 import { markDraftPublished, type PublishDecision } from "@/lib/dashboard/draft-engine";
-import { CONTENT_MAX_HASHTAGS, captionFacts, captionLength, captionWarnings, publishMediaOf, validMediaOrder } from "@/lib/dashboard/publish-caption";
+import { captionFacts, captionLength, captionWarnings, mediaOrderProblem, publishMediaOf } from "@/lib/dashboard/publish-caption";
 import { allowedMediaUrls } from "@/lib/dashboard/publish-media";
 import { signPublicMediaUrl } from "@/lib/dashboard/public-media";
 import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
@@ -30,10 +30,9 @@ export async function generateDraftCaption(id: string, platform: PublishPlatform
   const contentLabel = (record.contentType ? getContentType(record.contentType)?.label : undefined) ?? "Maç içeriği";
   const media = publishMediaOf(record.renderOptions, record.resultImageUrl);
   const facts = captionFacts(contentLabel, baseCaption, media.map((item) => item.label));
-  const maxHashtags = record.contentType ? (CONTENT_MAX_HASHTAGS[record.contentType] ?? null) : null;
-  const result = await generateCaption(platform, facts, { maxHashtags });
+  const result = await generateCaption(platform, facts);
   if (!result.ok) return { ok: false, error: { code: result.error.code, message: result.error.message } };
-  return { ok: true, data: { caption: result.data.caption, warnings: captionWarnings(result.data.caption, platform, JSON.stringify(facts), maxHashtags), source: "ai" } };
+  return { ok: true, data: { caption: result.data.caption, warnings: captionWarnings(result.data.caption, platform, JSON.stringify(facts)), source: "ai" } };
 }
 
 // ---- Hemen Paylaş ----
@@ -88,11 +87,11 @@ export async function publishDraftNow(id: string, decision: PublishDecision): Pr
     if (!vitrin.ok) return vitrin;
 
     const { settings, caption } = decision;
-    if (!validMediaOrder(settings.mediaOrder, await allowedMediaUrls(record, settings.mediaOrder), settings.layout, settings.platform)) {
-      return { ok: false, error: { code: "INVALID_INPUT", message: "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin." } };
-    }
-    // Bahis dili kapısı: platforma giden SON metin (AI uyarlaması ya da elle düzenleme dahil).
-    const language = contentLanguageGate({ caption });
+    // Dizilim kayıttaki GÜNCEL carousel'e göre (03'süz eski dizilim paylaşılmaz).
+    const order = mediaOrderProblem(settings, await allowedMediaUrls(record, settings.mediaOrder), record.renderOptions);
+    if (order) return { ok: false, error: { code: "INVALID_INPUT", message: order } };
+    // İçerik kapısı: platforma giden SON metin (AI uyarlaması ya da elle düzenleme dahil) — bahis dili, `{…}`, ≤5 hashtag, X'te link yok.
+    const language = contentLanguageGate({ caption, platform: settings.platform });
     if (language) return { ok: false, error: { code: BANNED_LANGUAGE, message: `${language} — paylaşılmadı.` } };
     const limit = PUBLISH_PLATFORM_DEFS[settings.platform].captionLimit;
     if (captionLength(caption, settings.platform) > limit) return { ok: false, error: { code: "INVALID_INPUT", message: `Metin ${limit} karakter sınırını aşıyor.` } };

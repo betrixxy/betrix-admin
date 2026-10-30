@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_HASHTAGS, captionFormatGate } from "@/lib/dashboard/caption-format";
 import { PUBLISH_LAYOUTS, PUBLISH_PLATFORM_DEFS, PUBLISH_PLATFORMS, type PublishMedia, type PublishPlatform, type PublishSettings } from "@/types/publishing";
 
 /**
@@ -38,9 +39,9 @@ export function publishMediaOf(renderOptions: unknown, resultImageUrl: string | 
   return resultImageUrl ? [{ url: resultImageUrl, label: "Kart" }] : [];
 }
 
-/** Modele giden olgu paketi: içerik türü ve kartın şablon metni (her sayı buradan gelir). */
+/** Modele giden olgu paketi: içerik türü ve kartın şablon metni (her sayı buradan gelir). Site adı alan adsız (metinde link yok). */
 export function captionFacts(contentLabel: string, baseCaption: string, mediaLabels: string[]) {
-  return { icerik_turu: contentLabel, kart_metni: baseCaption, gorseller: mediaLabels, site: "CheckMatch.net" };
+  return { icerik_turu: contentLabel, kart_metni: baseCaption, gorseller: mediaLabels, site: "CheckMatch" };
 }
 
 const NUMBER_PATTERN = /\d+(?:[.,]\d+)?/g;
@@ -58,20 +59,18 @@ export function captionLength(caption: string, platform: PublishPlatform): numbe
   return platform === "X" ? codePoints + (caption.match(EMOJI_PATTERN)?.length ?? 0) : codePoints;
 }
 
-const HASHTAG_RANGE: Record<PublishPlatform, [number, number]> = { IG_POST: [5, 8], IG_REELS_STORY: [3, 5], X: [2, 3] };
+/**
+ * Önerilen hashtag aralığı (uyarı). Üst sınır her yerde `MAX_HASHTAGS` (5, Instagram kuralı — ortak kapı
+ * `caption-format.ts` üstünü reddeder); Instagram gönderi ve Reels/Story 3-5, X 2-3 (yalnızca öneri).
+ */
+const HASHTAG_RANGE: Record<PublishPlatform, [number, number]> = { IG_POST: [3, MAX_HASHTAGS], IG_REELS_STORY: [3, MAX_HASHTAGS], X: [2, 3] };
 
-/** İçerik türünün hashtag üst sınırı (platform aralığını ezer): Kura Sonucu en fazla 5 (vitrin kuralı). */
-export const CONTENT_MAX_HASHTAGS: Readonly<Partial<Record<string, number>>> = { DRAWS_AND_PAIRINGS: 5 };
+export const hashtagRange = (platform: PublishPlatform): [number, number] => HASHTAG_RANGE[platform];
 
-/** Platform aralığı, içerik sınırıyla kırpılmış: sınır 5 → IG gönderide 3-5. */
-export function hashtagRange(platform: PublishPlatform, maxHashtags?: number | null): [number, number] {
-  const [min, max] = HASHTAG_RANGE[platform];
-  return maxHashtags ? [Math.min(min, Math.max(1, maxHashtags - 2)), Math.min(max, maxHashtags)] : [min, max];
-}
-
-/** Yayından önce admin'e gösterilen denetim uyarıları — metni değiştirmez. */
-export function captionWarnings(caption: string, platform: PublishPlatform, factsText: string, maxHashtags?: number | null): string[] {
-  const warnings: string[] = [];
+/** Yayından önce admin'e gösterilen denetim uyarıları — metni değiştirmez; kapı sebebi "onaylanmaz" diye başta. */
+export function captionWarnings(caption: string, platform: PublishPlatform, factsText: string): string[] {
+  const blocked = captionFormatGate(caption, platform);
+  const warnings: string[] = blocked ? [`${blocked} — bu metinle onaylanmaz.`] : [];
   const known = new Set(numbersIn(factsText));
   const unknown = [...new Set(numbersIn(caption).filter((value) => !known.has(value)))];
   if (unknown.length > 0) warnings.push(`Kart verisinde olmayan sayı: ${unknown.join(", ")} — kontrol edin.`);
@@ -79,8 +78,8 @@ export function captionWarnings(caption: string, platform: PublishPlatform, fact
   const length = captionLength(caption, platform);
   if (length > limit) warnings.push(`${PUBLISH_PLATFORM_DEFS[platform].label} sınırı ${limit} karakter — metin ${length} karakter.`);
   const hashtags = caption.match(HASHTAG_PATTERN)?.length ?? 0;
-  const [min, max] = hashtagRange(platform, maxHashtags);
-  if (hashtags < min || hashtags > max) warnings.push(`${hashtags} hashtag var — bu platform için ${min}-${max} önerilir.`);
+  const [min, max] = hashtagRange(platform);
+  if ((hashtags < min || hashtags > max) && hashtags <= MAX_HASHTAGS) warnings.push(`${hashtags} hashtag var — bu platform için ${min}-${max} önerilir.`);
   return warnings;
 }
 
@@ -101,4 +100,29 @@ export function validMediaOrder(order: string[], allowedUrls: string[], layout: 
   const allowed = new Set(allowedUrls);
   if (order.length === 0 || new Set(order).size !== order.length || order.some((url) => !allowed.has(url))) return false;
   return layout === "single" ? order.length === 1 : order.length <= PUBLISH_PLATFORM_DEFS[platform].maxMedia;
+}
+
+/**
+ * Onay ve yayında dizilimin sunucu kuralı. Set carousel'inde (01 + 02 [+ 03]) çoklu düzen, kayıttaki GÜNCEL
+ * carousel'in BÜTÜN sayfalarını içermeli (sıra ve galeri eki serbest): 03 sonradan eklendiyse eski dizilim
+ * kaydedilemez/paylaşılamaz — sessizce tamamlanmaz, çünkü admin sırayı görmeden yayın sırası değişmesin.
+ * Tekli düzen bilinçli seçimdir (yalnız kapak), denetlenmez. Sorun yoksa null.
+ */
+export function mediaOrderProblem(settings: PublishSettings, allowedUrls: string[], renderOptions: unknown): string | null {
+  if (!validMediaOrder(settings.mediaOrder, allowedUrls, settings.layout, settings.platform)) return "Görsel dizilimi geçersiz — sayfayı yenileyip tekrar deneyin.";
+  const carousel = carouselSchema.safeParse(renderOptions);
+  if (settings.layout !== "multi" || !carousel.success) return null;
+  const missing = carousel.data.carousel.filter((slide) => !settings.mediaOrder.includes(slide.url));
+  if (missing.length === 0) return null;
+  return `Set'in güncel sayfaları dizilimde yok (${missing.map((slide) => slide.label).join(", ")}) — sayfayı yenileyip sırayı kontrol edin.`;
+}
+
+/**
+ * Taslağın görsel listesi sunucuda değişince (ör. "Oyuncu sayfasını ekle" → 03) Yayın Merkezi dizilimi:
+ * admin'in sırası ve galeri eklemeleri korunur, artık olmayan kart düşer, yeni sayfa sona eklenir.
+ */
+export function mergeMediaOrder(current: PublishMedia[], media: PublishMedia[]): PublishMedia[] {
+  const byUrl = new Map(media.map((item) => [item.url, item]));
+  const kept = current.flatMap((item) => (item.fromGallery ? [item] : byUrl.has(item.url) ? [byUrl.get(item.url) ?? item] : []));
+  return [...kept, ...media.filter((item) => !kept.some((existing) => existing.url === item.url))];
 }

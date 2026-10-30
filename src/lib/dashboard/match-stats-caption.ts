@@ -1,5 +1,5 @@
 import { matchResultTitle } from "@/lib/dashboard/match-result-caption";
-import { formatStatValue, STAT_ROWS, summaryRowKeys } from "@/lib/dashboard/match-stats-rows";
+import { formatStatValue, plainLabel, STAT_ROWS, summaryRowKeys } from "@/lib/dashboard/match-stats-rows";
 import type { MatchStatsFacts } from "@/types/match-stats";
 
 /**
@@ -16,6 +16,7 @@ export function buildMatchStatsCaption(facts: MatchStatsFacts): string {
     .map((key) => byKey.get(key))
     .filter((row) => row !== undefined)
     .slice(0, LINES)
-    .map((row) => `📊 ${STAT_ROWS[row.key].label}: ${formatStatValue(row.key, row.home)} – ${formatStatValue(row.key, row.away)}`);
+    // Düz etiket: "Beklenen gol ({xG})" süslü parantezi yalnızca kart çizimi içindir (sızarsa ortak kapı durdurur).
+    .map((row) => `📊 ${plainLabel(STAT_ROWS[row.key].label)}:${formatStatValue(row.key, row.home)} – ${formatStatValue(row.key, row.away)}`);
   return [`MAÇ İSTATİSTİKLERİ | ${matchResultTitle(facts)}`, `${facts.competition.name} · ${facts.roundLabel}`, ...lines].join("\n");
 }
