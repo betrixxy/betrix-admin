@@ -65,9 +65,9 @@ export const SM_COACH_GLADBACH = coaches([[null, "Konstantin Alexandropoulos-Wei
 export const SM_SQUAD_FENERBAHCE = squad([[7, "Kerem Aktürkoğlu", "Kerem", "Aktürkoğlu", "Turkey"]]);
 
 /** Set kartları · golcüler (gerçek maçlar). */
-// KK golü golün yazıldığı takıma (GS) düşer; ad o takımın kadrosunda aranır — rakip oyuncu (Eğribayat) orada yok,
-// API adı ("İrfan Can Eğribayat") kısa biçime iner.
+// KK golü golün yazıldığı takıma (GS) düşer ama golü atan rakipten: ad önce Gençlerbirliği kadrosunda aranır.
 export const SM_SQUAD_GALATASARAY = squad([[1, "Uğurcan Çakır", "Uğurcan", "Çakır", "Turkey"]]);
+export const SM_SQUAD_GENCLERBIRLIGI = squad([[1, "İrfan Can Eğribayat", "İrfan Can", "Eğribayat", "Turkey"]]);
 export const SM_SQUAD_BESIKTAS = squad([
   [10, "Orkun Kökçü", "Orkun", "Kökçü", "Turkey"],
   [2, "Amir Murillo", "Amir", "Murillo", "Panama"],

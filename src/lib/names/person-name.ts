@@ -82,12 +82,26 @@ export function shortForm(name: string): string {
   return `${letter}. ${surname}`;
 }
 
-/** Poster adı: güvenilir yaygın adda ilk ad küçük + soyad büyük; değilse yalnızca soyad (ilk ad boş). */
-export function posterName(name: string, reliable: boolean): { firstName: string; lastName: string } {
+/**
+ * Poster adı: güvenilir yaygın adda ilk ad küçük + soyad büyük; değilse yalnızca soyad (ilk ad boş).
+ * Soyadı önde gelen adda (`familyFirst`) ad bölünmez: tek satır, tamamı büyük ("OH HYEON-GYU").
+ */
+export function posterName(name: string, reliable: boolean, familyFirst = false): { firstName: string; lastName: string } {
+  if (familyFirst) return { firstName: "", lastName: name.trim() };
   const lastName = shortNameOf(name);
   if (!reliable) return { firstName: "", lastName };
   const firstName = firstNameOf(name);
   return { firstName: hasInitial(firstName) ? "" : firstName, lastName };
+}
+
+/**
+ * Soyadı önde mi ("Oh Hyeon-Gyu", Sportmonks soyadı "Oh"): kişinin soyad alanı adın İLK sözcüğü, son sözcüğü
+ * değil. Batı sırasında oynayan ("Koki Machida", soyadı "Machida") hayır. Kayıt yoksa bilinmez → hayır.
+ */
+export function isFamilyFirst(name: string, person: SportmonksPerson | null): boolean {
+  const all = name.trim().split(/\s+/u);
+  const surname = foldName(person?.lastname ?? "");
+  return all.length > 1 && surname !== "" && foldName(all[0] ?? "") === surname && foldName(all.at(-1) ?? "") !== surname;
 }
 
 /** Baş harfin karşılığı: resmi ilk adın ve kullanılan adın İLK sözcüğü ("Barış Alper" → yalnızca Barış; "Murat Eyüp" + "Eyüp Aydın" → Murat, Eyüp). */
@@ -168,14 +182,18 @@ export function cardPersonName(input: CardPersonNameInput): CardPersonName {
   const hint = input.teamHint ?? null;
   const person = matchPerson(input.apiName, input.people ?? [], input.jersey ?? null);
   const override = input.override?.trim();
-  if (override) return { name: override, short: shortForm(override), origin: personOrigin(override, person?.nationality ?? null, hint), source: "override", reliable: !hasInitial(override) };
+  if (override) return { name: override, short: shortForm(override), origin: personOrigin(override, person?.nationality ?? null, hint), source: "override", reliable: !hasInitial(override), familyFirst: false };
   const common = person?.displayName?.trim();
-  if (person && common && !hasInitial(common)) return { name: common, short: shortForm(common), origin: personOrigin(common, person.nationality, hint), source: "sportmonks", reliable: true };
+  if (person && common && !hasInitial(common)) {
+    // Soyadı önde ("Oh Hyeon-Gyu"): kısa biçim adın tamamı ("O. Hyeon-Gyu" değil).
+    const familyFirst = isFamilyFirst(common, person);
+    return { name: common, short: familyFirst ? common : shortForm(common), origin: personOrigin(common, person.nationality, hint), source: "sportmonks", reliable: true, familyFirst };
+  }
   // Yaygın ad yok (ya da baş harfli: "S. Mbangula"): uzun = API kısa adından soyad, kısa = API baş harfi + soyad;
   // eşleşen kayıt yalnızca harfleri geri yükler ("U. Cakir" → "U. Çakır").
   const restore = (value: string) => (person ? restoreName(value, person) : value);
   const name = restore(surnameOf(input.apiName));
-  return { name, short: restore(shortForm(input.apiName)), origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false };
+  return { name, short: restore(shortForm(input.apiName)), origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false, familyFirst: false };
 }
 
 /** Kart adı istenen kişi: API kimliği (düzeltme anahtarı), API adı, forma numarası. */
@@ -195,6 +213,15 @@ export interface TeamPeople {
 /** Takımın oyuncu adları (girişle aynı sırada) — sunucu (`person-directory.ts`) ve görsel testler aynı yoldan. */
 export function cardPlayerNames(entries: readonly PersonEntry[], team: TeamPeople): CardPersonName[] {
   return entries.map((entry) => cardPersonName({ apiName: entry.apiName, override: entry.apiId === null ? null : team.overrides.get(entry.apiId), people: team.people, jersey: entry.jersey ?? null, teamHint: team.teamHint }));
+}
+
+/**
+ * Birden çok takımın kadrosunda arama (kendi kalesine gol: golü atan rakipten olabilir) — takımlar sırayla,
+ * kayıt ya da düzeltme bulan ilk sonuç; hiçbirinde yoksa ilk takımın (API) sonucu.
+ */
+export function cardNameInTeams(entry: PersonEntry, teams: readonly [TeamPeople, ...TeamPeople[]]): CardPersonName {
+  const results = teams.map((team) => cardPlayerNames([entry], team)[0]!);
+  return results.find((result) => result.source !== "api") ?? results[0]!;
 }
 
 /** Teknik direktör adı: adaylardan yalnızca ilki (takımı çalıştırmış olan öne sıralı, `coachPeople`). */

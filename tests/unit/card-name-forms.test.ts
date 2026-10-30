@@ -37,7 +37,8 @@ describe("kart ad biçimleri", () => {
   it("her kart adını tablodan kendi yuvasıyla alır", () => {
     const uses: Record<string, (keyof typeof CARD_NAME_FORMS)[]> = {
       "src/lib/dashboard/lineup-names.ts": ["LINEUP_PLAYERS", "LINEUP_COACH"],
-      "src/lib/dashboard/set-people.ts": ["SET_SCORERS", "MATCH_RESULT_MVP"],
+      "src/lib/dashboard/set-people.ts": ["MATCH_RESULT_MVP"],
+      "src/lib/names/scorer-names.ts": ["SET_SCORERS"],
       "src/lib/dashboard/player-stats-card.ts": ["PLAYER_STATS_SPOTLIGHT", "PLAYER_STATS_TOP"],
       "src/lib/player-h2h/names.ts": ["PLAYER_H2H_POSTER"],
     };
@@ -51,7 +52,7 @@ describe("kart ad biçimleri", () => {
 
   it("görsel testlerin kişi adları kuraldan (sabit Sportmonks yanıtı → card-names.ts), elle değil", () => {
     for (const file of ["tests/fixtures/studio-cards.ts", "tests/fixtures/player-h2h.ts", "tests/visual/player-stats.test.ts", "tests/visual/checkmatch-set.test.ts"]) {
-      assert.ok(read(file).includes("fixturePlayerNames("), `${file}: kart adı kuraldan geçmiyor`);
+      assert.ok(/fixture(PlayerNames|TeamPeople)\(/u.test(read(file)), `${file}: kart adı kuraldan geçmiyor`);
     }
   });
 
@@ -61,7 +62,7 @@ describe("kart ad biçimleri", () => {
     const line = facts.lines.find((l) => l.playerId === 346866);
     assert.ok(line);
     const images = { homeLogo: null, awayLogo: null, brandLogo: "" };
-    const names: PlayerNames = new Map([[line.playerId, { name: "Samuel Mbangula", short: "S. Mbangula", origin: "intl", reliable: true }]]);
+    const names: PlayerNames = new Map([[line.playerId, { name: "Samuel Mbangula", short: "S. Mbangula", origin: "intl", reliable: true, familyFirst: false }]]);
     const spotlight = buildSpotlightCard({ facts, line, images, names, pageLabel: null, typographic: true });
     assert.deepEqual([spotlight.firstName, spotlight.lastName], ["SAMUEL", "MBANGULA"]);
     const top = buildTopPlayersCard({ facts, lines: [line], images, names, pageLabel: null });

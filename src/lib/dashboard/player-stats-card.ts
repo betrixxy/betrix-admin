@@ -28,7 +28,7 @@ export interface PlayerCardImages {
 }
 
 /** Kart adı katmanından (`cardPersonName`) gelen uzun + kısa adlar; verilmezse API adından türetilir. */
-export type PlayerNames = Map<number, { name: string; short: string; origin: NameOrigin | null; reliable: boolean }>;
+export type PlayerNames = Map<number, { name: string; short: string; origin: NameOrigin | null; reliable: boolean; familyFirst: boolean }>;
 
 type MatchPart = Pick<MatchResultFacts, "home" | "away" | "outcome" | "competition" | "roundLabel" | "kickoffUtc" | "penaltyScore">;
 
@@ -86,7 +86,8 @@ const base = (facts: PlayerStatsFacts, images: PlayerCardImages, pageLabel: stri
 export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
   const { facts, line } = input;
   const player = entry(line, facts.match, input.images, input.names, "PLAYER_STATS_SPOTLIGHT");
-  const { firstName, lastName } = posterName(player.name, input.names?.get(line.playerId)?.reliable ?? false);
+  const named = input.names?.get(line.playerId);
+  const { firstName, lastName } = posterName(player.name, named?.reliable ?? false, named?.familyFirst ?? false);
   const { hero, rows } = spotlightRows(line);
   const meta = [player.teamName, player.positionLabel, line.minutes !== null ? `${line.minutes} DK` : null].filter(Boolean).join(" · ");
   return {

@@ -74,7 +74,7 @@ function playerCard(player: PlayerSeasonStats, hex: string, logo: string | null,
   return {
     name: upperName(player.shortName, player.nameOrigin),
     // İlk ad yalnızca güvenilir yaygın adda (yoksa poster yalnızca soyad).
-    firstName: upperName(posterName(player.fullName, player.nameReliable).firstName, player.nameOrigin),
+    firstName: upperName(posterName(player.fullName, player.nameReliable, player.nameFamilyFirst).firstName, player.nameOrigin),
     subtitle: `${upperName(player.teamName, player.teamOrigin)} · ${upperTr(POSITION_LABELS[player.position])}`,
     // Ortalama puan tabloda değil, künyede (2026-10-27 kararı).
     sampleLine: [`${player.appearances} MAÇ`, `${player.minutes} DK`, player.values.rating === undefined ? null : `PUAN ${formatStat("rating", player.values.rating, "TOTAL")}`].filter(Boolean).join(" · "),

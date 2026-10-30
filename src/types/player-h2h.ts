@@ -49,6 +49,8 @@ export interface PlayerSeasonStats {
   shortName: string;
   /** Güvenilir yaygın ad mı — posterde küçük ilk ad yalnızca o zaman (`posterName`). */
   nameReliable: boolean;
+  /** Soyadı önde gelen ad ("Oh Hyeon-Gyu") — poster bölmez (`CardPersonName.familyFirst`). */
+  nameFamilyFirst: boolean;
   /** Uluslararası mı Türkçe mi büyük harf (bkz. `name-case.ts`). */
   nameOrigin: "tr" | "intl" | null;
   teamId: number;

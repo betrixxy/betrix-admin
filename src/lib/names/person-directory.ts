@@ -1,5 +1,5 @@
 import type { NameOrigin } from "@/lib/dashboard/name-case";
-import { cardCoachName, cardPlayerNames, type PersonEntry } from "@/lib/names/person-name";
+import { cardCoachName, cardPlayerNames, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
 import { prisma } from "@/lib/prisma";
 import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches } from "@/lib/services/sportmonks/people";
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
@@ -37,11 +37,15 @@ async function squadFor(team: TeamRefForNames): Promise<{ teamId: number | null;
   return { teamId, people: teamId === null ? [] : ((await getSportmonksSquad(teamId)) ?? []) };
 }
 
+/** Takımın ad kaynakları: Sportmonks kadrosu + verilen oyuncuların arşiv düzeltmeleri (saf kurala girdi). */
+export async function teamPeople(team: TeamRefForNames, apiIds: readonly number[]): Promise<TeamPeople> {
+  const [fixes, squad] = await Promise.all([overrides(apiIds, "PLAYER"), squadFor(team)]);
+  return { people: squad.people, overrides: fixes, teamHint: team.peopleHint };
+}
+
 /** Takımın oyuncu adları (girişle aynı sırada). */
 export async function resolvePlayerNames(team: TeamRefForNames, entries: readonly PersonEntry[]): Promise<CardPersonName[]> {
-  const ids = entries.flatMap((entry) => (entry.apiId === null ? [] : [entry.apiId]));
-  const [fixes, squad] = await Promise.all([overrides(ids, "PLAYER"), squadFor(team)]);
-  return cardPlayerNames(entries, { people: squad.people, overrides: fixes, teamHint: team.peopleHint });
+  return cardPlayerNames(entries, await teamPeople(team, entries.flatMap((entry) => (entry.apiId === null ? [] : [entry.apiId]))));
 }
 
 /** Teknik direktör adı ("Ilhan Palut" → "İlhan Palut"); aynı kural. */

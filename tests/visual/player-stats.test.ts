@@ -70,7 +70,7 @@ function cardNames(lines: PlayerMatchLine[]): PlayerNames {
     const resolved = fixturePlayerNames(SQUADS[side], players.map((line) => ({ apiId: line.playerId, apiName: line.name })));
     players.forEach((line, i) => {
       const card = resolved[i]!;
-      names.set(line.playerId, { name: card.name, short: card.short, origin: card.origin, reliable: card.reliable });
+      names.set(line.playerId, { name: card.name, short: card.short, origin: card.origin, reliable: card.reliable, familyFirst: card.familyFirst });
     });
   }
   return names;

@@ -48,7 +48,7 @@ export async function playerCardNames(facts: PlayerStatsFacts, lines: PlayerMatc
     );
     players.forEach((line, index) => {
       const card = resolved[index];
-      names.set(line.playerId, { name: card?.name ?? surnameOf(line.name), short: card?.short ?? shortForm(line.name), origin: card?.origin ?? null, reliable: card?.reliable ?? false });
+      names.set(line.playerId, { name: card?.name ?? surnameOf(line.name), short: card?.short ?? shortForm(line.name), origin: card?.origin ?? null, reliable: card?.reliable ?? false, familyFirst: card?.familyFirst ?? false });
     });
   }
   return names;

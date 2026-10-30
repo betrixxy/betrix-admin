@@ -26,12 +26,12 @@ import { matchResultGeometry } from "@/skills/render-engine/templates/match-resu
 import { SET_PAGE_LABELS } from "@/types/checkmatch-set";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import { MATCH_RESULT_TEMPLATE_IDS, type MatchResultTemplateId, type ResultTeam } from "@/types/match-result";
-import { nameFor } from "@/lib/names/card-name-forms";
+import { namedScorerLines } from "@/lib/names/scorer-names";
 import { RAW_GENCLERBIRLIGI_GALATASARAY } from "../fixtures/api-football/match-result";
 import { RAW_BESIKTAS_MIDTJYLLAND, RAW_HOFFENHEIM_BESIKTAS_STATS } from "../fixtures/api-football/match-stats";
-import { fixturePlayerNames, type FixtureTeam } from "../fixtures/card-names";
+import { fixtureTeamPeople, type FixtureTeam } from "../fixtures/card-names";
 import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
-import { SM_SQUAD_BESIKTAS, SM_SQUAD_GALATASARAY, SM_SQUAD_HOFFENHEIM } from "../fixtures/sportmonks/people";
+import { SM_SQUAD_BESIKTAS, SM_SQUAD_GALATASARAY, SM_SQUAD_GENCLERBIRLIGI, SM_SQUAD_HOFFENHEIM } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
@@ -67,20 +67,17 @@ const EUROPE: Record<string, Match> = {
   "hof-bjk": { raw: RAW_HOFFENHEIM_BESIKTAS_STATS, sportmonks: SM_HOFFENHEIM_BESIKTAS, ids: SM_HOFFENHEIM_BESIKTAS_IDS },
 };
 
-/** Golcü adları ÜRETİM kuralından (`set-people.ts::withSetPeople` gibi): sabit Sportmonks kadrosu, kısa biçim (SET_SCORERS). */
+/** Golcü adları ÜRETİM kuralından (`set-people.ts::withSetPeople` → `namedScorerLines`): sabit Sportmonks kadrosu, kısa biçim, KK'de iki kadro. */
 const SET_SQUADS: Record<string, FixtureTeam> = {
+  Gençlerbirliği: { sportmonks: SM_SQUAD_GENCLERBIRLIGI, hint: "tr" },
   Galatasaray: { sportmonks: SM_SQUAD_GALATASARAY, hint: "tr" },
   Beşiktaş: { sportmonks: SM_SQUAD_BESIKTAS, hint: "tr" },
   Hoffenheim: { sportmonks: SM_SQUAD_HOFFENHEIM, hint: "intl" },
 };
 const NO_SQUAD: FixtureTeam = { sportmonks: { data: [] }, hint: null };
 
-function namedScorers(team: ResultTeam): ResultTeam {
-  if (team.scorers.length === 0) return team;
-  const names = fixturePlayerNames(SET_SQUADS[team.name] ?? NO_SQUAD, team.scorers.map((line) => ({ apiId: line.playerId, apiName: line.name })));
-  return { ...team, scorers: team.scorers.map((line, i) => ({ ...line, name: nameFor("SET_SCORERS", names[i]!), origin: names[i]!.origin })) };
-}
-const withSetPeople = <T extends { home: ResultTeam; away: ResultTeam }>(facts: T): T => ({ ...facts, home: namedScorers(facts.home), away: namedScorers(facts.away) });
+const people = (team: ResultTeam) => fixtureTeamPeople(SET_SQUADS[team.name] ?? NO_SQUAD);
+const withSetPeople = <T extends { home: ResultTeam; away: ResultTeam }>(facts: T): T => ({ ...facts, home: namedScorerLines(facts.home, people(facts.home), people(facts.away)), away: namedScorerLines(facts.away, people(facts.away), people(facts.home)) });
 
 const PHOTO = syntheticPhoto();
 const SOURCE = SYNTHETIC_PHOTO_SIZE;

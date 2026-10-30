@@ -13,13 +13,16 @@ import type { CardPersonName } from "@/types/person-name";
  * Poster ad alanları (`player-h2h-data.ts` ve görsel test aynı yoldan): elle verilen ad (offline araç) düzeltme
  * gibi kazanır; yoksa kart adı uzun biçimde (`PLAYER_H2H_POSTER`); o da yoksa API adı.
  */
-export function h2hPosterName(card: CardPersonName | null, given: string | null | undefined, api: { name: string; nationality: string | null }): { fullName: string; shortName: string; nameReliable: boolean; nameOrigin: NameOrigin | null } {
+export function h2hPosterName(card: CardPersonName | null, given: string | null | undefined, api: { name: string; nationality: string | null }): { fullName: string; shortName: string; nameReliable: boolean; nameFamilyFirst: boolean; nameOrigin: NameOrigin | null } {
   const manual = given?.trim();
   const fullName = manual || (card ? nameFor("PLAYER_H2H_POSTER", card) : null) || api.name;
+  // Soyadı önde gelen adda ("Oh Hyeon-Gyu") büyük ad tamamı; elle verilen adda bilinmez.
+  const nameFamilyFirst = !manual && (card?.familyFirst ?? false);
   return {
     fullName,
-    shortName: shortNameOf(fullName),
+    shortName: nameFamilyFirst ? fullName : shortNameOf(fullName),
     nameReliable: manual ? !hasInitial(manual) : (card?.reliable ?? false),
+    nameFamilyFirst,
     nameOrigin: card?.origin ?? nameOrigin(fullName) ?? originFromCountry(api.nationality),
   };
 }

@@ -39,6 +39,10 @@ export function countedGoals(events: ApiFootballEventRaw[]): ApiFootballEventRaw
   );
 }
 
+/** Kendi kalesine golün dakika eki ("34' (KK)"); bir satır ya tamamen KK ya hiç (anahtar ayrı). */
+export const OWN_GOAL_SUFFIX = " (KK)";
+export const isOwnGoalLine = (line: Pick<ScorerLine, "minutes">) => line.minutes.some((minute) => minute.endsWith(OWN_GOAL_SUFFIX));
+
 /**
  * Bir tarafın golcü satırları, oluş sırasıyla. Kendi kalesine gol (KK) golün yaradığı tarafa yazılır.
  * API-Football KK olayında `team` alanını zaten golün yaradığı takımla verir (oyuncu rakipten
@@ -51,7 +55,7 @@ export function scorerLines(goals: ApiFootballEventRaw[], teamId: number): Score
     if (goal.team.id !== teamId) continue;
     const ownGoal = goal.detail === "Own Goal";
     const name = goal.player.name?.trim() || "Bilinmeyen oyuncu";
-    const suffix = ownGoal ? " (KK)" : goal.detail === "Penalty" ? " (P)" : "";
+    const suffix = ownGoal ? OWN_GOAL_SUFFIX : goal.detail === "Penalty" ? " (P)" : "";
     const key = `${goal.player.id ?? name}:${ownGoal ? "og" : "g"}`;
     const line = lines.get(key) ?? { playerId: goal.player.id ?? null, name, minutes: [] };
     line.minutes.push(`${formatMinute(goal.time.elapsed, goal.time.extra)}${suffix}`);

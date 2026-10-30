@@ -103,7 +103,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
   const given = request.fullName?.trim();
   const teamCountry = info.data?.country ?? null;
   const [card] = given ? [null] : await resolvePlayerNames({ apiName: team.name, country: teamCountry, peopleHint: originFromCountry(teamCountry) }, [{ apiId: player.id, apiName: player.name }]);
-  const { fullName, shortName, nameReliable, nameOrigin } = h2hPosterName(card ?? null, given, { name: player.name, nationality: player.nationality ?? null });
+  const { fullName, shortName, nameReliable, nameFamilyFirst, nameOrigin } = h2hPosterName(card ?? null, given, { name: player.name, nationality: player.nationality ?? null });
 
   // Sportmonks sezon kaydı araması yalnızca VERİ eşlemesi — API ilk adıyla açılmış ad burada kalır, karta girmez.
   const lookupName = fullNameFromApi(player.name, player.firstname);
@@ -154,6 +154,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       fullName,
       shortName,
       nameReliable,
+      nameFamilyFirst,
       nameOrigin,
       teamId: team.id,
       teamName: cardTeamName(team.name),

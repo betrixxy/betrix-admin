@@ -31,4 +31,6 @@ export interface CardPersonName {
   source: PersonNameSource;
   /** Güvenilir yaygın ad mı (admin düzeltmesi ya da Sportmonks yaygın adı, baş harfsiz) — posterde ilk ad yalnızca o zaman yazılır. */
   reliable: boolean;
+  /** Soyadı önde ("Oh Hyeon-Gyu"): kısa biçim adın tamamı, posterde ad bölünmez (`isFamilyFirst`). */
+  familyFirst: boolean;
 }
