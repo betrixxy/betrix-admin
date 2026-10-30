@@ -13,19 +13,21 @@ import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerCardImages, type PlayerNames } from "@/lib/dashboard/player-stats-card";
 import { renderSpotlightImage, renderSpotlightOverlay, renderTopPlayersImage, renderTopPlayersOverlay } from "@/lib/dashboard/player-stats-render";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
-import { shortForm } from "@/lib/names/person-name";
 import { topPlayers } from "@/lib/player-stats/picks";
 import { spotlightGeometry } from "@/skills/render-engine/templates/player-stats/geometry";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import type { PlayerMatchLine, PlayerStatsFacts, SpotlightCard } from "@/types/player-match-stats";
 import { RAW_MILAN_BOLOGNA, SM_MILAN_BOLOGNA_IDS, SM_MILAN_BOLOGNA_LINEUP } from "../fixtures/api-football/player-match-stats";
+import { fixturePlayerNames, type FixtureTeam } from "../fixtures/card-names";
+import { SM_SQUAD_BOLOGNA, SM_SQUAD_MILAN } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
 /**
  * Oyuncu İstatistikleri görsel testi (bkz. CLAUDE.md 5.3) — A · Maçın Oyuncusu (sentetik tam kadraj fotoğraf
  * ve tipografik yedek) + B · Maçın En İyileri (3 ve 5) × 4 format; kaleci A, uzun ad, Türkçe karakterli ad.
- * Ad kuralı: Mbangula eşleşmesiz → yalnızca "MBANGULA"; uzun/Türkçe ad güvenilir yaygın ad → ilk ad + soyad.
+ * Adlar ÜRETİM kuralından (sabit Sportmonks kadrosu → `card-names.ts`, `playerCardNames` gibi takım başına):
+ * Mbangula kadroda yok → A "MBANGULA", B "S. MBANGULA"; uzun/Türkçe ad güvenilir yaygın ad → ilk ad + soyad.
  * Veri gerçek maçtan (Milan 2-4 Bologna, API-Football + Sportmonks xG) — fotoğraf SENTETİK. Ağ yok: logolar
  * `null`, vesikalık yok (takım logosu yedeği). Her kartta YERLEŞİM KAPISI.
  *
@@ -54,11 +56,25 @@ const lineOf = (id: number): PlayerMatchLine => {
 
 /** Kurgusal kaleci (tam veri) — kaleci satırları; yenilen gol 0, penaltı kurtarışı. */
 const KEEPER: PlayerMatchLine = { ...lineOf(2998), rating: 8.1, numbers: { ...lineOf(2998).numbers, saves: 7, conceded: 0, penaltySaved: 1, passesTotal: 31, passesAccurate: 24 } };
-/** Kurgusal uzun ad ve Türkçe karakterli ad (veri gerçek oyuncudan). */
-const LONG_NAME: PlayerMatchLine = { ...lineOf(44814), name: "Mohamed-Ali Abdelrahman Kouyaté-Diakhaby" };
-const TURKISH_NAME: PlayerMatchLine = { ...lineOf(31273), name: "İrfan Can Eğribayat Çağlayan" };
-/** Güvenilir yaygın ad (Sportmonks / admin düzeltmesi gibi) → poster ilk ad küçük + soyad büyük; verilmezse yalnızca API soyadı. */
-const reliable = (line: PlayerMatchLine, origin: "tr" | "intl"): PlayerNames => new Map([[line.playerId, { name: line.name, short: shortForm(line.name), origin, reliable: true }]]);
+/** Kurgusal uzun ad ve Türkçe karakterli ad — API kısa adı; yaygın ad sabit Sportmonks kadrosunda (veri gerçek oyuncudan). */
+const LONG_NAME: PlayerMatchLine = { ...lineOf(44814), name: "M. Kouyate-Diakhaby" };
+const TURKISH_NAME: PlayerMatchLine = { ...lineOf(31273), name: "I. Caglayan" };
+
+const SQUADS: Record<PlayerMatchLine["side"], FixtureTeam> = { HOME: { sportmonks: SM_SQUAD_MILAN, hint: "intl" }, AWAY: { sportmonks: SM_SQUAD_BOLOGNA, hint: "intl" } };
+
+/** `player-stats-studio.ts::playerCardNames` gibi: takım başına kart adı kuralı (elle ad yok). */
+function cardNames(lines: PlayerMatchLine[]): PlayerNames {
+  const names: PlayerNames = new Map();
+  for (const side of ["HOME", "AWAY"] as const) {
+    const players = lines.filter((line) => line.side === side);
+    const resolved = fixturePlayerNames(SQUADS[side], players.map((line) => ({ apiId: line.playerId, apiName: line.name })));
+    players.forEach((line, i) => {
+      const card = resolved[i]!;
+      names.set(line.playerId, { name: card.name, short: card.short, origin: card.origin, reliable: card.reliable });
+    });
+  }
+  return names;
+}
 
 const PHOTO = syntheticPhoto();
 
@@ -78,9 +94,9 @@ async function photoArt(frame: MatchDayFrame, card: SpotlightCard) {
   return { art, shadeStrength: shadeStrengthFor(await textRegionLuminance(art, g)) };
 }
 
-async function spotlight(id: MatchDayFormatId, line: PlayerMatchLine, typographic: boolean, pageLabel: string | null = "03 · MAÇIN OYUNCUSU", names?: PlayerNames) {
+async function spotlight(id: MatchDayFormatId, line: PlayerMatchLine, typographic: boolean, pageLabel: string | null = "03 · MAÇIN OYUNCUSU") {
   const frame = MATCH_DAY_FRAMES[id];
-  const card = buildSpotlightCard({ facts: FACTS, line, images: await images(), names, pageLabel, typographic });
+  const card = buildSpotlightCard({ facts: FACTS, line, images: await images(), names: cardNames([line]), pageLabel, typographic });
   const { art, shadeStrength } = typographic ? { art: null, shadeStrength: 0 } : await photoArt(frame, card);
   await assertLayout(`A ${line.name} ${id} ${typographic ? "tipografik" : "foto"}`, frame, (only) => renderSpotlightOverlay(card, frame, { side: "right", shadeStrength, only }));
   const rendered = await renderSpotlightImage({ card, frame, art, shadeStrength, side: "right", seedKey: `player-${line.playerId}` });
@@ -90,7 +106,8 @@ async function spotlight(id: MatchDayFormatId, line: PlayerMatchLine, typographi
 
 async function top(id: MatchDayFormatId, count: 3 | 5) {
   const frame = MATCH_DAY_FRAMES[id];
-  const card = buildTopPlayersCard({ facts: FACTS, lines: topPlayers(FACTS.lines, count), images: await images(), pageLabel: null });
+  const lines = topPlayers(FACTS.lines, count);
+  const card = buildTopPlayersCard({ facts: FACTS, lines, images: await images(), names: cardNames(lines), pageLabel: null });
   await assertLayout(`B${count} ${id}`, frame, (only) => renderTopPlayersOverlay(card, frame, { only }));
   const hex = teamHexes(FACTS.match);
   const rendered = await renderTopPlayersImage({ card, frame, resultImage: null, teamHexes: [hex.HOME, hex.AWAY], seedKey: `top-${count}` });
@@ -135,8 +152,8 @@ describe("Oyuncu İstatistikleri (A + B) — görsel + yerleşim", async () => {
   test("kaleci A, uzun ad, Türkçe karakterli ad — 4:5 ve 9:16", async () => {
     for (const id of ["IG_PORTRAIT", "STORY", "X_LANDSCAPE"] as const) {
       await compare(`A-keeper_${id}`, await spotlight(id, KEEPER, false));
-      await compare(`A-long-name_${id}`, await spotlight(id, LONG_NAME, true, undefined, reliable(LONG_NAME, "intl")));
-      await compare(`A-turkish-name_${id}`, await spotlight(id, TURKISH_NAME, false, null, reliable(TURKISH_NAME, "tr")));
+      await compare(`A-long-name_${id}`, await spotlight(id, LONG_NAME, true));
+      await compare(`A-turkish-name_${id}`, await spotlight(id, TURKISH_NAME, false, null));
     }
   });
 

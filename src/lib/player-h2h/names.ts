@@ -1,10 +1,28 @@
-import { originFromCountry, upperName } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { nameFor } from "@/lib/names/card-name-forms";
+import { hasInitial, shortNameOf } from "@/lib/names/person-name";
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
+import type { CardPersonName } from "@/types/person-name";
 
 /**
- * Lig adları ve sağlayıcı kaydı eşleme adı — saf. Kişi KART adı burada değil: `lib/names/person-name.ts`
- * (resmi tam ad kartta yazılmaz; kısa ad / poster adı da oradan).
+ * Lig adları, sağlayıcı kaydı eşleme adı ve posterin ad alanları — saf. Kişi KART adı kuralı burada değil:
+ * `lib/names/person-name.ts` (resmi tam ad kartta yazılmaz); bu dosya yalnızca onu poster biçimine bağlar.
  */
+
+/**
+ * Poster ad alanları (`player-h2h-data.ts` ve görsel test aynı yoldan): elle verilen ad (offline araç) düzeltme
+ * gibi kazanır; yoksa kart adı uzun biçimde (`PLAYER_H2H_POSTER`); o da yoksa API adı.
+ */
+export function h2hPosterName(card: CardPersonName | null, given: string | null | undefined, api: { name: string; nationality: string | null }): { fullName: string; shortName: string; nameReliable: boolean; nameOrigin: NameOrigin | null } {
+  const manual = given?.trim();
+  const fullName = manual || (card ? nameFor("PLAYER_H2H_POSTER", card) : null) || api.name;
+  return {
+    fullName,
+    shortName: shortNameOf(fullName),
+    nameReliable: manual ? !hasInitial(manual) : (card?.reliable ?? false),
+    nameOrigin: card?.origin ?? nameOrigin(fullName) ?? originFromCountry(api.nationality),
+  };
+}
 
 /**
  * YALNIZCA veri eşlemesi (Sportmonks sezon kaydı araması): "D. Vlahović" + API ilk adı "Dušan" → "Dušan

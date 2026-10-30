@@ -184,5 +184,15 @@ describe("eşleştirme — tahmin yok", () => {
     assert.equal(foldName("İbrahimoğlu"), foldName("Ibrahimoglu"));
     assert.equal(foldName("Sánchez"), "sanchez");
     assert.ok(isAsciiName("U. Cakir") && !isAsciiName("U. Çakır"));
+    // NFD'de ayrışmayan harfler (görsel test fixture'ı yakaladı: "Jørgensen" eşleşmiyordu).
+    assert.equal(foldName("Jørgensen"), "jorgensen");
+    assert.equal(foldName("Łukasz Weißmann"), "lukasz weissmann");
+  });
+
+  it("tireli soyad parça parça eşleşir ve harfleri geri yüklenir", () => {
+    const person = p("Mohamed-Ali Kouyaté-Diakhaby", "Mali", null, "Mohamed-Ali", "Kouyaté-Diakhaby");
+    assert.equal(matchPerson("M. Kouyate-Diakhaby", [person])?.displayName, "Mohamed-Ali Kouyaté-Diakhaby");
+    assert.equal(restoreName("M. Kouyate-Diakhaby", { ...person, displayName: null }), "M. Kouyaté-Diakhaby");
+    assert.equal(matchPerson("L. Jorgensen", [p("Lars Jørgensen", "Denmark")])?.displayName, "Lars Jørgensen");
   });
 });

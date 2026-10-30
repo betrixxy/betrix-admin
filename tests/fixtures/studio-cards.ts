@@ -1,73 +1,77 @@
+import { nameFor } from "@/lib/names/card-name-forms";
 import type { LineupCardInput, LineupSlot } from "@/types/lineup";
 import type { StandingRow, StandingsCardInput, StandingsGroup } from "@/types/standings";
 import type { SocialFormatId } from "@/types/studio-formats";
 import type { WeeklyFixturesCardInput, WeeklyMatch } from "@/types/weekly-fixtures";
+import { fixtureCoachName, fixturePlayerNames, type FixtureTeam } from "./card-names";
+import { SM_COACH_GLADBACH, SM_COACH_KURGU, SM_COACH_MILANO, SM_SQUAD_GLADBACH, SM_SQUAD_KURGU, SM_SQUAD_MILANO } from "./sportmonks/people";
 
 /**
  * Muhtemel 11, Haftanın Maçları ve Puan Durumu görsel regresyon testinin kart
- * senaryoları — KURGUSAL veri (bkz. CLAUDE.md 5.2). Oyuncu/teknik direktör adları uydurmadır;
+ * senaryoları — KURGUSAL veri (bkz. CLAUDE.md 5.2). Oyuncu/teknik direktör adları uydurmadır ve kart adı
+ * kuralından geçer (API adı + sabit Sportmonks yanıtı → `card-names.ts`);
  * logo ve fotoğraf adresi yok (test çevrimdışı ve deterministik). Her kart dört durumu kapsar:
  * Türkçe karakterli ad, yabancı ad, uzun ad ve iki satıra bölünen metin.
  */
 
-type Slot = [name: string, number: string];
-const slots = (rows: Slot[], origin?: LineupSlot["origin"]): LineupSlot[] => rows.map(([name, number]) => ({ playerId: null, name, number, ...(origin ? { origin } : {}) }));
+/** [API adı (API-Football kadrosu gibi), forma] — kart adı üretim kuralından (`card-names.ts`), elle yazılmaz. */
+type Slot = [apiName: string, number: string];
+const slots = (team: FixtureTeam, rows: Slot[]): LineupSlot[] => {
+  // `lineup-names.ts` ile aynı: kısa biçim (LINEUP_PLAYERS) + kişinin büyük harf kökeni.
+  const names = fixturePlayerNames(team, rows.map(([apiName, number]) => ({ apiId: null, apiName, jersey: Number(number) })));
+  return rows.map(([, number], i) => ({ playerId: null, name: nameFor("LINEUP_PLAYERS", names[i]!), number, origin: names[i]!.origin }));
+};
+const coach = (team: FixtureTeam, apiName: string) => nameFor("LINEUP_COACH", fixtureCoachName(team, apiName));
 
-/** Türk takımı: ı/İ/ğ/ş/ç/ö/ü'lü adlar, ASCII ama Türk kökenli "Demir" (→ DEMİR). */
-const TR_SLOTS = slots([
-  ["Ç. Güçlüoğlu", "1"],
-  ["İ. Şenyürek", "2"],
+/** Türk takımı: API ASCII adları Türkçe harfe döner (ı/İ/ğ/ş/ç/ö/ü); "Demir" → DEMİR; Eğilmez yaygın adsız (harf geri yükleme). */
+const TR_SLOTS = slots({ sportmonks: SM_SQUAD_KURGU, hint: "tr" }, [
+  ["C. Gucluoglu", "1"],
+  ["I. Senyurek", "2"],
   ["E. Demir", "4"],
-  ["Ö. Ağaoğlu", "5"],
-  ["K. Işıklı", "3"],
-  ["S. Kılıçarslan", "8"],
-  ["B. Gümüştekin", "6"],
-  ["T. Yiğitbaşı", "7"],
-  ["H. Çiftçi", "10"],
-  ["Ü. İnceoğlu", "11"],
-  ["D. Eğilmez", "9"],
+  ["O. Agaoglu", "5"],
+  ["K. Isikli", "3"],
+  ["S. Kilicarslan", "8"],
+  ["B. Gumustekin", "6"],
+  ["T. Yigitbasi", "7"],
+  ["H. Ciftci", "10"],
+  ["U. Inceoglu", "11"],
+  ["D. Egilmez", "9"],
 ]);
 
-/** Yabancı takım: i'li adlar uluslararası kuralla (SILVA, NIKOLIĆ — noktalı İ yok). */
-const INTL_SLOTS = slots(
-  [
-    ["J. Wójcik", "1"],
-    ["L. Jørgensen", "2"],
-    ["N. Ijeoma", "4"],
-    ["R. Silva", "5"],
-    ["M. Nikolić", "3"],
-    ["F. Müller", "6"],
-    ["P. Ibáñez", "8"],
-    ["T. Kristiansen", "10"],
-    ["V. Dimitriou", "7"],
-    ["A. Mbeki", "11"],
-    ["G. Ricci", "9"],
-  ],
-  "intl",
-);
+/** Yabancı takım: i'li adlar uluslararası kuralla (SILVA, NIKOLIĆ — noktalı İ yok); Ricci kadroda yok. */
+const INTL_SLOTS = slots({ sportmonks: SM_SQUAD_MILANO, hint: "intl" }, [
+  ["J. Wojcik", "1"],
+  ["L. Jorgensen", "2"],
+  ["N. Ijeoma", "4"],
+  ["R. Silva", "5"],
+  ["M. Nikolic", "3"],
+  ["F. Muller", "6"],
+  ["P. Ibanez", "8"],
+  ["T. Kristiansen", "10"],
+  ["V. Dimitriou", "7"],
+  ["A. Mbeki", "11"],
+  ["G. Ricci", "9"],
+]);
 
-/** Uzun adlar: kısaltma/kesme kuralı ve dar etiket. */
-const LONG_SLOTS = slots(
-  [
-    ["Konstantinos Papadopoulos-Alexandridis", "99"],
-    ["Mehmet Ali Karaosmanoğlu", "22"],
-    ["J. Wan-Bissaka-Longfellow", "23"],
-    ["A. Hernández de la Fuente", "15"],
-    ["W. Schweinsteiger-Hummels", "13"],
-    ["B. Abdurrahmanoğlu", "18"],
-    ["C. Oxlade-Chamberlainson", "17"],
-    ["D. Van der Westhuizen", "14"],
-    ["E. Kılıçdaroğlugil", "88"],
-    ["F. Diakhaby-Koulibaly", "77"],
-    ["G. Aubameyang-Ondoua", "19"],
-  ],
-  "intl",
-);
+/** Uzun adlar: kısaltma/kesme kuralı ve dar etiket; tireli soyad, "de la"/"van der". */
+const LONG_SLOTS = slots({ sportmonks: SM_SQUAD_GLADBACH, hint: "intl" }, [
+  ["K. Papadopoulos-Alexandridis", "99"],
+  ["M. Karaosmanoglu", "22"],
+  ["J. Wan-Bissaka-Longfellow", "23"],
+  ["A. Hernandez de la Fuente", "15"],
+  ["W. Schweinsteiger-Hummels", "13"],
+  ["B. Abdurrahmanoglu", "18"],
+  ["C. Oxlade-Chamberlainson", "17"],
+  ["D. Van der Westhuizen", "14"],
+  ["E. Kilicdaroglugil", "88"],
+  ["F. Diakhaby-Koulibaly", "77"],
+  ["G. Aubameyang-Ondoua", "19"],
+]);
 
 export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   "tr-takim": {
     templateStyle: "pitch",
-    team: { teamName: "Kurgu Gençlikspor", logoUrl: "", colorHex: "#0B6E3A", heroPhotoId: "", heroAdjust: null, formation: "4-2-3-1", slots: TR_SLOTS, coach: "İlhan Şıkışık" },
+    team: { teamName: "Kurgu Gençlikspor", logoUrl: "", colorHex: "#0B6E3A", heroPhotoId: "", heroAdjust: null, formation: "4-2-3-1", slots: TR_SLOTS, coach: coach({ sportmonks: SM_COACH_KURGU, hint: "tr" }, "Ilhan Sikisik") },
     opponentName: "Örnek İdmanyurdu",
     opponentLogoUrl: "",
     headline: "MUHTEMEL 11",
@@ -76,7 +80,7 @@ export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   },
   "yabanci-takim": {
     templateStyle: "pitch",
-    team: { teamName: "Sporting Milano", logoUrl: "", colorHex: "#1D3E8A", heroPhotoId: "", heroAdjust: null, formation: "4-3-3", slots: INTL_SLOTS, coach: "Dimitri Ivanović" },
+    team: { teamName: "Sporting Milano", logoUrl: "", colorHex: "#1D3E8A", heroPhotoId: "", heroAdjust: null, formation: "4-3-3", slots: INTL_SLOTS, coach: coach({ sportmonks: SM_COACH_MILANO, hint: "intl" }, "Dimitri Ivanovic") },
     opponentName: "Kurgu Gençlikspor",
     opponentLogoUrl: "",
     headline: "İLK 11",
@@ -85,7 +89,7 @@ export const LINEUP_CASES: Record<string, Omit<LineupCardInput, "format">> = {
   },
   "uzun-adlar": {
     templateStyle: "pitch",
-    team: { teamName: "Borussia Mönchengladbach", logoUrl: "", colorHex: "#111111", heroPhotoId: "", heroAdjust: null, formation: "3-4-2-1", slots: LONG_SLOTS, coach: "Konstantin Alexandropoulos-Weißmann" },
+    team: { teamName: "Borussia Mönchengladbach", logoUrl: "", colorHex: "#111111", heroPhotoId: "", heroAdjust: null, formation: "3-4-2-1", slots: LONG_SLOTS, coach: coach({ sportmonks: SM_COACH_GLADBACH, hint: "intl" }, "Konstantin Alexandropoulos-Weissmann") },
     opponentName: "Wolverhampton Wanderers",
     opponentLogoUrl: "",
     headline: "MUHTEMEL 11",

@@ -10,10 +10,15 @@ import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
  * yalnızca soyad. Büyük harf kökeni: adın kendi harfi → uyruk → takım ipucu (Nijeryalı forvet "OSIMHEN").
  */
 
-/** Karşılaştırma anahtarı: aksan/Türkçe harf farkı yok sayılır ("Çakır" = "cakir", "Sánchez" = "sanchez"). */
+/** Karşılaştırma anahtarı: aksan/Türkçe harf farkı yok sayılır ("Çakır" = "cakir", "Sánchez" = "sanchez"); ayrışmayan harfler de ("Jørgensen" = "jorgensen", "Łukasz" = "lukasz"). */
 export function foldName(value: string): string {
   return value
     .replace(/[ıİ]/gu, "i")
+    .replace(/[øØ]/gu, "o")
+    .replace(/[łŁ]/gu, "l")
+    .replace(/[đĐ]/gu, "d")
+    .replace(/ß/gu, "ss")
+    .replace(/[æÆ]/gu, "ae")
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
@@ -103,7 +108,8 @@ function matches(apiName: string, person: SportmonksPerson): boolean {
     if (initial) {
       if (!given.includes(foldName(initial[1] ?? ""))) return false;
     } else {
-      if (!all.has(foldName(token))) return false;
+      // Tireli soyad ("Wan-Bissaka") Sportmonks sözcükleri gibi parça parça aranır.
+      if (!words(token).every((part) => all.has(foldName(part)))) return false;
       named += 1;
     }
   }
@@ -130,9 +136,14 @@ export function restoreName(apiName: string, person: SportmonksPerson): string {
         return word ? `${[...word][0]}.` : token;
       }
       // Aynı katlanmış sözcüğün birden çok yazımı varsa (Sportmonks soyadı alanı bazen ASCII: "Ibrahimoglu" /
-      // görünen ad "İbrahimoğlu") Türkçe/aksanlı yazım kazanır.
-      const same = pool.filter((word) => foldName(word) === foldName(token));
-      return same.find((word) => !isAsciiName(word)) ?? same[0] ?? token;
+      // görünen ad "İbrahimoğlu") Türkçe/aksanlı yazım kazanır. Tireli sözcük parça parça ("Kouyate-Diakhaby").
+      return token
+        .split("-")
+        .map((part) => {
+          const same = pool.filter((word) => foldName(word) === foldName(part));
+          return same.find((word) => !isAsciiName(word)) ?? same[0] ?? part;
+        })
+        .join("-");
     })
     .join(" ");
 }
@@ -165,6 +176,30 @@ export function cardPersonName(input: CardPersonNameInput): CardPersonName {
   const restore = (value: string) => (person ? restoreName(value, person) : value);
   const name = restore(surnameOf(input.apiName));
   return { name, short: restore(shortForm(input.apiName)), origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false };
+}
+
+/** Kart adı istenen kişi: API kimliği (düzeltme anahtarı), API adı, forma numarası. */
+export interface PersonEntry {
+  apiId: number | null;
+  apiName: string;
+  jersey?: number | null;
+}
+
+/** Takım kaynakları: Sportmonks kadrosu / koç adayları, arşiv düzeltmeleri (API kimliği → ad), kişi kökeni ipucu. */
+export interface TeamPeople {
+  people: readonly SportmonksPerson[];
+  overrides: ReadonlyMap<number, string>;
+  teamHint: NameOrigin | null;
+}
+
+/** Takımın oyuncu adları (girişle aynı sırada) — sunucu (`person-directory.ts`) ve görsel testler aynı yoldan. */
+export function cardPlayerNames(entries: readonly PersonEntry[], team: TeamPeople): CardPersonName[] {
+  return entries.map((entry) => cardPersonName({ apiName: entry.apiName, override: entry.apiId === null ? null : team.overrides.get(entry.apiId), people: team.people, jersey: entry.jersey ?? null, teamHint: team.teamHint }));
+}
+
+/** Teknik direktör adı: adaylardan yalnızca ilki (takımı çalıştırmış olan öne sıralı, `coachPeople`). */
+export function cardCoachName(coach: PersonEntry, team: TeamPeople): CardPersonName {
+  return cardPersonName({ apiName: coach.apiName, override: coach.apiId === null ? null : team.overrides.get(coach.apiId), people: team.people.slice(0, 1), teamHint: team.teamHint });
 }
 
 /** Yalnızca ASCII harf — Türkçe karakter içermesi muhtemel API adı (rapor süzgeci). */

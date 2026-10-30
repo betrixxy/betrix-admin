@@ -39,7 +39,7 @@ describe("kart ad biçimleri", () => {
       "src/lib/dashboard/lineup-names.ts": ["LINEUP_PLAYERS", "LINEUP_COACH"],
       "src/lib/dashboard/set-people.ts": ["SET_SCORERS", "MATCH_RESULT_MVP"],
       "src/lib/dashboard/player-stats-card.ts": ["PLAYER_STATS_SPOTLIGHT", "PLAYER_STATS_TOP"],
-      "src/lib/dashboard/player-h2h-data.ts": ["PLAYER_H2H_POSTER"],
+      "src/lib/player-h2h/names.ts": ["PLAYER_H2H_POSTER"],
     };
     for (const [file, slots] of Object.entries(uses)) {
       const source = read(file);
@@ -47,6 +47,12 @@ describe("kart ad biçimleri", () => {
     }
     const covered = new Set(Object.values(uses).flat());
     assert.deepEqual(Object.keys(CARD_NAME_FORMS).filter((slot) => !covered.has(slot as keyof typeof CARD_NAME_FORMS)), []);
+  });
+
+  it("görsel testlerin kişi adları kuraldan (sabit Sportmonks yanıtı → card-names.ts), elle değil", () => {
+    for (const file of ["tests/fixtures/studio-cards.ts", "tests/fixtures/player-h2h.ts", "tests/visual/player-stats.test.ts", "tests/visual/checkmatch-set.test.ts"]) {
+      assert.ok(read(file).includes("fixturePlayerNames("), `${file}: kart adı kuraldan geçmiyor`);
+    }
   });
 
   it("Oyuncu İstatistikleri: A uzun (poster), B kısa — aynı oyuncu", () => {

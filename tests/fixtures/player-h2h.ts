@@ -1,9 +1,20 @@
+import { h2hPosterName } from "@/lib/player-h2h/names";
 import type { PlayerSeasonStats } from "@/types/player-h2h";
+import { fixturePlayerNames, type FixtureTeam } from "./card-names";
+import { SM_SQUAD_FENERBAHCE, SM_SQUAD_GLADBACH } from "./sportmonks/people";
 
 /**
  * Kurgusal oyuncu sezonları (bkz. CLAUDE.md 5.2) — sayılar uydurma, şekil gerçek (`PlayerSeasonStats`).
  * Havuzun TAMAMI dolu (14+ satır → format kapasitesi sınanır); uzun ad durumu için Mönchengladbach.
+ * Poster adı ÜRETİM yolundan (`player-h2h-data.ts` gibi): API adı + sabit Sportmonks kadrosu → kart adı
+ * kuralı → `h2hPosterName` (uzun biçim, PLAYER_H2H_POSTER).
  */
+
+/** API oyuncu kaydı (ad + uyruk) → posterin ad alanları. */
+function posterName(team: FixtureTeam, playerId: number, api: { name: string; nationality: string | null }) {
+  const [card] = fixturePlayerNames(team, [{ apiId: playerId, apiName: api.name }]);
+  return h2hPosterName(card ?? null, null, api);
+}
 
 const base = {
   season: 2026,
@@ -16,10 +27,7 @@ const base = {
 export const H2H_LEFT: PlayerSeasonStats = {
   ...base,
   playerId: 9001,
-  fullName: "Kerem Aktürkoğlu",
-  shortName: "Aktürkoğlu",
-  nameReliable: true,
-  nameOrigin: "tr",
+  ...posterName({ sportmonks: SM_SQUAD_FENERBAHCE, hint: "tr" }, 9001, { name: "K. Akturkoglu", nationality: "Turkey" }),
   teamId: 611,
   teamName: "Fenerbahçe",
   teamOrigin: "tr",
@@ -36,10 +44,7 @@ export const H2H_LEFT: PlayerSeasonStats = {
 export const H2H_RIGHT: PlayerSeasonStats = {
   ...base,
   playerId: 9002,
-  fullName: "Alassane Pléa",
-  shortName: "Pléa",
-  nameReliable: true,
-  nameOrigin: "intl",
+  ...posterName({ sportmonks: SM_SQUAD_GLADBACH, hint: "intl" }, 9002, { name: "A. Plea", nationality: "France" }),
   teamId: 163,
   teamName: "Borussia Mönchengladbach",
   teamOrigin: "intl",

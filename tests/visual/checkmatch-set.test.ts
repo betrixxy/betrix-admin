@@ -25,10 +25,13 @@ import type { ColumnSide } from "@/skills/render-engine/templates/checkmatch-set
 import { matchResultGeometry } from "@/skills/render-engine/templates/match-result/geometry";
 import { SET_PAGE_LABELS } from "@/types/checkmatch-set";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
-import { MATCH_RESULT_TEMPLATE_IDS, type MatchResultTemplateId } from "@/types/match-result";
+import { MATCH_RESULT_TEMPLATE_IDS, type MatchResultTemplateId, type ResultTeam } from "@/types/match-result";
+import { nameFor } from "@/lib/names/card-name-forms";
 import { RAW_GENCLERBIRLIGI_GALATASARAY } from "../fixtures/api-football/match-result";
 import { RAW_BESIKTAS_MIDTJYLLAND, RAW_HOFFENHEIM_BESIKTAS_STATS } from "../fixtures/api-football/match-stats";
+import { fixturePlayerNames, type FixtureTeam } from "../fixtures/card-names";
 import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
+import { SM_SQUAD_BESIKTAS, SM_SQUAD_GALATASARAY, SM_SQUAD_HOFFENHEIM } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
@@ -64,6 +67,21 @@ const EUROPE: Record<string, Match> = {
   "hof-bjk": { raw: RAW_HOFFENHEIM_BESIKTAS_STATS, sportmonks: SM_HOFFENHEIM_BESIKTAS, ids: SM_HOFFENHEIM_BESIKTAS_IDS },
 };
 
+/** Golcü adları ÜRETİM kuralından (`set-people.ts::withSetPeople` gibi): sabit Sportmonks kadrosu, kısa biçim (SET_SCORERS). */
+const SET_SQUADS: Record<string, FixtureTeam> = {
+  Galatasaray: { sportmonks: SM_SQUAD_GALATASARAY, hint: "tr" },
+  Beşiktaş: { sportmonks: SM_SQUAD_BESIKTAS, hint: "tr" },
+  Hoffenheim: { sportmonks: SM_SQUAD_HOFFENHEIM, hint: "intl" },
+};
+const NO_SQUAD: FixtureTeam = { sportmonks: { data: [] }, hint: null };
+
+function namedScorers(team: ResultTeam): ResultTeam {
+  if (team.scorers.length === 0) return team;
+  const names = fixturePlayerNames(SET_SQUADS[team.name] ?? NO_SQUAD, team.scorers.map((line) => ({ apiId: line.playerId, apiName: line.name })));
+  return { ...team, scorers: team.scorers.map((line, i) => ({ ...line, name: nameFor("SET_SCORERS", names[i]!), origin: names[i]!.origin })) };
+}
+const withSetPeople = <T extends { home: ResultTeam; away: ResultTeam }>(facts: T): T => ({ ...facts, home: namedScorers(facts.home), away: namedScorers(facts.away) });
+
 const PHOTO = syntheticPhoto();
 const SOURCE = SYNTHETIC_PHOTO_SIZE;
 
@@ -81,9 +99,10 @@ async function assertLayout(label: string, frame: MatchDayFrame, render: Paramet
 
 async function renderSet(match: Match, id: MatchDayFormatId, templates: readonly MatchResultTemplateId[], side: ColumnSide) {
   const frame = MATCH_DAY_FRAMES[id];
-  const facts = toMatchResultFacts(match.raw);
-  const stats = toMatchStatsFacts(match.raw, match.sportmonks && match.ids ? sportmonksMatchValues(match.sportmonks, match.ids) : null);
-  assert.ok(facts && stats, "fixture bitmiş maç olmalı");
+  const rawFacts = toMatchResultFacts(match.raw);
+  const rawStats = toMatchStatsFacts(match.raw, match.sportmonks && match.ids ? sportmonksMatchValues(match.sportmonks, match.ids) : null);
+  assert.ok(rawFacts && rawStats, "fixture bitmiş maç olmalı");
+  const [facts, stats] = [withSetPeople(rawFacts), withSetPeople(rawStats)];
   const images = { homeLogo: null, awayLogo: null, leagueLogo: null, brandLogo: await loadBrandLogo() };
   const accentHex = resultAccentHex(facts);
   const deepHex = COMPETITION_COLORS[facts.competition.kind]?.deep;
