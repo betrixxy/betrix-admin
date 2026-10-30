@@ -16,3 +16,18 @@ export function setPages(contentType: ContentTypeId, renderOptions: unknown): Co
   if (pages.success) return [...new Set<ContentTypeId>(["MATCH_RESULT", ...pages.data.pages])];
   return carouselUrls(renderOptions).length >= 2 ? ["MATCH_RESULT", "MATCH_STATS"] : ["MATCH_RESULT"];
 }
+
+/**
+ * Saf: Maç Sonucu kaydına sonradan eklenen oyuncu sayfası — carousel'in sonuna (tek kartta 01 slaytı önce
+ * kurulur), `pages`'e PLAYER_STATS, bekleyen kayıt (`pendingPlayerPage`) silinir; kesinleşmemiş veriyle
+ * üretildiyse `provisionalPlayerPage`.
+ */
+export function withPlayerSlide(renderOptions: unknown, base: { url: string; label: string }, slide: { url: string; label: string }, provisional: boolean): Record<string, unknown> {
+  const current = renderOptions && typeof renderOptions === "object" ? (renderOptions as Record<string, unknown>) : {};
+  const carousel = z.object({ carousel: z.array(z.object({ url: z.string(), label: z.string() })).min(1) }).safeParse(current);
+  const slides = carousel.success ? carousel.data.carousel : [base];
+  const next: Record<string, unknown> = { ...current, carousel: [...slides, slide], pages: [...setPages("MATCH_RESULT", current), "PLAYER_STATS"] };
+  delete next.pendingPlayerPage;
+  if (provisional) next.provisionalPlayerPage = true;
+  return next;
+}

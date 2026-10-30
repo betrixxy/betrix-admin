@@ -94,8 +94,10 @@ const matchResultOptionsSchema = z.object({
   imageUrl: z.string(),
   title: z.string(),
   subtitle: z.string(),
-  mvp: z.object({ name: z.string() }).nullish(),
+  mvp: z.object({ name: z.string(), playerId: z.number().optional() }).nullish(),
   carousel: z.array(slideSchema).optional(),
+  pendingPlayerPage: z.object({ template: z.enum(["SPOTLIGHT", "TOP_PLAYERS"]), count: z.union([z.literal(3), z.literal(5)]).nullable(), playerId: z.number().nullable() }).nullish(),
+  provisionalPlayerPage: z.boolean().optional(),
 });
 
 /** Yayın Merkezi alanları — görseller ve kayıtlı yayın ayarları doğrudan kayıttan okunur. */
@@ -151,6 +153,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           // Yayın akışı normal; gönderi metninde bahis dili uyarısı (vitrin gibi tahmin kaydı yok).
           vitrin: false,
           languageGate: true,
+          playerPage: null,
           slug: "kura",
         },
       };
@@ -180,6 +183,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           format: VITRIN_SOCIAL_FORMAT[format],
           vitrin: true,
           languageGate: true,
+          playerPage: null,
           slug: "mac-onu",
         },
       };
@@ -231,6 +235,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           // Tahmin kaydı yok (vitrin akışı değil): yayın akışı normal, gönderi metninde bahis dili uyarısı.
           vitrin: false,
           languageGate: true,
+          playerPage: null,
           slug: "oyuncu-karsilastirma",
         },
       };
@@ -289,7 +294,7 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
   if (record.contentType === "MATCH_RESULT" || record.contentType === "MATCH_STATS" || record.contentType === "PLAYER_STATS") {
     const options = matchResultOptionsSchema.safeParse(record.renderOptions);
     if (options.success) {
-      const { imageUrl, title, subtitle, mvp, format, carousel, kind } = options.data;
+      const { imageUrl, title, subtitle, mvp, format, carousel, kind, pendingPlayerPage, provisionalPlayerPage } = options.data;
       const kindLabel = kind === "MATCH_STATS" ? "Maç İstatistikleri" : kind === "PLAYER_STATS" ? "Oyuncu İstatistikleri" : "Maç Sonucu";
       return {
         kind: "match-result",
@@ -312,6 +317,10 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           // Oyuncu sayfası (tek başına ya da carousel 03) analiz/bahis dili kapısından geçer.
           languageGate: setPages(record.contentType, record.renderOptions).includes("PLAYER_STATS"),
           slug: kind === "PLAYER_STATS" ? "oyuncu-istatistik" : "mac-sonucu",
+          playerPage:
+            kind === "MATCH_RESULT"
+              ? { has: setPages("MATCH_RESULT", record.renderOptions).includes("PLAYER_STATS"), pending: pendingPlayerPage ?? null, provisional: provisionalPlayerPage === true, mvpId: mvp?.playerId ?? null }
+              : null,
         },
       };
     }

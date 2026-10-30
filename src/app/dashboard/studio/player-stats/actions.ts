@@ -20,9 +20,11 @@ const schema = z.object({
   playerId: z.union([z.literal(""), z.coerce.number().int().positive()]).transform((value) => (value === "" ? null : value)),
   /** A fotoğrafı: auto (en yeni formalı) · picker (arşiv seçici / yeni yükleme) · none (tipografik). */
   photoMode: z.enum(["auto", "picker", "none"]),
+  /** "Şimdi üret (veriler değişebilir)" onayı. */
+  force: z.enum(["", "on"]).transform((value) => value === "on"),
 });
 
-const FIELDS = ["fixtureId", "format", "template", "count", "playerId", "photoMode"] as const;
+const FIELDS = ["fixtureId", "format", "template", "count", "playerId", "photoMode", "force"] as const;
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -60,7 +62,7 @@ async function runPlayerStats(formData: FormData): Promise<PlayerStatsActionStat
   reportJobStep("Oyuncu verisi alınıyor");
   const facts = await loadPlayerStatsFacts(raw.data, new Date());
   if (!facts) return { error: "Oyuncu istatistikleri alınamadı — kart üretilmedi." };
-  if (!facts.settlement.settled) return { error: `Oyuncu verisi henüz kesinleşmedi — ${facts.settlement.reason}`, notSettled: true };
+  if (!facts.settlement.settled && !data.force) return { error: `Oyuncu verisi henüz kesinleşmedi — ${facts.settlement.reason}`, notSettled: true };
 
   let photoId: string | null = data.photoMode === "none" ? "none" : null;
   if (data.template === "SPOTLIGHT" && data.photoMode === "picker") {
@@ -76,7 +78,7 @@ async function runPlayerStats(formData: FormData): Promise<PlayerStatsActionStat
     }
   }
 
-  const result = await createPlayerStatsDraft({ facts, template: data.template, format: data.format, playerId: data.playerId, photoId, count: data.count === 5 ? 5 : 3 });
+  const result = await createPlayerStatsDraft({ facts, template: data.template, format: data.format, playerId: data.playerId, photoId, count: data.count === 5 ? 5 : 3, allowUnsettled: data.force });
   if (!result.ok) return result.error.notSettled ? { error: result.error.message, notSettled: true } : { error: result.error.message };
   try {
     refreshDashboard();

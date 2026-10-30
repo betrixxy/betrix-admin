@@ -23,17 +23,24 @@ function NameBlock({ card, g, only }: { card: SpotlightCard; g: SpotlightGeometr
   const ratingWidth = Math.round(card.player.ratingText.length * ratingSize * 0.5);
   const gap = px(28, k);
   const width = panel.right - panel.left - ratingWidth - gap;
-  const nameSize = fitFontSize(card.player.name, width, px(s.nameMax, k), 0.47, px(s.nameMin, k));
+  const nameSize = fitFontSize(card.lastName, width, px(s.nameMax, k), 0.47, px(s.nameMin, k));
+  const firstSize = fitFontSize(card.firstName, width, px(s.firstName, k), 0.74, px(11, k));
   const metaSize = fitFontSize(card.metaRow, width, px(s.meta, k), 0.78, px(11, k));
+  const small = { fontFamily: BODY, fontWeight: 700, lineHeight: 1, textShadow: TEXT_SHADOW };
   return (
     <div tw="absolute flex items-center" style={{ left: panel.left, top: g.name.top, width: panel.right - panel.left, height: g.name.height, opacity: blockOpacity(only, "players", STACK_LAYERS) }}>
       <span style={{ fontFamily: DISPLAY, fontSize: ratingSize, lineHeight: 1, color: card.accentHex, width: ratingWidth, textShadow: TEXT_SHADOW, opacity: unlayered(only) }}>{card.player.ratingText}</span>
       <div tw="flex flex-col justify-center" style={{ marginLeft: gap, width, height: g.name.height }}>
+        {/* Tipografik yedekte ad zeminde dev yazılır; burada yalnızca alt satır. İlk ad küçük, soyad büyük (H2H kuralı). */}
+        {!card.typographic && card.firstName ? (
+          <span style={{ ...small, fontSize: firstSize, letterSpacing: firstSize * 0.16, color: "rgba(255,255,255,0.86)", opacity: layerOpacity(only, stackLayer(0)) }}>{card.firstName}</span>
+        ) : null}
         {card.typographic ? null : (
-          <span style={{ fontFamily: DISPLAY, fontSize: nameSize, lineHeight: 1, color: "#fff", letterSpacing: nameSize * 0.01, textShadow: TEXT_SHADOW, opacity: layerOpacity(only, stackLayer(0)) }}>{card.player.name}</span>
+          // Soyadın İ/Ö/Ü/Ğ işareti (≈0,18–0,22 em) ilk ad satırına binmez.
+          <span style={{ fontFamily: DISPLAY, fontSize: nameSize, lineHeight: 1, color: "#fff", letterSpacing: nameSize * 0.01, marginTop: card.firstName ? Math.round(nameSize * 0.22) + px(10, k) : 0, textShadow: TEXT_SHADOW, opacity: layerOpacity(only, stackLayer(1)) }}>{card.lastName}</span>
         )}
-        {/* Adın Ç/Ş/Ğ kuyruğu (≈0,25 em) alt satıra binmez. */}
-        <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: metaSize, lineHeight: 1, letterSpacing: metaSize * 0.16, color: MUTED, marginTop: card.typographic ? 0 : Math.round(nameSize * DISPLAY_DESCENT_EM) + px(s.nameGap, k), textShadow: TEXT_SHADOW, opacity: layerOpacity(only, stackLayer(1)) }}>
+        {/* Soyadın Ç/Ş/Ğ kuyruğu (≈0,25 em) alt satıra binmez. */}
+        <span style={{ ...small, fontSize: metaSize, letterSpacing: metaSize * 0.16, color: MUTED, marginTop: card.typographic ? 0 : Math.round(nameSize * DISPLAY_DESCENT_EM) + px(s.nameGap, k), opacity: layerOpacity(only, stackLayer(2)) }}>
           {card.metaRow}
         </span>
       </div>
@@ -117,11 +124,11 @@ function Rows({ card, g, only }: { card: SpotlightCard; g: SpotlightGeometry; on
 
 /** Tipografik yedek: fotoğrafın yerinde dev ad (ilk ad küçük, soyad büyük), alttan hizalı. */
 function HeroName({ card, g, only }: { card: SpotlightCard; g: SpotlightGeometry; only: BlockFilter }) {
-  if (!card.typographic || card.heroName.length === 0) return null;
+  if (!card.typographic || !card.lastName) return null;
   const { k, panel } = g;
   const width = panel.right - panel.left;
-  const last = card.heroName[card.heroName.length - 1] ?? "";
-  const first = card.heroName.length > 1 ? (card.heroName[0] ?? "") : null;
+  const last = card.lastName;
+  const first = card.firstName || null;
   const room = g.title.height / (first ? 1.75 : 1.3);
   const size = Math.min(fitFontSize(last, width, px(250, k), 0.53, px(60, k)), Math.floor(room));
   const firstSize = first ? Math.min(Math.round(size * 0.42), fitFontSize(first, width, size, 0.53, px(28, k))) : 0;

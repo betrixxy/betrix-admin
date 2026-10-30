@@ -27,6 +27,7 @@ import type { MatchDayFormatId } from "@/types/match-day";
 import type { MatchResultFacts, MatchResultGenerationResult, MatchResultTemplateId, MvpCandidate } from "@/types/match-result";
 import type { MatchStatsFacts } from "@/types/match-stats";
 import type { PlayerStatsFacts, PlayerStatsTemplateId, TopPlayerCount } from "@/types/player-match-stats";
+import type { PendingPlayerPage } from "@/lib/player-stats/plan";
 import type { Result } from "@/types/result";
 import type { SocialFormatId } from "@/types/studio-formats";
 
@@ -78,7 +79,9 @@ export interface CreateMatchResultInput {
    */
   stats?: MatchStatsFacts | null | undefined;
   /** "Oyuncu sayfasını da ekle": verilirse carousel'in son sayfası (A oyuncusu = gönderi metnindeki MVP). Veri kesinleşmiş olmalı. */
-  player?: { facts: PlayerStatsFacts; template: PlayerStatsTemplateId; count?: TopPlayerCount | undefined } | null | undefined;
+  player?: { facts: PlayerStatsFacts; template: PlayerStatsTemplateId; count?: TopPlayerCount | undefined; provisional?: boolean | undefined } | null | undefined;
+  /** Oyuncu verisi kesinleşmedi, "hazır olunca ekle": 01 (+ 02) şimdi, 03 taslak ekranından sonra (`player-page-append.ts`). */
+  pendingPlayerPage?: PendingPlayerPage | null | undefined;
   offset?: CropOffset | undefined;
   zoom?: number | undefined;
 }
@@ -157,6 +160,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
       pageLabel: `${number} · ${label}`,
       side: photo.side,
       resultImage: final,
+      allowUnsettled: input.player.provisional,
     });
     if (!rendered.ok) return fail(rendered.error.code, rendered.error.message);
     playerPage = { image: rendered.data.image, label: `${number} · ${label.charAt(0)}${label.slice(1).toLocaleLowerCase("tr-TR")}`, notes: rendered.data.notes.map((note) => `${number}: ${note}`), paidCalls: rendered.data.paidCalls };
@@ -168,6 +172,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
   if (photo.quality.upscaled && photo.quality.paidCalls === 0) notes.push("AI büyütme önbellekten");
   const loser = loserPhotoWarning(facts, input.photo.kitTeamId ?? null);
   if (loser) notes.unshift(loser);
+  if (input.pendingPlayerPage) notes.push("Oyuncu sayfası veri kesinleşince eklenecek — taslak ekranındaki \"Oyuncu sayfasını ekle\" ile (yayından önce).");
   if (input.mvp && !mvpName) notes.push("\"MAÇIN OYUNCUSU\" satırı gizlendi — fotoğraftaki oyuncu MVP olarak işaretlenmedi.");
 
   reportJobStep("Kaydediliyor");
@@ -206,7 +211,7 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
         subtitle: `${facts.competition.name} · ${facts.roundLabel}`,
         mvp: input.mvp,
         mvpShown: mvpName !== null,
-        photo: { fileUrl: input.photo.fileUrl, hash: input.photo.image.hash, playerId: input.photo.playerId },
+        photo: { fileUrl: input.photo.fileUrl, hash: input.photo.image.hash, playerId: input.photo.playerId, photoId: input.photo.photoId ?? null },
         crop: photo.crop,
         side: photo.side,
         shadeStrength: photo.shadeStrength,
@@ -214,6 +219,8 @@ export async function createMatchResultCard(input: CreateMatchResultInput): Prom
         paidCalls,
         // Yayın Merkezi bu sırayla dizer (Instagram carousel); tek kartta yok. `pages`: karşılanan içerik türleri (set-pages.ts).
         ...(slides ? { carousel: slides, pages: ["MATCH_RESULT", ...extra.map((slide) => slide.type)] } : {}),
+        ...(input.pendingPlayerPage ? { pendingPlayerPage: input.pendingPlayerPage } : {}),
+        ...(playerPage && input.player?.provisional ? { provisionalPlayerPage: true } : {}),
       }),
     });
     return {

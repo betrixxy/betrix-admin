@@ -1,11 +1,15 @@
 import { photoForCard, readUrl } from "@/lib/archive/storage";
+import { nameOrigin, type NameOrigin } from "@/lib/dashboard/name-case";
 import { facePortrait } from "@/lib/dashboard/player-h2h-photo";
 import type { PlayerNames } from "@/lib/dashboard/player-stats-card";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { resolvePlayerNames } from "@/lib/names/person-directory";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
+import { fullNameFromApi } from "@/lib/player-h2h/names";
 import { prisma } from "@/lib/prisma";
+import { getPlayerProfile } from "@/lib/services/api-football/squads";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { getSportmonksPlayerLineups } from "@/lib/services/sportmonks/player-match";
 import type { MatchSide, ResultTeam } from "@/types/match-result";
@@ -26,6 +30,7 @@ export async function loadPlayerStatsFacts(raw: ApiFootballFixtureResultRaw, now
     console.error("[player-stats] Sportmonks eşlemesi düştü:", error);
     return null;
   });
+  await warmTeamColors([{ id: raw.teams.home.id, name: raw.teams.home.name, logoUrl: raw.teams.home.logo }, { id: raw.teams.away.id, name: raw.teams.away.name, logoUrl: raw.teams.away.logo }]);
   const facts = assemblePlayerStatsFacts(raw, now, sportmonks);
   return facts ? { ...facts, match: await withTeamOrigins(facts.match) } : null;
 }
@@ -92,4 +97,18 @@ export async function playerPortraits(lines: PlayerMatchLine[], hexOf: (line: Pl
     }),
   );
   return new Map(entries);
+}
+
+/**
+ * A posterinin TAM adı ("Samuel-Germain Mbangula" — ilk ad küçük, soyad büyük; Oyuncu Karşılaştırması ile
+ * aynı kural `fullNameFromApi`). Öncelik: arşivdeki admin düzeltmesi (`nameOverride`) → API oyuncu kaydı
+ * (`/players/profiles`, baş harfli ad ilk adla açılır) → arşivin resmi adı → sağlayıcı adı. Yalnızca okuma.
+ */
+export async function spotlightFullName(line: PlayerMatchLine, teamHint: NameOrigin | null): Promise<{ name: string; origin: NameOrigin | null }> {
+  const person = await prisma.person.findFirst({ where: { apiId: line.playerId, role: "PLAYER" }, select: { officialName: true, nameOverride: true } }).catch(() => null);
+  const override = person?.nameOverride?.trim();
+  const profile = override ? null : await getPlayerProfile(line.playerId).catch(() => null);
+  const fromApi = profile?.ok && profile.data ? fullNameFromApi(line.name, profile.data.firstname) : null;
+  const name = override || (fromApi && fromApi !== line.name ? fromApi : null) || person?.officialName?.trim() || line.name;
+  return { name, origin: nameOrigin(name) ?? teamHint };
 }

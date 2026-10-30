@@ -1,3 +1,4 @@
+import { keeperConceded } from "@/lib/player-stats/keeper";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import type { MatchSide } from "@/types/match-result";
 import type { PlayerMatchLine, PlayerPosition } from "@/types/player-match-stats";
@@ -5,7 +6,7 @@ import type { PlayerMatchLine, PlayerPosition } from "@/types/player-match-stats
 /**
  * Oyuncu İstatistikleri: `/fixtures?id=` yanıtının `players` bloğu → kanonik maç satırları (saf). Sağlayıcının
  * boş bıraktığı alan null kalır — 0'a çevrilmez (kaleci `goals.conceded` sık sık boş gelir). Maçta süre almayan
- * (dakikası boş ya da 0) oyuncu listeye girmez.
+ * (dakikası boş ya da 0) oyuncu listeye girmez. Kalecinin yenilediği gol maç olaylarından hesaplanır (`keeper.ts`).
  */
 
 type RawStats = ApiFootballFixtureResultRaw["players"][number]["players"][number]["statistics"][number];
@@ -58,7 +59,10 @@ export function toPlayerMatchLines(raw: ApiFootballFixtureResultRaw): PlayerMatc
       const stats = statistics[0];
       const minutes = num(stats?.games?.minutes);
       if (!minutes) return [];
-      return [{ playerId: player.id, name: player.name, side, teamId: team.id, position: position(stats?.games?.position), minutes, rating: parseRating(stats?.games?.rating), numbers: playerMatchNumbers(stats), xg: null }];
+      const pos = position(stats?.games?.position);
+      const numbers = playerMatchNumbers(stats);
+      if (pos === "G") numbers.conceded = keeperConceded(raw, player.id, team.id) ?? numbers.conceded;
+      return [{ playerId: player.id, name: player.name, side, teamId: team.id, position: pos, minutes, rating: parseRating(stats?.games?.rating), numbers, xg: null }];
     });
   });
 }

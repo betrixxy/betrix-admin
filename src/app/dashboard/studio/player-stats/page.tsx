@@ -80,7 +80,7 @@ export default async function PlayerStatsPage({ searchParams }: PlayerStatsPageP
           defaultPlayerId={facts.match.mvp?.playerId ?? null}
           topAvailable={topPlayers(facts.lines, 5).length}
           xgNote={facts.sportmonksMatched ? `xG: Sportmonks'ta dakikası birebir tutan ${facts.xgMatched} oyuncu` : "xG yok: Sportmonks maçı eşleşmedi"}
-          settled={facts.settlement.settled}
+          settlement={facts.settlement}
         />
       ) : null}
     </>

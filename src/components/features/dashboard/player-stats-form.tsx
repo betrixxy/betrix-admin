@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, Info, RotateCw, Sparkles } from "lucide-react";
 import { generatePlayerStatsAction } from "@/app/dashboard/studio/player-stats/actions";
@@ -13,9 +14,10 @@ import { useActionForm } from "@/hooks/use-action-form";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { cn } from "@/lib/utils";
 import type { MatchDayFormatId } from "@/types/match-day";
-import type { PlayerStatsActionState, PlayerStatsTemplateId } from "@/types/player-match-stats";
+import type { PlayerDataSettlement, PlayerStatsActionState, PlayerStatsTemplateId } from "@/types/player-match-stats";
 import { JobProgressLine } from "./job-progress";
 import { MatchDayFormatPicker } from "./match-day-format-picker";
+import { SettleCountdown } from "./settle-countdown";
 
 export interface PlayerOption {
   playerId: number;
@@ -34,7 +36,7 @@ interface PlayerStatsFormProps {
   /** ≥ 30 dk oynamış puanlı oyuncu sayısı (en çok 5). */
   topAvailable: number;
   xgNote: string;
-  settled: boolean;
+  settlement: PlayerDataSettlement;
 }
 
 const TEMPLATES: { id: PlayerStatsTemplateId; label: string; description: string }[] = [
@@ -44,7 +46,10 @@ const TEMPLATES: { id: PlayerStatsTemplateId; label: string; description: string
 
 const INITIAL: PlayerStatsActionState = {};
 
-export function PlayerStatsForm({ fixtureId, title, subtitle, teams, players, defaultPlayerId, topAvailable, xgNote, settled }: PlayerStatsFormProps) {
+export function PlayerStatsForm({ fixtureId, title, subtitle, teams, players, defaultPlayerId, topAvailable, xgNote, settlement }: PlayerStatsFormProps) {
+  const router = useRouter();
+  const settled = settlement.settled;
+  const [force, setForce] = useState(false);
   const { state, isPending, onSubmit, progress } = useActionForm(generatePlayerStatsAction, INITIAL);
   const formRef = useRef<HTMLFormElement>(null);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
@@ -116,6 +121,16 @@ export function PlayerStatsForm({ fixtureId, title, subtitle, teams, players, de
             )}
             {template === "SPOTLIGHT" ? <input type="hidden" name="count" value="3" /> : <input type="hidden" name="playerId" value="" />}
 
+            {!settlement.settled ? (
+              <>
+                <SettleCountdown readyAt={settlement.readyAt} reason={settlement.reason} onReady={() => router.refresh()} />
+                <label className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-200">
+                  <input type="checkbox" name="force" checked={force} onChange={(event) => setForce(event.target.checked)} className="mt-0.5" />
+                  <span>Şimdi üret (veriler değişebilir) — puanlar ve istatistikler kesinleşmeden çizilir, taslağa &quot;geçici&quot; notu düşer.</span>
+                </label>
+              </>
+            ) : null}
+
             {state.error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                 <AlertCircle className="size-3.5 shrink-0" />
@@ -124,7 +139,7 @@ export function PlayerStatsForm({ fixtureId, title, subtitle, teams, players, de
             ) : null}
             <JobProgressLine progress={progress} />
             <div className="flex gap-2">
-              <Button type="submit" size="lg" className="flex-1" disabled={isPending || !settled || (template === "TOP_PLAYERS" && topAvailable < 3)}>
+              <Button type="submit" size="lg" className="flex-1" disabled={isPending || (!settled && !force) || (template === "TOP_PLAYERS" && topAvailable < 3)}>
                 <Sparkles />
                 {isPending ? "Üretiliyor…" : "Kartı Üret"}
               </Button>

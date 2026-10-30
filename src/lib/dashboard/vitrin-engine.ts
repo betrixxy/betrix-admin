@@ -7,6 +7,7 @@ import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels"
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
 import { teamOrigin } from "@/lib/dashboard/team-origin";
 import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
@@ -110,6 +111,9 @@ export async function renderVitrin(request: VitrinRenderRequest): Promise<Result
   const meta = vitrinMeta(request.stats);
   // Ad büyük harfi için takım kökeni (Türk takımı mı) — arşiv/API, yalnızca okuma.
   const [home, away] = await Promise.all([teamOrigin(meta.homeTeamId), teamOrigin(meta.awayTeamId)]);
+  // Takım rengi ortak kaynaktan (tablo dışı takım: logodan otomatik) — kart kurulmadan önce.
+  const { homeTeam, awayTeam } = request.stats.fixture;
+  await warmTeamColors([{ id: meta.homeTeamId, name: homeTeam.name, logoUrl: homeTeam.logoUrl }, { id: meta.awayTeamId, name: awayTeam.name, logoUrl: awayTeam.logoUrl }]);
   const card = buildVitrinCard(request.prediction, request.selection, { ...meta, origins: { home, away } }, await vitrinImages(request.stats));
   const rendered = await renderVitrinImages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
   return rendered.ok ? { ok: true, data: { pages: rendered.data, card } } : rendered;

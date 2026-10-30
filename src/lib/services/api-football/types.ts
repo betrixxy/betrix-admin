@@ -143,6 +143,8 @@ export const apiFootballEventSchema = z.object({
   time: z.object({ elapsed: z.number().nullable(), extra: z.number().nullish() }),
   team: z.object({ id: z.number() }),
   player: z.object({ id: z.number().nullish(), name: z.string().nullish() }),
+  /** Oyuncu değişikliğinde (`type: "subst"`) GİREN oyuncu — `player` çıkandır; golde asist yapan. */
+  assist: z.object({ id: z.number().nullish(), name: z.string().nullish() }).nullish().catch(null),
   type: z.string(),
   detail: z.string().nullish(),
   comments: z.string().nullish(),

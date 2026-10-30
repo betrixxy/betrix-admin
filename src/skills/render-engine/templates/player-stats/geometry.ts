@@ -15,8 +15,11 @@ import { SAFE_MARGIN, type FrameBox, type ResultGeometry } from "../match-result
 export const PLAYER_SIZES = {
   headerSpace: 54,
   rating: 150,
+  /** Ad bloğu: dev puan yanında ilk ad + soyad + alt satır (Ğ/İ işareti ve Ç/Ş kuyruğu payıyla). */
+  nameBlock: 184,
   ratingGap: 26,
   nameMax: 76,
+  firstName: 22,
   nameMin: 34,
   meta: 21,
   nameGap: 12,
@@ -105,7 +108,7 @@ export function spotlightGeometry(frame: MatchDayFrame, card: Pick<SpotlightCard
   const rows = card.rows.length > 0 ? take(spotlightRowLines(card.rows.length) * px(s.rowHeight, k)) : null;
   const hero = card.hero.length > 0 ? take(px(s.heroValue + s.heroLabelGap + s.heroLabel, k)) : null;
   const fact = card.fact ? take(px(s.fact, k)) : null;
-  const name = { top: y + px(s.gap, k) - px(s.ratingGap, k) - px(s.rating, k), height: px(s.rating, k) };
+  const name = { top: y + px(s.gap, k) - px(s.ratingGap, k) - px(s.nameBlock, k), height: px(s.nameBlock, k) };
   const titleBottom = name.top - px(40, k);
   const title = { top: g.panel.top, height: Math.max(0, titleBottom - g.panel.top) };
   return { ...g, name, fact, hero, rows, title, photo: photoGeometry(g, name.top) };

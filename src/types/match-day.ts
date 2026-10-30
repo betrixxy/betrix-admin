@@ -84,6 +84,9 @@ export interface MatchDayFixtureOption {
   /** API-Football takım kimlikleri — Fotoğraf Arşivi seçicisi bu takımların arşivini açar. */
   homeTeamId: number;
   awayTeamId: number;
+  /** Formun varsayılan takım renkleri — ortak renk kaynağından (`club-colors.ts` + `team-colors.ts`); admin değiştirebilir. */
+  homeColorHex?: string;
+  awayColorHex?: string;
   /** API-Football logo URL'leri (media.api-sports.io). */
   homeLogoUrl: string;
   awayLogoUrl: string;

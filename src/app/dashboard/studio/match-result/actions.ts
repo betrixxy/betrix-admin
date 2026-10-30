@@ -13,6 +13,8 @@ import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/mat
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { loadMatchStatsFacts } from "@/lib/dashboard/match-stats-studio";
 import { loadPlayerStatsFacts } from "@/lib/dashboard/player-stats-studio";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
+import { PLAYER_PAGE_MODES, playerPagePlan } from "@/lib/player-stats/plan";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { getMatchResultRaw, parseFixtureId } from "@/lib/services/api-football";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -40,9 +42,9 @@ const photoSchema = z.object({
 const PLAYER_PAGES = { SPOTLIGHT: { template: "SPOTLIGHT", count: undefined }, TOP_3: { template: "TOP_PLAYERS", count: 3 }, TOP_5: { template: "TOP_PLAYERS", count: 5 } } as const;
 const playerPage = z.union([z.literal(""), z.enum(["SPOTLIGHT", "TOP_3", "TOP_5"])]);
 
-const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean(), playerPage });
+const cardSchema = photoSchema.extend({ mvpId: optionalPlayerId, photoIsMvp: z.boolean(), includeStats: z.boolean(), playerPage, playerPageMode: z.enum(PLAYER_PAGE_MODES).catch("WHEN_READY") });
 
-const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId", "playerPage"] as const;
+const FIELDS = ["fixtureId", "template", "format", "offsetX", "offsetY", "zoom", "mvpId", "playerPage", "playerPageMode"] as const;
 
 function text(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -68,6 +70,8 @@ async function resolveInput(formData: FormData): Promise<
   const facts = validated.data;
   if (!raw.data) return { ok: false, error: "Maç bulunamadı." };
   const fixtureRaw = raw.data;
+  // Takım rengi ortak kaynaktan (vurgu, tonlama, 02/03) — tablo dışı takım: logodan otomatik.
+  await warmTeamColors([{ id: facts.home.id, name: fixtureRaw.teams.home.name, logoUrl: facts.home.logoUrl }, { id: facts.away.id, name: fixtureRaw.teams.away.name, logoUrl: facts.away.logoUrl }]);
 
   const photo = await resolvePhoto(formData, data, facts);
   return photo.ok ? { ok: true, data, facts, photo: photo.data, raw: fixtureRaw } : { ok: false, error: photo.error.message };
@@ -123,12 +127,12 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
   if (data.includeStats) reportJobStep("İstatistik verisi alınıyor (02)");
   const stats = data.includeStats ? await loadMatchStatsFacts(input.raw) : null;
   if (data.includeStats && !stats) return { error: "Maç istatistikleri alınamadı — kart üretilmedi." };
-  // "Oyuncu sayfasını da ekle": veri kesinleşmediyse kart üretilmez (sebep + yeniden dene).
+  // "Oyuncu sayfasını da ekle" seti kilitlemez: veri kesinleşmediyse 01 + 02 şimdi, 03 hazır olunca (ya da "şimdi üret" ile geçici).
   const page = data.playerPage ? PLAYER_PAGES[data.playerPage] : null;
   if (page) reportJobStep("Oyuncu verisi alınıyor");
   const playerFacts = page ? await loadPlayerStatsFacts(input.raw, new Date()) : null;
   if (page && !playerFacts) return { error: "Oyuncu istatistikleri alınamadı — kart üretilmedi." };
-  if (playerFacts && !playerFacts.settlement.settled) return { error: `Oyuncu verisi henüz kesinleşmedi — ${playerFacts.settlement.reason} Oyuncu sayfası olmadan üretin ya da biraz sonra yeniden deneyin.` };
+  const plan = playerPagePlan(page !== null, playerFacts?.settlement ?? null, data.playerPageMode);
 
   const mvp = (data.mvpId ? facts.players.find((player) => player.playerId === data.mvpId) : null) ?? facts.mvp;
   const result = await createMatchResultCard({
@@ -141,7 +145,8 @@ async function runMatchResult(formData: FormData): Promise<MatchResultActionStat
     offset: { x: data.offsetX, y: data.offsetY },
     zoom: data.zoom,
     stats,
-    player: page && playerFacts ? { facts: playerFacts, template: page.template, count: page.count } : null,
+    player: plan.action === "RENDER" && page && playerFacts ? { facts: playerFacts, template: page.template, count: page.count, provisional: plan.provisional } : null,
+    pendingPlayerPage: plan.action === "DEFER" && page ? { template: page.template, count: page.count ?? null, playerId: mvp?.playerId ?? null } : null,
   });
   if (!result.ok) return { error: result.error.message };
 

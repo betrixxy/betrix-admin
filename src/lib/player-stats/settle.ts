@@ -19,16 +19,16 @@ export function settledAt(kickoffUtc: string, statusShort: string): Date {
 }
 
 export function playerDataSettlement(input: { kickoffUtc: string; statusShort: string; lines: PlayerMatchLine[]; now: Date }): PlayerDataSettlement {
-  if (input.lines.length === 0) return { settled: false, reason: "Oyuncu istatistikleri henüz gelmedi (API-Football maç oyuncu verisi boş)." };
+  if (input.lines.length === 0) return { settled: false, reason: "Oyuncu istatistikleri henüz gelmedi (API-Football maç oyuncu verisi boş).", readyAt: null };
   const ready = settledAt(input.kickoffUtc, input.statusShort);
   if (input.now < ready) {
-    return { settled: false, reason: `Maç yeni bitti — oyuncu puanları genelde maç bitiminden ~${SETTLE_BUFFER_MINUTES} dk sonra kesinleşir (en erken ${clock(ready)}).` };
+    return { settled: false, reason: `Maç yeni bitti — oyuncu puanları genelde maç bitiminden ~${SETTLE_BUFFER_MINUTES} dk sonra kesinleşir (en erken ${clock(ready)}).`, readyAt: ready.toISOString() };
   }
   const missing = (["HOME", "AWAY"] as const satisfies readonly MatchSide[]).flatMap((side) => {
     const played = input.lines.filter((line) => line.side === side);
     const rated = played.filter((line) => line.rating !== null).length;
     return rated < Math.min(11, played.length) ? [`${side === "HOME" ? "ev sahibi" : "deplasman"} ${rated}/${played.length}`] : [];
   });
-  if (missing.length > 0) return { settled: false, reason: `Oyuncu puanları henüz eksik (${missing.join(", ")} puanlı).` };
+  if (missing.length > 0) return { settled: false, reason: `Oyuncu puanları henüz eksik (${missing.join(", ")} puanlı).`, readyAt: null };
   return { settled: true };
 }

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildFixtureProduction } from "@/lib/calendar/production-map";
-import { heroNameLines } from "@/lib/dashboard/player-stats-card";
-import { setPages } from "@/lib/dashboard/set-pages";
+import { nameParts } from "@/lib/dashboard/player-stats-card";
+import { keeperConceded } from "@/lib/player-stats/keeper";
+import { setPages, withPlayerSlide } from "@/lib/dashboard/set-pages";
+import { playerPagePlan } from "@/lib/player-stats/plan";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
 import { spotlightFact } from "@/lib/player-stats/facts";
 import { defaultSpotlightId, TOP_MIN_MINUTES, topPlayers } from "@/lib/player-stats/picks";
@@ -182,9 +184,11 @@ describe("veri kesinleşmedi", () => {
 });
 
 describe("kart ve carousel kapsamı", () => {
-  it("dev ad: baş harf satır olmaz", () => {
-    assert.deepEqual(heroNameLines("S. MBANGULA"), ["MBANGULA"]);
-    assert.deepEqual(heroNameLines("İRFAN CAN EĞRİBAYAT"), ["İRFAN CAN", "EĞRİBAYAT"]);
+  it("A adı: ilk ad küçük, soyad büyük (ekler soyada); baş harf ilk ad satırı olmaz", () => {
+    assert.deepEqual(nameParts("SAMUEL-GERMAIN MBANGULA"), { firstName: "SAMUEL-GERMAIN", lastName: "MBANGULA" });
+    assert.deepEqual(nameParts("İRFAN CAN EĞRİBAYAT"), { firstName: "İRFAN CAN", lastName: "EĞRİBAYAT" });
+    assert.deepEqual(nameParts("VIRGIL VAN DIJK"), { firstName: "VIRGIL", lastName: "VAN DIJK" });
+    assert.deepEqual(nameParts("S. MBANGULA"), { firstName: "", lastName: "MBANGULA" });
   });
 
   it("Maç Sonucu carousel'i 03 oyuncu sayfasıyla Oyuncu İstatistikleri'ni de karşılar; eski 01+02 carousel yalnızca İstatistikler", () => {
@@ -194,5 +198,74 @@ describe("kart ve carousel kapsamı", () => {
     assert.deepEqual(setPages("MATCH_RESULT", { carousel: [{ url: "/a", label: "01" }, { url: "/c", label: "02" }], pages: ["MATCH_RESULT", "PLAYER_STATS"] }), ["MATCH_RESULT", "PLAYER_STATS"]);
     const production = buildFixtureProduction([{ id: "r", fixtureId: "f", status: "DRAFT", contentType: "MATCH_RESULT", resultImageUrl: "/a", publishAt: null, renderOptions: pages }]).get("f") ?? {};
     assert.equal(production.PLAYER_STATS?.status, "draft");
+  });
+});
+
+describe("kaleci: yenilen gol maç olaylarından", () => {
+  const raw = RAW_MILAN_BOLOGNA;
+  const MILAN = raw.teams.home.id;
+  const BOLOGNA = raw.teams.away.id;
+  const goal = (minute: number, teamId: number, detail = "Normal Goal") => ({ time: { elapsed: minute, extra: null }, team: { id: teamId }, player: { id: 1, name: "G" }, assist: null, type: "Goal", detail, comments: null });
+  const subst = (minute: number, teamId: number, out: number, into: number) => ({ time: { elapsed: minute, extra: null }, team: { id: teamId }, player: { id: out, name: "Out" }, assist: { id: into, name: "In" }, type: "subst", detail: "Substitution 1", comments: null });
+
+  it("90 dk oynayan kaleci: rakibin bütün golleri, kendi kalesine gol dahil (Maignan 4, Skorupski 2)", () => {
+    assert.equal(keeperConceded(raw, 22221, MILAN), 4);
+    assert.equal(keeperConceded(raw, 2998, BOLOGNA), 2);
+    const lines = toPlayerMatchLines(raw);
+    assert.equal(lines.find((l) => l.playerId === 22221)?.numbers.conceded, 4);
+    assert.equal(lines.find((l) => l.playerId === 2998)?.numbers.conceded, 2);
+  });
+
+  it("oyundan çıkan kaleci yalnızca çıkmadan önceki golleri, sonradan giren yalnızca sonrakileri yer", () => {
+    const events = [goal(10, BOLOGNA), subst(50, MILAN, 22221, 999), goal(50, BOLOGNA), goal(70, MILAN), goal(80, BOLOGNA, "Own Goal")];
+    const custom = { ...raw, events };
+    assert.equal(keeperConceded(custom, 22221, MILAN), 1);
+    assert.equal(keeperConceded(custom, 999, MILAN), 2);
+  });
+
+  it("kaçan penaltı ve VAR iptali sayılmaz; giriş olayı yoksa yedek kaleci için null (tahmin yok)", () => {
+    const events = [goal(20, BOLOGNA, "Missed Penalty"), goal(30, BOLOGNA), { ...goal(30, BOLOGNA), type: "Var", detail: "Goal cancelled" }];
+    const custom = { ...raw, events };
+    assert.equal(keeperConceded(custom, 22221, MILAN), 0);
+    assert.equal(keeperConceded(custom, 12345, MILAN), null);
+  });
+});
+
+describe("03 seti kilitlemez (2026-10-30)", () => {
+  const settled = { settled: true } as const;
+  const waiting = { settled: false, reason: "Maç yeni bitti", readyAt: "2026-10-28T20:55:00.000Z" } as const;
+
+  it("kesinleştiyse şimdi çizilir; kesinleşmediyse varsayılan 'hazır olunca ekle' (01 + 02 şimdi, 03 bekler)", () => {
+    assert.deepEqual(playerPagePlan(true, settled, "WHEN_READY"), { action: "RENDER", provisional: false });
+    assert.deepEqual(playerPagePlan(true, waiting, "WHEN_READY"), { action: "DEFER", reason: "Maç yeni bitti", readyAt: "2026-10-28T20:55:00.000Z" });
+    assert.deepEqual(playerPagePlan(false, waiting, "WHEN_READY"), { action: "NONE" });
+  });
+
+  it("'şimdi üret (veriler değişebilir)' kesinleşmeden geçici olarak çizer", () => {
+    assert.deepEqual(playerPagePlan(true, waiting, "NOW"), { action: "RENDER", provisional: true });
+    assert.deepEqual(playerPagePlan(true, settled, "NOW"), { action: "RENDER", provisional: false });
+  });
+
+  it("geri sayım: süreye bağlı beklemede hazır olma anı verilir, puan eksikse verilmez", () => {
+    const now = new Date(Date.parse(RAW_MILAN_BOLOGNA.fixture.date) + 60 * 60 * 1000);
+    const early = playerDataSettlement({ kickoffUtc: RAW_MILAN_BOLOGNA.fixture.date, statusShort: "FT", lines: toPlayerMatchLines(RAW_MILAN_BOLOGNA), now });
+    assert.equal(early.settled ? null : early.readyAt, settledAt(RAW_MILAN_BOLOGNA.fixture.date, "FT").toISOString());
+    const empty = playerDataSettlement({ kickoffUtc: RAW_MILAN_BOLOGNA.fixture.date, statusShort: "FT", lines: [], now: LATER });
+    assert.equal(empty.settled ? "x" : empty.readyAt, null);
+  });
+
+  it("sonradan ekleme: carousel'in sonuna, bekleyen kayıt silinir, kapsam PLAYER_STATS'ı da sayar", () => {
+    const base = { url: "/01", label: "01 · Maç Sonucu" };
+    const slide = { url: "/03", label: "03 · Maçın oyuncusu" };
+    const withStats = { kind: "MATCH_RESULT", carousel: [base, { url: "/02", label: "02 · İstatistikler" }], pages: ["MATCH_RESULT", "MATCH_STATS"], pendingPlayerPage: { template: "SPOTLIGHT", count: null, playerId: 1 } };
+    const next = withPlayerSlide(withStats, base, slide, false);
+    assert.deepEqual((next.carousel as { url: string }[]).map((s) => s.url), ["/01", "/02", "/03"]);
+    assert.equal(next.pendingPlayerPage, undefined);
+    assert.equal(next.provisionalPlayerPage, undefined);
+    assert.deepEqual(setPages("MATCH_RESULT", next), ["MATCH_RESULT", "MATCH_STATS", "PLAYER_STATS"]);
+    const single = withPlayerSlide({ kind: "MATCH_RESULT", imageUrl: "/01" }, base, { ...slide, label: "02 · Maçın oyuncusu" }, true);
+    assert.deepEqual((single.carousel as { url: string }[]).map((s) => s.url), ["/01", "/03"]);
+    assert.equal(single.provisionalPlayerPage, true);
+    assert.deepEqual(setPages("MATCH_RESULT", single), ["MATCH_RESULT", "PLAYER_STATS"]);
   });
 });

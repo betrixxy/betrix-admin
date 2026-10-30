@@ -3,7 +3,7 @@ import type { SportmonksLineupPlayer } from "@/types/player-match-stats";
 
 /**
  * `/fixtures?id=1550167` — AC Milan 2-4 Bologna (Serie A, 9. hafta, 2026-10-28). Gerçek yanıttan kırpılmıştır:
- * goller, dizilişler ve süre alan oyuncuların maç istatistikleri (Oyuncu İstatistikleri eşleyicisinin okuduğu alanlar).
+ * olaylar (gol, değişiklik, kart), dizilişler ve süre alan oyuncuların maç istatistikleri (Oyuncu İstatistikleri eşleyicisinin okuduğu alanlar).
  * Kalecilerde `goals.conceded` sağlayıcıda boş gelir — eksik veri testi.
  */
 export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
@@ -67,6 +67,10 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
     "id": 346866,
     "name": "Samuel Mbangula Tshifunda"
    },
+   "assist": {
+    "id": 128461,
+    "name": "Nadir Zortea"
+   },
    "type": "Goal",
    "detail": "Normal Goal",
    "comments": null
@@ -82,6 +86,10 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
    "player": {
     "id": 359100,
     "name": "Alphadjo Cissè"
+   },
+   "assist": {
+    "id": null,
+    "name": null
    },
    "type": "Goal",
    "detail": "Normal Goal",
@@ -99,8 +107,132 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
     "id": 359100,
     "name": "Alphadjo Cissè"
    },
+   "assist": {
+    "id": 19209,
+    "name": "Fikayo Tomori"
+   },
    "type": "Goal",
    "detail": "Normal Goal",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 45,
+    "extra": null
+   },
+   "team": {
+    "id": 489
+   },
+   "player": {
+    "id": 19209,
+    "name": "Fikayo Tomori"
+   },
+   "assist": {
+    "id": 754,
+    "name": "Luka Modrić"
+   },
+   "type": "subst",
+   "detail": "Substitution 1",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 58,
+    "extra": null
+   },
+   "team": {
+    "id": 489
+   },
+   "player": {
+    "id": 46731,
+    "name": "Pervis Estupinan"
+   },
+   "assist": {
+    "id": 467860,
+    "name": "Sankhoun Diawara"
+   },
+   "type": "subst",
+   "detail": "Substitution 2",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 58,
+    "extra": null
+   },
+   "team": {
+    "id": 489
+   },
+   "player": {
+    "id": 284428,
+    "name": "Omari Hutchinson"
+   },
+   "assist": {
+    "id": 17,
+    "name": "Christian Pulisic"
+   },
+   "type": "subst",
+   "detail": "Substitution 3",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 58,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 887,
+    "name": "Matteo Darmian"
+   },
+   "assist": {
+    "id": 287564,
+    "name": "Martin Vitik"
+   },
+   "type": "subst",
+   "detail": "Substitution 1",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 59,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 295223,
+    "name": "Rahim Alhassane"
+   },
+   "assist": {
+    "id": 134,
+    "name": "Juan Miranda"
+   },
+   "type": "subst",
+   "detail": "Substitution 2",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 59,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 873,
+    "name": "Federico Bernardeschi"
+   },
+   "assist": {
+    "id": 30438,
+    "name": "Nicolo Cambiaghi"
+   },
+   "type": "subst",
+   "detail": "Substitution 3",
    "comments": null
   },
   {
@@ -114,6 +246,10 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
    "player": {
     "id": 374359,
     "name": "Davide Bartesaghi"
+   },
+   "assist": {
+    "id": null,
+    "name": null
    },
    "type": "Goal",
    "detail": "Own Goal",
@@ -131,9 +267,113 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
     "id": 346866,
     "name": "Samuel Mbangula Tshifunda"
    },
+   "assist": {
+    "id": 134,
+    "name": "Juan Miranda"
+   },
    "type": "Goal",
    "detail": "Normal Goal",
    "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 63,
+    "extra": null
+   },
+   "team": {
+    "id": 489
+   },
+   "player": {
+    "id": 374359,
+    "name": "Davide Bartesaghi"
+   },
+   "assist": {
+    "id": 436260,
+    "name": "Francesco Camarda"
+   },
+   "type": "subst",
+   "detail": "Substitution 4",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 70,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 204043,
+    "name": "Arthur Theate"
+   },
+   "assist": {
+    "id": 39254,
+    "name": "Torbjørn Heggem"
+   },
+   "type": "subst",
+   "detail": "Substitution 4",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 76,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 31273,
+    "name": "Tommaso Pobega"
+   },
+   "assist": {
+    "id": null,
+    "name": null
+   },
+   "type": "Card",
+   "detail": "Yellow Card",
+   "comments": "Foul"
+  },
+  {
+   "time": {
+    "elapsed": 79,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 31099,
+    "name": "Nicolo Casale"
+   },
+   "assist": {
+    "id": 416062,
+    "name": "Eivind Helland"
+   },
+   "type": "subst",
+   "detail": "Substitution 5",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 84,
+    "extra": null
+   },
+   "team": {
+    "id": 500
+   },
+   "player": {
+    "id": 39254,
+    "name": "Torbjørn Heggem"
+   },
+   "assist": {
+    "id": null,
+    "name": null
+   },
+   "type": "Card",
+   "detail": "Yellow Card",
+   "comments": "Foul"
   },
   {
    "time": {
@@ -147,8 +387,32 @@ export const RAW_MILAN_BOLOGNA: ApiFootballFixtureResultRaw = {
     "id": 346866,
     "name": "Samuel Mbangula Tshifunda"
    },
+   "assist": {
+    "id": 30542,
+    "name": "Jens Odgaard"
+   },
    "type": "Goal",
    "detail": "Normal Goal",
+   "comments": null
+  },
+  {
+   "time": {
+    "elapsed": 87,
+    "extra": null
+   },
+   "team": {
+    "id": 489
+   },
+   "player": {
+    "id": 41585,
+    "name": "Gonçalo Ramos"
+   },
+   "assist": {
+    "id": 452330,
+    "name": "Christian Comotto"
+   },
+   "type": "subst",
+   "detail": "Substitution 5",
    "comments": null
   }
  ],

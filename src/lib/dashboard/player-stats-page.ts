@@ -4,9 +4,10 @@ import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerNames } from "@/lib/dashboard/player-stats-card";
 import { renderSpotlightImage, renderTopPlayersImage } from "@/lib/dashboard/player-stats-render";
-import { playerCardNames, playerPortraits, spotlightPhoto } from "@/lib/dashboard/player-stats-studio";
+import { playerCardNames, playerPortraits, spotlightFullName, spotlightPhoto } from "@/lib/dashboard/player-stats-studio";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import { defaultSpotlightId, topPlayers } from "@/lib/player-stats/picks";
+import { PROVISIONAL_NOTE } from "@/lib/player-stats/plan";
 import { SPOTLIGHT_MIN_ROWS, SPOTLIGHT_TARGET_ROWS, statRows } from "@/lib/player-stats/rows";
 import { spotlightGeometry } from "@/skills/render-engine/templates/player-stats/geometry";
 import type { ColumnSide } from "@/skills/render-engine/templates/checkmatch-set/landscape";
@@ -40,6 +41,8 @@ export interface PlayerPageInput {
   side?: ColumnSide | undefined;
   /** B zemini: carousel'de 01'in nihai görseli. */
   resultImage?: Buffer | null | undefined;
+  /** "Şimdi üret (veriler değişebilir)": kesinleşmemiş veriyle çizilir, notun başına uyarı yazılır. */
+  allowUnsettled?: boolean | undefined;
 }
 
 export interface PlayerPage {
@@ -56,8 +59,10 @@ export interface PlayerPage {
 
 export async function renderPlayerPage(input: PlayerPageInput): Promise<Result<PlayerPage, PageError>> {
   const { facts } = input;
-  if (!facts.settlement.settled) return { ok: false, error: { code: "NOT_SETTLED", message: `Oyuncu verisi henüz kesinleşmedi — ${facts.settlement.reason} Kart üretilmedi; biraz sonra yeniden deneyin.`, notSettled: true } };
-  return input.template === "SPOTLIGHT" ? spotlight(input) : top(input);
+  if (!facts.settlement.settled && !input.allowUnsettled) return { ok: false, error: { code: "NOT_SETTLED", message: `Oyuncu verisi henüz kesinleşmedi — ${facts.settlement.reason} Kart üretilmedi; biraz sonra yeniden deneyin.`, notSettled: true } };
+  const page = await (input.template === "SPOTLIGHT" ? spotlight(input) : top(input));
+  if (page.ok && !facts.settlement.settled) page.data.notes.unshift(PROVISIONAL_NOTE);
+  return page;
 }
 
 async function spotlight(input: PlayerPageInput): Promise<Result<PlayerPage, PageError>> {
@@ -72,9 +77,15 @@ async function spotlight(input: PlayerPageInput): Promise<Result<PlayerPage, Pag
   if (rowCount < SPOTLIGHT_MIN_ROWS) return fail("TOO_FEW_STATS", `Seçilen oyuncu için yalnızca ${rowCount} istatistik geldi (en az ${SPOTLIGHT_MIN_ROWS}) — kart üretilmedi.`);
 
   reportJobStep("Oyuncu adı ve fotoğrafı");
-  const [names, setImages, photo] = await Promise.all([playerCardNames(facts, [line]), resolveSetImages(facts.match), input.photoId === "none" ? null : spotlightPhoto(line, { photoId: input.photoId, avoidPhotoId: input.avoidPhotoId })]);
+  const team = line.side === "HOME" ? facts.match.home : facts.match.away;
+  const [names, fullName, setImages, photo] = await Promise.all([
+    playerCardNames(facts, [line]),
+    spotlightFullName(line, team.origin?.people ?? null),
+    resolveSetImages(facts.match),
+    input.photoId === "none" ? null : spotlightPhoto(line, { photoId: input.photoId, avoidPhotoId: input.avoidPhotoId }),
+  ]);
   const images = { homeLogo: setImages.homeLogo, awayLogo: setImages.awayLogo, brandLogo: setImages.brandLogo };
-  const card = buildSpotlightCard({ facts, line, images, names, pageLabel: input.pageLabel, typographic: photo === null });
+  const card = buildSpotlightCard({ facts, line, images, names, fullName, pageLabel: input.pageLabel, typographic: photo === null });
 
   const notes: string[] = [];
   if (defaultId !== null && playerId !== defaultId) {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AlertTriangle } from "lucide-react";
 import { MatchDayForm } from "@/components/features/dashboard/match-day-form";
+import { teamPairColors } from "@/lib/dashboard/match-result-theme";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getMatchDayFixtureOptions } from "@/lib/dashboard/match-day-fixtures";
 import { isFalConfigured } from "@/lib/services/fal";
@@ -37,6 +39,13 @@ export default async function MatchDayPage({ searchParams }: MatchDayPageProps) 
   const requestedFixtureId = typeof params.fixtureId === "string" ? params.fixtureId : null;
   // Yalnızca listedeki (API-Football, önümüzdeki 7 gün) bir maç ön-seçilir; bilinmeyen kimlik formu doldurmaz.
   const initialFixtureId = fixtureList.some((fixture) => fixture.id === requestedFixtureId) ? requestedFixtureId : null;
+  // Varsayılan renkler ortak kaynaktan; logodan çıkarma yalnızca açılan maçın takımları için (liste kod tablosu + kayıtlı renkler).
+  const initial = fixtureList.find((fixture) => fixture.id === initialFixtureId);
+  await warmTeamColors(initial ? [{ id: initial.homeTeamId, name: initial.homeTeam, logoUrl: initial.homeLogoUrl }, { id: initial.awayTeamId, name: initial.awayTeam, logoUrl: initial.awayLogoUrl }] : []);
+  const coloured = fixtureList.map((fixture) => {
+    const [homeColorHex, awayColorHex] = teamPairColors(fixture.homeTeamId, fixture.awayTeamId);
+    return { ...fixture, homeColorHex, awayColorHex };
+  });
 
   return (
     <>
@@ -61,7 +70,7 @@ export default async function MatchDayPage({ searchParams }: MatchDayPageProps) 
       ) : null}
 
       <MatchDayForm
-        fixtures={fixtureList}
+        fixtures={coloured}
         initialFixtureId={initialFixtureId}
        
         disabled={!falConfigured}

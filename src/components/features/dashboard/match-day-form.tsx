@@ -128,11 +128,11 @@ export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = fal
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="homeColorHex">Ev sahibi rengi</Label>
-                <Input id="homeColorHex" name="homeColorHex" type="color" defaultValue="#e11d48" className="h-9 p-1" />
+                <Input key={`home-${fixtureId}`} id="homeColorHex" name="homeColorHex" type="color" defaultValue={selectedFixture?.homeColorHex ?? "#ffffff"} className="h-9 p-1" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="awayColorHex">Deplasman rengi</Label>
-                <Input id="awayColorHex" name="awayColorHex" type="color" defaultValue="#1d4ed8" className="h-9 p-1" />
+                <Input key={`away-${fixtureId}`} id="awayColorHex" name="awayColorHex" type="color" defaultValue={selectedFixture?.awayColorHex ?? "#c9ced6"} className="h-9 p-1" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="derbyIntensity">Maç önemi</Label>

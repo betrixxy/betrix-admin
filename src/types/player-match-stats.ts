@@ -111,7 +111,10 @@ export interface PlayerStatRow {
 }
 
 /** Veri kesinleşti mi — kesinleşmediyse stüdyo kart üretmez, "yeniden dene" sunar. */
-export type PlayerDataSettlement = { settled: true } | { settled: false; reason: string };
+export type PlayerDataSettlement =
+  | { settled: true }
+  /** `readyAt`: bekleme süreye bağlıysa en erken kesinleşme anı (ISO, geri sayım); puan eksikse null. */
+  | { settled: false; reason: string; readyAt: string | null };
 
 /** Bitmiş maçın oyuncu verisi — üretim anında `statsSnapshot`'a yazılır. */
 export interface PlayerStatsFacts {
@@ -163,8 +166,9 @@ export interface SpotlightCard extends PlayerCardBase {
   fact: string | null;
   /** Fotoğraf yoksa tipografik yedek: dev ad zemin üstünde. */
   typographic: boolean;
-  /** Tipografik yedekte dev adın satırları ("SAMUEL" / "MBANGULA"). */
-  heroName: string[];
+  /** Tam addan ("SAMUEL-GERMAIN MBANGULA"): küçük ilk ad ve büyük soyad; ilk ad yoksa boş. */
+  firstName: string;
+  lastName: string;
 }
 
 export interface TopPlayerRow extends PlayerCardEntry {
@@ -198,3 +202,13 @@ export interface PlayerStatsActionState {
 
 /** Ad büyük harfi için köken haritası (oyuncu kimliği → köken). */
 export type PlayerOrigins = Map<number, NameOrigin | null>;
+
+/** Taslak ekranı "Oyuncu sayfasını ekle" (sonradan, arka plan işi). */
+export interface PlayerPageAppendState {
+  error?: string;
+  notSettled?: boolean;
+  /** Eklendi: sayfa notları (geçici veri uyarısı dahil); istemci sayfayı tazeler. */
+  notes?: string[];
+  done?: boolean;
+  job?: StudioJobStart;
+}

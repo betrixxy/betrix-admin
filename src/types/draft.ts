@@ -139,6 +139,11 @@ export interface MatchResultDraftView extends PublishableDraft {
   imageUrl: string;
   /** Yayın sırasıyla görseller (carousel); tek kartta tek öğe. */
   slides: { url: string; label: string }[];
+  /**
+   * Maç Sonucu taslağının oyuncu sayfası (03): var mı, kesinleşme bekleyen istek, kesinleşmeden mi üretildi.
+   * Maç Sonucu dışındaki kayıtlarda null.
+   */
+  playerPage: { has: boolean; pending: { template: "SPOTLIGHT" | "TOP_PLAYERS"; count: 3 | 5 | null; playerId: number | null } | null; provisional: boolean; mvpId: number | null } | null;
   format: SocialFormatId;
   /** Maç önü vitrin kartı (AI_MARKET_PREDICTION) — yayında kısa link yok, bahis dili denetimi. */
   vitrin: boolean;

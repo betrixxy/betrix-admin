@@ -77,6 +77,8 @@ export async function createPlayerStatsDraft(input: Omit<PlayerPageInput, "pageL
         photo: page.data.photo,
         side: page.data.side,
         paidCalls: page.data.paidCalls,
+        // Kesinleşmeden üretildi ("şimdi üret") — puanlar değişebilir.
+        provisional: !facts.settlement.settled,
       }),
     });
     return { ok: true, data: { id: record.id, imageUrl, format: input.format, template: input.template, paidCalls: page.data.paidCalls, notes: page.data.notes } };

@@ -1,9 +1,11 @@
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
+import { isSimilarColor } from "@/lib/dashboard/color-math";
 import { distinctTeamColor, readableTeamColors, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { upperCompetition, upperName, upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { formatNumber } from "@/lib/format/number";
 import { POSITION_LABELS } from "@/lib/player-stats/catalog";
+import { firstNameOf, shortNameOf } from "@/lib/player-h2h/names";
 import { spotlightFact } from "@/lib/player-stats/facts";
 import { highlightText, spotlightRows } from "@/lib/player-stats/rows";
 import type { MatchResultFacts, MatchSide } from "@/types/match-result";
@@ -29,10 +31,10 @@ export type PlayerNames = Map<number, { name: string; origin: NameOrigin | null 
 
 type MatchPart = Pick<MatchResultFacts, "home" | "away" | "outcome" | "competition" | "roundLabel" | "kickoffUtc" | "penaltyScore">;
 
+/** Takım renkleri (puan çubuğu, tipografik zemin) — ortak kaynak; renk yoksa NÖTR (beyaz, ikincisi gümüş). */
 export function teamHexes(match: MatchPart): Record<MatchSide, string> {
-  const accent = resultAccentHex(match);
-  const home = readableTeamColors(match.home)[0] ?? accent;
-  return { HOME: home, AWAY: distinctTeamColor(match.away, home) ?? accent };
+  const home = readableTeamColors(match.home)[0] ?? "#ffffff";
+  return { HOME: home, AWAY: distinctTeamColor(match.away, home) ?? (isSimilarColor(home, "#ffffff") ? "#c9ced6" : "#ffffff") };
 }
 
 /** "MILAN 2–4 BOLOGNA" (penaltıda "(PEN 4-3)"). */
@@ -75,15 +77,21 @@ const base = (facts: PlayerStatsFacts, images: PlayerCardImages, pageLabel: stri
   brandLogo: images.brandLogo,
 });
 
-/** Dev adın satırları: tek sözcük tek satır; çok sözcükte son sözcük ayrı (soyad büyük). Baş harf ("S.") satır olmaz, düşer. */
-export function heroNameLines(name: string): string[] {
-  const words = name.split(/\s+/u).filter((word) => word && !/^\p{L}\.$/u.test(word));
-  return words.length <= 1 ? words : [words.slice(0, -1).join(" "), words[words.length - 1] ?? ""];
+/**
+ * A'nın adı TAM addan (`player-stats-studio.ts::spotlightFullName`; verilmezse kart adı): ilk ad küçük, soyad
+ * büyük (Oyuncu Karşılaştırması kuralı — "van", "de" soyada dahil). Baş harf ("S.") ilk ad satırı olmaz.
+ */
+export function nameParts(fullName: string): { firstName: string; lastName: string } {
+  const first = firstNameOf(fullName);
+  return { firstName: /^(\p{L}\.\s*)+$/u.test(first) ? "" : first, lastName: shortNameOf(fullName) };
 }
 
-export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
+export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; fullName?: { name: string; origin: NameOrigin | null } | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
   const { facts, line } = input;
-  const player = entry(line, facts.match, input.images, input.names);
+  const names: PlayerNames = new Map(input.names);
+  if (input.fullName) names.set(line.playerId, input.fullName);
+  const player = entry(line, facts.match, input.images, names);
+  const { firstName, lastName } = nameParts(player.name);
   const { hero, rows } = spotlightRows(line);
   const meta = [player.teamName, player.positionLabel, line.minutes !== null ? `${line.minutes} DK` : null].filter(Boolean).join(" · ");
   return {
@@ -95,7 +103,8 @@ export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: Playe
     rows,
     fact: spotlightFact(line, facts.lines),
     typographic: input.typographic,
-    heroName: heroNameLines(player.name),
+    firstName,
+    lastName,
   };
 }
 

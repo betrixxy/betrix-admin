@@ -2,6 +2,7 @@ import { DraftPublishPanel } from "@/components/features/dashboard/publishing/dr
 import { CONTENT_MAX_HASHTAGS } from "@/lib/dashboard/publish-caption";
 import { DraftPreview } from "@/components/features/dashboard/draft-preview";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
+import { PlayerPageAppend } from "@/components/features/dashboard/player-page-append";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { StudioPostOption } from "@/types/ai-content";
 import type { MatchResultDraftView as MatchResultDraft } from "@/types/draft";
@@ -40,8 +41,17 @@ export function MatchResultDraftView({ draft, postOptions }: { draft: MatchResul
               <DraftPreview url={slide.url} width={frame.width} height={frame.height} alt={`${draft.title} · ${slide.label}`} downloadName={`checkmatch-${draft.id}-${index + 1}`} />
             </div>
           ))}
+          {draft.playerPage?.provisional ? (
+            <p className="text-xs text-amber-300 sm:col-span-2">Oyuncu sayfası veri kesinleşmeden üretildi — puan ve istatistikler değişebilir; yayından önce kontrol edin.</p>
+          ) : null}
         </CardContent>
       </Card>
+
+      {draft.playerPage && !draft.playerPage.has && draft.status === "DRAFT" ? (
+        <div className="xl:col-span-2">
+          <PlayerPageAppend draftId={draft.id} pending={draft.playerPage.pending} mvpId={draft.playerPage.mvpId} />
+        </div>
+      ) : null}
 
       <DraftPublishPanel draft={draft} format={draft.format} postOptions={postOptions} downloadName={`checkmatch-${draft.slug}-${draft.id}`} vitrin={draft.vitrin} languageGate={draft.languageGate} maxHashtags={draft.slug === "kura" ? CONTENT_MAX_HASHTAGS.DRAWS_AND_PAIRINGS : null} />
     </div>

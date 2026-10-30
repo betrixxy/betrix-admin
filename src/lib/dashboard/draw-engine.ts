@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { buildDrawCard } from "@/lib/dashboard/draw-card";
 import { drawFromApi, drawHeadToHead } from "@/lib/dashboard/draw-data";
 import { renderDrawImages } from "@/lib/dashboard/draw-render";
@@ -75,7 +76,9 @@ export interface DrawRendered {
 
 export async function renderDraw(request: DrawRequest, photo: UploadedImage | null): Promise<Result<DrawRendered>> {
   const states = request.variant === "TURKISH" ? request.states : request.states.slice(0, 1);
-  const [logos, headToHead, brandLogo] = await Promise.all([drawLogos(states), headToHeadFor(request), loadBrandLogo()]);
+  const focus = states.flatMap((state) => state.teams).find((team) => team.id === request.focusTeamId);
+  // Takım rengi ortak kaynaktan (tablo dışı odak takım: logodan otomatik).
+  const [logos, headToHead, brandLogo] = await Promise.all([drawLogos(states), headToHeadFor(request), loadBrandLogo(), focus ? warmTeamColors([{ id: focus.id, name: focus.apiName, logoUrl: focus.logoUrl }]) : null]);
   const card = buildDrawCard({ variant: request.variant, states, focusTeamId: request.focusTeamId, logos, headToHead, brandLogo });
   if (!card.ok) return card;
   const pages = await renderDrawImages({ card: card.data, frame: MATCH_DAY_FRAMES[request.format], photo, seedKey: drawRecordKey(states[0]!.competition.id, states[0]!.season, request.roundIds[0] ?? "") });

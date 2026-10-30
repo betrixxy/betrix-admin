@@ -2,6 +2,7 @@ import { toMatchStatsFacts } from "@/lib/services/api-football/post-match-stats-
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
 import { getSportmonksMatchValues } from "@/lib/services/sportmonks";
 import { withSetPeople } from "@/lib/dashboard/set-people";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import type { MatchStatsFacts } from "@/types/match-stats";
 
@@ -21,6 +22,8 @@ export async function loadMatchStatsFacts(raw: ApiFootballFixtureResultRaw): Pro
     console.error("[match-stats] Sportmonks eşlemesi düştü:", error);
     return null;
   });
+  // Takım rengi ortak kaynaktan (tablo dışı takım: logodan otomatik) — 02 renkleri kartta okunur.
+  await warmTeamColors([{ id: raw.teams.home.id, name: raw.teams.home.name, logoUrl: raw.teams.home.logo }, { id: raw.teams.away.id, name: raw.teams.away.name, logoUrl: raw.teams.away.logo }]);
   const facts = toMatchStatsFacts(raw, sportmonks);
   // Ad büyük harfi için takım kökeni (Türk takımı mı) — bkz. team-origin.ts.
   return facts ? withSetPeople(await withTeamOrigins(facts)) : null;

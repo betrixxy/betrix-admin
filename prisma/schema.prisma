@@ -791,3 +791,24 @@ model VenueName {
   displayName String
   updatedAt   DateTime @updatedAt
 }
+
+enum TeamColorStatus {
+  /// Logodan otomatik çıkarıldı — kartlarda kullanılır, admin raporunda onay bekler.
+  AUTO
+  /// Admin onayladı (gerekirse düzeltti) — kulüp renk tablosu gibi kullanılır.
+  APPROVED
+}
+
+/// Kulüp renk tablosunda (`lib/dashboard/club-colors.ts`) olmayan takımın rengi (bkz. `lib/dashboard/team-colors.ts`).
+/// Anahtar API-Football takım kimliği. Öncelik: kod tablosu > APPROVED > AUTO > nötr beyaz.
+model TeamColor {
+  teamId    Int             @id
+  teamName  String
+  primary   String
+  secondary String
+  status    TeamColorStatus @default(AUTO)
+  /// Rengin çıkarıldığı logo adresi (rapor önizlemesi).
+  logoUrl   String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}

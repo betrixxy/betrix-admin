@@ -6,6 +6,7 @@ import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { cardTeamName } from "@/lib/archive/names";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { buildH2HCaption } from "@/lib/dashboard/player-h2h-caption";
 import { buildH2HCard, h2hColors, type H2HCardResult } from "@/lib/dashboard/player-h2h-card";
 import { loadPlayerSeasonStats } from "@/lib/dashboard/player-h2h-data";
@@ -99,6 +100,8 @@ export async function renderH2H(request: H2HRequest): Promise<Result<H2HRendered
   const [leftPhoto, rightPhoto] = await Promise.all([sidePhoto(request.left), sidePhoto(request.right)]);
   if (!leftPhoto.ok) return leftPhoto;
   if (!rightPhoto.ok) return rightPhoto;
+  // Takım rengi ortak kaynaktan (tablo dışı takım: logodan otomatik).
+  await warmTeamColors([{ id: left.teamId, name: left.teamName, logoUrl: left.teamLogo }, { id: right.teamId, name: right.teamName, logoUrl: right.teamLogo }]);
   const [leftHex, rightHex] = h2hColors(left.teamId, right.teamId);
   const [leftLogo, rightLogo, brandLogo, leftFace, rightFace] = await Promise.all([
     resolveImage(left.teamLogo ?? undefined, 300),
