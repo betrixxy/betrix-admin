@@ -1,12 +1,13 @@
 /**
  * Kulüp renk tablosu — elle tutulur, kartlardaki takım renginin BİRİNCİL kaynağı (bkz. CLAUDE.md
- * 1.10 Maç Sonucu / Maç İstatistikleri). Öncelik: bu tablo > API-Football diziliş forma rengi >
- * nötr. Diziliş rengi o maçın formasıdır (deplasmanda sarı giyen Hoffenheim "sarı" görünürdü);
+ * 1.10 Maç Sonucu / Maç İstatistikleri). Öncelik: bu tablo > onaylı renk > logodan otomatik renk > diziliş forma
+ * rengi > nötr beyaz. Diziliş rengi o maçın formasıdır (deplasmanda sarı giyen Hoffenheim "sarı" görünürdü);
  * kulübün kimlik rengi bu tablodadır.
  *
  * Anahtar API-Football takım kimliğidir — kimlikler `/teams?league=<id>&season=2026` yanıtından
  * alınmıştır (Süper Lig 203, UCL 2, UEL 3, UECL 848; 2026-10-17). Tabloda olmayan takım için
- * diziliş rengi kullanılır. `secondary`: birincil renk rakiple çakışırsa ya da koyu zeminde
+ * logodan otomatik renk (`team-colors.ts`, onay Ad Raporu'nda), o da yoksa nötr beyaz — asla altın/marka rengi.
+ * `secondary`: birincil renk rakiple çakışırsa ya da koyu zeminde
  * griye açılan renksiz bir renkse (siyah) kullanılır (bkz. `match-stats-theme.ts`).
  */
 
@@ -66,6 +67,7 @@ export const CLUB_COLORS: Readonly<Record<number, ClubColors>> = {
   160: club("SC Freiburg", "#E2001A", "#000000"),
   // İtalya
   489: club("AC Milan", "#FB090B", "#000000"),
+  500: club("Bologna", "#A6192E", "#1B2A4A"),
   492: club("Napoli", "#12A0D7", "#FFFFFF"),
   496: club("Juventus", "#FFFFFF", "#000000"),
   497: club("AS Roma", "#8E1F2F", "#F0BC42"),
@@ -127,6 +129,24 @@ export const CLUB_COLORS: Readonly<Record<number, ClubColors>> = {
   604: club("Maccabi Tel Aviv", "#FFE600", "#003399"),
 };
 
+/** Rengin kaynağı: kod tablosu · admin onaylı (`TeamColor` APPROVED) · logodan otomatik (AUTO). */
+export type ClubColorSource = "TABLE" | "APPROVED" | "AUTO";
+
+/**
+ * Tablo dışı takımların renkleri — sunucu `team-colors.ts::warmTeamColors` ile veritabanından/logodan doldurur
+ * (kart çizilmeden önce). Saf testlerde boştur: yalnızca kod tablosu, yoksa nötr.
+ */
+const runtime = new Map<number, ClubColors & { source: Exclude<ClubColorSource, "TABLE"> }>();
+
+export function registerClubColors(teamId: number, colors: ClubColors, source: Exclude<ClubColorSource, "TABLE">): void {
+  runtime.set(teamId, { ...colors, source });
+}
+
+/** BÜTÜN kartların takım rengi kaynağı: kod tablosu > onaylı > otomatik; hiçbiri yoksa null (kart nötr beyaz çizer). */
 export function clubColors(teamId: number): ClubColors | null {
-  return CLUB_COLORS[teamId] ?? null;
+  return CLUB_COLORS[teamId] ?? runtime.get(teamId) ?? null;
+}
+
+export function clubColorSource(teamId: number): ClubColorSource | null {
+  return CLUB_COLORS[teamId] ? "TABLE" : (runtime.get(teamId)?.source ?? null);
 }

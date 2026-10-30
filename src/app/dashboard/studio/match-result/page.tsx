@@ -6,6 +6,8 @@ import { MatchResultForm } from "@/components/features/dashboard/match-result-fo
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
+import { playerDataSettlement } from "@/lib/player-stats/settle";
+import { toPlayerMatchLines } from "@/lib/services/api-football/player-match-mappers";
 import { getMatchResultRaw, parseFixtureId, toFixtureId } from "@/lib/services/api-football";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
 
@@ -88,6 +90,8 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
   const apiId = typeof params.fixtureId === "string" ? parseFixtureId(params.fixtureId) : null;
   const raw = apiId ? await getMatchResultRaw(apiId) : null;
   const validation = raw?.ok ? validateMatchResultFixture(raw.data, new Date()) : null;
+  // Oyuncu sayfası (03) için kesinleşme durumu — geri sayım; ağ çağrısı yok (aynı yanıt).
+  const playerSettlement = validation?.ok && raw?.ok && raw.data ? playerDataSettlement({ kickoffUtc: raw.data.fixture.date, statusShort: raw.data.fixture.status.short, lines: toPlayerMatchLines(raw.data), now: new Date() }) : null;
 
   return (
     <>
@@ -109,6 +113,7 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
           <MatchResultForm
             fixtureId={toFixtureId(apiId)}
             facts={validation.data}
+            playerSettlement={playerSettlement}
           />
         </>
       ) : null}

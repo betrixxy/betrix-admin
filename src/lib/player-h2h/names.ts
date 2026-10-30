@@ -1,35 +1,41 @@
-import { originFromCountry, upperName } from "@/lib/dashboard/name-case";
+import { nameOrigin, originFromCountry, upperName, type NameOrigin } from "@/lib/dashboard/name-case";
+import { nameFor } from "@/lib/names/card-name-forms";
+import { hasInitial, shortNameOf } from "@/lib/names/person-name";
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
+import type { CardPersonName } from "@/types/person-name";
 
 /**
- * Oyuncu ve lig adları — saf. Tam ad önceliği: arşivin resmi adı (admin düzeltmesi dahil) > API'nin
- * adı (baş harfli "D. Vlahović" ilk adla açılır). Kısa ad (olgu satırı, büyük ad) soyadıdır; "van",
- * "de" gibi ekler soyada dahil.
+ * Lig adları, sağlayıcı kaydı eşleme adı ve posterin ad alanları — saf. Kişi KART adı kuralı burada değil:
+ * `lib/names/person-name.ts` (resmi tam ad kartta yazılmaz); bu dosya yalnızca onu poster biçimine bağlar.
  */
 
-const PARTICLES = new Set(["van", "von", "de", "da", "di", "del", "della", "dos", "das", "do", "du", "el", "al", "le", "la", "ter", "ten", "mac", "mc"]);
+/**
+ * Poster ad alanları (`player-h2h-data.ts` ve görsel test aynı yoldan): elle verilen ad (offline araç) düzeltme
+ * gibi kazanır; yoksa kart adı uzun biçimde (`PLAYER_H2H_POSTER`); o da yoksa API adı.
+ */
+export function h2hPosterName(card: CardPersonName | null, given: string | null | undefined, api: { name: string; nationality: string | null }): { fullName: string; shortName: string; nameReliable: boolean; nameFamilyFirst: boolean; nameOrigin: NameOrigin | null } {
+  const manual = given?.trim();
+  const fullName = manual || (card ? nameFor("PLAYER_H2H_POSTER", card) : null) || api.name;
+  // Soyadı önde gelen adda ("Oh Hyeon-Gyu") büyük ad tamamı; elle verilen adda bilinmez.
+  const nameFamilyFirst = !manual && (card?.familyFirst ?? false);
+  return {
+    fullName,
+    shortName: nameFamilyFirst ? fullName : shortNameOf(fullName),
+    nameReliable: manual ? !hasInitial(manual) : (card?.reliable ?? false),
+    nameFamilyFirst,
+    nameOrigin: card?.origin ?? nameOrigin(fullName) ?? originFromCountry(api.nationality),
+  };
+}
 
-/** "D. Vlahović" + ilk ad "Dušan" → "Dušan Vlahović"; baş harf yoksa API adı olduğu gibi. */
+/**
+ * YALNIZCA veri eşlemesi (Sportmonks sezon kaydı araması): "D. Vlahović" + API ilk adı "Dušan" → "Dušan
+ * Vlahović"; baş harf yoksa API adı olduğu gibi. Kartta kullanılmaz.
+ */
 export function fullNameFromApi(name: string, firstname: string | null | undefined): string {
   const initial = /^(\p{L})\.\s+(.+)$/u.exec(name.trim());
   const first = firstname?.trim().split(/\s+/)[0];
   if (initial && first && first.startsWith(initial[1] ?? "")) return `${first} ${initial[2]}`;
   return name.trim();
-}
-
-/** Soyadı (+ önündeki ekler): "Virgil van Dijk" → "van Dijk", "Mohamed Salah" → "Salah". */
-export function shortNameOf(fullName: string): string {
-  const words = fullName.trim().split(/\s+/);
-  if (words.length <= 1) return fullName.trim();
-  let start = words.length - 1;
-  while (start > 1 && PARTICLES.has((words[start - 1] ?? "").toLocaleLowerCase("tr-TR"))) start -= 1;
-  return words.slice(start).join(" ");
-}
-
-/** Büyük adın üstündeki küçük ilk ad (kısa ad dışında kalan). */
-export function firstNameOf(fullName: string): string {
-  const short = shortNameOf(fullName);
-  return fullName.trim().slice(0, fullName.trim().length - short.length).trim();
 }
 
 /** Lig: kartta kısa adı (desteklenen liglerde "Süper Lig") ve büyük harfi (Türk ligi Türkçe, diğeri uluslararası). */

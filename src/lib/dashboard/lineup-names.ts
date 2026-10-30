@@ -1,11 +1,12 @@
 import { teamOrigin } from "@/lib/dashboard/team-origin";
+import { nameFor } from "@/lib/names/card-name-forms";
 import { resolveCoachName, resolvePlayerNames, type TeamRefForNames } from "@/lib/names/person-directory";
 import type { Fixture } from "@/types/sports";
 import type { LineupReference, TeamLineupReference } from "@/types/lineup";
 
 /**
- * Muhtemel 11 referansının kişi adları — kart adı kuralından (arşiv düzeltmesi → Sportmonks → API, bkz.
- * `lib/names/person-name.ts`): kadro, referans 11 ve teknik direktör. Form bu adlarla açılır (admin yine
+ * Muhtemel 11 referansının kişi adları — kart adı kuralından (arşiv düzeltmesi → Sportmonks yaygın adı → API,
+ * bkz. `lib/names/person-name.ts`): oyuncular KISA biçim ("U. Çakır"), teknik direktör UZUN (`card-name-forms.ts`). Form bu adlarla açılır (admin yine
  * düzeltebilir); her oyuncu büyük harf kökenini (uyruk) taşır — "OSIMHEN", "U. ÇAKIR".
  */
 
@@ -19,9 +20,9 @@ async function namedTeam(ref: TeamLineupReference, apiName: string): Promise<Tea
   ]);
   return {
     ...ref,
-    squad: ref.squad.map((player, i) => ({ ...player, name: squad[i]?.name ?? player.name, origin: squad[i]?.origin ?? null })),
-    starters: ref.starters.map((starter, i) => ({ ...starter, name: starters[i]?.name ?? starter.name, origin: starters[i]?.origin ?? null })),
-    coach: coach?.name ?? ref.coach,
+    squad: ref.squad.map((player, i) => ({ ...player, name: squad[i] ? nameFor("LINEUP_PLAYERS", squad[i]) : player.name, origin: squad[i]?.origin ?? null })),
+    starters: ref.starters.map((starter, i) => ({ ...starter, name: starters[i] ? nameFor("LINEUP_PLAYERS", starters[i]) : starter.name, origin: starters[i]?.origin ?? null })),
+    coach: coach ? nameFor("LINEUP_COACH", coach) : ref.coach,
   };
 }
 

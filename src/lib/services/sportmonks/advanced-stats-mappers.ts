@@ -13,11 +13,20 @@ const statSchema = z.object({
   data: z.object({ value: z.union([z.number(), z.string()]).nullish() }).nullish(),
 });
 
+/** `include=lineups.details.type` — oyuncu bazında maç içi değerler (Oyuncu İstatistikleri: dakika + xG). */
+const lineupSchema = z.object({
+  team_id: z.number(),
+  player_name: z.string().nullish(),
+  jersey_number: z.number().nullish(),
+  details: z.array(statSchema.omit({ participant_id: true })).optional().default([]).catch([]),
+});
+
 export const sportmonksFixtureSchema = z.object({
   id: z.number(),
   starting_at: z.string(),
   participants: z.array(z.object({ id: z.number(), name: z.string() })).optional().default([]).catch([]),
   statistics: z.array(statSchema).optional().default([]).catch([]),
+  lineups: z.array(lineupSchema).optional().default([]).catch([]),
 });
 export type SportmonksFixture = z.infer<typeof sportmonksFixtureSchema>;
 

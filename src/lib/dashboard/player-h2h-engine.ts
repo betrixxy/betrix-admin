@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
-import { displayPersonName } from "@/lib/archive/names";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { cardTeamName } from "@/lib/archive/names";
+import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { buildH2HCaption } from "@/lib/dashboard/player-h2h-caption";
 import { buildH2HCard, h2hColors, type H2HCardResult } from "@/lib/dashboard/player-h2h-card";
 import { loadPlayerSeasonStats } from "@/lib/dashboard/player-h2h-data";
@@ -17,7 +17,6 @@ import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import type { CropAdjust } from "@/lib/dashboard/vitrin-photo";
 import { defaultMode } from "@/lib/player-h2h/stats";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
-import { prisma } from "@/lib/prisma";
 import type { ContentTypeId } from "@/types/content-type";
 import type { MatchDayFormatId } from "@/types/match-day";
 import type { H2HMode, H2HScope, PlayerSeasonStats } from "@/types/player-h2h";
@@ -62,16 +61,10 @@ export interface H2HRequest {
 type Fail = { ok: false; error: { code: string; message: string } };
 const fail = (code: string, message: string): Fail => ({ ok: false, error: { code, message } });
 
-/** Arşivin resmi adı (admin düzeltmesi dahil) — kart ve olgu satırı bu adı kullanır. */
-async function archiveName(playerId: number): Promise<string | null> {
-  const person = await prisma.person.findFirst({ where: { apiId: playerId, role: "PLAYER" }, select: { officialName: true, nameOverride: true } });
-  return person ? displayPersonName(person) : null;
-}
-
+/** Kart adları ortak kuraldan (`loadPlayerSeasonStats` → `resolvePlayerNames`): arşivin resmi tam adı karta girmez. */
 export async function loadH2HPlayers(left: Pick<H2HSideRequest, "playerId" | "teamId">, right: Pick<H2HSideRequest, "playerId" | "teamId">, scope: H2HScope): Promise<Result<[PlayerSeasonStats, PlayerSeasonStats]>> {
   if (left.playerId === right.playerId) return fail("SAME_PLAYER", "Aynı oyuncu iki kez seçildi.");
-  const [leftName, rightName] = await Promise.all([archiveName(left.playerId), archiveName(right.playerId)]);
-  const [a, b] = await Promise.all([loadPlayerSeasonStats({ ...left, scope, fullName: leftName }), loadPlayerSeasonStats({ ...right, scope, fullName: rightName })]);
+  const [a, b] = await Promise.all([loadPlayerSeasonStats({ ...left, scope }), loadPlayerSeasonStats({ ...right, scope })]);
   if (!a.ok) return a;
   if (!b.ok) return b;
   return { ok: true, data: [a.data, b.data] };
@@ -99,6 +92,8 @@ export async function renderH2H(request: H2HRequest): Promise<Result<H2HRendered
   const [leftPhoto, rightPhoto] = await Promise.all([sidePhoto(request.left), sidePhoto(request.right)]);
   if (!leftPhoto.ok) return leftPhoto;
   if (!rightPhoto.ok) return rightPhoto;
+  // Takım rengi ortak kaynaktan (tablo dışı takım: logodan otomatik).
+  await warmTeamColors([{ id: left.teamId, name: left.teamName, logoUrl: left.teamLogo }, { id: right.teamId, name: right.teamName, logoUrl: right.teamLogo }]);
   const [leftHex, rightHex] = h2hColors(left.teamId, right.teamId);
   const [leftLogo, rightLogo, brandLogo, leftFace, rightFace] = await Promise.all([
     resolveImage(left.teamLogo ?? undefined, 300),

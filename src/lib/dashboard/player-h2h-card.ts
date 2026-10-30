@@ -6,7 +6,7 @@ import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { upperName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { comparisonPosition, comparisonWarnings, freshnessLabel, scopeLabel } from "@/lib/player-h2h/checks";
 import { factLine } from "@/lib/player-h2h/facts";
-import { firstNameOf } from "@/lib/player-h2h/names";
+import { posterName } from "@/lib/names/person-name";
 import { buildHero, buildRows, groupRows } from "@/lib/player-h2h/rows";
 import { formatStat, MAX_ROWS, POSITION_LABELS, STAT_META } from "@/lib/player-h2h/stats";
 import { numberPossessive } from "@/lib/player-h2h/turkish";
@@ -73,7 +73,8 @@ function fittedRows(input: H2HCardInput, position: H2HPosition): { rows: H2HRow[
 function playerCard(player: PlayerSeasonStats, hex: string, logo: string | null, face: string | null): H2HPlayerCard {
   return {
     name: upperName(player.shortName, player.nameOrigin),
-    firstName: upperName(firstNameOf(player.fullName), player.nameOrigin),
+    // İlk ad yalnızca güvenilir yaygın adda (yoksa poster yalnızca soyad).
+    firstName: upperName(posterName(player.fullName, player.nameReliable, player.nameFamilyFirst).firstName, player.nameOrigin),
     subtitle: `${upperName(player.teamName, player.teamOrigin)} · ${upperTr(POSITION_LABELS[player.position])}`,
     // Ortalama puan tabloda değil, künyede (2026-10-27 kararı).
     sampleLine: [`${player.appearances} MAÇ`, `${player.minutes} DK`, player.values.rating === undefined ? null : `PUAN ${formatStat("rating", player.values.rating, "TOTAL")}`].filter(Boolean).join(" · "),

@@ -1,5 +1,5 @@
 import type { NameOrigin } from "@/lib/dashboard/name-case";
-import { cardPersonName } from "@/lib/names/person-name";
+import { cardCoachName, cardPlayerNames, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
 import { prisma } from "@/lib/prisma";
 import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches } from "@/lib/services/sportmonks/people";
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
@@ -10,6 +10,8 @@ import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
  * hiçbir zaman ad yüzünden çizilmeden kalmaz (en kötü durumda API adı).
  */
 
+export type { PersonEntry };
+
 export interface TeamRefForNames {
   /** API-Football takım adı (ham, Sportmonks araması bununla). */
   apiName: string;
@@ -17,12 +19,6 @@ export interface TeamRefForNames {
   country: string | null;
   /** Uyruk bulunamazsa kişilerin varsayılan kökeni. */
   peopleHint: NameOrigin | null;
-}
-
-export interface PersonEntry {
-  apiId: number | null;
-  apiName: string;
-  jersey?: number | null;
 }
 
 async function overrides(apiIds: readonly number[], role: "PLAYER" | "COACH"): Promise<Map<number, string>> {
@@ -41,13 +37,15 @@ async function squadFor(team: TeamRefForNames): Promise<{ teamId: number | null;
   return { teamId, people: teamId === null ? [] : ((await getSportmonksSquad(teamId)) ?? []) };
 }
 
+/** Takımın ad kaynakları: Sportmonks kadrosu + verilen oyuncuların arşiv düzeltmeleri (saf kurala girdi). */
+export async function teamPeople(team: TeamRefForNames, apiIds: readonly number[]): Promise<TeamPeople> {
+  const [fixes, squad] = await Promise.all([overrides(apiIds, "PLAYER"), squadFor(team)]);
+  return { people: squad.people, overrides: fixes, teamHint: team.peopleHint };
+}
+
 /** Takımın oyuncu adları (girişle aynı sırada). */
 export async function resolvePlayerNames(team: TeamRefForNames, entries: readonly PersonEntry[]): Promise<CardPersonName[]> {
-  const ids = entries.flatMap((entry) => (entry.apiId === null ? [] : [entry.apiId]));
-  const [fixes, squad] = await Promise.all([overrides(ids, "PLAYER"), squadFor(team)]);
-  return entries.map((entry) =>
-    cardPersonName({ apiName: entry.apiName, override: entry.apiId === null ? null : fixes.get(entry.apiId), people: squad.people, jersey: entry.jersey ?? null, teamHint: team.peopleHint }),
-  );
+  return cardPlayerNames(entries, await teamPeople(team, entries.flatMap((entry) => (entry.apiId === null ? [] : [entry.apiId]))));
 }
 
 /** Teknik direktör adı ("Ilhan Palut" → "İlhan Palut"); aynı kural. */
@@ -56,5 +54,5 @@ export async function resolveCoachName(team: TeamRefForNames, coach: PersonEntry
   const [fixes, teamId] = await Promise.all([overrides(coach.apiId === null ? [] : [coach.apiId], "COACH"), findSportmonksTeamId(team.apiName, team.country)]);
   const people = surname.length >= 3 ? await searchSportmonksCoaches(surname, teamId) : [];
   // Birden çok aday tutarsa takımı çalıştırmış olan (ilk sırada) seçilir.
-  return cardPersonName({ apiName: coach.apiName, override: coach.apiId === null ? null : fixes.get(coach.apiId), people: people.slice(0, 1), teamHint: team.peopleHint });
+  return cardCoachName(coach, { people, overrides: fixes, teamHint: team.peopleHint });
 }

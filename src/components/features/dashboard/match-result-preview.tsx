@@ -31,13 +31,18 @@ export function MatchResultPreview({ result, isPending, format, templateLabel }:
         </div>
         {result && !isPending ? (
           <>
-            {result.statsImageUrl ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-muted-foreground">Carousel 2/2 · 02 İstatistikler</span>
+            {[
+              ...(result.statsImageUrl ? [{ url: result.statsImageUrl, label: "02 · İstatistikler" }] : []),
+              ...(result.playerImageUrl ? [{ url: result.playerImageUrl, label: result.playerPageLabel ?? "Oyuncu sayfası" }] : []),
+            ].map((slide, index, extra) => (
+              <div key={slide.url} className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">
+                  Carousel {index + 2}/{extra.length + 1} · {slide.label}
+                </span>
                 {/* eslint-disable-next-line @next/next/no-img-element -- oturumlu /api/files görseli */}
-                <img src={result.statsImageUrl} alt="Üretilen İstatistik sayfası" className="w-full rounded-lg border border-border" />
+                <img src={slide.url} alt={`Üretilen ${slide.label} sayfası`} className="w-full rounded-lg border border-border" />
               </div>
-            ) : null}
+            ))}
             <p className="text-xs text-muted-foreground">{result.paidCalls} ücretli Fal.ai çağrısı · zoom {result.zoom}</p>
             {result.notes.map((note) => (
               <p key={note} className="flex items-center gap-1.5 text-xs text-amber-300">

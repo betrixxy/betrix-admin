@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Ajan/araç dosyaları (Prisma skill dokümanları, ajan çalışma kopyaları ve onların .next çıktıları) uygulama kodu değil.
+    ".claude/**",
   ]),
 ]);
 

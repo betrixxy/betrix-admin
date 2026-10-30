@@ -1,7 +1,9 @@
 import { domesticLeague } from "@/lib/archive/structure";
-import { nameOrigin, originFromCountry } from "@/lib/dashboard/name-case";
+import { originFromCountry } from "@/lib/dashboard/name-case";
 import { cardTeamName } from "@/lib/archive/names";
-import { fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
+import { resolvePlayerNames } from "@/lib/names/person-directory";
+import { shortNameOf } from "@/lib/names/person-name";
+import { fullNameFromApi, h2hPosterName, leagueDisplay, seasonLabel } from "@/lib/player-h2h/names";
 import { positionFromApi } from "@/lib/player-h2h/stats";
 import { getFixturePlayers, getTeamFinishedFixtures } from "@/lib/services/api-football/player-recency";
 import { fixtureCoverage, missingAppearances, playerAppearances } from "@/lib/services/api-football/player-recency-mappers";
@@ -33,7 +35,7 @@ export interface PlayerSeasonRequest {
   /** Oyuncunun güncel takımı (arşiv `Person.currentTeamId` ya da maçtaki takım). */
   teamId: number;
   scope: H2HScope;
-  /** Arşivin resmi adı (admin düzeltmesi dahil); verilmezse API adı. */
+  /** Elle verilen kart adı (offline araç `--left-name`); verilmezse kart adı kuralı (`resolvePlayerNames`). */
   fullName?: string | null;
   /** Bu andan önce bitmiş maçlar (varsayılan şimdi). */
   now?: Date;
@@ -95,13 +97,18 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
   const { player, statistics } = raw.data;
   const inScope = (entry: (typeof statistics)[number]) => entry.team.id === request.teamId && entry.league.season === season && (request.scope === "ALL" || entry.league.id === domestic.id);
   const entries = statistics.filter((entry) => inScope(entry) && (entry.games.minutes ?? 0) > 0);
-  const fullName = request.fullName?.trim() || fullNameFromApi(player.name, player.firstname);
-  const shortName = shortNameOf(fullName);
   const teamEntry = statistics.find(inScope);
   const team = { id: request.teamId, name: teamEntry?.team.name ?? info.data?.name ?? "", logo: teamEntry?.team.logo ?? info.data?.logo ?? null };
+  // Kart adı ortak kuraldan (resmi tam ad kartta yazılmaz); elle verilen ad düzeltme gibi kazanır.
+  const given = request.fullName?.trim();
+  const teamCountry = info.data?.country ?? null;
+  const [card] = given ? [null] : await resolvePlayerNames({ apiName: team.name, country: teamCountry, peopleHint: originFromCountry(teamCountry) }, [{ apiId: player.id, apiName: player.name }]);
+  const { fullName, shortName, nameReliable, nameFamilyFirst, nameOrigin } = h2hPosterName(card ?? null, given, { name: player.name, nationality: player.nationality ?? null });
 
+  // Sportmonks sezon kaydı araması yalnızca VERİ eşlemesi — API ilk adıyla açılmış ad burada kalır, karta girmez.
+  const lookupName = fullNameFromApi(player.name, player.firstname);
   const smScope = { season, calendarYear: domestic.calendarYear, teamName: team.name, leagueName: request.scope === "LEAGUE" ? domestic.name : null };
-  const records = isSportmonksConfigured() ? await getSportmonksPlayerRecords(fullName, shortName, smScope) : null;
+  const records = isSportmonksConfigured() ? await getSportmonksPlayerRecords(lookupName, shortNameOf(lookupName), smScope) : null;
   const sm = records ? sportmonksSeasonValues(records.records) : null;
 
   let current = await apiFootballCurrent(entries, request, season, request.scope === "LEAGUE" ? domestic.id : null, domestic.id, team, beforeMs);
@@ -146,7 +153,9 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       playerId: player.id,
       fullName,
       shortName,
-      nameOrigin: nameOrigin(fullName) ?? originFromCountry(player.nationality),
+      nameReliable,
+      nameFamilyFirst,
+      nameOrigin,
       teamId: team.id,
       teamName: cardTeamName(team.name),
       teamOrigin: originFromCountry(info.data?.country),

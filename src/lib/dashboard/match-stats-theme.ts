@@ -13,7 +13,8 @@ export { colorDistance, isSimilarColor } from "@/lib/dashboard/color-math";
  */
 
 export const NEUTRAL_SILVER = "#C9CED6";
-const NEUTRAL_GOLD = "#F5C518";
+/** İkinci nötr (ev sahibi de nötrse) — altın değil (kurucu kararı 2026-10-30). */
+const NEUTRAL_SLATE = "#9AA3B5";
 
 /** Geride kalan tarafın açıklığı, önde olanınkinin bu oranına çekilir (HSL L × 0,55). */
 const TRAIL_LIGHTNESS = 0.55;
@@ -38,7 +39,7 @@ const neutral = (hex: string) => liftLightness(hex) ?? hex.toLowerCase();
 
 export function statsPalette(facts: Pick<MatchStatsFacts, "home" | "away">): { homeHex: string; awayHex: string } {
   const homeHex = readableTeamColors(facts.home)[0] ?? neutral(NEUTRAL_SILVER);
-  const candidates = [...readableTeamColors(facts.away), neutral(NEUTRAL_SILVER), neutral(NEUTRAL_GOLD)];
-  const awayHex = candidates.find((hex) => !isSimilarColor(hex, homeHex)) ?? neutral(NEUTRAL_GOLD);
+  const candidates = [...readableTeamColors(facts.away), neutral(NEUTRAL_SILVER), neutral(NEUTRAL_SLATE)];
+  const awayHex = candidates.find((hex) => !isSimilarColor(hex, homeHex)) ?? neutral(NEUTRAL_SLATE);
   return { homeHex, awayHex };
 }

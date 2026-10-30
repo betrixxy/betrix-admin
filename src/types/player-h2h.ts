@@ -41,9 +41,16 @@ export type H2HSource = "api-football" | "sportmonks";
 /** Bir oyuncunun seçilen kapsamdaki sezon verisi — değerler TOPLAM (yüzde ve puan hariç). */
 export interface PlayerSeasonStats {
   playerId: number;
-  /** Kartta yazan tam ad ("Dušan Vlahović") ve kısa ad (olgu satırı: "Vlahović"). */
+  /**
+   * Kart adı (`lib/names/person-name.ts::cardPersonName` — admin düzeltmesi → Sportmonks yaygın adı → API
+   * kısa adından soyad; resmi tam ad değil): "Dušan Vlahović" ya da "Mbangula". Kısa ad soyad (olgu satırı).
+   */
   fullName: string;
   shortName: string;
+  /** Güvenilir yaygın ad mı — posterde küçük ilk ad yalnızca o zaman (`posterName`). */
+  nameReliable: boolean;
+  /** Soyadı önde gelen ad ("Oh Hyeon-Gyu") — poster bölmez (`CardPersonName.familyFirst`). */
+  nameFamilyFirst: boolean;
   /** Uluslararası mı Türkçe mi büyük harf (bkz. `name-case.ts`). */
   nameOrigin: "tr" | "intl" | null;
   teamId: number;

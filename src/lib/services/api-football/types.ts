@@ -65,14 +65,20 @@ export const apiFootballTeamStatisticsSchema = z.object({
 
 const nullableNumber = z.number().nullish();
 
+/** Maç içi sayı alanı: sayı ya da sayısal metin (`passes.accuracy` = isabetli pas SAYISI, "23"); eşleyici sayıya çevirir. */
+const countField = z.union([z.number(), z.string()]).nullish();
+
 /** `/fixtures?ids=` içindeki oyuncu satırı — yalnızca kullanılan alanlar; hepsi boş gelebilir. */
 export const apiFootballPlayerStatisticsSchema = z.object({
-  games: z.object({ minutes: nullableNumber, position: z.string().nullish(), rating: z.string().nullish() }).nullish(),
-  goals: z.object({ total: nullableNumber, assists: nullableNumber }).nullish(),
-  passes: z.object({ key: nullableNumber }).nullish(),
-  tackles: z.object({ total: nullableNumber, interceptions: nullableNumber }).nullish(),
+  games: z.object({ minutes: nullableNumber, position: z.string().nullish(), rating: z.string().nullish(), substitute: z.boolean().nullish() }).nullish(),
+  shots: z.object({ total: nullableNumber, on: nullableNumber }).nullish().catch(null),
+  goals: z.object({ total: nullableNumber, assists: nullableNumber, conceded: nullableNumber, saves: nullableNumber }).nullish(),
+  passes: z.object({ key: nullableNumber, total: nullableNumber, accuracy: countField }).nullish(),
+  tackles: z.object({ total: nullableNumber, interceptions: nullableNumber, blocks: nullableNumber }).nullish(),
   duels: z.object({ total: nullableNumber, won: nullableNumber }).nullish(),
   dribbles: z.object({ attempts: nullableNumber, success: nullableNumber }).nullish(),
+  fouls: z.object({ drawn: nullableNumber }).nullish().catch(null),
+  penalty: z.object({ saved: nullableNumber }).nullish().catch(null),
 });
 
 export const apiFootballTeamPlayersSchema = z.object({
@@ -137,6 +143,8 @@ export const apiFootballEventSchema = z.object({
   time: z.object({ elapsed: z.number().nullable(), extra: z.number().nullish() }),
   team: z.object({ id: z.number() }),
   player: z.object({ id: z.number().nullish(), name: z.string().nullish() }),
+  /** Oyuncu değişikliğinde (`type: "subst"`) GİREN oyuncu — `player` çıkandır; golde asist yapan. */
+  assist: z.object({ id: z.number().nullish(), name: z.string().nullish() }).nullish().catch(null),
   type: z.string(),
   detail: z.string().nullish(),
   comments: z.string().nullish(),

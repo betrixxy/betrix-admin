@@ -2,7 +2,7 @@ import sharp from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import type { ColumnSide } from "@/skills/render-engine/templates/checkmatch-set/landscape";
-import { matchResultGeometry, type FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
+import { matchResultGeometry, type FrameBox, type ResultGeometry } from "@/skills/render-engine/templates/match-result/geometry";
 import type { MatchResultTemplateId } from "@/types/match-result";
 import type { Result } from "@/types/result";
 import { planCrop, saliencyPoint, type CropBox, type CropOffset, type CropPlan } from "./crop";
@@ -28,6 +28,10 @@ export interface MatchPhotoInput {
   offset?: CropOffset | undefined;
   zoom?: number | undefined;
   upscale?: PhotoUpscaler | undefined;
+  /** Başka kartın geometrisi (Oyuncu İstatistikleri A); verilmezse Maç Sonucu şablonununki. */
+  geometry?: ((side: ColumnSide) => ResultGeometry) | undefined;
+  /** 16:9 denenecek sütun tarafları (carousel: 01 ile aynı taraf); verilmezse sağ, uymazsa sol. */
+  sides?: ColumnSide[] | undefined;
 }
 
 export interface PreparedMatchPhoto {
@@ -74,9 +78,9 @@ export async function prepareMatchPhoto(input: MatchPhotoInput): Promise<Result<
   const faces = await detectFaces(image.bytes, image.hash);
   const source = { width: image.width, height: image.height };
   const saliency = faces.length > 0 ? null : await saliencyPoint(image.bytes, source);
-  const sides: ColumnSide[] = input.frame.orientation === "landscape" ? ["right", "left"] : ["right"];
+  const sides: ColumnSide[] = input.frame.orientation === "landscape" ? (input.sides ?? ["right", "left"]) : ["right"];
   const plans = sides.map((side) => {
-    const g = matchResultGeometry(input.frame, side, input.template);
+    const g = input.geometry ? input.geometry(side) : matchResultGeometry(input.frame, side, input.template);
     return { side, g, safe: g.photoSafe, crop: planCrop({ source, frame: input.frame, safe: g.photoSafe, faces, saliency, offset: input.offset, zoom: input.zoom }) };
   });
   const chosen = chooseSide(plans, input.frame, saliency, faces.length > 0) ?? plans[0];

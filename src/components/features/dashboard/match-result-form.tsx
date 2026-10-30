@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AlertCircle, Sparkles } from "lucide-react";
 import { generateMatchResultAction, previewMatchPhotoAction } from "@/app/dashboard/studio/match-result/actions";
 import { Button } from "@/components/ui/button";
@@ -23,12 +24,16 @@ import { MatchDayFormatPicker } from "./match-day-format-picker";
 import { MatchResultCropControls } from "./match-result-crop-controls";
 import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
 import { JobProgressLine } from "./job-progress";
+import { SettleCountdown } from "./settle-countdown";
+import type { PlayerDataSettlement } from "@/types/player-match-stats";
 import { MatchResultPreview } from "./match-result-preview";
 
 interface MatchResultFormProps {
   fixtureId: string;
   /** Sunucuda doğrulanmış bitmiş maç (FT/AET/PEN). Üretimde sunucu maçı yeniden çeker. */
   facts: MatchResultFacts;
+  /** Oyuncu sayfası (03) verisi kesinleşti mi; null → bilinmiyor. */
+  playerSettlement?: PlayerDataSettlement | null;
   disabled?: boolean;
 }
 
@@ -57,7 +62,10 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
   );
 }
 
-export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchResultFormProps) {
+export function MatchResultForm({ fixtureId, facts, playerSettlement = null, disabled = false }: MatchResultFormProps) {
+  const router = useRouter();
+  const [playerPage, setPlayerPage] = useState("");
+  const [playerPageMode, setPlayerPageMode] = useState<"WHEN_READY" | "NOW">("WHEN_READY");
   const { state, isPending, onSubmit, progress } = useActionForm(generateMatchResultAction, INITIAL_STATE);
   const [previewState, previewAction, previewPending, previewProgress] = useJobActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
@@ -136,6 +144,34 @@ export function MatchResultForm({ fixtureId, facts, disabled = false }: MatchRes
                 </span>
               </span>
             </label>
+
+            <div className="flex flex-col gap-1.5 rounded-lg border border-border p-3">
+              <Label htmlFor="playerPage">Oyuncu sayfasını da ekle</Label>
+              <NativeSelect id="playerPage" name="playerPage" value={playerPage} onChange={(event) => setPlayerPage(event.target.value)}>
+                <option value="">Yok</option>
+                <option value="SPOTLIGHT">A · Maçın Oyuncusu (yukarıdaki oyuncu)</option>
+                <option value="TOP_3">B · Maçın En İyileri (3 oyuncu)</option>
+                <option value="TOP_5">B · Maçın En İyileri (5 oyuncu)</option>
+              </NativeSelect>
+              <span className="text-[11px] text-muted-foreground">
+                Aynı taslakta carousel&apos;in son sayfası — aynı format, vurgu rengi ve sütun tarafı. A&apos;nın fotoğrafı oyuncunun bu takımın formalı en yeni arşiv fotoğrafıdır (yoksa
+                tipografik tasarım).
+              </span>
+              {playerPage && playerSettlement && !playerSettlement.settled ? (
+                <>
+                  <SettleCountdown readyAt={playerSettlement.readyAt} reason={playerSettlement.reason} onReady={() => router.refresh()} />
+                  <input type="hidden" name="playerPageMode" value={playerPageMode} />
+                  <label className="flex items-start gap-2 text-xs">
+                    <input type="radio" checked={playerPageMode === "WHEN_READY"} onChange={() => setPlayerPageMode("WHEN_READY")} className="mt-0.5" />
+                    <span>Oyuncu sayfası hazır olunca ekle — set şimdi üretilir, oyuncu sayfası taslak ekranından sonradan eklenir.</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-xs text-amber-200">
+                    <input type="radio" checked={playerPageMode === "NOW"} onChange={() => setPlayerPageMode("NOW")} className="mt-0.5" />
+                    <span>Şimdi üret (veriler değişebilir) — puanlar ve istatistikler kesinleşmeden çizilir, taslağa &quot;geçici&quot; notu düşer.</span>
+                  </label>
+                </>
+              ) : null}
+            </div>
 
             {state.error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

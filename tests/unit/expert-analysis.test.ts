@@ -83,6 +83,7 @@ describe("Sportmonks", () => {
         {
           id: 1,
           starting_at: "2026-09-19 17:00:00",
+          lineups: [],
           participants: [{ id: 34, name: "Galatasaray" }, { id: 688, name: "Trabzonspor" }],
           statistics: [
             stat(34, "BIG_CHANCES_CREATED", 1),
