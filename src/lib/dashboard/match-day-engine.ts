@@ -78,8 +78,6 @@ const DB_FORMAT: Record<MatchDayFormatId, string> = {
   X_LANDSCAPE: "X_CARD",
 };
 
-}
-
 async function saveJpeg(bytes: Buffer): Promise<string> {
   const jpeg = await sharp(bytes).jpeg({ quality: 90 }).toBuffer();
   return saveStoredFile("generated", `${randomUUID()}.jpg`, jpeg);
