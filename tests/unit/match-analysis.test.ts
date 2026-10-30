@@ -7,6 +7,7 @@ import { hashtagCount, hasLink } from "@/lib/dashboard/vitrin-caption";
 import { assembleMatchAnalysisFacts } from "@/lib/match-analysis/assemble";
 import { analysisFacts } from "@/lib/match-analysis/facts";
 import { chooseHalves } from "@/lib/match-analysis/halves";
+import { BREAK_LABELS, breakCandidates, MAX_BREAK_MOMENTS, pickBreakMoments } from "@/lib/match-analysis/moments";
 import { withEventNames } from "@/lib/match-analysis/names";
 import { mergeSubstitutions, planTimeline } from "@/lib/match-analysis/timeline";
 import type { TeamPeople } from "@/lib/names/person-name";
@@ -15,7 +16,7 @@ import { toAnalysisEvents, varLabel } from "@/lib/services/api-football/analysis
 import { apiFootballHalfRows } from "@/lib/services/api-football/half-stats-mappers";
 import { sportmonksHalfRows } from "@/lib/services/sportmonks/period-stats-mappers";
 import type { HalvesOutcome, MatchAnalysisFacts } from "@/types/match-analysis";
-import { KURGU_AWAY, KURGU_HOME, RAW_DENSE_MATCH, RAW_EXTRA_TIME_MATCH, RAW_RED_CARD_MATCH, syntheticHalves } from "../fixtures/api-football/match-analysis";
+import { KURGU_AWAY, KURGU_HOME, RAW_DENSE_MATCH, RAW_EXTRA_TIME_MATCH, RAW_RED_CARD_MATCH, syntheticHalves, syntheticMatch, type EventSpec } from "../fixtures/api-football/match-analysis";
 import { HALF_KONYASPOR_GALATASARAY, RAW_KONYASPOR_GALATASARAY, SM_KONYASPOR_GALATASARAY_IDS, SM_PERIODS_KONYASPOR_GALATASARAY } from "../fixtures/api-football/match-analysis-real";
 
 /**
@@ -82,26 +83,82 @@ describe("olaylar — sıralama, uzatma dakikası, KK, penaltı", () => {
   });
 });
 
-describe("kırılma anı", () => {
-  it("Konyaspor 0-4 Galatasaray: yalnızca ilk gol (fark açan goller kırılma anı değil)", () => {
-    const moments = facts().events.filter((event) => event.breakMoment).map((event) => [event.minuteLabel, event.breakMoment?.label]);
-    assert.deepEqual(moments, [["12'", "İLK GOL"]]);
+describe("kırılma anı — öncelik: kazandıran gol > kırmızı + gol > eşitleyen gol > ilk gol; kartta en fazla 2", () => {
+  const chosen = (result: MatchAnalysisFacts) => result.events.filter((event) => event.breakMoment).map((event) => [event.minuteLabel, event.breakMoment?.kind, event.breakMoment?.label]);
+  const candidates = (result: MatchAnalysisFacts) =>
+    breakCandidates(result.events, { home: result.match.home.goals, away: result.match.away.goals }).flatMap((kind, index) => (kind ? [[result.events[index]?.minuteLabel, kind]] : []));
+  const match = (goals: [number, number], events: EventSpec[], id = 990100) => facts(syntheticMatch({ id, goals, events }), NO_HALVES);
+
+  it("Konyaspor 0-4 Galatasaray: 12' Osimhen hem ilk gol hem galibi belirleyen gol → yalnızca KAZANDIRAN GOL", () => {
+    assert.deepEqual(chosen(facts()), [["12'", "DECISIVE_GOAL", "KAZANDIRAN GOL"]]);
+    assert.equal(facts().events.find((event) => event.breakMoment)?.player?.name, "V. Osimhen");
   });
 
-  it("ilk gol, eşitlik, 10 kişi, kırmızı sonrası gol; 90+4' fark açan gol etiketsiz", () => {
-    const moments = facts(RAW_RED_CARD_MATCH, NO_HALVES).events.filter((event) => event.breakMoment).map((event) => [event.minuteLabel, event.breakMoment?.kind, event.breakMoment?.label]);
-    assert.deepEqual(moments, [
-      ["10'", "FIRST_GOAL", "İLK GOL"],
-      ["22'", "EQUALISER", "EŞİTLİK"],
-      ["30'", "SENT_OFF", "10 KİŞİ"],
-      ["38'", "AFTER_RED", "KIRMIZI SONRASI"],
+  it("kırmızı kart maçı 3-1: adaylar 10' ilk gol, 22' eşitleyen, 30' kırmızı + gol, 38' kazandıran; kartta öncelikli 2", () => {
+    const result = facts(RAW_RED_CARD_MATCH, NO_HALVES);
+    assert.deepEqual(candidates(result), [["10'", "FIRST_GOAL"], ["22'", "EQUALISER"], ["30'", "RED_THEN_GOAL"], ["38'", "DECISIVE_GOAL"]]);
+    assert.deepEqual(chosen(result), [["30'", "RED_THEN_GOAL", "KIRMIZI + GOL"], ["38'", "DECISIVE_GOAL", "KAZANDIRAN GOL"]]);
+    assert.equal(result.events.find((event) => event.breakMoment?.kind === "RED_THEN_GOAL")?.kind, "RED", "vurgulanan olay KARTIN kendisi");
+  });
+
+  it("beraberlik (uzatma + penaltı): kazandıran gol yok; iki eşitleyen gol seçilir, ilk gol ve öne geçiş düşer", () => {
+    const result = facts(RAW_EXTRA_TIME_MATCH, NO_HALVES);
+    assert.equal(result.axisEnd, 120);
+    assert.deepEqual(candidates(result), [["46'", "FIRST_GOAL"], ["90+5'", "EQUALISER"], ["118'", "EQUALISER"]]);
+    assert.deepEqual(chosen(result).map(([minute, kind]) => [minute, kind]), [["90+5'", "EQUALISER"], ["118'", "EQUALISER"]]);
+  });
+
+  it("geri dönüş 2-1: kazandıran (2-1) + eşitleyen (1-1); ilk gol (0-1) en fazla 2 kuralıyla düşer", () => {
+    const result = match([2, 1], [
+      [20, null, "A", "Goal", "Normal Goal", "R. Aksoy"],
+      [55, null, "H", "Goal", "Normal Goal", "O. Çelik"],
+      [80, null, "H", "Goal", "Normal Goal", "S. Kılıç"],
     ]);
+    assert.deepEqual(chosen(result).map(([minute, kind]) => [minute, kind]), [["55'", "EQUALISER"], ["80'", "DECISIVE_GOAL"]]);
   });
 
-  it("eşitlik bozuldu ve uzatmalar: 106' öne geçiş, 118' eşitlik; eksen 120", () => {
-    const et = facts(RAW_EXTRA_TIME_MATCH, NO_HALVES);
-    assert.equal(et.axisEnd, 120);
-    assert.deepEqual(et.events.filter((event) => event.breakMoment).map((event) => [event.minuteLabel, event.breakMoment?.label]), [["46'", "İLK GOL"], ["90+5'", "EŞİTLİK"], ["106'", "EŞİTLİK BOZULDU"], ["118'", "EŞİTLİK"]]);
+  it("galibi belirleyen gol: kaybedilmeyen üstünlüğü veren SON öne geçiş (1-0, 1-1, 3-1 → 2-1 golü)", () => {
+    const result = match([3, 1], [
+      [5, null, "H", "Goal", "Normal Goal", "O. Çelik"],
+      [30, null, "A", "Goal", "Normal Goal", "R. Aksoy"],
+      [60, null, "H", "Goal", "Normal Goal", "S. Kılıç"],
+      [70, null, "H", "Goal", "Normal Goal", "S. Kılıç"],
+    ]);
+    assert.deepEqual(candidates(result), [["5'", "FIRST_GOAL"], ["30'", "EQUALISER"], ["60'", "DECISIVE_GOAL"]], "70' fark açan gol aday değil");
+  });
+
+  it("kırmızı + gol: gol sayıca üstün takımdan ve üstünlük sürerken; eksik takımın golü ya da rakip de kırmızı gördüyse aday değil", () => {
+    const own = match([1, 1], [
+      [10, null, "H", "Card", "Red Card", "M. Kaya"],
+      [20, null, "H", "Goal", "Normal Goal", "O. Çelik"],
+      [80, null, "A", "Goal", "Normal Goal", "R. Aksoy"],
+    ], 990101);
+    assert.deepEqual(candidates(own).find(([minute]) => minute === "10'"), ["10'", "RED_THEN_GOAL"], "80' rakip golü üstünlükle");
+    const evened = match([0, 1], [
+      [10, null, "H", "Card", "Red Card", "M. Kaya"],
+      [30, null, "A", "Card", "Second Yellow card", "T. Uçar"],
+      [70, null, "A", "Goal", "Normal Goal", "R. Aksoy"],
+    ], 990102);
+    assert.equal(candidates(evened).some(([, kind]) => kind === "RED_THEN_GOAL"), false, "30' sonra sayılar eşit — üstünlük yok");
+    const shortScores = match([1, 0], [
+      [10, null, "H", "Card", "Red Card", "M. Kaya"],
+      [50, null, "H", "Goal", "Normal Goal", "O. Çelik"],
+    ], 990103);
+    assert.equal(candidates(shortScores).some(([, kind]) => kind === "RED_THEN_GOAL"), false);
+  });
+
+  it("kalabalık maç 3-2: 55' ikinci sarı (+ gol) ve 90+3' kazandıran; seçim önceliğe sonra dakikaya göre", () => {
+    const result = facts(RAW_DENSE_MATCH, NO_HALVES);
+    assert.deepEqual(chosen(result).map(([minute, kind]) => [minute, kind]), [["55'", "RED_THEN_GOAL"], ["90+3'", "DECISIVE_GOAL"]]);
+    assert.deepEqual([...pickBreakMoments(["FIRST_GOAL", "EQUALISER", "DECISIVE_GOAL", null, "RED_THEN_GOAL"])].sort(), [2, 4]);
+  });
+
+  it("etiketler ≤ 16 karakter, bahis dili kapısından geçer", () => {
+    for (const label of Object.values(BREAK_LABELS)) {
+      assert.ok([...label].length <= 16, label);
+      assert.equal(contentLanguageGate({ caption: label }), null);
+    }
+    assert.equal(MAX_BREAK_MOMENTS, 2);
   });
 
   it("olay akışı resmi skorla tutmuyorsa etiket yok, uyarı var", () => {
@@ -208,6 +265,6 @@ describe("kart, yoğunluk, gönderi metni", () => {
     assert.equal(hasLink(caption), false);
     assert.equal(/checkmatch\.net|betrix/iu.test(caption), false);
     assert.equal(contentLanguageGate({ caption }), null);
-    assert.match(caption, /12' ilk gol — Galatasaray \(0-1\)/u);
+    assert.match(caption, /12' kazandıran gol — Galatasaray \(0-1\)/u);
   });
 });

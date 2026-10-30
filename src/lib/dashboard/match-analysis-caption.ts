@@ -1,4 +1,5 @@
 import { matchResultTitle } from "@/lib/dashboard/match-result-caption";
+import { BREAK_CAPTIONS } from "@/lib/match-analysis/moments";
 import { hashtag, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
 import { SCORING_KINDS, type MatchAnalysisFacts } from "@/types/match-analysis";
 
@@ -9,17 +10,15 @@ import { SCORING_KINDS, type MatchAnalysisFacts } from "@/types/match-analysis";
  */
 
 export const ANALYSIS_QUESTION = "Maçın kırılma anı sizce hangisiydi? Yorumlara yazın 👇";
-const MAX_MOMENTS = 4;
 
 export function buildMatchAnalysisCaption(facts: MatchAnalysisFacts): string {
   const { match } = facts;
   const moments = facts.events
     .filter((event) => event.breakMoment)
-    .slice(0, MAX_MOMENTS)
     .map((event) => {
       const team = event.side === "HOME" ? match.home.name : match.away.name;
       const score = event.score && SCORING_KINDS.includes(event.kind) ? ` (${event.score.home}-${event.score.away})` : "";
-      return `⏱ ${event.minuteLabel} ${event.breakMoment?.label.toLocaleLowerCase("tr-TR")} — ${team}${score}`;
+      return `⏱ ${event.minuteLabel} ${event.breakMoment ? BREAK_CAPTIONS[event.breakMoment.kind] : ""} — ${team}${score}`;
     });
   const facts02 = facts.halves.available ? facts.facts.map((fact) => `📊 ${fact.text}`) : [];
   const tags = [...new Set([hashtag(match.home.name), hashtag(match.away.name), hashtag(match.competition.name), "#MaçAnalizi", "#CheckMatch"])].slice(0, MAX_HASHTAGS);
