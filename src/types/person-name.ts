@@ -18,9 +18,14 @@ export interface SportmonksPerson {
 /** Kart adının kaynağı — öncelik sırasıyla (bkz. `lib/names/person-name.ts::cardPersonName`). */
 export type PersonNameSource = "override" | "sportmonks" | "api";
 
+/** Kartın ad biçimi: uzun (poster — "Uğurcan Çakır") ya da kısa (liste/saha — "U. Çakır"); kart → biçim `lib/names/card-name-forms.ts`. */
+export type NameForm = "long" | "short";
+
 export interface CardPersonName {
-  /** Kartta yazılacak ad (büyük harfe çevrilmeden): "Uğurcan Çakır", eşleşme yoksa soyad "Mbangula". */
+  /** UZUN ad (büyük harfe çevrilmeden): "Uğurcan Çakır"; güvenilir yaygın ad yoksa soyad "Mbangula". */
   name: string;
+  /** KISA ad: baş harf + soyad, Türkçe harfler korunur ("U. Çakır", "S. Mbangula"); ad bilinmiyorsa yalnız soyad. */
+  short: string;
   /** Büyük harf kökeni (`upperName` ipucu): adın harfi → uyruk → takım. */
   origin: NameOrigin | null;
   source: PersonNameSource;

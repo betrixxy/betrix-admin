@@ -5,7 +5,7 @@ import type { UploadedImage } from "@/lib/dashboard/studio-images";
 import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { resolvePlayerNames } from "@/lib/names/person-directory";
-import { surnameOf } from "@/lib/names/person-name";
+import { shortForm, surnameOf } from "@/lib/names/person-name";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
 import { prisma } from "@/lib/prisma";
 import type { ApiFootballFixtureResultRaw } from "@/lib/services/api-football/types";
@@ -48,7 +48,7 @@ export async function playerCardNames(facts: PlayerStatsFacts, lines: PlayerMatc
     );
     players.forEach((line, index) => {
       const card = resolved[index];
-      names.set(line.playerId, { name: card?.name ?? surnameOf(line.name), origin: card?.origin ?? null, reliable: card?.reliable ?? false });
+      names.set(line.playerId, { name: card?.name ?? surnameOf(line.name), short: card?.short ?? shortForm(line.name), origin: card?.origin ?? null, reliable: card?.reliable ?? false });
     });
   }
   return names;

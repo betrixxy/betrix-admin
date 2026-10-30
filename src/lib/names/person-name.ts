@@ -62,6 +62,21 @@ export function surnameOf(apiName: string): string {
   return named.length > 0 ? shortNameOf(named.join(" "), firstWords) : apiName.trim();
 }
 
+/**
+ * KISA ad: baş harf + soyad, harfler olduğu gibi ("Uğurcan Çakır" → "U. Çakır", "S. Mbangula" → aynı,
+ * "A. Hernández de la Fuente" → "A. de la Fuente"); soyad adın tamamıysa yalnız soyad ("Vinícius Júnior",
+ * "Gabriel", "Mbangula").
+ */
+export function shortForm(name: string): string {
+  const all = tokens(name);
+  const surname = surnameOf(name);
+  const surnameWords = surname.split(/\s+/u).length;
+  const first = all[0];
+  if (!first || all.length <= surnameWords) return surname;
+  const letter = INITIAL.exec(first)?.[1] ?? [...first][0] ?? "";
+  return `${letter}. ${surname}`;
+}
+
 /** Poster adı: güvenilir yaygın adda ilk ad küçük + soyad büyük; değilse yalnızca soyad (ilk ad boş). */
 export function posterName(name: string, reliable: boolean): { firstName: string; lastName: string } {
   const lastName = shortNameOf(name);
@@ -142,13 +157,14 @@ export function cardPersonName(input: CardPersonNameInput): CardPersonName {
   const hint = input.teamHint ?? null;
   const person = matchPerson(input.apiName, input.people ?? [], input.jersey ?? null);
   const override = input.override?.trim();
-  if (override) return { name: override, origin: personOrigin(override, person?.nationality ?? null, hint), source: "override", reliable: !hasInitial(override) };
+  if (override) return { name: override, short: shortForm(override), origin: personOrigin(override, person?.nationality ?? null, hint), source: "override", reliable: !hasInitial(override) };
   const common = person?.displayName?.trim();
-  if (person && common && !hasInitial(common)) return { name: common, origin: personOrigin(common, person.nationality, hint), source: "sportmonks", reliable: true };
-  // Yaygın ad yok (ya da baş harfli: "S. Mbangula"): API kısa adından soyad; eşleşen kayıt yalnızca harfleri geri yükler.
-  const surname = surnameOf(input.apiName);
-  const name = person ? restoreName(surname, person) : surname;
-  return { name, origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false };
+  if (person && common && !hasInitial(common)) return { name: common, short: shortForm(common), origin: personOrigin(common, person.nationality, hint), source: "sportmonks", reliable: true };
+  // Yaygın ad yok (ya da baş harfli: "S. Mbangula"): uzun = API kısa adından soyad, kısa = API baş harfi + soyad;
+  // eşleşen kayıt yalnızca harfleri geri yükler ("U. Cakir" → "U. Çakır").
+  const restore = (value: string) => (person ? restoreName(value, person) : value);
+  const name = restore(surnameOf(input.apiName));
+  return { name, short: restore(shortForm(input.apiName)), origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false };
 }
 
 /** Yalnızca ASCII harf — Türkçe karakter içermesi muhtemel API adı (rapor süzgeci). */

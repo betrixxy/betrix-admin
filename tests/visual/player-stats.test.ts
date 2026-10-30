@@ -13,6 +13,7 @@ import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerCardImages, type PlayerNames } from "@/lib/dashboard/player-stats-card";
 import { renderSpotlightImage, renderSpotlightOverlay, renderTopPlayersImage, renderTopPlayersOverlay } from "@/lib/dashboard/player-stats-render";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
+import { shortForm } from "@/lib/names/person-name";
 import { topPlayers } from "@/lib/player-stats/picks";
 import { spotlightGeometry } from "@/skills/render-engine/templates/player-stats/geometry";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
@@ -57,7 +58,7 @@ const KEEPER: PlayerMatchLine = { ...lineOf(2998), rating: 8.1, numbers: { ...li
 const LONG_NAME: PlayerMatchLine = { ...lineOf(44814), name: "Mohamed-Ali Abdelrahman Kouyaté-Diakhaby" };
 const TURKISH_NAME: PlayerMatchLine = { ...lineOf(31273), name: "İrfan Can Eğribayat Çağlayan" };
 /** Güvenilir yaygın ad (Sportmonks / admin düzeltmesi gibi) → poster ilk ad küçük + soyad büyük; verilmezse yalnızca API soyadı. */
-const reliable = (line: PlayerMatchLine, origin: "tr" | "intl"): PlayerNames => new Map([[line.playerId, { name: line.name, origin, reliable: true }]]);
+const reliable = (line: PlayerMatchLine, origin: "tr" | "intl"): PlayerNames => new Map([[line.playerId, { name: line.name, short: shortForm(line.name), origin, reliable: true }]]);
 
 const PHOTO = syntheticPhoto();
 

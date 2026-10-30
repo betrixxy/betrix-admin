@@ -57,7 +57,7 @@ describe("kart kişi adı — resmi tam ad yok (2026-10-30)", () => {
     assert.equal(card("D. Turuc", KONYASPOR), "DENİZ TÜRÜÇ");
     assert.equal(card("M. Ibrahimoglu", KONYASPOR, 77), "MELİH İBRAHİMOĞLU");
     // Forma numarası yoksa iki aday belirsiz → tahmin yok, API soyadı (raporda listelenir).
-    assert.deepEqual(cardPersonName({ apiName: "M. Ibrahimoglu", people: KONYASPOR }), { name: "Ibrahimoglu", origin: null, source: "api", reliable: false });
+    assert.deepEqual(cardPersonName({ apiName: "M. Ibrahimoglu", people: KONYASPOR }), { name: "Ibrahimoglu", short: "M. Ibrahimoglu", origin: null, source: "api", reliable: false });
   });
 
   it("yabancı oyuncular Türk takımında da uluslararası büyük harf; resmi ad alanı (Victor James, Torreira Di Pascua) yazılmaz", () => {
@@ -70,12 +70,12 @@ describe("kart kişi adı — resmi tam ad yok (2026-10-30)", () => {
   });
 
   it("Mbangula: eşleşme yoksa API kısa adından soyad; yaygın adsız kayıt resmi adı getirmez", () => {
-    assert.deepEqual(cardPersonName({ apiName: "S. Mbangula", people: [] }), { name: "Mbangula", origin: null, source: "api", reliable: false });
+    assert.deepEqual(cardPersonName({ apiName: "S. Mbangula", people: [] }), { name: "Mbangula", short: "S. Mbangula", origin: null, source: "api", reliable: false });
     const official = { displayName: null, firstname: "Samuel-Germain", lastname: "Mbangula Tshifunda", nationality: "Belgium", jersey: 7 };
     assert.equal(cardPersonName({ apiName: "S. Mbangula", people: [official] }).name, "Mbangula");
     // Baş harfli yaygın ad ("S. Mbangula" common_name) güvenilir sayılmaz → soyad.
     assert.equal(cardPersonName({ apiName: "S. Mbangula", people: [{ ...official, displayName: "S. Mbangula" }] }).name, "Mbangula");
-    assert.deepEqual(cardPersonName({ apiName: "S. Mbangula", people: [{ ...official, displayName: "Samuel Mbangula" }] }), { name: "Samuel Mbangula", origin: "intl", source: "sportmonks", reliable: true });
+    assert.deepEqual(cardPersonName({ apiName: "S. Mbangula", people: [{ ...official, displayName: "Samuel Mbangula" }] }), { name: "Samuel Mbangula", short: "S. Mbangula", origin: "intl", source: "sportmonks", reliable: true });
   });
 
   it("Vinícius Júnior: yaygın ad; resmi 'Vinícius José Paixão de Oliveira Júnior' değil", () => {
@@ -101,14 +101,54 @@ describe("kart kişi adı — resmi tam ad yok (2026-10-30)", () => {
 
   it("teknik direktör aynı kuraldan geçer", () => {
     const coach = cardPersonName({ apiName: "Ilhan Palut", people: [p("İlhan Palut", "Turkey")] });
-    assert.deepEqual(coach, { name: "İlhan Palut", origin: "tr", source: "sportmonks", reliable: true });
+    assert.deepEqual(coach, { name: "İlhan Palut", short: "İ. Palut", origin: "tr", source: "sportmonks", reliable: true });
   });
 
   it("öncelik: arşiv düzeltmesi → Sportmonks yaygın adı → API soyadı", () => {
     assert.deepEqual(cardPersonName({ apiName: "U. Cakir", override: "Uğurcan Çakır", people: GALATASARAY }).source, "override");
     assert.equal(cardPersonName({ apiName: "U. Cakir", override: "  ", people: GALATASARAY }).name, "Uğurcan Çakır");
     assert.equal(cardPersonName({ apiName: "S. Mbangula", override: "S. Mbangula" }).reliable, false);
-    assert.deepEqual(cardPersonName({ apiName: "K. Demir", people: GALATASARAY, teamHint: "tr" }), { name: "Demir", origin: "tr", source: "api", reliable: false });
+    assert.deepEqual(cardPersonName({ apiName: "K. Demir", people: GALATASARAY, teamHint: "tr" }), { name: "Demir", short: "K. Demir", origin: "tr", source: "api", reliable: false });
+  });
+});
+
+describe("kısa ad — baş harf + soyad, Türkçe harfler korunur", () => {
+  const short = (apiName: string, people: SportmonksPerson[], jersey: number | null = null, teamHint: "tr" | "intl" = "tr") => {
+    const resolved = cardPersonName({ apiName, people, jersey, teamHint });
+    return upperName(resolved.short, resolved.origin);
+  };
+
+  it("Sportmonks yaygın adından", () => {
+    assert.equal(short("U. Cakir", GALATASARAY), "U. ÇAKIR");
+    assert.equal(short("B. Yilmaz", GALATASARAY), "B. YILMAZ");
+    assert.equal(short("M. Ibrahimoglu", KONYASPOR, 77), "M. İBRAHİMOĞLU");
+    assert.equal(short("V. Osimhen", GALATASARAY), "V. OSIMHEN");
+    assert.equal(short("I. Gundogan", GALATASARAY), "İ. GÜNDOĞAN");
+    assert.equal(short("D. Sanchez", GALATASARAY), "D. SÁNCHEZ");
+  });
+
+  it("eşleşme yoksa API baş harfi + soyad; ad bilinmiyorsa yalnız soyad", () => {
+    // Yabancı takım (uluslararası büyük harf).
+    assert.equal(short("S. Mbangula", [], null, "intl"), "S. MBANGULA");
+    assert.equal(short("A. Hernández de la Fuente", [], null, "intl"), "A. DE LA FUENTE");
+    assert.equal(short("D. Van der Westhuizen", [], null, "intl"), "D. VAN DER WESTHUIZEN");
+    assert.equal(short("Ismail Jakobs", [], null, "intl"), "I. JAKOBS");
+    assert.equal(short("Mbangula", [], null, "intl"), "MBANGULA");
+    assert.equal(short("Gabriel", [], null, "intl"), "GABRIEL");
+    assert.equal(short("Vinícius Júnior", [], null, "intl"), "VINÍCIUS JÚNIOR");
+    // Türk takımı, Sportmonks yok: API baş harfi + ASCII soyad.
+    assert.equal(short("K. Akturkoglu", []), "K. AKTURKOGLU");
+  });
+
+  it("yaygın adı tek sözcük ya da soneki olan oyuncu", () => {
+    const vini = { displayName: "Vinícius Júnior", firstname: "Vinícius José", lastname: "Paixão de Oliveira Júnior", nationality: "Brazil", jersey: 7 };
+    assert.equal(cardPersonName({ apiName: "Vinícius Júnior", people: [vini] }).short, "Vinícius Júnior");
+    const gabriel = { displayName: "Gabriel", firstname: "Gabriel dos Santos", lastname: "Magalhães", nationality: "Brazil", jersey: 6 };
+    assert.equal(cardPersonName({ apiName: "Gabriel", people: [gabriel] }).short, "Gabriel");
+  });
+
+  it("admin düzeltmesi kısa biçime de geçer", () => {
+    assert.equal(cardPersonName({ apiName: "U. Cakir", override: "Uğurcan Çakır" }).short, "U. Çakır");
   });
 });
 

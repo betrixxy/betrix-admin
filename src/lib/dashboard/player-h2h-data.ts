@@ -1,6 +1,7 @@
 import { domesticLeague } from "@/lib/archive/structure";
 import { nameOrigin, originFromCountry } from "@/lib/dashboard/name-case";
 import { cardTeamName } from "@/lib/archive/names";
+import { nameFor } from "@/lib/names/card-name-forms";
 import { resolvePlayerNames } from "@/lib/names/person-directory";
 import { hasInitial, shortNameOf } from "@/lib/names/person-name";
 import { fullNameFromApi, leagueDisplay, seasonLabel } from "@/lib/player-h2h/names";
@@ -103,7 +104,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
   const given = request.fullName?.trim();
   const teamCountry = info.data?.country ?? null;
   const [card] = given ? [null] : await resolvePlayerNames({ apiName: team.name, country: teamCountry, peopleHint: originFromCountry(teamCountry) }, [{ apiId: player.id, apiName: player.name }]);
-  const fullName = given || card?.name || player.name;
+  const fullName = given || (card ? nameFor("PLAYER_H2H_POSTER", card) : null) || player.name;
   const shortName = shortNameOf(fullName);
   const nameReliable = given ? !hasInitial(given) : (card?.reliable ?? false);
 

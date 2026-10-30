@@ -5,7 +5,8 @@ import { distinctTeamColor, readableTeamColors, resultAccentHex } from "@/lib/da
 import { upperCompetition, upperName, upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { formatNumber } from "@/lib/format/number";
 import { POSITION_LABELS } from "@/lib/player-stats/catalog";
-import { posterName, surnameOf } from "@/lib/names/person-name";
+import { nameFor, type CardNameSlot } from "@/lib/names/card-name-forms";
+import { posterName, shortForm, surnameOf } from "@/lib/names/person-name";
 import { spotlightFact } from "@/lib/player-stats/facts";
 import { highlightText, spotlightRows } from "@/lib/player-stats/rows";
 import type { MatchResultFacts, MatchSide } from "@/types/match-result";
@@ -26,8 +27,8 @@ export interface PlayerCardImages {
   portraits?: Map<number, string | null> | undefined;
 }
 
-/** Kart adı katmanından (admin düzeltmesi → Sportmonks yaygın adı → API soyadı) gelen adlar; verilmezse API soyadı. */
-export type PlayerNames = Map<number, { name: string; origin: NameOrigin | null; reliable: boolean }>;
+/** Kart adı katmanından (`cardPersonName`) gelen uzun + kısa adlar; verilmezse API adından türetilir. */
+export type PlayerNames = Map<number, { name: string; short: string; origin: NameOrigin | null; reliable: boolean }>;
 
 type MatchPart = Pick<MatchResultFacts, "home" | "away" | "outcome" | "competition" | "roundLabel" | "kickoffUtc" | "penaltyScore">;
 
@@ -52,12 +53,13 @@ export function footnote(rows: PlayerStatRow[]): string {
   return rows.some((row) => row.source === "SPORTMONKS") ? "Puan: API-Football · xG: Sportmonks" : "Puan: API-Football";
 }
 
-function entry(line: PlayerMatchLine, match: MatchPart, images: PlayerCardImages, names: PlayerNames | undefined): PlayerCardEntry {
+/** `slot` kartın ad biçimi (`card-name-forms.ts`): A uzun, B kısa. */
+function entry(line: PlayerMatchLine, match: MatchPart, images: PlayerCardImages, names: PlayerNames | undefined, slot: CardNameSlot): PlayerCardEntry {
   const team = line.side === "HOME" ? match.home : match.away;
   const named = names?.get(line.playerId);
   return {
     playerId: line.playerId,
-    name: upperName(named?.name ?? surnameOf(line.name), named?.origin ?? team.origin?.people),
+    name: upperName(nameFor(slot, named ?? { name: surnameOf(line.name), short: shortForm(line.name) }), named?.origin ?? team.origin?.people),
     teamName: upperTeamName(team.name, team.origin),
     teamHex: teamHexes(match)[line.side],
     teamLogo: line.side === "HOME" ? images.homeLogo : images.awayLogo,
@@ -83,7 +85,7 @@ const base = (facts: PlayerStatsFacts, images: PlayerCardImages, pageLabel: stri
  */
 export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
   const { facts, line } = input;
-  const player = entry(line, facts.match, input.images, input.names);
+  const player = entry(line, facts.match, input.images, input.names, "PLAYER_STATS_SPOTLIGHT");
   const { firstName, lastName } = posterName(player.name, input.names?.get(line.playerId)?.reliable ?? false);
   const { hero, rows } = spotlightRows(line);
   const meta = [player.teamName, player.positionLabel, line.minutes !== null ? `${line.minutes} DK` : null].filter(Boolean).join(" · ");
@@ -104,7 +106,7 @@ export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: Playe
 export const TOP_PLAYERS_TITLE = "MAÇIN EN İYİLERİ";
 
 export function buildTopPlayersCard(input: { facts: PlayerStatsFacts; lines: PlayerMatchLine[]; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null }): TopPlayersCard {
-  const rows = input.lines.map((line, index) => ({ ...entry(line, input.facts.match, input.images, input.names), rank: index + 1, highlight: highlightText(line) }));
+  const rows = input.lines.map((line, index) => ({ ...entry(line, input.facts.match, input.images, input.names, "PLAYER_STATS_TOP"), rank: index + 1, highlight: highlightText(line) }));
   const usedXg = input.lines.some((line) => line.xg !== null && highlightText(line).includes("xG"));
   return { ...base(input.facts, input.images, input.pageLabel), footnote: usedXg ? "Puan: API-Football · xG: Sportmonks" : "Puan: API-Football", title: TOP_PLAYERS_TITLE, rows };
 }
