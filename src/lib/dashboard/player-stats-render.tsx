@@ -1,10 +1,10 @@
 import sharp from "sharp";
-import { channels } from "@/lib/dashboard/color-math";
 import { layoutGate } from "@/lib/dashboard/layout-check";
 import { loadMatchDayFonts } from "@/lib/dashboard/match-day-assets";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { buildStatsBackground, buildStatsBackgroundFromResult } from "@/lib/dashboard/match-stats-background";
 import { finalizeSetImage } from "@/lib/dashboard/set-finish";
+import { renderTeamFallback } from "@/lib/dashboard/team-fallback-art";
 import { BANNED_LANGUAGE, contentLanguageGate } from "@/lib/prediction/content-language";
 import { renderSatori } from "@/skills/render-engine/satori-text";
 import type { BlockFilter } from "@/skills/render-engine/templates/checkmatch-set/blocks";
@@ -37,33 +37,17 @@ export function renderTopPlayersOverlay(card: TopPlayersCard, frame: MatchDayFra
   return png(<TopPlayersTemplate card={card} g={topPlayersGeometry(frame, card)} only={options.only} />, frame);
 }
 
-const mix = (hex: string, toward: [number, number, number], amount: number) => {
-  const [r, g, b] = channels(hex);
-  const c = (value: number, target: number) => Math.round(value + (target - value) * amount);
-  return `rgb(${c(r, toward[0])},${c(g, toward[1])},${c(b, toward[2])})`;
-};
-
 /**
- * Tipografik yedeğin zemini (fotoğraf yok): üstte takım renginin koyu tonu, alta doğru kart koyusuna (yazı
- * bloğu) iner; sol üstte takım renginde ışık, çok hafif çapraz doku. Programatik, ücretsiz.
+ * Tipografik yedeğin zemini (fotoğraf yok): ORTAK YEDEK TASARIM (`templates/shared/team-fallback.tsx`) kart boyutunda —
+ * takım rengi gradyanı + dev filigran arma + arma, fotoğrafın yazısız bölgesinde (16:9'da yazı sütununun karşısı:
+ * canlı test 2026-10-31'de sol yarı boş kalıyordu). Dev ad kartın kendi yazı katmanında, zeminde tekrar yazılmaz;
+ * dikeyde dev ad fotoğrafın yerinde durduğu için arma çizilmez (filigran + takım ışığı kalır).
  */
-export async function typographicBackground(frame: MatchDayFrame, teamHex: string): Promise<Buffer> {
-  const { width: w, height: h } = frame;
-  const dark: [number, number, number] = [7, 8, 12];
-  const top = mix(teamHex, dark, 0.5);
-  const mid = mix(teamHex, dark, 0.8);
-  const landscape = frame.orientation === "landscape";
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-  <defs>
-    <linearGradient id="base" x1="0" y1="0" x2="${landscape ? 1 : 0}" y2="${landscape ? 0 : 1}"><stop offset="0" stop-color="${top}"/><stop offset="0.5" stop-color="${mid}"/><stop offset="1" stop-color="#07080C"/></linearGradient>
-    <radialGradient id="glow" cx="0.12" cy="0.08" r="0.8"><stop offset="0" stop-color="${teamHex}" stop-opacity="0.32"/><stop offset="1" stop-color="${teamHex}" stop-opacity="0"/></radialGradient>
-    <pattern id="lines" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(-28)"><rect width="2" height="28" fill="#fff" fill-opacity="0.035"/></pattern>
-  </defs>
-  <rect width="100%" height="100%" fill="url(#base)"/>
-  <rect width="100%" height="100%" fill="url(#glow)"/>
-  <rect width="100%" height="100%" fill="url(#lines)"/>
-</svg>`;
-  return sharp(Buffer.from(svg)).png().toBuffer();
+export async function typographicBackground(frame: MatchDayFrame, card: SpotlightCard, side: ColumnSide): Promise<Buffer> {
+  const safe = spotlightGeometry(frame, card, side).photo.photoSafe;
+  const focus = { x: (safe.left + safe.right) / 2 / frame.width, y: frame.orientation === "landscape" ? 0.42 : Math.min(0.4, (safe.top + (safe.bottom - safe.top) * 0.4) / frame.height) };
+  const fallbackSide = frame.orientation === "landscape" ? (side === "right" ? "home" : "away") : "center";
+  return renderTeamFallback({ name: card.player.teamName, hex: card.player.teamHex, logo: card.player.teamLogo }, frame, { side: fallbackSide, focus, type: false, crest: frame.orientation === "landscape" });
 }
 
 export interface SpotlightImageInput {
@@ -85,7 +69,7 @@ export async function renderSpotlightImage(input: SpotlightImageInput): Promise<
   try {
     const gate = await layoutGate("Maçın Oyuncusu", frame, (only) => renderSpotlightOverlay(card, frame, { ...options, only }));
     if (!gate.ok) return { ok: false, error: gate.error };
-    const art = input.art ?? (await typographicBackground(frame, card.player.teamHex));
+    const art = input.art ?? (await typographicBackground(frame, card, input.side));
     return { ok: true, data: await finalizeSetImage(art, await renderSpotlightOverlay(card, frame, options), frame, input.seedKey) };
   } catch (error: unknown) {
     console.error(`[player-stats] A ${frame.id} çizilemedi:`, error);

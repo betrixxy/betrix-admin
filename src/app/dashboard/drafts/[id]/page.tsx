@@ -6,6 +6,7 @@ import { CopyTextButton } from "@/components/features/dashboard/copy-text-button
 import { DraftPreview as Preview } from "@/components/features/dashboard/draft-preview";
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
 import { DraftStatsCard } from "@/components/features/dashboard/draft-stats-card";
+import { DraftStudioNotes } from "@/components/features/dashboard/draft-studio-notes";
 import { DraftStatusBadge } from "@/components/features/dashboard/draft-status-badge";
 import { LineupDraftView } from "@/components/features/dashboard/lineup-draft-view";
 import { MarketAnalysisDraftView } from "@/components/features/dashboard/market-analysis-draft-view";
@@ -17,6 +18,7 @@ import { WeeklyFixturesDraftView } from "@/components/features/dashboard/weekly-
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDraft, getLinkablePosts } from "@/lib/dashboard/draft-data";
+import { getDraftStudioNotes } from "@/lib/dashboard/draft-notes";
 import { STUDIO_FORMAT_DEFS } from "@/lib/dashboard/studio-formats";
 import { isFalConfigured } from "@/lib/services/fal";
 import { cn } from "@/lib/utils";
@@ -39,6 +41,8 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const lookup = await getDraft(id);
   if (!lookup) notFound();
+  // Kartı düşürmeyen geri dönüşler (yedek tasarım, Fal/AI yok, düşen sayfa) — her türde başlığın altında.
+  const notice = <DraftStudioNotes notes={await getDraftStudioNotes(id)} />;
 
   if (lookup.kind === "market-analysis") {
     const { draft } = lookup;
@@ -50,6 +54,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
           description="AI Market Tahmin & Analiz · iki takımın Derinlemesine Analiz kartı — onayınız olmadan yayına hazır sayılmaz."
           actions={backLink}
         />
+        {notice}
         <MarketAnalysisDraftView draft={draft} postOptions={postOptions} />
       </>
     );
@@ -65,6 +70,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
           description="Muhtemel 11 · iki takımın kadro kartı — onayınız olmadan yayına hazır sayılmaz."
           actions={backLink}
         />
+        {notice}
         <LineupDraftView draft={draft} postOptions={postOptions} />
       </>
     );
@@ -76,6 +82,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
     return (
       <>
         <PageHeader title={`${draft.leagueName} · ${draft.title}`} description="Haftanın Maçları · fikstür ve skor kartı — onayınız olmadan yayına hazır sayılmaz." actions={backLink} />
+        {notice}
         <WeeklyFixturesDraftView draft={draft} postOptions={postOptions} />
       </>
     );
@@ -87,6 +94,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
     return (
       <>
         <PageHeader title={`${draft.leagueName} · ${draft.title}`} description="Puan Durumu · lig/grup tablosu kartı — onayınız olmadan yayına hazır sayılmaz." actions={backLink} />
+        {notice}
         <StandingsDraftView draft={draft} postOptions={postOptions} />
       </>
     );
@@ -98,6 +106,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
     return (
       <>
         <PageHeader title={draft.title} description={`${draft.kindLabel} · ${draft.subtitle} — onayınız olmadan yayına hazır sayılmaz.`} actions={backLink} />
+        {notice}
         <MatchResultDraftView draft={draft} postOptions={postOptions} />
       </>
     );
@@ -107,6 +116,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
     return (
       <>
         <PageHeader title="Eski Kayıt" description="Bu görsel maç istatistiği anlık görüntüsü olmadan üretildi (ör. Maç Günü kartı veya eski bir kayıt) — yalnızca görüntülenebilir ve indirilebilir." actions={backLink} />
+        {notice}
         <Card className="max-w-md">
           <CardContent className="flex flex-col gap-3 pt-6">
             <DraftStatusBadge status={lookup.status} />
@@ -130,6 +140,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
         description={`${fixture.competition.name} · ${formatDef.label} (${formatDef.width}×${formatDef.height}) · AI taslağı — onayınız olmadan yayına hazır sayılmaz.`}
         actions={backLink}
       />
+        {notice}
 
       <div className="grid gap-6 xl:grid-cols-5">
         <div className="flex flex-col gap-6 xl:col-span-2">

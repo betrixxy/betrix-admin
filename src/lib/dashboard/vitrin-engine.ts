@@ -11,7 +11,7 @@ import { warmTeamColors } from "@/lib/dashboard/team-colors";
 import { buildVitrinCard, validSelection, type VitrinImages, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
 import { teamOrigin } from "@/lib/dashboard/team-origin";
 import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
-import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
+import { renderVitrinPages } from "@/lib/dashboard/vitrin-render";
 import { internalSource } from "@/lib/prediction/internal-source";
 import { kickoffGate } from "@/lib/prediction/kickoff";
 import { auditReason, matchSides, ruleReasons, vitrinFacts } from "@/lib/prediction/reasons";
@@ -106,7 +106,8 @@ export interface VitrinRenderRequest {
 /** Carousel sayfa etiketleri (inceleme ve Yayın Merkezi). */
 const SLIDE_LABELS = ["01 Poster", "02 Analiz"] as const;
 
-export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ pages: [Buffer, Buffer]; card: VitrinCard }>> {
+/** 01 Poster her zaman; 02 Analiz kendi yerleşim kapısından geçerse (düşerse sebebi `notes`'ta, bkz. `renderVitrinPages`). */
+export async function renderVitrin(request: VitrinRenderRequest): Promise<Result<{ pages: Buffer[]; card: VitrinCard; notes: string[] }>> {
   const late = request.allowPast ? null : kickoffGate(request.stats.fixture, new Date());
   if (late) return fail("MATCH_STARTED", late);
   const meta = vitrinMeta(request.stats);
@@ -116,8 +117,8 @@ export async function renderVitrin(request: VitrinRenderRequest): Promise<Result
   const { homeTeam, awayTeam } = request.stats.fixture;
   await warmTeamColors([{ id: meta.homeTeamId, name: homeTeam.name, logoUrl: homeTeam.logoUrl }, { id: meta.awayTeamId, name: awayTeam.name, logoUrl: awayTeam.logoUrl }]);
   const card = buildVitrinCard(request.prediction, request.selection, { ...meta, origins: { home, away } }, await vitrinImages(request.stats));
-  const rendered = await renderVitrinImages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
-  return rendered.ok ? { ok: true, data: { pages: rendered.data, card } } : rendered;
+  const rendered = await renderVitrinPages({ card, frame: MATCH_DAY_FRAMES[request.format], photos: request.photos, seedKey: request.stats.fixture.id });
+  return rendered.ok ? { ok: true, data: { pages: rendered.data.pages, notes: rendered.data.notes, card } } : rendered;
 }
 
 /** Carousel'i çizer, kalıcı depoya yazar ve tek DRAFT açar (planlanmış placeholder'ı devralır). */
@@ -155,6 +156,7 @@ export async function createVitrinDraft(request: VitrinRenderRequest & { fixture
           carousel: urls.map((url, index) => ({ url, label: SLIDE_LABELS[index] ?? `${index + 1}` })),
           title: `${meta.sides.home} – ${meta.sides.away}`,
           subtitle: [meta.competitionName, meta.roundLabel].filter(Boolean).join(" · "),
+          studioNotes: rendered.data.notes,
         }),
       ) as Prisma.InputJsonObject,
     });

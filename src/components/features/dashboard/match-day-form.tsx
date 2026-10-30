@@ -72,8 +72,8 @@ export function MatchDayForm({ fixtures, initialFixtureId = null, disabled = fal
         <CardHeader>
           <CardTitle>Maç Günü Kartı Üretici</CardTitle>
           <CardDescription>
-            Maçı seçin — takımlar, logolar, stadyum, saat, lig ve hafta otomatik dolar. İki oyuncu fotoğrafını ekleyin;
-            platformu ve şablonu seçin. Oyuncular kesilip gerçekçi bir sahneye yerleştirilir; yazılar en son programatik basılır.
+            Maçı seçin — takımlar, logolar, stadyum, saat, lig ve hafta otomatik dolar. Oyuncu fotoğraflarını ekleyin (biri ya da ikisi
+            yoksa o takımın yedek tasarımı çizilir); platformu ve şablonu seçin. Oyuncular kesilip gerçekçi bir sahneye yerleştirilir; yazılar en son programatik basılır.
           </CardDescription>
         </CardHeader>
         <CardContent>

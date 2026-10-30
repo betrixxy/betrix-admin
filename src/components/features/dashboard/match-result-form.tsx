@@ -39,6 +39,8 @@ interface MatchResultFormProps {
   /** "Tahmin karnesini de ekle" kapalıysa sebebi (kayıt yok / sonuç hesaplanmadı); null → açık. */
   scorecardBlocker?: string | null;
   disabled?: boolean;
+  /** Fal tanımlı mı — değilse fotoğraf varsayılanı karta hazır (büyütülmüş / ≥ 1080) fotoğrafı tercih eder. */
+  falAvailable?: boolean;
 }
 
 const INITIAL_STATE: MatchResultActionState = {};
@@ -68,7 +70,7 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
 
 const draftHref = (state: MatchResultActionState) => (state.result ? `/dashboard/drafts/${state.result.id}` : null);
 
-export function MatchResultForm({ fixtureId, facts, playerSettlement = null, scorecardBlocker = null, disabled = false }: MatchResultFormProps) {
+export function MatchResultForm({ fixtureId, facts, playerSettlement = null, scorecardBlocker = null, disabled = false, falAvailable = true }: MatchResultFormProps) {
   const router = useRouter();
   const [playerPage, setPlayerPage] = useState("");
   const [playerPageMode, setPlayerPageMode] = useState<"WHEN_READY" | "NOW">("WHEN_READY");
@@ -85,7 +87,7 @@ export function MatchResultForm({ fixtureId, facts, playerSettlement = null, sco
   const matchTeams = useMemo(() => [{ id: facts.home.id, name: facts.home.name }, { id: facts.away.id, name: facts.away.name }], [facts.home.id, facts.home.name, facts.away.id, facts.away.name]);
   const [mvpId, setMvpId] = useState(facts.mvp ? String(facts.mvp.playerId) : "");
   // Fotoğrafın kişisi + forması varsayılan olarak KAZANAN takımdan (beraberlikte ev sahibi), MVP oradaysa o.
-  const preferredPhoto = useMemo(() => winnerPhotoPreference(facts), [facts]);
+  const preferredPhoto = useMemo(() => ({ ...winnerPhotoPreference(facts), falAvailable }), [facts, falAvailable]);
   const [photoIsMvp, setPhotoIsMvp] = useState(false);
 
   const players = mvpOptions(facts);
@@ -107,7 +109,8 @@ export function MatchResultForm({ fixtureId, facts, playerSettlement = null, sco
           <CardTitle>Maç Sonucu Kartı Üretici</CardTitle>
           <CardDescription>
             Gerçek maç fotoğrafı tam kadraj kullanılır (oyuncu kesimi ve AI arka plan yok). Skor, golcüler ve turnuva maçtan otomatik gelir; kırpma yüzlere göre
-            otomatik, elle düzeltilebilir. Yerleşimde çakışma varsa kart üretilmez.
+            otomatik, elle düzeltilebilir. Yerleşimde çakışma varsa kart üretilmez. Fotoğraf seçilmezse kart fotoğrafsız yedek tasarımla
+            (kazanan takımın rengi ve arması) üretilir — gerçek maç fotoğrafı önerilir.
           </CardDescription>
         </CardHeader>
         <CardContent>

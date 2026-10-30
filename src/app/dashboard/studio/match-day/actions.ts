@@ -7,7 +7,6 @@ import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { createMatchDayCard } from "@/lib/dashboard/match-day-engine";
 import { RANDOM_TEMPLATE, isMatchDayTemplateId, pickRandomTemplate } from "@/lib/dashboard/match-day-templates";
 import { resolveStudioPhoto } from "@/lib/archive/studio-photo";
-import { isFalConfigured } from "@/lib/services/fal";
 import { MATCH_DAY_FORMAT_IDS, MATCH_DAY_QUALITY_MODES, type MatchDayActionState } from "@/types/match-day";
 
 const optionalText = (max: number) =>
@@ -70,7 +69,8 @@ function text(formData: FormData, name: string): string {
 
 /**
  * "Maç Günü" kartı üretimi: form → doğrulama → oyuncu görselleri (kütüphane/yükleme) →
- * `createMatchDayCard` (Fal.ai birefnet + flux + image-to-image, bkz. match-day-engine.ts).
+ * `createMatchDayCard` (Fal.ai birefnet + flux + image-to-image, bkz. match-day-engine.ts). Fal tanımsız/hatalıysa ya da
+ * fotoğraf yoksa kart yine üretilir (programatik zemin, takımın yedek tasarımı — sebep stüdyo notunda).
  * Sonuç DRAFT olarak kaydedilir. Üretim ARKA PLAN İŞİdir (birefnet + flux + harmanlama 100 sn'yi aşabilir):
  * eylem iş kimliğini hemen döner; aynı maç + format + şablon için çalışan iş varsa ona bağlanılır.
  */
@@ -79,7 +79,6 @@ export async function generateMatchDayAction(
   formData: FormData,
 ): Promise<MatchDayActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
-  if (!isFalConfigured()) return { error: "FAL_KEY tanımlı değil — .env.local dosyasına ekleyip sunucuyu yeniden başlatın." };
   const job = startStudioJob<MatchDayActionState>({
     kind: "match-day",
     key: `match-day:${text(formData, "fixtureId") || text(formData, "homeTeam") + "-" + text(formData, "awayTeam")}:${text(formData, "format")}:${text(formData, "template")}`,
@@ -116,7 +115,7 @@ async function runMatchDay(formData: FormData): Promise<MatchDayActionState> {
   }
   if (!home.ok) return { error: home.error.message };
   if (!away.ok) return { error: away.error.message };
-  if (!home.data || !away.data) return { error: "İki takım için de oyuncu fotoğrafı seçin veya yükleyin." };
+  // Fotoğrafı olmayan taraf (bir ya da iki) yedek tasarımla çizilir — kart düşmez, Fal'a o taraf için gidilmez.
   reportJobStep("Oyuncu kesimi ve stadyum arka planı (Fal)");
 
   const result = await createMatchDayCard({
@@ -138,8 +137,8 @@ async function runMatchDay(formData: FormData): Promise<MatchDayActionState> {
     format: data.format,
     quality: data.quality,
     reuseBackground: data.reuseBackground,
-    homePlayer: home.data.image,
-    awayPlayer: away.data.image,
+    homePlayer: home.data?.image ?? null,
+    awayPlayer: away.data?.image ?? null,
     homeColorHex: data.homeColorHex,
     awayColorHex: data.awayColorHex,
     derbyIntensity: data.derbyIntensity,

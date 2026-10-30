@@ -118,6 +118,8 @@ export interface MatchDayGenerationResult {
   /** Bu üretimde yapılan ücretli Fal.ai çağrısı sayısı ve önbellekten/atlanarak tasarruf edilen adımlar. */
   paidCalls: number;
   savedSteps: string[];
+  /** Kartı düşürmeyen geri dönüşler: fotoğrafsız taraf (yedek tasarım), Fal yok/hata (programatik zemin, büyütmesiz). */
+  warnings: string[];
 }
 
 export interface MatchDayActionState {

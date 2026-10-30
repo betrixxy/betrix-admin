@@ -5,7 +5,7 @@ import { DraftQueue } from "@/components/features/dashboard/draft-queue";
 import { MatchList } from "@/components/features/dashboard/match-list";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { getDraftCountsByFixture, getDraftQueue } from "@/lib/dashboard/draft-data";
-import { getFixtureLabels, getMatchCenterFixtures, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/fixtures";
+import { getFixtureLabels, getMatchCenterFixtures, POST_MATCH_PAST_DAYS, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/fixtures";
 import { getWatchedIds } from "@/lib/dashboard/watched-fixtures";
 import { isFalConfigured } from "@/lib/services/fal";
 
@@ -41,7 +41,7 @@ export default async function MatchesPage() {
     <>
       <PageHeader
         title="Maç Merkezi"
-        description={`Dünün biten maçları ve önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Biten maçta maç sonrası, başlamamış maçta maç öncesi içerikler açılır. Takip etmek istediğiniz maçı ☆ ile İçerik Planı'na ekleyin. İçerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
+        description={`Dünün biten maçları (son ${POST_MATCH_PAST_DAYS} gün altta, kapalı bölümde) ve önümüzdeki ${SELECTABLE_FIXTURE_DAYS} günün gerçek fikstürü (API-Football). Biten maçta maç sonrası, başlamamış maçta maç öncesi içerikler açılır. Takip etmek istediğiniz maçı ☆ ile İçerik Planı'na ekleyin. İçerik türünü seçip "Stüdyoya Git" ile ilgili stüdyoyu maç bilgileri dolu olarak açın — üretilen her içerik taslak olarak onayınıza düşer, hiçbiri onaysız yayına hazır sayılmaz.`}
       />
 
       {!falConfigured ? (

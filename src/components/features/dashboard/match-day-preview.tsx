@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardCheck, Coins, Download, LoaderCircle, PiggyBank, Sparkles } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, Coins, Download, LoaderCircle, PiggyBank, Sparkles } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
@@ -19,7 +19,7 @@ export interface PreviewCopy {
 }
 
 const MATCH_DAY_COPY: PreviewCopy = {
-  idle: 'Maçı, formatı ve şablonu seçin, iki oyuncu fotoğrafını ekleyin ve "Kartı Üret"e basın.',
+  idle: 'Maçı, formatı ve şablonu seçin, oyuncu fotoğraflarını ekleyin (yoksa yedek tasarım) ve "Kartı Üret"e basın.',
   alt: "Üretilen Maç Günü kartı",
   downloadPrefix: "checkmatch-mac-gunu",
 };
@@ -101,6 +101,12 @@ export function MatchDayPreview({ result, isPending, format, copy = MATCH_DAY_CO
                 <span key={step} className="flex items-center gap-1.5">
                   <PiggyBank className="size-3.5 text-emerald-400" />
                   {step}
+                </span>
+              ))}
+              {(result.warnings ?? []).map((warning) => (
+                <span key={warning} className="flex items-start gap-1.5 text-amber-300" role="note">
+                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                  {warning}
                 </span>
               ))}
             </div>

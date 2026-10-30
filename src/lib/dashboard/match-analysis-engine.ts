@@ -6,6 +6,7 @@ import { buildMatchAnalysisCaption } from "@/lib/dashboard/match-analysis-captio
 import { buildHalvesCard, buildTimelineCard, HALVES_PAGE_LABEL, TIMELINE_PAGE_LABEL } from "@/lib/dashboard/match-analysis-card";
 import { loadMatchAnalysisFacts, type AnalysisDeps } from "@/lib/dashboard/match-analysis-data";
 import { renderHalvesImage, renderTimelineImage } from "@/lib/dashboard/match-analysis-render";
+import { droppedPageNote } from "@/lib/dashboard/set-pages";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { matchResultTitle } from "@/lib/dashboard/match-result-caption";
 import { PLAYER_STATS_FORMATS } from "@/lib/dashboard/player-stats-engine";
@@ -25,7 +26,8 @@ import type { Result } from "@/types/result";
 
 /**
  * Maç Analizi üretimi (kural tabanlı, yapay zekâ ve Fal YOK) → DRAFT `AiContent` (`MATCH_ANALYSIS`). 01 zaman
- * çizelgesi her zaman; 02 devre devre yalnızca devre verisi varsa (yoksa 01 tek başına, sebep notlarda). Gönderi
+ * çizelgesi her zaman; 02 devre devre yalnızca devre verisi varsa. 02 kendi kapısına (yerleşim / bahis dili) takılırsa
+ * 01 DÜŞMEZ: tek başına üretilir, sebep notlarda (canlı test 2026-10-31, Fiorentina–Atalanta 4:5). Gönderi
  * metni şablondan (`buildMatchAnalysisCaption`), kart + gönderi metni bahis dili kapısından (`contentLanguageGate`).
  * Maç Sonucu carousel'i aynı sayfa çizicisini (`renderAnalysisPages`) 01'in bulanık zeminiyle kullanır.
  */
@@ -78,8 +80,8 @@ export async function renderAnalysisPages(input: AnalysisPagesInput): Promise<Re
   if (facts.halves.available) {
     reportJobStep("Maç Analizi çiziliyor (devre devre)");
     const halves = await renderHalvesImage({ card: buildHalvesCard(facts, facts.halves.stats, images, labels.halves), frame, resultImage: input.resultImage, seedKey: facts.match.fixtureId });
-    if (!halves.ok) return halves;
-    pages.push({ image: halves.data, label: sentence(labels.halves) });
+    if (halves.ok) pages.push({ image: halves.data, label: sentence(labels.halves) });
+    else notes.push(droppedPageNote(sentence(labels.halves), halves.error.message));
   } else {
     notes.push(`Devre devre sayfası düştü: ${facts.halves.reason}`);
   }
@@ -119,7 +121,8 @@ export async function createMatchAnalysisDraft(input: { facts: MatchAnalysisFact
         title: `Maç Analizi · ${matchResultTitle(facts.match)}`,
         subtitle: `${facts.match.competition.name} · ${facts.match.roundLabel}`,
         halves: facts.halves.available ? facts.halves.stats.source : null,
-        halvesDropped: facts.halves.available ? null : facts.halves.reason,
+        halvesDropped: facts.halves.available ? (rendered.data.pages.length > 1 ? null : "02 kapıya takıldı") : facts.halves.reason,
+        studioNotes: rendered.data.notes,
         // Yayın Merkezi bu sırayla dizer; 02 düştüyse tek kart.
         ...(slides.length > 1 ? { carousel: slides } : {}),
       }),

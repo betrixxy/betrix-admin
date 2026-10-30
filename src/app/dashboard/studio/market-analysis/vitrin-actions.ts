@@ -11,6 +11,7 @@ import { auditedReasons, auditReasons, matchSides, vitrinFacts } from "@/lib/pre
 import { DIFFERENT_LEAGUES_WARNING, differentLeagues } from "@/lib/prediction/season-xg";
 import { openBoxLines, scenarioTitle } from "@/lib/prediction/catalog";
 import { isAnthropicConfigured } from "@/lib/services/anthropic";
+import { aiReasonsFallbackNote } from "@/lib/services/anthropic/errors";
 import { generateScenarioReasons } from "@/lib/services/anthropic/scenario-reasons";
 import { getDeepAnalysisStats, parseFixtureId } from "@/lib/services/api-football";
 import type { DeepAnalysisStats } from "@/types/deep-analysis";
@@ -46,6 +47,12 @@ export interface VitrinLoadResult {
   analystAvailable: boolean;
   /** Stüdyoda tek satır uyarılar (ör. farklı ligler — xG karşılaştırılamaz). */
   warnings: string[];
+}
+
+/** Önizleme: 01 Poster (+ 02 Analiz; kapıya takılırsa düşer, sebebi `notes`'ta). */
+export interface VitrinPreview {
+  dataUrls: string[];
+  notes: string[];
 }
 
 type Fail = { ok: false; error: { code: string; message: string } };
@@ -122,7 +129,8 @@ async function writeReasons(fixtureId: string): Promise<Result<VitrinLoadResult>
   const picks = base.data.scenarios.map((scenario) => ({ senaryo: scenarioTitle(scenario.id, sides, scenario.outcome), kimlik: scenario.id, secili_sonuc: openBoxLines(scenario, sides).find((line) => line.picked)?.label ?? "" }));
   reportJobStep("AI analist gerekçeleri yazıyor (Claude)");
   const written = await generateScenarioReasons(vitrinFacts(stats.data), picks);
-  if (!written.ok) return fail(written.error.code, written.error.message);
+  // AI yoksa / başarısızsa (anahtar yok, kredi yetersiz, ağ): kural tabanlı gerekçelerle devam, sebep stüdyoda.
+  if (!written.ok) return buildRows(fixtureId, stats.data, {}, [aiReasonsFallbackNote(written.error)]);
   // Yön/örneklem dahil denetimden geçmeyen AI gerekçesi, geçen kural tabanlı gerekçeyle değişir (uyarıyla).
   const audited = auditedReasons(base.data.scenarios, written.data, vitrinFacts(stats.data), sides);
   const notes = audited.replaced.map(({ id, outcome, issues }) => `${scenarioTitle(id, sides, outcome)}: AI gerekçesi denetimden geçmedi (${issues.join(" · ")}) — kural tabanlı gerekçe kullanıldı.`);
@@ -168,7 +176,7 @@ export async function previewVitrinAction(formData: FormData): Promise<Result<St
   return startResultJob("vitrin-preview", `vitrin-preview:${String(formData.get("fixtureId"))}:${String(formData.get("format"))}`, "Maç verisi alınıyor", () => previewVitrin(formData));
 }
 
-async function previewVitrin(formData: FormData): Promise<Result<{ dataUrls: [string, string] }>> {
+async function previewVitrin(formData: FormData): Promise<Result<VitrinPreview>> {
   const parsed = readRequest(formData);
   if (!parsed.success) return fail("INVALID_INPUT", parsed.error.issues[0]?.message ?? "Form geçersiz.");
   const stats = await fetchStats(parsed.data.fixtureId);
@@ -188,8 +196,7 @@ async function previewVitrin(formData: FormData): Promise<Result<{ dataUrls: [st
   reportJobStep("Kart çiziliyor");
   const rendered = await renderVitrin({ stats: stats.data, prediction: prediction.data, selection, format: parsed.data.format, photos: { home: photos.data.home?.image ?? null, away: photos.data.away?.image ?? null } });
   if (!rendered.ok) return rendered;
-  const [poster, analysis] = rendered.data.pages.map((png) => `data:image/png;base64,${png.toString("base64")}`);
-  return { ok: true, data: { dataUrls: [poster ?? "", analysis ?? ""] } };
+  return { ok: true, data: { dataUrls: rendered.data.pages.map((png) => `data:image/png;base64,${png.toString("base64")}`), notes: rendered.data.notes } };
 }
 
 /**

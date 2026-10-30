@@ -39,9 +39,10 @@ export async function getPlayerCutout(image: UploadedImage, label: string): Prom
   const cached = await readStoredFile("generated", fileName);
   if (cached) return { ok: true, data: { bytes: cached, paidCalls: 0, fromCache: true } };
 
-  const paidUpscale = upscaleFactorFor(image) > 1 ? 1 : 0;
   const ready = await ensurePlayerResolution(image, label);
   if (!ready.ok) return ready;
+  // Büyütme yapılamadıysa (Fal yok/hata) orijinalle devam edildi — ücret yok.
+  const paidUpscale = upscaleFactorFor(image) > 1 && ready.data !== image ? 1 : 0;
   const cut = await removePlayerBackground({ bytes: ready.data.bytes, contentType: ready.data.contentType });
   if (!cut.ok) return { ok: false, error: { code: cut.error.code, message: `${label}: ${cut.error.message}` } };
 

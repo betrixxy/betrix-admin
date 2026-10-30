@@ -55,6 +55,7 @@ export async function loadPickerTeams(teamIds: number[], fixtureId: string | nul
       bucket: photoBucket(row, teamId, fixtureId),
       width: row.width,
       height: row.height,
+      upscaled: row.upscaledUrl !== null,
     });
     const photos: Record<string, PickerPhoto[]> = {
       [teamSubject(teamId)]: orderPickerPhotos(rows.filter((row) => row.personId === null && row.teamId === teamId), teamId, fixtureId).slice(0, MAX_PHOTOS_PER_SUBJECT).map(toPicker),

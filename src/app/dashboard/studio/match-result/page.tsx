@@ -12,6 +12,7 @@ import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { playerDataSettlement } from "@/lib/player-stats/settle";
 import { toPlayerMatchLines } from "@/lib/services/api-football/player-match-mappers";
 import { getMatchResultRaw, parseFixtureId, toFixtureId } from "@/lib/services/api-football";
+import { isFalConfigured } from "@/lib/services/fal";
 import type { MatchResultFacts, ScorerLine } from "@/types/match-result";
 
 export const metadata: Metadata = {
@@ -131,6 +132,7 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
             facts={facts}
             playerSettlement={playerSettlement}
             scorecardBlocker={scorecardBlocker}
+            falAvailable={isFalConfigured()}
           />
         </>
       ) : null}

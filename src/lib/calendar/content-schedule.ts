@@ -1,4 +1,6 @@
 import type { Prisma } from "@/generated/prisma/client";
+import { withStudioNotes } from "@/lib/dashboard/studio-notes";
+import { jobNotes } from "@/lib/jobs/studio-jobs";
 import { prisma } from "@/lib/prisma";
 import type { ContentTypeId } from "@/types/content-type";
 import { APPROVED_STATUSES } from "@/types/ai-content";
@@ -19,8 +21,10 @@ import { SCHEDULE_PLACEHOLDER_WHERE } from "@/lib/calendar/schedule-placeholder"
  * yazılır (plan korunur), yoksa yeni kayıt türün planlanmış yayın zamanını devralır.
  */
 export async function createScheduledContent(
-  data: Prisma.AiContentUncheckedCreateInput & { contentType: ContentTypeId },
+  input: Prisma.AiContentUncheckedCreateInput & { contentType: ContentTypeId },
 ): Promise<{ id: string }> {
+  // Çalışan işin dayanıklılık notları (`reportJobNote`) kaydın `renderOptions.studioNotes`una — taslak ekranı gösterir.
+  const data = { ...input, renderOptions: withStudioNotes(input.renderOptions, jobNotes()) };
   const { placeholderId, publishAt } = await findContentSchedule(data.fixtureId, data.contentType);
   if (placeholderId) {
     return prisma.aiContent.update({ where: { id: placeholderId }, data: { ...data, createdAt: new Date() }, select: { id: true } });

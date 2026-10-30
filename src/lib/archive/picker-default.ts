@@ -10,13 +10,26 @@ import type { ArchivePickerData, PickerPhoto } from "@/types/archive";
  *  4. Kazananın formalı fotoğrafı olan ilk oyuncusu.
  *  5. Hiç fotoğraf yoksa: MVP konusu ya da kazananın takım fotoğrafı konusu — yükleme açılır, forma = kazanan.
  * Seçilen fotoğraf, konunun kazanan formalı İLK fotoğrafıdır (ızgara sırası: bu maç → güncel → eski forma).
+ *
+ * Fal YOKSA (`falAvailable: false`, canlı test 2026-10-31: varsayılan 864×486 takım fotoğrafı ESRGAN'sız kart üretemedi):
+ * aynı sıra önce yalnızca KARTA HAZIR fotoğraflarla denenir — büyütülmüş sürümü olan ya da kısa kenarı ≥ 1080
+ * (`PHOTO_MIN_SHORT_SIDE`, kalite kapısının büyütme eşiği); hiçbiri yoksa normal sıra (kart yine üretilir, orijinal
+ * çözünürlükle — "Düşük çözünürlük" uyarısı).
  */
+
+/** Kalite kapısının büyütme eşiği (`match-photo/quality.ts::PHOTO_MIN_SHORT_SIDE`) — istemci modülü sunucu dosyasını içe aktarmaz. */
+export const CARD_READY_SHORT_SIDE = 1080;
+
+/** Saf: fotoğraf Fal'sız karta hazır mı (büyütülmüş sürüm var ya da yeterince büyük). */
+export const isCardReady = (photo: Pick<PickerPhoto, "upscaled" | "width" | "height">): boolean => photo.upscaled || Math.min(photo.width, photo.height) >= CARD_READY_SHORT_SIDE;
 
 export interface PreferredSubject {
   /** Kazanan takım (beraberlikte ev sahibi) — forma takımı da budur. */
   teamId: number;
   /** Kazanan takımdaki MVP; yoksa null. */
   playerId: number | null;
+  /** false → Fal yok: önce karta hazır fotoğraflar (bkz. `isCardReady`). Verilmezse true. */
+  falAvailable?: boolean | undefined;
 }
 
 export interface PickerDefault {
@@ -33,9 +46,17 @@ export function winnerPhotoPreference(facts: { outcome: "HOME" | "AWAY" | "DRAW"
 
 /** Saf: tercih edilen konu ve fotoğrafı; tercih edilen takım arşivde yoksa null (seçici eski kuralına döner). */
 export function preferredPickerDefault(data: ArchivePickerData, preferred: PreferredSubject): PickerDefault | null {
+  if (preferred.falAvailable === false) {
+    const ready = pickDefault(data, preferred, isCardReady);
+    if (ready?.photoId) return ready;
+  }
+  return pickDefault(data, preferred, () => true);
+}
+
+function pickDefault(data: ArchivePickerData, preferred: PreferredSubject, accept: (photo: PickerPhoto) => boolean): PickerDefault | null {
   const team = data.teams.find((entry) => entry.teamId === preferred.teamId);
   if (!team) return null;
-  const kit = (key: string): PickerPhoto[] => (team.photos[key] ?? []).filter((photo) => photo.kitTeamId === preferred.teamId);
+  const kit = (key: string): PickerPhoto[] => (team.photos[key] ?? []).filter((photo) => photo.kitTeamId === preferred.teamId && accept(photo));
   const subjects = team.groups.flatMap((group) => group.subjects);
   const players = subjects.filter((subject) => subject.isPlayer);
   const teamKey = subjects.find((subject) => subject.key.startsWith("team:"))?.key ?? null;

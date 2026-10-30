@@ -3,6 +3,7 @@ import type { H2HCard, H2HPlayerCard, H2HRow } from "@/types/player-h2h";
 import { STACK_LAYERS, blockOpacity, layerOpacity, unlayered, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
+import { teamBadgeBackground } from "../shared/team-fallback";
 import { MUTED } from "../vitrin/parts";
 import { H2H_SIZES, chartContentHeight, chartRowHeight, type H2HCompareGeometry } from "./geometry";
 import { LOSER_BAR, StatValue, TIE_BAR, upperLabel, valueColor } from "./parts";
@@ -33,7 +34,8 @@ function Face({ player, k, align, only }: { player: H2HPlayerCard; k: number; al
     </div>
   );
   const circle = (
-    <div tw="flex items-center justify-center" style={{ width: size, height: size, borderRadius: size, border: `${ring}px solid ${player.hex}`, backgroundColor: "rgba(7,8,12,0.55)", opacity: unlayered(only) }}>
+    // Vesikalık yoksa ortak yedek dilinde rozet: takım rengi ışıklı zemin + arma (boş koyu daire değil).
+    <div tw="flex items-center justify-center" style={{ width: size, height: size, borderRadius: size, border: `${ring}px solid ${player.hex}`, backgroundColor: "rgba(7,8,12,0.55)", ...(player.face ? {} : { backgroundImage: teamBadgeBackground(player.hex) }), opacity: unlayered(only) }}>
       {photo}
     </div>
   );

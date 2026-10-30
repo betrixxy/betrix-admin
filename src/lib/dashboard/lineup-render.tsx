@@ -28,12 +28,12 @@ async function embedLogo(url: string): Promise<string> {
 /**
  * Tek takımlık Muhtemel 11 kartını PNG olarak çizer (Fal.ai yok). Renkler takım logosundan okunur (önbellekli).
  * "Kahraman Liste": kapak fotoğrafı (`input.heroPhoto`, arşivden) Vitrin hattıyla sanat katmanına basılır,
- * yazı katmanı üstüne gelir, set ailesinin gren/vinyet bitişi uygulanır. Kapak yoksa kart taktik tahtasına
- * düşer — kapaksız liste kartı çizilmez.
+ * yazı katmanı üstüne gelir, set ailesinin gren/vinyet bitişi uygulanır. Kapak fotoğrafı yoksa kapak ORTAK YEDEK
+ * TASARIMDIR (takım rengi + filigran arma + soluk dev ad, `team-fallback.tsx`) — liste yine çizilir.
  */
 export interface RenderedLineupCard {
   png: Buffer;
-  /** Gerçekte çizilen şablon — kapak yoksa liste istense de "pitch". */
+  /** Gerçekte çizilen şablon (admin'in seçimi; kapaksız liste yedek tasarımla). */
   templateStyle: LineupTemplateStyle;
 }
 
@@ -47,13 +47,14 @@ export async function renderLineupCard(input: LineupCardInput, options: { upscal
   const gate = await layoutGate("Muhtemel 11", frame, (only) => drawLineupCard(prepared, only), LINEUP_BLOCKS, bandSafeArea(frame));
   if (!gate.ok) return gate;
   const overlay = await drawLineupCard(prepared);
-  if (prepared.templateStyle === "pitch" || !input.heroPhoto) return { ok: true, data: { png: overlay, templateStyle: "pitch" } };
+  if (prepared.templateStyle === "pitch") return { ok: true, data: { png: overlay, templateStyle: "pitch" } };
 
-  const art = await lineupHeroArt({ g: lineupGeometry(input.format), format: input.format, palette: prepared.palette, photo: input.heroPhoto, adjust: input.team.heroAdjust, upscale: options.upscale });
+  const fallback = { name: input.team.teamName, hex: prepared.palette.glow, logo: prepared.logoUrl || null };
+  const art = await lineupHeroArt({ g: lineupGeometry(input.format), format: input.format, palette: prepared.palette, photo: input.heroPhoto ?? null, fallback, adjust: input.team.heroAdjust, upscale: options.upscale });
   if (!art.ok) return art;
   const layer = await sharp(overlay).ensureAlpha().png().toBuffer();
   // Gren tohumu takım + fotoğraf: aynı kart her çizimde aynı.
-  const png = await finalizeSetImage(art.data, layer, socialFrame(input.format), `lineup-${input.team.teamName}-${input.heroPhoto.hash}`);
+  const png = await finalizeSetImage(art.data, layer, socialFrame(input.format), `lineup-${input.team.teamName}-${input.heroPhoto?.hash ?? "yedek"}`);
   return { ok: true, data: { png, templateStyle: "hero_list" } };
 }
 
@@ -72,7 +73,7 @@ async function drawLineupCard({ input, templateStyle, fonts, brandLogo, logoUrl,
 async function prepareLineupCard(input: LineupCardInput) {
   const [fonts, brandLogo, logoUrl, opponentLogoUrl] = await Promise.all([loadStudioFonts(), loadBrandLogo(), embedLogo(input.team.logoUrl), embedLogo(input.opponentLogoUrl)]);
   const swatches = logoUrl ? await logoSwatches(input.team.logoUrl, logoUrl) : null;
-  // Kapak yalnızca "Kahraman Liste"de ve fotoğraf çözüldüyse; yoksa taktik tahtası.
-  const templateStyle: LineupTemplateStyle = input.templateStyle === "hero_list" && input.heroPhoto ? "hero_list" : "pitch";
+  // Admin'in seçimi; "Kahraman Liste"de kapak fotoğrafı yoksa kapak yedek tasarımdır.
+  const templateStyle: LineupTemplateStyle = input.templateStyle;
   return { input, templateStyle, fonts, brandLogo, logoUrl, opponentLogoUrl, palette: lineupPalette(swatches, input.team.colorHex) };
 }

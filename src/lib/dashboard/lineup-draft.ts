@@ -90,9 +90,11 @@ export function lineupIssues(team: TeamLineupDraft): string[] {
 }
 
 /**
- * Tek kartın gerçekte çizileceği şablon — her takım bağımsız: "Kahraman Liste" seçiliyse kapak fotoğrafı
- * seçilen takım liste, seçilmeyen takım taktik tahtası olarak çizilir (kapaksız liste kartı çizilmez).
+ * Tek kartın gerçekte çizileceği şablon = admin'in seçimi. "Kahraman Liste"de kapak fotoğrafı olmayan takım da liste
+ * olarak çizilir: kapak yerine ORTAK YEDEK TASARIM (takım rengi gradyanı + dev filigran arma + soluk dev ad + arma —
+ * `templates/shared/team-fallback.tsx`; canlı test 2026-10-31, eskiden taktik tahtasına düşüyordu).
  */
 export function cardTemplateStyle(selected: LineupTemplateStyle, team: Pick<TeamLineupDraft, "heroPhotoId">): LineupTemplateStyle {
-  return selected === "hero_list" && team.heroPhotoId ? "hero_list" : "pitch";
+  void team;
+  return selected;
 }

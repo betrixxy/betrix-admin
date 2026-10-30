@@ -1,6 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { ANALYST_MODEL, getAnthropicClient, isAnthropicConfigured } from "@/lib/services/anthropic/client";
+import { anthropicFailure } from "@/lib/services/anthropic/errors";
 import { SCENARIO_REASONS_SYSTEM_PROMPT } from "@/lib/services/anthropic/scenario-reasons-prompt";
 import { scenarioReasonsSchema, type AnthropicError, type ScenarioReasonsOutput } from "@/lib/services/anthropic/types";
 import type { Result } from "@/types/result";
@@ -15,12 +16,24 @@ const SYSTEM_PROMPT = SCENARIO_REASONS_SYSTEM_PROMPT;
 
 const MAX_TOKENS = 900;
 
-export async function generateScenarioReasons(facts: unknown, scenarios: unknown): Promise<Result<ScenarioReasonsOutput, AnthropicError>> {
-  if (!isAnthropicConfigured()) {
-    return { ok: false, error: { code: "NOT_CONFIGURED", message: "ANTHROPIC_API_KEY tanımlı değil — kural tabanlı gerekçeler kullanılıyor." } };
+/** Testte enjekte edilir (gerçek çağrı yok): istemci ve anahtar durumu. */
+export interface ScenarioReasonsDeps {
+  configured: () => boolean;
+  client: () => Pick<Anthropic, "messages">;
+}
+
+const PRODUCTION_DEPS: ScenarioReasonsDeps = { configured: isAnthropicConfigured, client: getAnthropicClient };
+
+/**
+ * Hata (anahtar yok, kredi yetersiz, ağ…) istisna FIRLATMAZ — okunur sebeple döner (`anthropicFailure`); çağıran kural
+ * tabanlı gerekçelerle devam eder ve sebebi stüdyoda yazar (`errors.ts::aiReasonsFallbackNote`).
+ */
+export async function generateScenarioReasons(facts: unknown, scenarios: unknown, deps: ScenarioReasonsDeps = PRODUCTION_DEPS): Promise<Result<ScenarioReasonsOutput, AnthropicError>> {
+  if (!deps.configured()) {
+    return { ok: false, error: { code: "NOT_CONFIGURED", message: "ANTHROPIC_API_KEY tanımlı değil" } };
   }
   try {
-    const response = await getAnthropicClient().messages.parse({
+    const response = await deps.client().messages.parse({
       model: ANALYST_MODEL,
       max_tokens: MAX_TOKENS,
       thinking: { type: "between_tools" },
@@ -40,11 +53,8 @@ export async function generateScenarioReasons(facts: unknown, scenarios: unknown
     if (!response.parsed_output) return { ok: false, error: { code: "INVALID_RESPONSE", message: "Model yanıtı beklenen şemaya uymadı." } };
     return { ok: true, data: response.parsed_output };
   } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) return { ok: false, error: { code: "RATE_LIMITED", message: "Claude hız sınırına takıldı — birazdan tekrar deneyin." } };
-    if (error instanceof Anthropic.APIError) {
-      console.error(`[anthropic] senaryo gerekçeleri başarısız: ${error.status ?? "?"} ${error.message}`);
-      return { ok: false, error: { code: "API_ERROR", message: `Claude isteği başarısız (${error.status ?? "bağlantı"}).` } };
-    }
-    throw error;
+    const failure = anthropicFailure(error);
+    console.error(`[anthropic] senaryo gerekçeleri başarısız: ${failure.message}`);
+    return { ok: false, error: failure };
   }
 }

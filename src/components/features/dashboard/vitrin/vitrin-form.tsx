@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, LoaderCircle, Save, Sparkles } from "lucide-react";
-import { loadVitrinAction, previewVitrinAction, saveVitrinAction, writeReasonsAction, type VitrinLoadResult } from "@/app/dashboard/studio/market-analysis/vitrin-actions";
+import { loadVitrinAction, previewVitrinAction, saveVitrinAction, writeReasonsAction, type VitrinLoadResult, type VitrinPreview } from "@/app/dashboard/studio/market-analysis/vitrin-actions";
 import { ArchivePhotoPicker } from "@/components/features/archive/archive-photo-picker";
 import { Button } from "@/components/ui/button";
 import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
@@ -43,7 +43,7 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const { roles } = roleState;
   const [reasons, setReasons] = useState<Record<ScenarioId, string>>({} as Record<ScenarioId, string>);
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
-  const [preview, setPreview] = useState<[string, string] | null>(null);
+  const [preview, setPreview] = useState<VitrinPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Maç Merkezi'nden (`?fixtureId=`) açılınca veri kendiliğinden yüklenir — "Veriyi yükle" beklenmez.
   const autoLoadId = initialFixtureId && fixtures.some((option) => option.id === initialFixtureId) ? initialFixtureId : null;
@@ -161,8 +161,8 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
 
             <div className="flex gap-2">
               <Button type="button" variant="secondary" disabled={blockers.length > 0} onClick={() => run("preview", async () => {
-                const result = await resultFromJob<{ dataUrls: [string, string] }>(await previewVitrinAction(formData()), setProgress);
-                if (result.ok) { setPreview(result.data.dataUrls); setError(null); } else setError(result.error.message);
+                const result = await resultFromJob<VitrinPreview>(await previewVitrinAction(formData()), setProgress);
+                if (result.ok) { setPreview(result.data); setError(null); } else setError(result.error.message);
               })}>
                 {busy === "preview" ? <LoaderCircle className="animate-spin" /> : <Eye />} Önizle
               </Button>
@@ -195,11 +195,19 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
         </CardHeader>
         <CardContent>
           {preview ? (
-            <div className="grid grid-cols-2 gap-2">
-              {preview.map((url, index) => (
-                // eslint-disable-next-line @next/next/no-img-element -- data: URL önizleme
-                <img key={index} src={url} alt={index === 0 ? "Vitrin 01 Poster önizlemesi" : "Vitrin 02 Analiz önizlemesi"} className="w-full rounded-md ring-1 ring-border" />
+            <div className="flex flex-col gap-2">
+              {preview.notes.map((note) => (
+                <p key={note} className="flex items-start gap-1.5 text-xs text-amber-300" role="note">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                  {note}
+                </p>
               ))}
+              <div className="grid grid-cols-2 gap-2">
+                {preview.dataUrls.map((url, index) => (
+                  // eslint-disable-next-line @next/next/no-img-element -- data: URL önizleme
+                  <img key={index} src={url} alt={index === 0 ? "Vitrin 01 Poster önizlemesi" : "Vitrin 02 Analiz önizlemesi"} className="w-full rounded-md ring-1 ring-border" />
+                ))}
+              </div>
             </div>
           ) : (
             <p className="py-16 text-center text-xs text-muted-foreground">Veriyi yükleyip &quot;Önizle&quot;ye basın.</p>

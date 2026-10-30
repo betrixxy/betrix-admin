@@ -2,9 +2,9 @@ import { fixtureOrigins } from "@/lib/dashboard/team-origin";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
-import { backgroundCacheKey, getPlayerCutout, readCachedBackground, saveCachedBackground } from "@/lib/dashboard/match-day-cache";
-import { buildProgrammaticBackground, composeMatchDayArt, finalizeMatchDayImage, restorePlayers } from "@/lib/dashboard/match-day-compose";
-import { MATCH_DAY_FRAMES, type MatchDayFrame } from "@/lib/dashboard/match-day-formats";
+import { composeMatchDayArt, finalizeMatchDayImage, restorePlayers } from "@/lib/dashboard/match-day-compose";
+import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
+import { resolveBackground, resolveSideCutout } from "@/lib/dashboard/match-day-sides";
 import { matchDayLayoutGate, renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
 import { loadMatchDayStats } from "@/lib/dashboard/match-day-stats";
 import { MATCH_DAY_TEMPLATES } from "@/lib/dashboard/match-day-templates";
@@ -12,7 +12,7 @@ import { buildMatchDayCaption } from "@/lib/dashboard/match-day-caption";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { downloadImage, type UploadedImage } from "@/lib/dashboard/studio-images";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
-import { buildMatchDayBackgroundPrompt, generateMatchDayBackground, harmonizeMatchDayComposite } from "@/lib/services/fal";
+import { harmonizeMatchDayComposite } from "@/lib/services/fal";
 import type { MatchDayPromptInput } from "@/lib/services/fal/match-day-prompts";
 import type {
   MatchDayCard,
@@ -33,10 +33,12 @@ import type { DerbyIntensity } from "@/types/sports";
 /**
  * Maç Günü kartı üretim hattı (yarı otomatik — admin tıklamasıyla tetiklenir, DRAFT doğar; bkz. CLAUDE.md 1.10):
  *
- *   1. Oyuncu kesimleri (önbellek → yoksa AI Upscale + birefnet) ‖ arka plan (programatik |
- *      önbellek | flux, düşük çözünürlükte) ‖ kart verisi ‖ (veri şablonunda) gerçek istatistikler
+ *   1. Oyuncu kesimleri (önbellek → yoksa AI Upscale + birefnet; fotoğrafsız ya da kesilemeyen taraf → takımın yedek
+ *      tasarımı, Fal'a gidilmez) ‖ arka plan (programatik | önbellek | flux; flux yapılamazsa programatik) ‖ kart
+ *      verisi ‖ (veri şablonunda) gerçek istatistikler. Fal yok/hata kartı DÜŞÜRMEZ — sebep `warnings`'te.
  *   2. sharp: arka plan + ışık/gölge + oyuncular + okunabilirlik gölgesi → kaba kompozit (seçili formatta)
- *   3. PREMIUM kalite + şablon destekliyorsa: Fal.ai image-to-image harmanlama
+ *   3. PREMIUM kalite + şablon destekliyorsa + iki tarafta da oyuncu varsa: Fal.ai image-to-image harmanlama
+ *      (yapılamazsa kaba kompozit)
  *   4. (isteğe bağlı) orijinal oyuncu kesimlerini yeniden bas — yüz/forma birebir korunur
  *   5. Satori: şablonun tipografi/logo/marka katmanı → PNG
  */
@@ -53,8 +55,9 @@ export interface CreateMatchDayInput {
   quality: MatchDayQualityMode;
   /** true → aynı ayarlarla daha önce üretilmiş arka plan varsa tekrar kullanılır (ücretsiz). */
   reuseBackground: boolean;
-  homePlayer: UploadedImage;
-  awayPlayer: UploadedImage;
+  /** Oyuncu fotoğrafı; null → o takımın yedek tasarımı (Fal'a gidilmez). */
+  homePlayer: UploadedImage | null;
+  awayPlayer: UploadedImage | null;
   homeColorHex: string;
   awayColorHex: string;
   derbyIntensity: DerbyIntensity;
@@ -75,46 +78,6 @@ const DB_FORMAT: Record<MatchDayFormatId, string> = {
   X_LANDSCAPE: "X_CARD",
 };
 
-/**
- * Maliyet: arka plan sahnesi koyulaştırılıp oyuncuların arkasında kaldığı için tam çözünürlük
- * gerekmez — uzun kenarı 1024px üretilip sharp ile büyütülür (Fal.ai flux megapiksel başına
- * ücretlendirir; 9:16'da ~%70, 4:5'te ~%40 daha az piksel).
- */
-export function economyBackgroundSize(frame: MatchDayFrame): { width: number; height: number } {
-  const scale = Math.min(1, 1024 / Math.max(frame.width, frame.height));
-  return { width: Math.round(frame.width * scale), height: Math.round(frame.height * scale) };
-}
-
-interface BackgroundResult {
-  bytes: Buffer;
-  prompt: string;
-  paidCalls: number;
-  saved: string | null;
-}
-
-async function getBackground(input: CreateMatchDayInput, frame: MatchDayFrame, promptInput: MatchDayPromptInput): Promise<Result<BackgroundResult, EngineError>> {
-  if (!MATCH_DAY_TEMPLATES[input.template].aiBackground) {
-    const bytes = await buildProgrammaticBackground(frame, input.homeColorHex);
-    return { ok: true, data: { bytes, prompt: "programatik zemin", paidCalls: 0, saved: "Arka plan programatik (şablon AI arka plan kullanmıyor)" } };
-  }
-
-  const size = economyBackgroundSize(frame);
-  const prompt = buildMatchDayBackgroundPrompt(promptInput);
-  const key = backgroundCacheKey(prompt, size.width, size.height);
-  if (input.reuseBackground) {
-    const cached = await readCachedBackground(key);
-    if (cached) return { ok: true, data: { bytes: cached, prompt, paidCalls: 0, saved: "Arka plan önbellekten" } };
-  }
-
-  const generated = await generateMatchDayBackground({ ...promptInput, ...size });
-  if (!generated.ok) return fail(generated.error.code, `Arka plan: ${generated.error.message}`);
-  try {
-    const jpeg = await sharp(await downloadImage(generated.data.imageUrl)).jpeg({ quality: 90 }).toBuffer();
-    await saveCachedBackground(key, jpeg);
-    return { ok: true, data: { bytes: jpeg, prompt, paidCalls: 1, saved: null } };
-  } catch {
-    return fail("DOWNLOAD_FAILED", "Arka plan Fal.ai'den indirilemedi — birazdan tekrar deneyin.");
-  }
 }
 
 async function saveJpeg(bytes: Buffer): Promise<string> {
@@ -145,16 +108,13 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
 
   // 1. Bağımsız adımlar paralel.
   const [homeCut, awayCut, background, baseCard, stats, referee] = await Promise.all([
-    getPlayerCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
-    getPlayerCutout(input.awayPlayer, "Deplasman oyuncu fotoğrafı"),
-    getBackground(input, frame, promptInput),
+    resolveSideCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
+    resolveSideCutout(input.awayPlayer, "Deplasman oyuncu fotoğrafı"),
+    resolveBackground(input, frame, promptInput),
     fixtureOrigins(input.fixtureId).then((origins) => resolveMatchDayCard(input.info, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }, origins)),
     input.template === "DATA_DRIVEN" ? loadMatchDayStats(input.fixtureId) : Promise.resolve(null),
     refereeFields(input.info.referee),
   ]);
-  if (!homeCut.ok) return fail(homeCut.error.code, homeCut.error.message);
-  if (!awayCut.ok) return fail(awayCut.error.code, awayCut.error.message);
-  if (!background.ok) return background;
   const card: MatchDayCard = { ...baseCard, ...referee, stats };
   // Yerleşim kapısı (DATA_DRIVEN ad satırları): harmanlama ve kayıttan önce — çakışma varsa kart üretilmez.
   const layout = await matchDayLayoutGate(card, input.template, frame);
@@ -163,42 +123,46 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   if (language) return fail(BANNED_LANGUAGE, `${language} — kart üretilmedi.`);
 
   const savedSteps: string[] = [];
-  if (homeCut.data.fromCache) savedSteps.push("Ev sahibi oyuncu kesimi önbellekten");
-  if (awayCut.data.fromCache) savedSteps.push("Deplasman oyuncu kesimi önbellekten");
-  if (background.data.saved) savedSteps.push(background.data.saved);
-  let paidCalls = homeCut.data.paidCalls + awayCut.data.paidCalls + background.data.paidCalls;
+  if (homeCut.fromCache) savedSteps.push("Ev sahibi oyuncu kesimi önbellekten");
+  if (awayCut.fromCache) savedSteps.push("Deplasman oyuncu kesimi önbellekten");
+  if (background.saved) savedSteps.push(background.saved);
+  // Kartı düşürmeyen geri dönüşler (fotoğrafsız taraf, Fal yok/hata) — stüdyo ve taslak ekranı gösterir.
+  const warnings = [homeCut.note, awayCut.note, background.note].filter((note): note is string => note !== null);
+  let paidCalls = homeCut.paidCalls + awayCut.paidCalls + background.paidCalls;
 
-  const home = { bytes: homeCut.data.bytes, colorHex: input.homeColorHex };
-  const away = { bytes: awayCut.data.bytes, colorHex: input.awayColorHex };
+  const home = { bytes: homeCut.bytes, colorHex: input.homeColorHex, team: { name: card.homeTeam, hex: input.homeColorHex, logo: card.homeLogo } };
+  const away = { bytes: awayCut.bytes, colorHex: input.awayColorHex, team: { name: card.awayTeam, hex: input.awayColorHex, logo: card.awayLogo } };
+  const fallbackSide = home.bytes === null || away.bytes === null;
   const target = { template: input.template, frame };
 
   // 2. Kaba kompozit.
   reportJobStep("Kompozit hazırlanıyor");
   let composite: Buffer;
   try {
-    composite = await composeMatchDayArt(background.data.bytes, target, home, away);
+    composite = await composeMatchDayArt(background.bytes, target, home, away);
   } catch {
     return fail("COMPOSE_FAILED", "Oyuncu kesimleri arka planla birleştirilemedi.");
   }
 
   // 3. AI harmanlama — yalnızca PREMIUM kalitede ve şablon destekliyorsa.
   let art = composite;
-  let prompt = background.data.prompt;
-  if (meta.harmonize && input.quality === "PREMIUM") {
+  let prompt = background.prompt;
+  if (meta.harmonize && input.quality === "PREMIUM" && !fallbackSide) {
     reportJobStep("AI harmanlama (Fal image-to-image)");
     const harmonized = await harmonizeMatchDayComposite({ ...promptInput, composite, contentType: "image/png", strength: input.strength });
-    if (!harmonized.ok) return fail(harmonized.error.code, `Harmanlama: ${harmonized.error.message}`);
-    paidCalls += 1;
-    prompt = harmonized.data.prompt;
-    try {
-      const harmonizedBytes = await downloadImage(harmonized.data.imageUrl);
-      // 4. Oyuncuları koru (isteğe bağlı).
-      art = input.preservePlayers ? await restorePlayers(harmonizedBytes, target, home, away) : harmonizedBytes;
-    } catch {
-      return fail("DOWNLOAD_FAILED", "Harmanlanmış görsel indirilemedi — birazdan tekrar deneyin.");
-    }
+    if (harmonized.ok) {
+      paidCalls += 1;
+      try {
+        const harmonizedBytes = await downloadImage(harmonized.data.imageUrl);
+        // 4. Oyuncuları koru (isteğe bağlı).
+        art = input.preservePlayers ? await restorePlayers(harmonizedBytes, target, home, away) : harmonizedBytes;
+        prompt = harmonized.data.prompt;
+      } catch {
+        warnings.push("Harmanlanmış görsel indirilemedi — kaba kompozit kullanıldı.");
+      }
+    } else warnings.push(`AI harmanlama yapılamadı (${harmonized.error.message}) — kaba kompozit kullanıldı.`);
   } else {
-    savedSteps.push(meta.harmonize ? "AI harmanlama atlandı (Ekonomik mod)" : "AI harmanlama gerekmiyor (düz zeminli şablon)");
+    savedSteps.push(!meta.harmonize ? "AI harmanlama gerekmiyor (düz zeminli şablon)" : fallbackSide ? "AI harmanlama atlandı (fotoğrafsız taraf — arma bozulmasın)" : "AI harmanlama atlandı (Ekonomik mod)");
   }
 
   // 5. Tipografi katmanı → nihai PNG. Depolamadan ayrı yakalanır: Satori/sharp hatası
@@ -215,7 +179,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
 
   try {
     const [backgroundImageUrl, compositeImageUrl, resultImageUrl] = await Promise.all([
-      saveJpeg(background.data.bytes),
+      saveJpeg(background.bytes),
       saveJpeg(composite),
       saveStoredFile("renders", `${randomUUID()}.png`, final),
     ]);
@@ -237,14 +201,15 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
         quality: input.quality,
         info: { ...input.info },
         compositeImageUrl,
-        homeCutoutHash: input.homePlayer.hash,
-        awayCutoutHash: input.awayPlayer.hash,
+        homeCutoutHash: input.homePlayer?.hash ?? null,
+        awayCutoutHash: input.awayPlayer?.hash ?? null,
         homeColorHex: input.homeColorHex,
         awayColorHex: input.awayColorHex,
         derbyIntensity: input.derbyIntensity,
         strength: input.strength,
         preservePlayers: input.preservePlayers,
         paidCalls,
+        studioNotes: warnings,
       },
     });
 
@@ -260,6 +225,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
         format: input.format,
         paidCalls,
         savedSteps,
+        warnings,
       },
     };
   } catch (error: unknown) {

@@ -93,3 +93,12 @@ export interface SetExtrasRequest {
 export function extraPageCounts(request: SetExtrasRequest): Partial<Record<ContentTypeId, number>> {
   return { MATCH_ANALYSIS: request.analysis ? (request.analysis.halves.available ? 2 : 1) : 0, PREDICTION_SCORECARD: request.scorecard ? 1 : 0 };
 }
+
+/**
+ * Saf: çok sayfalı üretimde (Maç Analizi 01 + 02, Maç Sonucu seti, Vitrin) 01'den SONRAKİ bir sayfa kendi kapısına
+ * (yerleşim, bahis dili, çizim) takılınca diğerleri düşmez — o sayfa atlanır ve stüdyoya bu not yazılır.
+ */
+export function droppedPageNote(label: string, reason: string): string {
+  const why = reason.replace(/\s*—?\s*kart üretilmedi[.:]?\s*/u, ": ").replace(/[\s:]+$/u, "");
+  return `${label} sayfası üretilmedi — ${why}${/[.!?]$/u.test(why) ? "" : "."} Diğer sayfalar üretildi.`;
+}

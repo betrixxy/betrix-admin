@@ -56,9 +56,9 @@ describe("Kahraman Liste kapak kuralı (takım başına bağımsız)", () => {
     assert.equal(cardTemplateStyle("hero_list", team(photo)), "hero_list");
   });
 
-  it("yalnızca kapağı eksik takım taktik tahtasına düşer — diğer takımı etkilemez", () => {
+  it("kapağı eksik takım da liste çizilir (yedek tasarım kapak) — taktik tahtasına düşmez", () => {
     const [home, away] = [team(photo), team("")];
-    assert.deepEqual([cardTemplateStyle("hero_list", home), cardTemplateStyle("hero_list", away)], ["hero_list", "pitch"]);
+    assert.deepEqual([cardTemplateStyle("hero_list", home), cardTemplateStyle("hero_list", away)], ["hero_list", "hero_list"]);
   });
 
   it("taktik tahtası seçimi kapaktan bağımsızdır", () => {
