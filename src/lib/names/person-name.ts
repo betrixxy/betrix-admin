@@ -2,10 +2,12 @@ import { nameOrigin, originFromCountry, type NameOrigin } from "@/lib/dashboard/
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
 
 /**
- * Kişi kart adı — TEK KAYNAK (saf). Öncelik: arşivdeki Person adı (admin düzeltmesi) → Sportmonks adı
- * (Türkçe karakterli) → API-Football adı. Sportmonks adı API adının BİÇİMİNİ korur, yalnızca harfleri geri
- * yükler: "U. Cakir" → "U. Çakır", "M. Ibrahimoglu" → "M. İbrahimoğlu", "Ilhan Palut" → "İlhan Palut".
- * Büyük harf kökeni: adın kendi harfi → uyruk → takım ipucu (Galatasaray'ın Nijeryalı forveti "OSIMHEN").
+ * Kişi kart adı — TEK KAYNAK (saf), BÜTÜN kartlar (2026-10-30). Resmi tam ad (API ya da Sportmonks
+ * firstname + lastname) kartta YAZILMAZ. Öncelik: arşivdeki admin düzeltmesi (`nameOverride`) → Sportmonks
+ * yaygın adı (oyuncu eşleşmesiyle: "Vinícius Júnior", "Uğurcan Çakır") → API kısa adından soyad
+ * ("S. Mbangula" → "Mbangula"; eşleşen ama yaygın adsız Sportmonks kaydı harfleri geri yükler: "U. Cakir" →
+ * "Çakır"). Posterde ilk ad küçük + soyad büyük yalnızca güvenilir yaygın ad varsa (`posterName`); yoksa
+ * yalnızca soyad. Büyük harf kökeni: adın kendi harfi → uyruk → takım ipucu (Nijeryalı forvet "OSIMHEN").
  */
 
 /** Karşılaştırma anahtarı: aksan/Türkçe harf farkı yok sayılır ("Çakır" = "cakir", "Sánchez" = "sanchez"). */
@@ -23,7 +25,50 @@ const INITIAL = /^(\p{L})\.$/u;
 
 /** "A.Yüzgeç" gibi bitişik baş harfi ayırır; sözcükler boşlukla. */
 const tokens = (name: string) => name.replace(/(\p{L})\.(?=\p{L})/gu, "$1. ").split(/\s+/u).filter(Boolean);
-const words = (value: string) => value.split(/[\s-]+/u).filter(Boolean);
+const words = (value: string | null) => (value ?? "").split(/[\s-]+/u).filter(Boolean);
+
+/** Soyada dahil ekler ("van Dijk") ve soyadı tek başına bırakmayan sonekler ("Vinícius Júnior"). */
+const PARTICLES = new Set(["van", "von", "der", "den", "de", "da", "di", "del", "della", "dos", "das", "do", "du", "el", "al", "le", "la", "ter", "ten", "mac", "mc"]);
+const SUFFIXES = new Set(["junior", "jr", "jr.", "filho", "neto", "sobrinho", "ii", "iii"]);
+
+/**
+ * Soyadı (+ önündeki ekler, + sonek): "Virgil van Dijk" → "van Dijk", "Mohamed Salah" → "Salah", "Vinícius
+ * Júnior" → olduğu gibi. Büyük harfli adda da çalışır (katlanmış karşılaştırma: "DI" → "di", "ı" değil).
+ * `firstWords`: ekler soyada katılırken önde ilk ad olarak bırakılan en az sözcük.
+ */
+export function shortNameOf(fullName: string, firstWords = 1): string {
+  const all = fullName.trim().split(/\s+/u);
+  if (all.length <= 1) return fullName.trim();
+  let start = all.length - 1;
+  if (SUFFIXES.has(foldName(all[start] ?? ""))) start -= 1;
+  while (start > firstWords && PARTICLES.has(foldName(all[start - 1] ?? ""))) start -= 1;
+  return all.slice(start).join(" ");
+}
+
+/** Büyük adın üstündeki küçük ilk ad (kısa ad dışında kalan). */
+export function firstNameOf(fullName: string): string {
+  const short = shortNameOf(fullName);
+  return fullName.trim().slice(0, fullName.trim().length - short.length).trim();
+}
+
+/** Adda baş harf var mı ("S. Mbangula", "A.Yüzgeç") — baş harfli ad güvenilir yaygın ad sayılmaz. */
+export const hasInitial = (name: string) => tokens(name).some((token) => INITIAL.test(token));
+
+/** API kısa adından soyad: baş harfler atılır, sonra `shortNameOf` ("S. Mbangula" → "Mbangula", "Gabriel" → "Gabriel"). */
+export function surnameOf(apiName: string): string {
+  const named = tokens(apiName).filter((token) => !INITIAL.test(token));
+  // Baş harf atılınca önde ilk ad kalmayabilir: ekler başa kadar soyada dahil ("D. Van der Westhuizen").
+  const firstWords = named.length < tokens(apiName).length ? 0 : 1;
+  return named.length > 0 ? shortNameOf(named.join(" "), firstWords) : apiName.trim();
+}
+
+/** Poster adı: güvenilir yaygın adda ilk ad küçük + soyad büyük; değilse yalnızca soyad (ilk ad boş). */
+export function posterName(name: string, reliable: boolean): { firstName: string; lastName: string } {
+  const lastName = shortNameOf(name);
+  if (!reliable) return { firstName: "", lastName };
+  const firstName = firstNameOf(name);
+  return { firstName: hasInitial(firstName) ? "" : firstName, lastName };
+}
 
 /** Baş harfin karşılığı: resmi ilk adın ve kullanılan adın İLK sözcüğü ("Barış Alper" → yalnızca Barış; "Murat Eyüp" + "Eyüp Aydın" → Murat, Eyüp). */
 function givenWords(person: SportmonksPerson): string[] {
@@ -97,13 +142,13 @@ export function cardPersonName(input: CardPersonNameInput): CardPersonName {
   const hint = input.teamHint ?? null;
   const person = matchPerson(input.apiName, input.people ?? [], input.jersey ?? null);
   const override = input.override?.trim();
-  if (override) return { name: override, origin: personOrigin(override, person?.nationality ?? null, hint), source: "override" };
-  if (person) {
-    const name = restoreName(input.apiName, person);
-    return { name, origin: personOrigin(name, person.nationality, hint), source: "sportmonks" };
-  }
-  const name = input.apiName.trim();
-  return { name, origin: personOrigin(name, null, hint), source: "api" };
+  if (override) return { name: override, origin: personOrigin(override, person?.nationality ?? null, hint), source: "override", reliable: !hasInitial(override) };
+  const common = person?.displayName?.trim();
+  if (person && common && !hasInitial(common)) return { name: common, origin: personOrigin(common, person.nationality, hint), source: "sportmonks", reliable: true };
+  // Yaygın ad yok (ya da baş harfli: "S. Mbangula"): API kısa adından soyad; eşleşen kayıt yalnızca harfleri geri yükler.
+  const surname = surnameOf(input.apiName);
+  const name = person ? restoreName(surname, person) : surname;
+  return { name, origin: personOrigin(name, person?.nationality ?? null, hint), source: "api", reliable: false };
 }
 
 /** Yalnızca ASCII harf — Türkçe karakter içermesi muhtemel API adı (rapor süzgeci). */

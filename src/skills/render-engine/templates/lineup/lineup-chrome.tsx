@@ -2,6 +2,7 @@ import type { LineupPalette } from "@/types/lineup";
 import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
 import { upperLabelLine } from "@/lib/dashboard/name-case";
+import { shortNameOf } from "@/lib/names/person-name";
 import { BODY, EYEBROW, SCORE, TEAM, rgba, upper } from "../studio-tokens";
 import type { LineupGeometry } from "./lineup-geometry";
 
@@ -46,11 +47,15 @@ export const shown = (only: BlockFilter, id: LayoutBlockId) => ({ opacity: block
 /** Archivo Black büyük harf ≈ 0.76 em/karakter — başlık kutusuna sığacak en büyük punto. */
 const HEADLINE_CHAR_RATIO = 0.76;
 
-/** Kartta görünen ad: uzun tam addan soyadı; admin formda kısa ad yazarsa olduğu gibi kalır. */
+/**
+ * Kartta görünen ad: uzun addan soyadı (ekler/sonek dahil — "van Dijk", "Vinícius Júnior"; o da sığmazsa son
+ * sözcük: "Westhuizen", kesik "VAN DER WESTHUI…" değil); admin formda kısa ad yazarsa olduğu gibi kalır.
+ */
 export function displayName(name: string, maxChars: number): string {
   const trimmed = name.trim();
   if (trimmed.length <= maxChars) return trimmed;
-  return trimmed.split(/\s+/).at(-1) ?? trimmed;
+  const surname = shortNameOf(trimmed);
+  return surname.length <= maxChars ? surname : (trimmed.split(/\s+/).at(-1) ?? trimmed);
 }
 
 /** "MUHTEMEL 11" → ["MUHTEMEL", "11"]: sondaki "11" vurgu rengiyle yazılır. */

@@ -5,7 +5,7 @@ import { distinctTeamColor, readableTeamColors, resultAccentHex } from "@/lib/da
 import { upperCompetition, upperName, upperTeamName, type NameOrigin } from "@/lib/dashboard/name-case";
 import { formatNumber } from "@/lib/format/number";
 import { POSITION_LABELS } from "@/lib/player-stats/catalog";
-import { firstNameOf, shortNameOf } from "@/lib/player-h2h/names";
+import { posterName, surnameOf } from "@/lib/names/person-name";
 import { spotlightFact } from "@/lib/player-stats/facts";
 import { highlightText, spotlightRows } from "@/lib/player-stats/rows";
 import type { MatchResultFacts, MatchSide } from "@/types/match-result";
@@ -26,8 +26,8 @@ export interface PlayerCardImages {
   portraits?: Map<number, string | null> | undefined;
 }
 
-/** Kart adı katmanından (arşiv → Sportmonks → API) gelen adlar; verilmezse sağlayıcı adı. */
-export type PlayerNames = Map<number, { name: string; origin: NameOrigin | null }>;
+/** Kart adı katmanından (admin düzeltmesi → Sportmonks yaygın adı → API soyadı) gelen adlar; verilmezse API soyadı. */
+export type PlayerNames = Map<number, { name: string; origin: NameOrigin | null; reliable: boolean }>;
 
 type MatchPart = Pick<MatchResultFacts, "home" | "away" | "outcome" | "competition" | "roundLabel" | "kickoffUtc" | "penaltyScore">;
 
@@ -57,7 +57,7 @@ function entry(line: PlayerMatchLine, match: MatchPart, images: PlayerCardImages
   const named = names?.get(line.playerId);
   return {
     playerId: line.playerId,
-    name: upperName(named?.name ?? line.name, named?.origin ?? team.origin?.people),
+    name: upperName(named?.name ?? surnameOf(line.name), named?.origin ?? team.origin?.people),
     teamName: upperTeamName(team.name, team.origin),
     teamHex: teamHexes(match)[line.side],
     teamLogo: line.side === "HOME" ? images.homeLogo : images.awayLogo,
@@ -78,20 +78,13 @@ const base = (facts: PlayerStatsFacts, images: PlayerCardImages, pageLabel: stri
 });
 
 /**
- * A'nın adı TAM addan (`player-stats-studio.ts::spotlightFullName`; verilmezse kart adı): ilk ad küçük, soyad
- * büyük (Oyuncu Karşılaştırması kuralı — "van", "de" soyada dahil). Baş harf ("S.") ilk ad satırı olmaz.
+ * A'nın adı kart adından, poster kuralıyla (Oyuncu Karşılaştırması ile ortak `posterName`): güvenilir yaygın
+ * ad varsa ilk ad küçük + soyad büyük, yoksa yalnızca soyad. Resmi tam ad kullanılmaz.
  */
-export function nameParts(fullName: string): { firstName: string; lastName: string } {
-  const first = firstNameOf(fullName);
-  return { firstName: /^(\p{L}\.\s*)+$/u.test(first) ? "" : first, lastName: shortNameOf(fullName) };
-}
-
-export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; fullName?: { name: string; origin: NameOrigin | null } | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
+export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: PlayerMatchLine; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null; typographic: boolean }): SpotlightCard {
   const { facts, line } = input;
-  const names: PlayerNames = new Map(input.names);
-  if (input.fullName) names.set(line.playerId, input.fullName);
-  const player = entry(line, facts.match, input.images, names);
-  const { firstName, lastName } = nameParts(player.name);
+  const player = entry(line, facts.match, input.images, input.names);
+  const { firstName, lastName } = posterName(player.name, input.names?.get(line.playerId)?.reliable ?? false);
   const { hero, rows } = spotlightRows(line);
   const meta = [player.teamName, player.positionLabel, line.minutes !== null ? `${line.minutes} DK` : null].filter(Boolean).join(" · ");
   return {

@@ -10,7 +10,7 @@ import { planCrop } from "@/lib/dashboard/match-photo/crop";
 import { cropAndGrade } from "@/lib/dashboard/match-photo/grade";
 import { shadeStrengthFor, textRegionLuminance } from "@/lib/dashboard/match-photo/legibility";
 import { resultAccentHex } from "@/lib/dashboard/match-result-theme";
-import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerCardImages } from "@/lib/dashboard/player-stats-card";
+import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerCardImages, type PlayerNames } from "@/lib/dashboard/player-stats-card";
 import { renderSpotlightImage, renderSpotlightOverlay, renderTopPlayersImage, renderTopPlayersOverlay } from "@/lib/dashboard/player-stats-render";
 import { assemblePlayerStatsFacts } from "@/lib/player-stats/assemble";
 import { topPlayers } from "@/lib/player-stats/picks";
@@ -24,6 +24,7 @@ import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 /**
  * Oyuncu İstatistikleri görsel testi (bkz. CLAUDE.md 5.3) — A · Maçın Oyuncusu (sentetik tam kadraj fotoğraf
  * ve tipografik yedek) + B · Maçın En İyileri (3 ve 5) × 4 format; kaleci A, uzun ad, Türkçe karakterli ad.
+ * Ad kuralı: Mbangula eşleşmesiz → yalnızca "MBANGULA"; uzun/Türkçe ad güvenilir yaygın ad → ilk ad + soyad.
  * Veri gerçek maçtan (Milan 2-4 Bologna, API-Football + Sportmonks xG) — fotoğraf SENTETİK. Ağ yok: logolar
  * `null`, vesikalık yok (takım logosu yedeği). Her kartta YERLEŞİM KAPISI.
  *
@@ -55,6 +56,8 @@ const KEEPER: PlayerMatchLine = { ...lineOf(2998), rating: 8.1, numbers: { ...li
 /** Kurgusal uzun ad ve Türkçe karakterli ad (veri gerçek oyuncudan). */
 const LONG_NAME: PlayerMatchLine = { ...lineOf(44814), name: "Mohamed-Ali Abdelrahman Kouyaté-Diakhaby" };
 const TURKISH_NAME: PlayerMatchLine = { ...lineOf(31273), name: "İrfan Can Eğribayat Çağlayan" };
+/** Güvenilir yaygın ad (Sportmonks / admin düzeltmesi gibi) → poster ilk ad küçük + soyad büyük; verilmezse yalnızca API soyadı. */
+const reliable = (line: PlayerMatchLine, origin: "tr" | "intl"): PlayerNames => new Map([[line.playerId, { name: line.name, origin, reliable: true }]]);
 
 const PHOTO = syntheticPhoto();
 
@@ -74,9 +77,9 @@ async function photoArt(frame: MatchDayFrame, card: SpotlightCard) {
   return { art, shadeStrength: shadeStrengthFor(await textRegionLuminance(art, g)) };
 }
 
-async function spotlight(id: MatchDayFormatId, line: PlayerMatchLine, typographic: boolean, pageLabel: string | null = "03 · MAÇIN OYUNCUSU") {
+async function spotlight(id: MatchDayFormatId, line: PlayerMatchLine, typographic: boolean, pageLabel: string | null = "03 · MAÇIN OYUNCUSU", names?: PlayerNames) {
   const frame = MATCH_DAY_FRAMES[id];
-  const card = buildSpotlightCard({ facts: FACTS, line, images: await images(), pageLabel, typographic });
+  const card = buildSpotlightCard({ facts: FACTS, line, images: await images(), names, pageLabel, typographic });
   const { art, shadeStrength } = typographic ? { art: null, shadeStrength: 0 } : await photoArt(frame, card);
   await assertLayout(`A ${line.name} ${id} ${typographic ? "tipografik" : "foto"}`, frame, (only) => renderSpotlightOverlay(card, frame, { side: "right", shadeStrength, only }));
   const rendered = await renderSpotlightImage({ card, frame, art, shadeStrength, side: "right", seedKey: `player-${line.playerId}` });
@@ -131,8 +134,8 @@ describe("Oyuncu İstatistikleri (A + B) — görsel + yerleşim", async () => {
   test("kaleci A, uzun ad, Türkçe karakterli ad — 4:5 ve 9:16", async () => {
     for (const id of ["IG_PORTRAIT", "STORY", "X_LANDSCAPE"] as const) {
       await compare(`A-keeper_${id}`, await spotlight(id, KEEPER, false));
-      await compare(`A-long-name_${id}`, await spotlight(id, LONG_NAME, true));
-      await compare(`A-turkish-name_${id}`, await spotlight(id, TURKISH_NAME, false, null));
+      await compare(`A-long-name_${id}`, await spotlight(id, LONG_NAME, true, undefined, reliable(LONG_NAME, "intl")));
+      await compare(`A-turkish-name_${id}`, await spotlight(id, TURKISH_NAME, false, null, reliable(TURKISH_NAME, "tr")));
     }
   });
 

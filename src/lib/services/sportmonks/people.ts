@@ -28,10 +28,13 @@ const coachSearchSchema = z.object({
 
 type RawPerson = z.infer<typeof personSchema>;
 
+/** Yaygın ad `display_name`, yoksa `common_name`; resmi firstname + lastname yaygın ad yerine GEÇMEZ (yalnızca eşleme). */
 function toPerson(raw: RawPerson, jersey: number | null): SportmonksPerson | null {
-  const displayName = raw.display_name?.trim() || [raw.firstname, raw.lastname].filter(Boolean).join(" ").trim();
-  if (!displayName) return null;
-  return { displayName, firstname: raw.firstname?.trim() ?? "", lastname: raw.lastname?.trim() ?? "", nationality: raw.nationality?.name ?? null, jersey };
+  const displayName = raw.display_name?.trim() || raw.common_name?.trim() || null;
+  const firstname = raw.firstname?.trim() ?? "";
+  const lastname = raw.lastname?.trim() ?? "";
+  if (!displayName && !firstname && !lastname) return null;
+  return { displayName, firstname, lastname, nationality: raw.nationality?.name ?? null, jersey };
 }
 
 /** Sportmonks takım kimliği: adı (katlanmış) birebir tutan, yoksa adı içeren; ülke verilirse o ülkeden. */

@@ -4,7 +4,7 @@ import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
 import { COMPETITION_COLORS, resultAccentHex } from "@/lib/dashboard/match-result-theme";
 import { buildSpotlightCard, buildTopPlayersCard, teamHexes, type PlayerNames } from "@/lib/dashboard/player-stats-card";
 import { renderSpotlightImage, renderTopPlayersImage } from "@/lib/dashboard/player-stats-render";
-import { playerCardNames, playerPortraits, spotlightFullName, spotlightPhoto } from "@/lib/dashboard/player-stats-studio";
+import { playerCardNames, playerPortraits, spotlightPhoto } from "@/lib/dashboard/player-stats-studio";
 import { reportJobStep } from "@/lib/jobs/studio-jobs";
 import { defaultSpotlightId, topPlayers } from "@/lib/player-stats/picks";
 import { PROVISIONAL_NOTE } from "@/lib/player-stats/plan";
@@ -77,15 +77,13 @@ async function spotlight(input: PlayerPageInput): Promise<Result<PlayerPage, Pag
   if (rowCount < SPOTLIGHT_MIN_ROWS) return fail("TOO_FEW_STATS", `Seçilen oyuncu için yalnızca ${rowCount} istatistik geldi (en az ${SPOTLIGHT_MIN_ROWS}) — kart üretilmedi.`);
 
   reportJobStep("Oyuncu adı ve fotoğrafı");
-  const team = line.side === "HOME" ? facts.match.home : facts.match.away;
-  const [names, fullName, setImages, photo] = await Promise.all([
+  const [names, setImages, photo] = await Promise.all([
     playerCardNames(facts, [line]),
-    spotlightFullName(line, team.origin?.people ?? null),
     resolveSetImages(facts.match),
     input.photoId === "none" ? null : spotlightPhoto(line, { photoId: input.photoId, avoidPhotoId: input.avoidPhotoId }),
   ]);
   const images = { homeLogo: setImages.homeLogo, awayLogo: setImages.awayLogo, brandLogo: setImages.brandLogo };
-  const card = buildSpotlightCard({ facts, line, images, names, fullName, pageLabel: input.pageLabel, typographic: photo === null });
+  const card = buildSpotlightCard({ facts, line, images, names, pageLabel: input.pageLabel, typographic: photo === null });
 
   const notes: string[] = [];
   if (defaultId !== null && playerId !== defaultId) {

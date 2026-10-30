@@ -5,7 +5,8 @@ import { buildH2HCard, h2hColors } from "@/lib/dashboard/player-h2h-card";
 import { portraitCrop } from "@/lib/dashboard/player-h2h-photo";
 import { comparisonPosition, comparisonWarnings, DIFFERENT_LEAGUES_WARNING, scopeLabel } from "@/lib/player-h2h/checks";
 import { factLine } from "@/lib/player-h2h/facts";
-import { firstNameOf, fullNameFromApi, leagueDisplay, seasonLabel, shortNameOf } from "@/lib/player-h2h/names";
+import { firstNameOf, shortNameOf } from "@/lib/names/person-name";
+import { fullNameFromApi, leagueDisplay, seasonLabel } from "@/lib/player-h2h/names";
 import { buildHero, buildRows } from "@/lib/player-h2h/rows";
 import { defaultMode, formatStat, modeValue, POSITION_PRIORITY } from "@/lib/player-h2h/stats";
 import { genitive, numberPossessive } from "@/lib/player-h2h/turkish";
@@ -111,7 +112,7 @@ describe("Türkçe yazım", () => {
     assert.deepEqual([1, 2, 3, 6, 9, 10, 40, 100].map(numberPossessive), ["1'i", "2'si", "3'ü", "6'sı", "9'u", "10'u", "40'ı", "100'ü"]);
   });
 
-  it("adlar: baş harfli API adı açılır, soyad ekleriyle", () => {
+  it("adlar: eşleme adı API ilk adıyla açılır (kartta değil), soyad ekleriyle", () => {
     assert.equal(fullNameFromApi("D. Vlahović", "Dušan"), "Dušan Vlahović");
     assert.equal(fullNameFromApi("Mohamed Salah", "Mohamed"), "Mohamed Salah");
     assert.equal(shortNameOf("Virgil van Dijk"), "van Dijk");

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildFixtureProduction } from "@/lib/calendar/production-map";
-import { nameParts } from "@/lib/dashboard/player-stats-card";
 import { keeperConceded } from "@/lib/player-stats/keeper";
 import { setPages, withPlayerSlide } from "@/lib/dashboard/set-pages";
 import { playerPagePlan } from "@/lib/player-stats/plan";
@@ -184,13 +183,6 @@ describe("veri kesinleşmedi", () => {
 });
 
 describe("kart ve carousel kapsamı", () => {
-  it("A adı: ilk ad küçük, soyad büyük (ekler soyada); baş harf ilk ad satırı olmaz", () => {
-    assert.deepEqual(nameParts("SAMUEL-GERMAIN MBANGULA"), { firstName: "SAMUEL-GERMAIN", lastName: "MBANGULA" });
-    assert.deepEqual(nameParts("İRFAN CAN EĞRİBAYAT"), { firstName: "İRFAN CAN", lastName: "EĞRİBAYAT" });
-    assert.deepEqual(nameParts("VIRGIL VAN DIJK"), { firstName: "VIRGIL", lastName: "VAN DIJK" });
-    assert.deepEqual(nameParts("S. MBANGULA"), { firstName: "", lastName: "MBANGULA" });
-  });
-
   it("Maç Sonucu carousel'i 03 oyuncu sayfasıyla Oyuncu İstatistikleri'ni de karşılar; eski 01+02 carousel yalnızca İstatistikler", () => {
     const pages = { carousel: [{ url: "/a", label: "01" }, { url: "/b", label: "02" }, { url: "/c", label: "03" }], pages: ["MATCH_RESULT", "MATCH_STATS", "PLAYER_STATS"] };
     assert.deepEqual(setPages("MATCH_RESULT", pages), ["MATCH_RESULT", "MATCH_STATS", "PLAYER_STATS"]);
