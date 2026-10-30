@@ -11,6 +11,10 @@
  *  3. Belirsiz sözcük (yalnızca ASCII + ç ö ü) adın diğer sözcüklerindeki işarete uyar; işaret
  *     yoksa veriden gelen ipucuna (takımın ülkesi, bkz. `team-origin.ts`); o da yoksa Türkçe
  *     (önceki davranış — ipucu olmayan çağrı yerinde gerileme olmaz).
+ *  4. Harfleri ASCII'ye katlanmış ad (yalnızca ASCII, hem büyük "I" hem küçük "i"): Türkçe büyük harf
+ *     karışık sözcük üretir ("M. Ibrahimoglu" → "IBRAHİMOGLU", 2026-10-30) — katlanmada "İ" mi "I" mı
+ *     olduğu bilinemez, sözcük TUTARLI uluslararası kuralla büyür ("IBRAHIMOGLU"). Harfler Sportmonks /
+ *     arşivden geri yüklenebildiyse ("İbrahimoğlu") ad zaten Türkçe işaret taşır, bu kural devreye girmez.
  */
 
 export type NameOrigin = "tr" | "intl";
@@ -43,13 +47,17 @@ export function nameOrigin(name: string): NameOrigin | null {
   return null;
 }
 
+/** ASCII'ye katlanmış, Türkçe büyük harfte karışık I/İ verecek sözcük (kural 4). */
+const ASCII_WORD = /^[\x20-\x7e]+$/u;
+export const isFoldedMixedI = (word: string): boolean => ASCII_WORD.test(word) && word.includes("I") && word.includes("i");
+
 const upperWith = (text: string, origin: NameOrigin) => (origin === "tr" ? text.toLocaleUpperCase("tr-TR") : text.toLocaleUpperCase("en-US"));
 
 /** Adı büyük harfe çevirir; `hint` veriden gelen köken (ör. takımın ülkesi). */
 export function upperName(name: string, hint?: NameOrigin | null): string {
   const fallback = nameOrigin(name) ?? hint ?? "tr";
   // Boşluklar korunur; her sözcük kendi işaretiyle, belirsizse adın/ipucunun kökeniyle.
-  return name.replace(/\S+/gu, (word) => upperWith(word, wordOrigin(word) ?? fallback));
+  return name.replace(/\S+/gu, (word) => upperWith(word, wordOrigin(word) ?? (isFoldedMixedI(word) ? "intl" : fallback)));
 }
 
 /** API-Football ülke adından köken ("Turkey" → tr); bilinmiyorsa null. */

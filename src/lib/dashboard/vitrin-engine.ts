@@ -14,7 +14,7 @@ import type { VitrinPhotos } from "@/lib/dashboard/vitrin-photo";
 import { renderVitrinImages } from "@/lib/dashboard/vitrin-render";
 import { internalSource } from "@/lib/prediction/internal-source";
 import { kickoffGate } from "@/lib/prediction/kickoff";
-import { auditReason, matchSides, ruleReason, vitrinFacts } from "@/lib/prediction/reasons";
+import { auditReason, matchSides, ruleReasons, vitrinFacts } from "@/lib/prediction/reasons";
 import { SUPPORTED_LEAGUES } from "@/lib/services/api-football/leagues";
 import { roundLabel } from "@/lib/services/api-football/weekly-mappers";
 import type { ContentTypeId } from "@/types/content-type";
@@ -58,13 +58,14 @@ export async function vitrinImages(stats: DeepAnalysisStats): Promise<VitrinImag
   return { homeLogo, awayLogo, brandLogo };
 }
 
-/** Kaynaktan tahmin + kural tabanlı gerekçeler (AI yazmadan önceki başlangıç). */
+/** Kaynaktan tahmin + kural tabanlı gerekçeler (AI yazmadan önceki başlangıç) — kutuya özgü, tekrarsız. */
 export async function predictWithRuleReasons(stats: DeepAnalysisStats): Promise<Result<PredictionSet>> {
   const prediction = await internalSource.predict({ stats });
   if (!prediction.ok) return prediction;
   const facts = vitrinFacts(stats);
   const sides = matchSides(stats);
-  return { ok: true, data: { ...prediction.data, scenarios: prediction.data.scenarios.map((scenario) => ({ ...scenario, reason: ruleReason(scenario, facts, sides) })) } };
+  const reasons = ruleReasons(prediction.data.scenarios, facts, sides);
+  return { ok: true, data: { ...prediction.data, scenarios: prediction.data.scenarios.map((scenario, index) => ({ ...scenario, reason: reasons[index] ?? "" })) } };
 }
 
 /**

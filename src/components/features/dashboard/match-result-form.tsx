@@ -66,11 +66,14 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
   );
 }
 
+const draftHref = (state: MatchResultActionState) => (state.result ? `/dashboard/drafts/${state.result.id}` : null);
+
 export function MatchResultForm({ fixtureId, facts, playerSettlement = null, scorecardBlocker = null, disabled = false }: MatchResultFormProps) {
   const router = useRouter();
   const [playerPage, setPlayerPage] = useState("");
   const [playerPageMode, setPlayerPageMode] = useState<"WHEN_READY" | "NOW">("WHEN_READY");
-  const { state, isPending, onSubmit, progress } = useActionForm(generateMatchResultAction, INITIAL_STATE);
+  // Başarıda taslağa geçilir (tekrar denemede de — eski hata gönderim sürerken gizlenir, bkz. `lib/jobs/job-state.ts`).
+  const { state, isPending, onSubmit, progress } = useActionForm(generateMatchResultAction, INITIAL_STATE, { successHref: draftHref });
   const [previewState, previewAction, previewPending, previewProgress] = useJobActionState(previewMatchPhotoAction, INITIAL_PREVIEW);
   const [, startPreview] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);

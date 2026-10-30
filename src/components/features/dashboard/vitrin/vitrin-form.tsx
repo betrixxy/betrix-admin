@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, LoaderCircle, Save, Sparkles } from "lucide-react";
 import { loadVitrinAction, previewVitrinAction, saveVitrinAction, writeReasonsAction, type VitrinLoadResult } from "@/app/dashboard/studio/market-analysis/vitrin-actions";
@@ -19,6 +19,17 @@ import { VitrinScenarioTable } from "./vitrin-scenario-table";
 
 
 
+/** Yükleme sonucunu forma işler (elle "Veriyi yükle", AI gerekçe ve açılışta otomatik yükleme ortak). */
+function applyLoad(
+  result: Awaited<ReturnType<typeof loadVitrinAction>>,
+  set: { setError: (value: string | null) => void; setData: (value: VitrinLoadResult) => void; setReasons: (value: Record<ScenarioId, string>) => void },
+) {
+  if (!result.ok) return set.setError(result.error.message);
+  set.setError(null);
+  set.setData(result.data);
+  set.setReasons(Object.fromEntries(result.data.rows.map((row) => [row.id, row.reason])) as Record<ScenarioId, string>);
+}
+
 /**
  * Maç önü vitrin stüdyosu (AI_MARKET_PREDICTION). Maç seçilir → tahmin + kural tabanlı gerekçeler →
  * (isteğe bağlı) Çelik Kasa analisti gerekçeleri yazar → kutu rolleri, fotoğraf, format → önizle /
@@ -34,7 +45,10 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const [format, setFormat] = useState<MatchDayFormatId>("IG_PORTRAIT");
   const [preview, setPreview] = useState<[string, string] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"load" | "ai" | "preview" | "save" | null>(null);
+  // Maç Merkezi'nden (`?fixtureId=`) açılınca veri kendiliğinden yüklenir — "Veriyi yükle" beklenmez.
+  const autoLoadId = initialFixtureId && fixtures.some((option) => option.id === initialFixtureId) ? initialFixtureId : null;
+  const autoLoaded = useRef(false);
+  const [busy, setBusy] = useState<"load" | "ai" | "preview" | "save" | null>(autoLoadId ? "load" : null);
   const [, startTransition] = useTransition();
   const [progress, setProgress] = useState<JobProgress | null>(null);
   const router = useRouter();
@@ -57,12 +71,13 @@ export function VitrinForm({ fixtures, initialFixtureId }: { fixtures: MatchDayF
   const homeTeams = useMemo(() => (data ? [{ id: data.homeTeamId, name: data.homeName }] : []), [data]);
   const awayTeams = useMemo(() => (data ? [{ id: data.awayTeamId, name: data.awayName }] : []), [data]);
 
-  function apply(result: Awaited<ReturnType<typeof loadVitrinAction>>) {
-    if (!result.ok) return setError(result.error.message);
-    setError(null);
-    setData(result.data);
-    setReasons(Object.fromEntries(result.data.rows.map((row) => [row.id, row.reason])) as Record<ScenarioId, string>);
-  }
+  const apply = (result: Awaited<ReturnType<typeof loadVitrinAction>>) => applyLoad(result, { setError, setData, setReasons });
+
+  useEffect(() => {
+    if (!autoLoadId || autoLoaded.current) return;
+    autoLoaded.current = true;
+    void runGuarded(async () => applyLoad(await loadVitrinAction(autoLoadId), { setError, setData, setReasons }), setError).finally(() => setBusy(null));
+  }, [autoLoadId]);
 
   function run(kind: NonNullable<typeof busy>, task: () => Promise<void>) {
     setBusy(kind);

@@ -8,6 +8,7 @@ import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-u
 import { reportJobStep, startStudioJob } from "@/lib/jobs/studio-jobs";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { prepareMatchPhoto } from "@/lib/dashboard/match-photo";
+import { precheckSharpness } from "@/lib/dashboard/match-photo/quality";
 import { loadMediaAssetImage, matchPhotoTag } from "@/lib/dashboard/media-library";
 import { createMatchResultCard, type MatchPhotoInput } from "@/lib/dashboard/match-result-engine";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
@@ -188,6 +189,10 @@ async function previewMatchPhoto(formData: FormData): Promise<MatchPhotoPreviewS
   const { data, facts, photo } = input;
 
   const frame = MATCH_DAY_FRAMES[data.format];
+  // Erken uyarı: üretimdeki keskinlik kapısı önizlemede, ücretli adımdan (ESRGAN) ÖNCE — aynı mesaj.
+  reportJobStep("Keskinlik denetimi");
+  const precheck = await precheckSharpness(photo.image);
+  if (precheck.warning) return { error: precheck.warning };
   reportJobStep("Yüz tespiti ve kırpma");
   const prepared = await prepareMatchPhoto({
     image: photo.image,
