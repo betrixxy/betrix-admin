@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BANNED_WORDS, bannedWordsGate, findBannedWords } from "@/lib/prediction/banned-words";
+import { contentLanguageGate } from "@/lib/prediction/content-language";
 import { openBoxLines, outcomeLabel, scenarioTitle } from "@/lib/prediction/catalog";
 import { predictInternal, scenarioSummary, scenariosFrom } from "@/lib/prediction/internal-source";
 import { expectedGoals, matchProbabilities, scoreMatrix, sumWhere } from "@/lib/prediction/poisson";
@@ -345,6 +346,8 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
     assert.deepEqual(findBannedWords(caption), []);
     assert.ok(hashtagCount(caption) <= MAX_HASHTAGS, caption);
     assert.equal(hasLink(caption), false);
+    assert.equal(contentLanguageGate({ caption }), null, "ortak kapı: alan adı yok (kanca 'CheckMatch'te'), ≤5 hashtag, {…} yok");
+    assert.ok(!/checkmatch\.net/iu.test(caption), caption);
     assert.ok(caption.includes(VITRIN_QUESTION));
     assert.match(caption, /^Galatasaray – Kasımpaşa \| Maç önü analiz/);
   });

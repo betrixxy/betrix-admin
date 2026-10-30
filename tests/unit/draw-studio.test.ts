@@ -91,16 +91,17 @@ describe("tur kataloğu", () => {
   });
 });
 
-describe("hashtag — kura metninde en fazla 5", () => {
-  it("şablon metni ≤5; yayın uyarısı aralığı içerik sınırıyla (IG gönderi 3-5)", async () => {
-    const { CONTENT_MAX_HASHTAGS, captionWarnings, hashtagRange } = await import("@/lib/dashboard/publish-caption");
-    assert.equal(CONTENT_MAX_HASHTAGS.DRAWS_AND_PAIRINGS, 5);
-    assert.deepEqual(hashtagRange("IG_POST", 5), [3, 5]);
-    assert.deepEqual(hashtagRange("IG_POST", null), [5, 8]);
+describe("hashtag — kura metninde en fazla 5 (ortak kapı, her içerik türü)", () => {
+  it("şablon metni ≤5; IG gönderi önerisi 3-5; 6 hashtag ortak kapıda durur", async () => {
+    const { captionWarnings, hashtagRange } = await import("@/lib/dashboard/publish-caption");
+    const { contentLanguageGate } = await import("@/lib/prediction/content-language");
+    assert.deepEqual(hashtagRange("IG_POST"), [3, 5]);
     const caption = buildDrawCaption("TURKISH", [DRAW_LEAGUE, { ...DRAW_LEAGUE, competition: { id: 3, name: "UEFA Avrupa Ligi" } }], null);
     assert.ok(hashtagCount(caption) <= 5);
-    assert.ok(!captionWarnings(caption, "IG_POST", caption, 5).some((warning) => warning.includes("hashtag")));
+    assert.ok(!captionWarnings(caption, "IG_POST", caption).some((warning) => warning.includes("hashtag")));
+    assert.equal(contentLanguageGate({ caption }), null);
     const six = `${caption} #Bir #Iki`;
-    assert.ok(captionWarnings(six, "IG_POST", six, 5).some((warning) => warning.includes("3-5")));
+    assert.ok(captionWarnings(six, "IG_POST", six).some((warning) => warning.includes("en fazla 5 hashtag")));
+    assert.match(contentLanguageGate({ caption: six, platform: "IG_POST" }) ?? "", /en fazla 5 hashtag/u);
   });
 });

@@ -1,10 +1,14 @@
+import { captionFormatGate } from "@/lib/dashboard/caption-format";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
+import type { PublishPlatform } from "@/types/publishing";
 
 /**
- * Bahis dili kapısı — BÜTÜN kartlar için TEK giriş (denetim 2026-10-30; liste `banned-words.ts`). Kartın
+ * İçerik kapısı — BÜTÜN kartlar için TEK giriş (denetim 2026-10-30; liste `banned-words.ts`). Kartın
  * üzerindeki metin ve gönderi metni aynı yoldan geçer: üretimde (her motor kayıttan önce), onayda
  * (`approval.ts`, her içerik türü) ve yayında (`publish-engine.ts`, platforma giden son metin). Bulgu varsa
- * kart/onay/yayın durur. Bekçi test `tests/unit/content-language.test.ts` bağlanmayan motoru yakalar.
+ * kart/onay/yayın durur. Önce bahis dili, sonra gönderi metninin biçimi (`caption-format.ts`: doldurulmamış
+ * `{…}` alanı, ≤5 hashtag, X'te link/alan adı yok; `platform` verilmezse metin X'e de gidebilir sayılır).
+ * Bekçi test `tests/unit/content-language.test.ts` bağlanmayan motoru yakalar.
  */
 
 /** Görsel/renk/adres taşıyan alanlar — kart metni değil. */
@@ -24,8 +28,9 @@ export function cardTexts(card: unknown, path = "kart"): Record<string, string> 
 }
 
 /** Kart metni + gönderi metni; bulgu varsa okunur sebep, yoksa null. */
-export function contentLanguageGate(input: { card?: unknown; caption?: string | null }): string | null {
-  return bannedWordsGate({ ...(input.card === undefined ? {} : cardTexts(input.card)), ...(input.caption ? { "gönderi metni": input.caption } : {}) });
+export function contentLanguageGate(input: { card?: unknown; caption?: string | null; platform?: PublishPlatform | null }): string | null {
+  const language = bannedWordsGate({ ...(input.card === undefined ? {} : cardTexts(input.card)), ...(input.caption ? { "gönderi metni": input.caption } : {}) });
+  return language ?? (input.caption ? captionFormatGate(input.caption, input.platform ?? null) : null);
 }
 
 export const BANNED_LANGUAGE = "BANNED_LANGUAGE";

@@ -397,7 +397,7 @@ export async function getDraftQueue(limit = 20): Promise<DraftSummary[]> {
     where: { status: "DRAFT", ...WITHOUT_SCHEDULE_PLACEHOLDERS },
     orderBy: { createdAt: "desc" },
     take: limit,
-    select: { id: true, fixtureId: true, status: true, format: true, resultImageUrl: true, createdAt: true },
+    select: { id: true, fixtureId: true, status: true, format: true, resultImageUrl: true, createdAt: true, contentType: true, renderOptions: true },
   });
   return rows.map((row) => ({ ...row, format: toStudioFormat(row.format), createdAt: row.createdAt.toISOString() }));
 }

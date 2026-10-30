@@ -49,7 +49,8 @@ describe("bahis dili — ortak tek kapı", () => {
   it("onay her türde, yayın platforma gitmeden önce denetler", () => {
     const approval = read("src/lib/prediction/approval.ts");
     const gate = approval.indexOf("contentLanguageGate(");
-    assert.ok(gate > 0 && gate < approval.indexOf("DRAWS_AND_PAIRINGS") && gate < approval.indexOf("AI_MARKET_PREDICTION"), "onay kapısı tür dallarından önce");
+    assert.ok(gate > 0 && gate < approval.indexOf("AI_MARKET_PREDICTION"), "onay kapısı tür dallarından önce");
+    assert.ok(!approval.includes("DRAWS_AND_PAIRINGS"), "Kura'ya özel hashtag dalı yok — sınır ortak kapıda (caption-format.ts)");
     const publish = read("src/lib/dashboard/publish-engine.ts");
     assert.ok(publish.indexOf("contentLanguageGate(") > 0 && publish.indexOf("contentLanguageGate(") < publish.indexOf("publishToPlatform("), "yayın kapısı platform çağrısından önce");
     assert.ok(read("src/lib/dashboard/draft-engine.ts").includes("contentLanguageGate("), "genel AI stüdyosu taslağı");
