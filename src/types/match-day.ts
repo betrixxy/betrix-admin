@@ -1,4 +1,4 @@
-import type { TeamOrigin } from "@/lib/dashboard/name-case";
+import type { NameOrigin, TeamOrigin } from "@/lib/dashboard/name-case";
 import type { StudioJobStart } from "@/types/studio-job";
 /** Maç Günü kartı tasarım şablonları — her biri kendi yerleşimini, tipografisini ve AI arka plan stilini taşır. */
 export const MATCH_DAY_TEMPLATE_IDS = ["PREMIUM_BROADCAST", "DATA_DRIVEN", "EDITORIAL_PORTRAIT"] as const;
@@ -59,6 +59,8 @@ export interface MatchDayCard {
   timeLabel: string;
   stadiumLabel: string;
   refereeLabel: string;
+  /** Hakem adının büyük harf kökeni (kişi adı kuralından); yoksa takımlardan. */
+  refereeOrigin?: NameOrigin | null;
   /** Görsel çözülemezse `null` — şablon bunun yerine düz renk/baş harf çizer, render düşmez. */
   homePlayerImg: string | null;
   awayPlayerImg: string | null;

@@ -53,6 +53,23 @@ export function resultRoundLabel(round: string): string {
   return roundLabel(round);
 }
 
+/**
+ * Maç Günü künyesinin tur etiketi (maç öncesi): lig "3. Hafta"; Avrupa lig aşaması, grup ve uluslar ligi
+ * maç günü "3. Maç"; eleme turları ortak Türkçe tablodan ("Çeyrek Final", "Son 16 Turu", "Play-off Turu").
+ */
+export function matchDayRoundLabel(round: string | null | undefined): string {
+  if (!round) return "";
+  const regular = /^Regular Season - (\d+)$/.exec(round);
+  if (regular) return `${regular[1]}. Hafta`;
+  const known = roundLabel(round);
+  // Lig/grup aşaması ("Lig Aşaması · 3. Maç Günü") Maç Günü künyesinde kısa: "3. Maç".
+  const stageDay = /(\d+)\. Maç Günü$/u.exec(known)?.[1];
+  if (stageDay) return `${stageDay}. Maç`;
+  if (known !== round) return known;
+  const matchday = /-\s*(\d{1,2})$/.exec(round);
+  return matchday ? `${matchday[1]}. Maç` : round;
+}
+
 export function upperTr(value: string): string {
   return value.toLocaleUpperCase("tr-TR");
 }

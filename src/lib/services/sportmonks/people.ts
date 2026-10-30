@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { foldName } from "@/lib/names/person-name";
 import { sportmonksRequest } from "@/lib/services/sportmonks/client";
-import { coachPeople, squadPeople } from "@/lib/services/sportmonks/people-mappers";
+import { coachPeople, searchedPeople, squadPeople } from "@/lib/services/sportmonks/people-mappers";
 import type { SportmonksPerson } from "@/types/person-name";
 
 /**
@@ -36,4 +36,10 @@ export async function getSportmonksSquad(sportmonksTeamId: number): Promise<Spor
 export async function searchSportmonksCoaches(surname: string, sportmonksTeamId: number | null): Promise<SportmonksPerson[]> {
   const raw = await sportmonksRequest(`/coaches/search/${encodeURIComponent(surname)}`, { include: "nationality;teams" }, { ttlMs: TTL_MS });
   return raw.ok ? coachPeople(raw.data, sportmonksTeamId) : [];
+}
+
+/** Hakem adayları (soyadıyla arama; Türkçe karakterli ad + uyruk). */
+export async function searchSportmonksReferees(surname: string): Promise<SportmonksPerson[]> {
+  const raw = await sportmonksRequest(`/referees/search/${encodeURIComponent(surname)}`, { include: "nationality" }, { ttlMs: TTL_MS });
+  return raw.ok ? searchedPeople(raw.data) : [];
 }

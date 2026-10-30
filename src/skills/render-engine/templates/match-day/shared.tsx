@@ -112,8 +112,8 @@ export function Canvas({ children }: { children: React.ReactNode }) {
 /** Stadyum adı büyük harfle: kendi harfleri, belirsizse ev sahibinin ülkesi (stadyum ev sahibinde). */
 export const upperStadium = (card: Pick<MatchDayCard, "stadiumLabel" | "origins">, stadium = card.stadiumLabel): string => upperName(stadium, card.origins?.home.people);
 
-/** Hakem adı büyük harfle: iki takım aynı ülkedense (yurt içi maç) o ülke, değilse yalnızca kendi harfleri. */
-export function upperReferee(card: Pick<MatchDayCard, "refereeLabel" | "origins">): string {
+/** Hakem adı büyük harfle: kişi adı kuralının kökeni (uyruk); yoksa iki takım aynı ülkedense o ülke, değilse kendi harfleri. */
+export function upperReferee(card: Pick<MatchDayCard, "refereeLabel" | "refereeOrigin" | "origins">): string {
   const home = card.origins?.home.people;
-  return upperName(card.refereeLabel, home && home === card.origins?.away.people ? home : null);
+  return upperName(card.refereeLabel, card.refereeOrigin ?? (home && home === card.origins?.away.people ? home : null));
 }

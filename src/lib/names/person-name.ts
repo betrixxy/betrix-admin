@@ -229,6 +229,28 @@ export function cardCoachName(coach: PersonEntry, team: TeamPeople): CardPersonN
   return cardPersonName({ apiName: coach.apiName, override: coach.apiId === null ? null : team.overrides.get(coach.apiId), people: team.people.slice(0, 1), teamHint: team.teamHint });
 }
 
+/** API-Football hakem alanı "Ad Soyad, Ülke" → ad + ülke (ülke yoksa null). */
+export function splitReferee(raw: string): { name: string; country: string | null } {
+  const [name = "", ...rest] = raw.split(",");
+  return { name: name.trim(), country: rest.join(",").trim() || null };
+}
+
+/**
+ * Hakem kart adı — aynı kural (`cardPersonName`, Sportmonks hakem adaylarıyla). Tek fark: API hakem alanı baş
+ * harfsiz yaygın addır ("Resat Onur Coskunses"), resmi firstname + lastname değil — Sportmonks yaygın adı yoksa
+ * bu ad soyada indirilmez; eşleşen kayıt yalnızca harfleri geri yükler ("Reşat Onur Coşkunses"). Büyük harf
+ * kökeni: adın harfi → uyruk → API'nin ülke eki.
+ */
+export function cardRefereeName(raw: string, people: readonly SportmonksPerson[]): CardPersonName {
+  const { name, country } = splitReferee(raw);
+  const hint = originFromCountry(country);
+  const card = cardPersonName({ apiName: name, people, teamHint: hint });
+  if (card.source !== "api" || hasInitial(name)) return card;
+  const person = matchPerson(name, people);
+  const full = person ? restoreName(name, person) : name;
+  return { ...card, name: full, short: shortForm(full), origin: personOrigin(full, person?.nationality ?? null, hint) };
+}
+
 /** Yalnızca ASCII harf — Türkçe karakter içermesi muhtemel API adı (rapor süzgeci). */
 export const isAsciiName = (name: string) => !/[^\x00-\x7F]/u.test(name);
 

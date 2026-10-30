@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { SportmonksPerson } from "@/types/person-name";
 
 /**
- * Sportmonks kişi yanıtları (kadro, koç araması) → `SportmonksPerson` — saf; servis (`people.ts`) ve görsel
+ * Sportmonks kişi yanıtları (kadro, koç ve hakem araması) → `SportmonksPerson` — saf; servis (`people.ts`) ve görsel
  * testlerin sabit Sportmonks yanıtı aynı yoldan geçer.
  */
 
@@ -15,6 +15,7 @@ const personSchema = z.object({
   nationality,
 });
 const squadSchema = z.object({ data: z.array(z.object({ jersey_number: z.number().nullish(), player: personSchema.nullish() })) });
+const personSearchSchema = z.object({ data: z.array(personSchema) });
 const coachSearchSchema = z.object({
   data: z.array(personSchema.extend({ teams: z.array(z.object({ team_id: z.number(), end: z.string().nullish() })).nullish() })),
 });
@@ -47,6 +48,16 @@ export function coachPeople(data: unknown, sportmonksTeamId: number | null): Spo
   const coached = (coach: (typeof parsed.data.data)[number]) => (sportmonksTeamId !== null && coach.teams?.some((team) => team.team_id === sportmonksTeamId) ? 0 : 1);
   return [...parsed.data.data].sort((a, b) => coached(a) - coached(b)).flatMap((coach) => {
     const person = toPerson(coach, null);
+    return person ? [person] : [];
+  });
+}
+
+/** `/referees/search/{ad}` yanıtı → hakem adayları (saf). */
+export function searchedPeople(data: unknown): SportmonksPerson[] {
+  const parsed = personSearchSchema.safeParse(data);
+  if (!parsed.success) return [];
+  return parsed.data.data.flatMap((raw) => {
+    const person = toPerson(raw, null);
     return person ? [person] : [];
   });
 }
