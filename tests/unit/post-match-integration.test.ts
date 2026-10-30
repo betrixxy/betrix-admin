@@ -46,7 +46,7 @@ describe("set sayfaları — sabit sıra", () => {
 });
 
 describe("Maç Sonucu fotoğraf varsayılanı — kazanan takım (beraberlikte ev sahibi)", () => {
-  const photo = (id: string, kitTeamId: number, bucket: PickerPhoto["bucket"] = "CURRENT_KIT"): PickerPhoto => ({ id, url: `/p/${id}`, caption: "", kind: "CELEBRATION", kitTeamName: String(kitTeamId), kitTeamId, bucket, width: 2000, height: 2500 });
+  const photo = (id: string, kitTeamId: number, bucket: PickerPhoto["bucket"] = "CURRENT_KIT"): PickerPhoto => ({ id, url: `/p/${id}`, caption: "", kind: "CELEBRATION", kitTeamName: String(kitTeamId), kitTeamId, bucket, width: 2000, height: 2500, upscaled: true });
   const data: ArchivePickerData = {
     warnings: [],
     teams: [

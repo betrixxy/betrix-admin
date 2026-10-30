@@ -1,8 +1,8 @@
 import sharp from "sharp";
-import { falPhotoUpscaler, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
+import { falPhotoUpscaler, lowResolutionWarning, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import { parseStoredFileUrl, readStoredFile, saveStoredFile } from "@/lib/dashboard/storage";
 import { inspectImageBytes, type UploadedImage } from "@/lib/dashboard/studio-images";
-import { reportJobStep } from "@/lib/jobs/studio-jobs";
+import { reportJobNote, reportJobStep } from "@/lib/jobs/studio-jobs";
 import type { Result } from "@/types/result";
 
 /**
@@ -57,7 +57,8 @@ export interface CardPhotoSource {
 /**
  * Kart üretiminin okuyacağı görsel: büyütülmüş sürüm varsa o; yoksa (eski taşınmış fotoğraf —
  * "ilk kullanımda büyüt" kararı) şimdi büyütülür ve `onUpscaled` ile kayda yazılır; gerekmiyorsa
- * orijinal. Büyütme başarısızsa orijinalle devam edilir (kart hattının kendi kalite kapısı var).
+ * orijinal. Büyütme başarısızsa (Fal yok / hata) orijinalle devam edilir, "Düşük çözünürlük" notu işe düşer
+ * (`reportJobNote` → taslak ekranı); kart hattının kendi kalite kapısı (keskinlik) aynen geçerli.
  */
 export async function photoForCard(
   photo: CardPhotoSource,
@@ -71,6 +72,7 @@ export async function photoForCard(
   const original = await readUrl(photo.originalUrl, "Arşiv fotoğrafı");
   if (!original.ok) return original;
   const created = await createArchiveUpscale(original.data, upscale);
+  if (!created.ok) reportJobNote(lowResolutionWarning(created.error.message));
   if (created.ok && created.data) {
     await onUpscaled(created.data);
     const image = await readUrl(created.data, "Büyütülmüş fotoğraf");

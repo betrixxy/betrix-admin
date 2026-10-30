@@ -18,6 +18,8 @@ interface JobRecord {
   stepAt: number;
   finishedAt: number | null;
   value: unknown;
+  /** Kartı DÜŞÜRMEYEN dayanıklılık notları (Fal büyütme/kesim yok, AI yok…) — taslağa `studioNotes` olarak yazılır. */
+  notes: string[];
 }
 
 /** Bir işin üst süresi: Fal zaman sınırları (≤150 sn/çağrı) + çizim; aşılırsa iş "zaman aşımı" ile biter. */
@@ -46,6 +48,23 @@ export function reportJobStep(step: string): void {
   job.stepAt = now;
 }
 
+/**
+ * Derin katmanlardan (fotoğraf kalite kapısı, arşiv büyütmesi, Maç Günü kesimi) stüdyoya not: kart üretilmeye devam
+ * eder ama admin bilmeli ("Düşük çözünürlük: fotoğraf büyütülemedi …"). Çalışan işin notlarına eklenir (tekrarsız);
+ * kayıt `createScheduledContent` ile `renderOptions.studioNotes`'a, taslak ekranı da onu gösterir. İş dışında etkisiz.
+ */
+export function reportJobNote(note: string): void {
+  const job = current.getStore();
+  if (!job || job.finishedAt !== null || job.notes.includes(note)) return;
+  console.info(`[job] ${job.kind} ${job.id.slice(0, 8)} not: ${note}`);
+  job.notes.push(note);
+}
+
+/** Çalışan işin notları (iş dışında boş). */
+export function jobNotes(): string[] {
+  return [...(current.getStore()?.notes ?? [])];
+}
+
 export interface StartStudioJobInput<T> {
   /** Günlük etiketi: "match-result", "match-day"… */
   kind: string;
@@ -63,7 +82,7 @@ export function startStudioJob<T>(input: StartStudioJobInput<T>): StudioJobStart
   purge(now);
   for (const job of jobs.values()) if (job.key === input.key && job.finishedAt === null) return { jobId: job.id, reused: true };
 
-  const job: JobRecord = { id: randomUUID(), kind: input.kind, key: input.key, step: input.firstStep, startedAt: now, stepAt: now, finishedAt: null, value: null };
+  const job: JobRecord = { id: randomUUID(), kind: input.kind, key: input.key, step: input.firstStep, startedAt: now, stepAt: now, finishedAt: null, value: null, notes: [] };
   jobs.set(job.id, job);
   const timeoutMs = input.timeoutMs ?? STUDIO_JOB_TIMEOUT_MS;
   let timer: ReturnType<typeof setTimeout> | undefined;

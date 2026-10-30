@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { contentTypesForPhase, defaultContentTypeId } from "@/lib/dashboard/content-types";
-import { isFixtureInStudioWindow, matchCenterRange, upcomingRange } from "@/lib/dashboard/match-center-window";
+import { isFixtureInStudioWindow, isOlderPastDay, matchCenterRange, POST_MATCH_PAST_DAYS, studioRange, upcomingRange } from "@/lib/dashboard/match-center-window";
 import { disabledMenu, matchRowState } from "@/lib/dashboard/match-row-state";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
 import { isSettledPastDay } from "@/lib/services/api-football/settled-day";
@@ -24,10 +24,19 @@ describe("Maç Merkezi penceresi (İstanbul günü)", () => {
     assert.deepEqual(matchCenterRange(AFTER_MIDNIGHT, 2).from, "2026-10-15");
   });
 
-  it("sınır: dün 00:00 dahil, önceki gün 23:59 hariç; dün 22:00'de başlayıp gece biten maç dahil", () => {
-    assert.equal(isFixtureInStudioWindow("2026-10-15T21:00:00Z", "post_match", AFTER_MIDNIGHT), true); // 16 Ekim 00:00
-    assert.equal(isFixtureInStudioWindow("2026-10-15T20:59:59Z", "post_match", AFTER_MIDNIGHT), false); // 15 Ekim 23:59
+  it("maç sonrası: son 7 İstanbul günü (dün dahil) — 7 gün önce 00:00 dahil, 8 gün önce 23:59 hariç", () => {
+    assert.equal(POST_MATCH_PAST_DAYS, 7);
+    assert.deepEqual(studioRange("post_match", AFTER_MIDNIGHT).from, "2026-10-10");
+    assert.equal(isFixtureInStudioWindow("2026-10-09T21:00:00Z", "post_match", AFTER_MIDNIGHT), true); // 10 Ekim 00:00
+    assert.equal(isFixtureInStudioWindow("2026-10-09T20:59:59Z", "post_match", AFTER_MIDNIGHT), false); // 9 Ekim 23:59
+    assert.equal(isFixtureInStudioWindow("2026-10-15T20:59:59Z", "post_match", AFTER_MIDNIGHT), true); // 15 Ekim 23:59 (canlı test: 2 gün önceki maç)
     assert.equal(isFixtureInStudioWindow("2026-10-16T19:00:00Z", "post_match", AFTER_MIDNIGHT), true); // dün 22:00
+  });
+
+  it("Maç Merkezi: dünden eski günler alttaki kapalı bölüme", () => {
+    assert.equal(isOlderPastDay("2026-10-16", AFTER_MIDNIGHT), false); // dün
+    assert.equal(isOlderPastDay("2026-10-15", AFTER_MIDNIGHT), true);
+    assert.equal(isOlderPastDay("2026-10-17", AFTER_MIDNIGHT), false);
   });
 
   it("maç öncesi türler eski kuralda: dünkü maçı reddeder, bugün + 6 dahil, + 7 hariç", () => {
@@ -95,9 +104,12 @@ describe("Maç Sonucu stüdyo doğrulaması", () => {
     assert.equal(result.ok && result.data.away.name, "Beşiktaş");
   });
 
-  it("pencereden eski maçı reddeder", () => {
-    const result = validateMatchResultFixture(RAW_HOFFENHEIM_BESIKTAS, new Date("2026-10-17T10:00:00Z"));
-    assert.ok(!result.ok && /penceresinin dışında/.test(result.error.message));
+  it("2–7 gün önce biten maçı da kabul eder; 8 gün önceki maçı reddeder", () => {
+    // Canlı test 2026-10-31: 28–29 Ekim maçları (2–3 gün önce) maç sonrası stüdyolarında açılamadı.
+    assert.equal(validateMatchResultFixture(RAW_HOFFENHEIM_BESIKTAS, new Date("2026-10-18T10:00:00Z")).ok, true);
+    assert.equal(validateMatchResultFixture(RAW_HOFFENHEIM_BESIKTAS, new Date("2026-10-22T10:00:00Z")).ok, true);
+    const result = validateMatchResultFixture(RAW_HOFFENHEIM_BESIKTAS, new Date("2026-10-23T10:00:00Z"));
+    assert.ok(!result.ok && /penceresinin dışında — maç sonrası içerik yalnızca son 7 günde/.test(result.error.message));
   });
 
   it("bitmemiş maçta net hata verir, kart verisi üretmez", () => {

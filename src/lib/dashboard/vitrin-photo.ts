@@ -6,6 +6,7 @@ import { detectFaces } from "@/lib/dashboard/match-photo/faces";
 import { cropAndGrade } from "@/lib/dashboard/match-photo/grade";
 import { checkPhotoQuality, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
+import { renderTeamFallback, type FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
 import type { FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
 import type { PosterGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
 import type { Result } from "@/types/result";
@@ -14,7 +15,8 @@ import type { Result } from "@/types/result";
  * Vitrin carousel'inin sanat katmanları. 01 Poster: iki takımın arşiv fotoğrafı Maç Sonucu hattının
  * yapı taşlarıyla (kalite kapısı, yerel yüz tespiti, akıllı kırpma, split-tone) kendi yarısına
  * yerleştirilir, her yarı kendi takım renginde hafif ışık alır, deplasman yarısı çapraz çizgiden
- * maskelenir. Fotoğrafı olmayan taraf programatik (takım renginde parıltılı koyu zemin).
+ * maskelenir. Fotoğrafı olmayan taraf ORTAK YEDEK TASARIM (`templates/shared/team-fallback.tsx`: takım rengi
+ * gradyanı + dev filigran arma + soluk dev ad + arma; takım verilmezse eski programatik zemin).
  * 02 Analiz: posterin sanatının bulanık/koyu hâli (set ailesi). Büyütücü verilmezse Fal'a gidilmez.
  */
 
@@ -25,6 +27,12 @@ export interface VitrinPhotos {
 
 export type PosterArtGeometry = Pick<PosterGeometry, "photo" | "frame">;
 
+/** Fotoğrafsız yarının yedek tasarımı için iki takım (ev = sol yarı, deplasman = sağ yarı). */
+export interface PosterTeams {
+  home: FallbackTeamSource;
+  away: FallbackTeamSource;
+}
+
 export interface PosterArtInput {
   photos: VitrinPhotos;
   /** Yalnızca fotoğraf bölgesi ve çerçeve okunur — oyuncu karşılaştırma posteri de aynı hattı kullanır. */
@@ -32,6 +40,8 @@ export interface PosterArtInput {
   homeHex: string;
   awayHex: string;
   upscale?: PhotoUpscaler | undefined;
+  /** Fotoğrafsız yarının yedek tasarımı (verilmezse eski programatik zemin). */
+  teams?: PosterTeams | undefined;
   /** Elle kırpma ayarı (taraf başına); verilmezse otomatik. */
   adjust?: { home?: CropAdjust | undefined; away?: CropAdjust | undefined } | undefined;
 }
@@ -48,8 +58,11 @@ const TEAM_LIGHT_OPACITY = 0.6;
 const ANALYSIS_BLUR = 42;
 const ANALYSIS_BRIGHTNESS = 0.42;
 
-/** Fal'sız büyütücü — büyütme gerekiyorsa hata (offline render ve testler). */
-export const noUpscale: PhotoUpscaler = async () => ({ ok: false, error: { code: "UPSCALE_DISABLED", message: "Fotoğraf küçük; offline çizimde büyütme kapalı (kısa kenar ≥ 1080 olmalı)." } });
+/**
+ * Fal'sız büyütücü (arşivin büyütülmüş sürümünü kullanan hatlar, offline render ve testler): büyütme gerekiyorsa
+ * hata döner; kalite kapısı orijinalle devam eder ve "Düşük çözünürlük" uyarısı yazar (`checkPhotoQuality`).
+ */
+export const noUpscale: PhotoUpscaler = async () => ({ ok: false, error: { code: "UPSCALE_DISABLED", message: "bu çizimde Fal büyütmesi kullanılmıyor" } });
 
 const size = (box: FrameBox) => ({ width: box.right - box.left, height: box.bottom - box.top });
 
@@ -69,13 +82,21 @@ async function programmaticPanel(width: number, height: number, hex: string, sid
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+/** Yedek tasarım paneli: arma, fotoğrafta yüzün düşeceği yere (yazısız bölgenin üst üçte biri) oturur. */
+function fallbackPanel(panel: FrameBox, safe: FrameBox, team: FallbackTeamSource, side: "home" | "away"): Promise<Buffer> {
+  const { width, height } = size(panel);
+  const fx = Math.min(0.85, Math.max(0.15, ((safe.left + safe.right) / 2) / width));
+  const fy = Math.min(0.6, Math.max(0.2, (safe.top + (safe.bottom - safe.top) * 0.35) / height));
+  return renderTeamFallback(team, { width, height }, { side, focus: { x: fx, y: fy } });
+}
+
 /**
  * Tek fotoğraf paneli (kalite kapısı → yüz tespiti → akıllı kırpma / elle ayar → split-tone → takım ışığı);
  * fotoğraf yoksa programatik panel. `safe` panele göre yüzün düşeceği bölge. Muhtemel 11 kapağı da kullanır.
  */
-export async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined): Promise<Result<Buffer>> {
+export async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined, fallback?: FallbackTeamSource): Promise<Result<Buffer>> {
   const { width, height } = size(panel);
-  if (!image) return { ok: true, data: await programmaticPanel(width, height, hex, side) };
+  if (!image) return { ok: true, data: fallback ? await fallbackPanel(panel, safe, fallback, side) : await programmaticPanel(width, height, hex, side) };
   const quality = await checkPhotoQuality(image, upscale);
   if (!quality.ok) return quality;
   const source = quality.data.image;
@@ -103,8 +124,8 @@ export async function preparePosterArt(input: PosterArtInput): Promise<Result<Bu
   const upscale = input.upscale ?? noUpscale;
   const { home: homePanel, away: awayPanel } = g.photo.panels;
   const [home, away] = await Promise.all([
-    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home),
-    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away),
+    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home, input.teams?.home),
+    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away, input.teams?.away),
   ]);
   if (!home.ok) return { ok: false, error: { ...home.error, message: `Ev sahibi fotoğrafı: ${home.error.message}` } };
   if (!away.ok) return { ok: false, error: { ...away.error, message: `Deplasman fotoğrafı: ${away.error.message}` } };

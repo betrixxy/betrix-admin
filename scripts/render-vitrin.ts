@@ -104,7 +104,13 @@ async function main() {
     }
     const [poster, analysis] = rendered.data.pages;
     const base = path.join(outDir, `vitrin-${apiId}-${format}`);
+    if (!poster) continue;
     await writeFile(`${base}-01-poster.png`, poster);
+    if (!analysis) {
+      console.log(`${format}: yalnızca 01 — ${rendered.data.notes.join(" ")}`);
+      files.push(`${base}-01-poster.png`);
+      continue;
+    }
     await writeFile(`${base}-02-analiz.png`, analysis);
     await writeFile(`${base}-pair.png`, await sideBySide(poster, analysis));
     files.push(`${base}-01-poster.png`, `${base}-02-analiz.png`, `${base}-pair.png`);

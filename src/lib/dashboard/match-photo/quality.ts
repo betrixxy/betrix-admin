@@ -1,11 +1,16 @@
 import sharp from "sharp";
 import { downloadImage, inspectImageBytes, type UploadedImage } from "@/lib/dashboard/studio-images";
+import { reportJobNote } from "@/lib/jobs/studio-jobs";
 import type { Result } from "@/types/result";
 
 /**
  * Tam kadraj maç fotoğrafı kalite kapısı: (1) kısa kenar 1080'in altındaysa Fal.ai `esrgan` ile
  * büyütülür — hattın TEK ücretli adımı; (2) keskinlik (Laplacian varyansı) eşiğin altındaysa —
  * büyütmeden sonra da — kart üretilmez ve sebep gösterilir.
+ *
+ * Fal yoksa / hata / zaman aşımı (canlı test 2026-10-31: kart sırf büyütme yüzünden düşüyordu): kart ORİJİNAL
+ * çözünürlükle devam eder, "Düşük çözünürlük" uyarısı döner ve işe not düşer (`reportJobNote` → taslak ekranı).
+ * Keskinlik kuralı AYNEN kalır — ölçüm o zaman büyütülmemiş kaynakta yapılır.
  */
 
 export const PHOTO_MIN_SHORT_SIDE = 1080;
@@ -15,6 +20,12 @@ export const PHOTO_MIN_SHORT_SIDE = 1080;
  */
 export const PHOTO_RECOMMENDED_SHORT_SIDE = 1500;
 export const SMALL_PHOTO_WARNING = "Fotoğraf küçük, sonuç yumuşak olabilir — daha büyük kaynak önerilir";
+
+/** Büyütme yapılamayınca (Fal yok / hata / zaman aşımı) kartı düşürmeyen uyarı — bütün fotoğraf hatlarında aynı metin. */
+export function lowResolutionWarning(reason: string): string {
+  const why = reason.replace(/^.*?büyütülemedi(?: \(AI Upscale\))?:\s*/u, "").replace(/[.\s]+$/u, "");
+  return `Düşük çözünürlük: fotoğraf büyütülemedi (${why || "bilinmeyen hata"}) — kart orijinal çözünürlükle üretildi.`;
+}
 /** Keskinlik ölçümü bu uzun kenara küçültülmüş gri görselde yapılır — çözünürlükten bağımsız. */
 const MEASURE_LONG_SIDE = 1024;
 /**
@@ -139,20 +150,27 @@ export interface PhotoQuality {
 export async function checkPhotoQuality(image: UploadedImage, upscale: PhotoUpscaler = falPhotoUpscaler): Promise<Result<PhotoQuality>> {
   const scale = photoUpscaleFactor(image);
   // Ücretli çağrı yalnızca gerçek Fal büyütücüsü önbellekte bulamazsa yapılır.
-  const paidCalls = scale > 1 && upscale === falPhotoUpscaler && !(await hasCachedUpscale(image)) ? 1 : 0;
+  let paidCalls = scale > 1 && upscale === falPhotoUpscaler && !(await hasCachedUpscale(image)) ? 1 : 0;
   let current = image;
+  let lowResolution: string | null = null;
   if (scale > 1) {
     const result = await upscale(image, scale);
-    if (!result.ok) return result;
-    current = result.data;
+    if (result.ok) current = result.data;
+    else {
+      // Fal yok / hata: orijinalle devam — kart sırf büyütme yüzünden düşmez (keskinlik kapısı aşağıda aynen).
+      lowResolution = lowResolutionWarning(result.error.message);
+      paidCalls = 0;
+      reportJobNote(lowResolution);
+    }
   }
+  const upscaled = current !== image;
   const sharpness = await measureSharpness(current.bytes);
   if (sharpness < MIN_SHARPNESS) {
-    const after = scale > 1 ? " (AI büyütmeden sonra da)" : "";
+    const after = upscaled ? " (AI büyütmeden sonra da)" : "";
     return { ok: false, error: { code: "PHOTO_TOO_SOFT", message: softPhotoMessage(sharpness, after) } };
   }
   // Uyarı KAYNAK boyutuna bakar: upscale edilmiş görsel büyük görünse de doku kaynağınkidir.
   const shortSide = Math.min(image.width, image.height);
-  const warnings = shortSide < PHOTO_RECOMMENDED_SHORT_SIDE ? [`${SMALL_PHOTO_WARNING} (kısa kenar ${shortSide}px).`] : [];
-  return { ok: true, data: { image: current, upscaled: scale > 1, sharpness, paidCalls, warnings } };
+  const warnings = [...(lowResolution ? [lowResolution] : []), ...(shortSide < PHOTO_RECOMMENDED_SHORT_SIDE ? [`${SMALL_PHOTO_WARNING} (kısa kenar ${shortSide}px).`] : [])];
+  return { ok: true, data: { image: current, upscaled, sharpness, paidCalls, warnings } };
 }

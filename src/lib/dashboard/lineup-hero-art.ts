@@ -2,6 +2,7 @@ import sharp from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import type { PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
+import type { FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
 import { noUpscale, photoPanel, type CropAdjust } from "@/lib/dashboard/vitrin-photo";
 import type { LineupGeometry } from "@/skills/render-engine/templates/lineup/lineup-geometry";
 import type { LineupHeroAdjust, LineupPalette } from "@/types/lineup";
@@ -58,7 +59,9 @@ export interface LineupHeroArtInput {
   g: LineupGeometry;
   format: SocialFormatId;
   palette: LineupPalette;
-  photo: UploadedImage;
+  /** Kapak fotoğrafı; null → ortak yedek tasarım (`fallback`). */
+  photo: UploadedImage | null;
+  fallback?: FallbackTeamSource | undefined;
   adjust?: LineupHeroAdjust | null | undefined;
   upscale?: PhotoUpscaler | undefined;
 }
@@ -69,7 +72,7 @@ export async function lineupHeroArt(input: LineupHeroArtInput): Promise<Result<B
   const width = box.right - box.left;
   const height = box.bottom - box.top;
   // Işık ve split-tone takım renginden (paletin parıltısı = logonun baskın tonu).
-  const panel = await photoPanel(input.photo, box, safe, socialFrame(input.format), palette.glow, "home", input.upscale ?? noUpscale, toCropAdjust(input.adjust));
+  const panel = await photoPanel(input.photo, box, safe, socialFrame(input.format), palette.glow, "home", input.upscale ?? noUpscale, toCropAdjust(input.adjust), input.fallback);
   if (!panel.ok) return { ok: false, error: { ...panel.error, message: `Kapak fotoğrafı: ${panel.error.message}` } };
   const shaded = await sharp(panel.data).composite([{ input: topShadeSvg(width, height, g.photo.safe.top, palette.backgroundBottom) }]).png().toBuffer();
   const faded = await sharp(shaded).ensureAlpha().composite([{ input: fadeMaskSvg(width, height, fade), blend: "dest-in" }]).png().toBuffer();

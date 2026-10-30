@@ -57,7 +57,7 @@ type Fail = { ok: false; error: string };
 
 /** Form → doğrulanmış alanlar + maç (sunucuda yeniden çekilir) + maç fotoğrafı. */
 async function resolveInput(formData: FormData): Promise<
-  | { ok: true; data: z.infer<typeof cardSchema>; facts: MatchResultFacts; photo: MatchPhotoInput; raw: ApiFootballFixtureResultRaw }
+  | { ok: true; data: z.infer<typeof cardSchema>; facts: MatchResultFacts; photo: MatchPhotoInput | null; raw: ApiFootballFixtureResultRaw }
   | Fail
 > {
   const parsed = cardSchema.safeParse({ ...Object.fromEntries(FIELDS.map((name) => [name, text(formData, name)])), photoIsMvp: formData.get("photoIsMvp") === "on", includeStats: formData.get("includeStats") === "on", includeAnalysis: formData.get("includeAnalysis") === "on", includeScorecard: formData.get("includeScorecard") === "on" });
@@ -83,9 +83,10 @@ async function resolveInput(formData: FormData): Promise<
  * Maç fotoğrafı — Fotoğraf Arşivi seçicisinden (`resolveArchivePhoto`): arşivden seçilen fotoğraf ya
  * da yeni yükleme (seçilen kişi/takım klasörüne, bu maçın etiketiyle) maçtaki takımlardan birine ait
  * olmalı; kart büyütülmüş sürümü kullanır. Eski kütüphane alanı (`photoAssetId`) bir sürüm boyunca
- * okunmaya devam eder. Fotoğraf yoksa kart üretilmez.
+ * okunmaya devam eder. Fotoğraf yoksa null → motor fotoğrafsız yedek tasarımı çizer (canlı test 2026-10-31;
+ * fotoğraf önerilir, stüdyo notu yazar).
  */
-async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema>, facts: MatchResultFacts): Promise<Result<MatchPhotoInput>> {
+async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema>, facts: MatchResultFacts): Promise<Result<MatchPhotoInput | null>> {
   const assetId = text(formData, "photoAssetId");
   if (assetId) {
     const tag = await matchPhotoTag(assetId, data.fixtureId);
@@ -96,7 +97,7 @@ async function resolvePhoto(formData: FormData, data: z.infer<typeof photoSchema
   try {
     const resolved = await resolveArchivePhoto(formData, "photo", [facts.home.id, facts.away.id], data.fixtureId);
     if (!resolved.ok) return resolved;
-    if (!resolved.data) return { ok: false, error: { code: "PHOTO_MISSING", message: "Maç fotoğrafı yok — arşivden seçin ya da yükleyin. Kart üretilmedi." } };
+    if (!resolved.data) return { ok: true, data: null };
     return { ok: true, data: { image: resolved.data.image, fileUrl: resolved.data.fileUrl, playerId: resolved.data.playerApiId, kitTeamId: resolved.data.kitTeamId, photoId: resolved.data.photoId } };
   } catch (error: unknown) {
     console.error("[match-result] arşiv fotoğrafı çözülemedi:", error);
@@ -187,6 +188,7 @@ async function previewMatchPhoto(formData: FormData): Promise<MatchPhotoPreviewS
   const input = await resolveInput(formData);
   if (!input.ok) return { error: input.error };
   const { data, facts, photo } = input;
+  if (!photo) return { error: "Kırpma önizlemesi için maç fotoğrafı seçin — fotoğrafsız kartta yedek tasarım çizilir." };
 
   const frame = MATCH_DAY_FRAMES[data.format];
   // Erken uyarı: üretimdeki keskinlik kapısı önizlemede, ücretli adımdan (ESRGAN) ÖNCE — aynı mesaj.

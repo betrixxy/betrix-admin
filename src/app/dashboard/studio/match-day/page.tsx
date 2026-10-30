@@ -51,12 +51,12 @@ export default async function MatchDayPage({ searchParams }: MatchDayPageProps) 
     <>
       <PageHeader
         title="Maç Günü Kartı"
-        description="Maçı seçin, iki oyuncu fotoğrafını yükleyin. Fal.ai oyuncuları keser, takım renklerinde bir stadyum sahnesi üretir ve hepsini tek bir posterde harmanlar; tipografi en son programatik olarak basılır. Sonuç taslak olarak kaydedilir."
+        description="Maçı seçin, oyuncu fotoğraflarını seçin ya da yükleyin. Fal.ai oyuncuları keser, takım renklerinde bir stadyum sahnesi üretir ve hepsini tek bir posterde harmanlar; tipografi en son programatik olarak basılır. Fotoğrafı olmayan takımın yerine yedek tasarım (takım rengi ışığı + dev arma) çizilir; Fal yoksa zemin programatiktir. Sonuç taslak olarak kaydedilir."
       />
 
       {!falConfigured ? (
         <Notice>
-          <code className="rounded bg-black/20 px-1 py-0.5 text-xs">FAL_KEY</code> tanımlı değil — üretim devre dışı.
+          <code className="rounded bg-black/20 px-1 py-0.5 text-xs">FAL_KEY</code> tanımlı değil — oyuncu kesimi ve AI sahne yok: kart programatik zemin ve takımların yedek tasarımıyla üretilir.
         </Notice>
       ) : null}
       {!fixtures.ok ? (
@@ -72,9 +72,7 @@ export default async function MatchDayPage({ searchParams }: MatchDayPageProps) 
       <MatchDayForm
         fixtures={coloured}
         initialFixtureId={initialFixtureId}
-       
-        disabled={!falConfigured}
-      />
+             />
     </>
   );
 }

@@ -34,6 +34,8 @@ export interface PickerPhoto {
   bucket: PickerBucket;
   width: number;
   height: number;
+  /** Arşivde kart için büyütülmüş sürümü (`-s2000`) var mı — Fal yokken varsayılan seçim bunu tercih eder. */
+  upscaled: boolean;
 }
 
 export interface PickerSubject {

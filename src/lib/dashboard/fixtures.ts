@@ -1,4 +1,4 @@
-import { MATCH_CENTER_PAST_DAYS, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/match-center-window";
+import { MATCH_CENTER_PAST_DAYS, POST_MATCH_PAST_DAYS, SELECTABLE_FIXTURE_DAYS } from "@/lib/dashboard/match-center-window";
 import { shortDate } from "@/lib/format/dates";
 import { prisma } from "@/lib/prisma";
 import { getFixturesByIds, getUpcomingFixtures, parseFixtureId } from "@/lib/services/api-football";
@@ -7,7 +7,7 @@ import type { Result } from "@/types/result";
 import type { FixtureOption } from "@/types/social";
 import type { Fixture } from "@/types/sports";
 
-export { MATCH_CENTER_PAST_DAYS, SELECTABLE_FIXTURE_DAYS };
+export { MATCH_CENTER_PAST_DAYS, POST_MATCH_PAST_DAYS, SELECTABLE_FIXTURE_DAYS };
 
 /**
  * Maç öncesi formlarda seçilebilir gerçek maçlar — API-Football, desteklenen ligler
@@ -17,9 +17,12 @@ export function getSelectableFixtures(): Promise<Result<Fixture[], ApiFootballEr
   return getUpcomingFixtures(SELECTABLE_FIXTURE_DAYS);
 }
 
-/** Maç Merkezi: MATCH_CENTER_PAST_DAYS gün geriden (biten maçlar) + önümüzdeki SELECTABLE_FIXTURE_DAYS gün. */
+/**
+ * Maç Merkezi: POST_MATCH_PAST_DAYS gün geriden (biten maçlar — maç sonrası stüdyoların penceresi) + önümüzdeki
+ * SELECTABLE_FIXTURE_DAYS gün. Dünden eski günler listenin altında kapalı durur (`match-list.tsx`).
+ */
 export function getMatchCenterFixtures(): Promise<Result<Fixture[], ApiFootballError>> {
-  return getUpcomingFixtures(SELECTABLE_FIXTURE_DAYS, MATCH_CENTER_PAST_DAYS);
+  return getUpcomingFixtures(SELECTABLE_FIXTURE_DAYS, POST_MATCH_PAST_DAYS);
 }
 
 export function formatFixtureLabel(fixture: Fixture): string {

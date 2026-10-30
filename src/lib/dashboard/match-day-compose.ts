@@ -1,6 +1,7 @@
 import sharp, { type OverlayOptions } from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { getMatchDayLayout, type MatchDayLayout, type PlayerSlot } from "@/lib/dashboard/match-day-layouts";
+import { renderTeamFallback, type FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
 import type { MatchDayTemplateId } from "@/types/match-day";
 
 /**
@@ -14,9 +15,15 @@ const LIGHT_BLUR = 50;
 const BOTTOM_FADE_RATIO = 0.24;
 
 export interface PlayerCutout {
-  bytes: Buffer;
+  /** birefnet kesimi; null → o takımın yedek tasarımı (arma + filigran + takım ışığı, `team-fallback.tsx`). */
+  bytes: Buffer | null;
   colorHex: string;
+  /** Kesim yoksa çizilecek takım (ad, renk, logo). */
+  team?: FallbackTeamSource | undefined;
 }
+
+/** Fotoğrafsız tarafın armasının (yüzün düşeceği yer) slot içindeki dikey konumu. */
+const EMBLEM_FOCUS_Y = 0.32;
 
 export interface ComposeTarget {
   template: MatchDayTemplateId;
@@ -75,13 +82,25 @@ export async function silhouette(cutout: Buffer, width: number, height: number, 
     .toBuffer();
 }
 
+/** Fotoğrafsız taraf: oyuncunun yerine şeffaf zeminli yedek tasarım (takım ışığı + filigran + arma). */
+async function emblemLayers(player: PlayerCutout, slot: PlayerSlot, frame: MatchDayFrame, side: "home" | "away"): Promise<OverlayOptions[]> {
+  const team = player.team ?? { name: "", hex: player.colorHex, logo: null };
+  const width = slot.maxWidth;
+  const height = Math.min(slot.maxHeight, Math.round(slot.maxWidth * 1.35));
+  const emblem = await renderTeamFallback(team, { width, height }, { side, mode: "emblem", focus: { x: 0.5, y: EMBLEM_FOCUS_Y } });
+  const layer = await clipToCanvas(emblem, Math.round(slot.centerX - width / 2), slot.top, frame);
+  return layer ? [layer] : [];
+}
+
 async function playerLayers(
   player: PlayerCutout,
   slot: PlayerSlot,
   layout: MatchDayLayout,
   frame: MatchDayFrame,
   withLight: boolean,
+  side: "home" | "away",
 ): Promise<OverlayOptions[]> {
+  if (!player.bytes) return emblemLayers(player, slot, frame, side);
   const cutout = await fitCutout(player.bytes, slot);
   const left = Math.round(slot.centerX - cutout.width / 2);
   const top = slot.top;
@@ -105,8 +124,8 @@ async function layerPlayers(base: Buffer, target: ComposeTarget, home: PlayerCut
   const { frame } = target;
   const layout = getMatchDayLayout(target.template, frame);
   const [homeLayers, awayLayers] = await Promise.all([
-    playerLayers(home, layout.home, layout, frame, withLight),
-    playerLayers(away, layout.away, layout, frame, withLight),
+    playerLayers(home, layout.home, layout, frame, withLight, "home"),
+    playerLayers(away, layout.away, layout, frame, withLight, "away"),
   ]);
   return sharp(base)
     .resize(frame.width, frame.height, { fit: "cover" })

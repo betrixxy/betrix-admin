@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { ANALYST_MODEL, getAnthropicClient, isAnthropicConfigured } from "@/lib/services/anthropic/client";
+import { anthropicFailure } from "@/lib/services/anthropic/errors";
 import type { AnthropicError } from "@/lib/services/anthropic/types";
 import type { PublishPlatform } from "@/types/publishing";
 import type { Result } from "@/types/result";
@@ -81,13 +81,10 @@ export async function generateCaption(platform: PublishPlatform, facts: unknown)
     if (!response.parsed_output) return { ok: false, error: { code: "INVALID_RESPONSE", message: "Model yanıtı beklenen şemaya uymadı." } };
     return { ok: true, data: { caption: response.parsed_output.caption.trim() } };
   } catch (error) {
-    if (error instanceof Anthropic.RateLimitError) {
-      return { ok: false, error: { code: "RATE_LIMITED", message: "Claude hız sınırına takıldı — birazdan tekrar deneyin." } };
-    }
-    if (error instanceof Anthropic.APIError) {
-      console.error(`[anthropic] metin isteği başarısız: ${error.status ?? "?"} ${error.message}`);
-      return { ok: false, error: { code: "API_ERROR", message: `Claude isteği başarısız (${error.status ?? "bağlantı"}).` } };
-    }
-    throw error;
+    // Hata istisna fırlatmaz: Yayın Merkezi "AI metni yazılamadı: <sebep> — şablon metni kullanılabilir" yazar (kredi
+    // yetersiz / anahtar geçersiz / ağ — `anthropicFailure`), şablon metni yerinde kalır.
+    const failure = anthropicFailure(error);
+    console.error(`[anthropic] metin isteği başarısız: ${failure.message}`);
+    return { ok: false, error: failure };
   }
 }

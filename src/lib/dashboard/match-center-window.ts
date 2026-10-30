@@ -7,8 +7,14 @@ import type { ContentPhase } from "@/types/content-type";
  * dün 22:00'de başlayıp gece yarısından sonra (uzatma/penaltılar) biten maç "dün"de kalır.
  */
 
-/** Geriye bakış: biten maçların maç sonu içerikleri için. Hafta sonu için 2'ye çıkarılabilir. */
+/** Maç Merkezi'nin üstte açık gösterdiği geçmiş ("Dün") ve İçerik Planı'nın başlangıcı. */
 export const MATCH_CENTER_PAST_DAYS = 1;
+/**
+ * Maç sonrası stüdyoların geriye bakışı (2026-10-31 canlı test: 28–29 Ekim maçları açılamadı): son 7 İstanbul
+ * günü (dün dahil). Maç Merkezi bu günleri de çeker; dünden eskiler listenin altında kapalı bölümde durur.
+ * Sonuçlanmış geçmiş günler 12 sa önbellekte (`api-football/settled-day.ts`) — ek maliyet ilk açılışta 6 istek.
+ */
+export const POST_MATCH_PAST_DAYS = 7;
 /** İleriye bakış (bugün dahil) — maç öncesi formların eski 7 günlük penceresi. */
 export const SELECTABLE_FIXTURE_DAYS = 7;
 
@@ -31,9 +37,9 @@ export function matchCenterRange(now: Date, pastDays = MATCH_CENTER_PAST_DAYS): 
   return { from: addDays(upcoming.from, -pastDays), to: upcoming.to };
 }
 
-/** Maç sonrası türler geçmiş pencereyi de kabul eder; maç öncesi türlerde eski kural (bugünden itibaren). */
+/** Maç sonrası türler son POST_MATCH_PAST_DAYS günü de kabul eder; maç öncesi türlerde eski kural (bugünden itibaren). */
 export function studioRange(phase: ContentPhase, now: Date): DayRange {
-  return phase === "post_match" ? matchCenterRange(now) : upcomingRange(now);
+  return phase === "post_match" ? matchCenterRange(now, POST_MATCH_PAST_DAYS) : upcomingRange(now);
 }
 
 export function isInRange(kickoffUtc: string, range: DayRange): boolean {
@@ -43,6 +49,11 @@ export function isInRange(kickoffUtc: string, range: DayRange): boolean {
 
 export function isFixtureInStudioWindow(kickoffUtc: string, phase: ContentPhase, now: Date): boolean {
   return isInRange(kickoffUtc, studioRange(phase, now));
+}
+
+/** Dünden eski mi — Maç Merkezi bu günleri listenin altındaki kapalı "Önceki günler" bölümünde gösterir. */
+export function isOlderPastDay(day: string, now: Date): boolean {
+  return day < addDays(istanbulDay(now), -MATCH_CENTER_PAST_DAYS);
 }
 
 /** Bir maçın İstanbul günü bugünden önce mi — Maç Merkezi'nde "Dün" bölümü için. */
