@@ -34,6 +34,7 @@ export function MatchResultPreview({ result, isPending, format, templateLabel }:
             {[
               ...(result.statsImageUrl ? [{ url: result.statsImageUrl, label: "02 · İstatistikler" }] : []),
               ...(result.playerImageUrl ? [{ url: result.playerImageUrl, label: result.playerPageLabel ?? "Oyuncu sayfası" }] : []),
+              ...result.extraPages,
             ].map((slide, index, extra) => (
               <div key={slide.url} className="flex flex-col gap-1">
                 <span className="text-xs text-muted-foreground">

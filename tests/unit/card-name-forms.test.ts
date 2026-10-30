@@ -39,7 +39,7 @@ describe("kart ad biçimleri", () => {
   it("her kart adını tablodan kendi yuvasıyla alır", () => {
     const uses: Record<string, (keyof typeof CARD_NAME_FORMS)[]> = {
       "src/lib/dashboard/lineup-names.ts": ["LINEUP_PLAYERS", "LINEUP_COACH"],
-      "src/lib/dashboard/set-people.ts": ["MATCH_RESULT_MVP"],
+      "src/lib/names/result-people.ts": ["MATCH_RESULT_MVP"],
       "src/lib/names/scorer-names.ts": ["SET_SCORERS"],
       "src/lib/dashboard/player-stats-card.ts": ["PLAYER_STATS_SPOTLIGHT", "PLAYER_STATS_TOP"],
       "src/lib/player-h2h/names.ts": ["PLAYER_H2H_POSTER"],

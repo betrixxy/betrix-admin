@@ -1,5 +1,5 @@
 import { isSchedulePlaceholder } from "@/lib/calendar/schedule-placeholder";
-import { isContentTypeId } from "@/lib/dashboard/content-types";
+import { resolveContentTypeId } from "@/lib/dashboard/content-types";
 import { setPages } from "@/lib/dashboard/set-pages";
 import { isApprovedStatus } from "@/types/ai-content";
 import type { FixtureProduction } from "@/types/calendar";
@@ -34,13 +34,15 @@ export function coveredContentTypes(contentType: ContentTypeId, renderOptions: u
 export function buildFixtureProduction(contents: ProductionRow[]): Map<string, FixtureProduction> {
   const byFixture = new Map<string, FixtureProduction>();
   for (const content of contents) {
-    if (!content.contentType || !isContentTypeId(content.contentType)) continue;
+    // Eski kimlikli placeholder (MARKET_RESULTS → PREDICTION_SCORECARD …) yeni türün planı olarak okunur.
+    const contentType = content.contentType ? resolveContentTypeId(content.contentType) : null;
+    if (!contentType) continue;
     const placeholder = isSchedulePlaceholder(content);
     const production = byFixture.get(content.fixtureId) ?? {};
-    for (const type of placeholder ? [content.contentType] : coveredContentTypes(content.contentType, content.renderOptions)) {
+    for (const type of placeholder ? [contentType] : coveredContentTypes(contentType, content.renderOptions)) {
       const current = production[type];
       // Kapsanan türün yayın zamanı kendi planından gelir; kaydın kendi zamanı yalnızca kendi türüne.
-      const own = type === content.contentType ? content.publishAt?.toISOString() : undefined;
+      const own = type === contentType ? content.publishAt?.toISOString() : undefined;
       const publishAt = current?.publishAt ?? own ?? null;
       if (placeholder) {
         if (!current && publishAt) production[type] = { status: "planned", publishAt };

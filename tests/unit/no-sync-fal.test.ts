@@ -11,7 +11,7 @@ import { describe, it } from "node:test";
  */
 
 const SLOW_CALL =
-  /\b(removeBackground|removePlayerBackground|generateStadiumBackground|generateMatchDayBackground|harmonizeMatchDayComposite|upscaleImage|createArchiveUpscale|photoForCard|createArchivePhoto|resolveArchivePhoto|resolveStudioPhoto|resolveLineupHeroPhoto|resolveH2HPhoto|prepareMatchPhoto|regenerateDraftBackground|createMatchDraft|createMatchDayCard|createMatchResultCard|createVitrinDraft|renderVitrin|createLineupDraft|renderLineupCard|renderH2H|createH2HDraft|renderDraw|createDrawDraft|generateScenarioReasons|createPlayerStatsDraft|renderPlayerPage|spotlightPhoto|appendPlayerPage)\(/;
+  /\b(removeBackground|removePlayerBackground|generateStadiumBackground|generateMatchDayBackground|harmonizeMatchDayComposite|upscaleImage|createArchiveUpscale|photoForCard|createArchivePhoto|resolveArchivePhoto|resolveStudioPhoto|resolveLineupHeroPhoto|resolveH2HPhoto|prepareMatchPhoto|regenerateDraftBackground|createMatchDraft|createMatchDayCard|createMatchResultCard|createVitrinDraft|renderVitrin|createLineupDraft|renderLineupCard|renderH2H|createH2HDraft|renderDraw|createDrawDraft|generateScenarioReasons|createPlayerStatsDraft|renderPlayerPage|spotlightPhoto|appendPlayerPage|createMatchAnalysisDraft|renderAnalysisPages|createMatchScorecardDraft|createPeriodScorecardDraft|renderMatchScorecardPage|writeFixtureOutcomes)\(/;
 const JOB = /\bstart(Studio|Result)Job(<[^>]*>)?\(/;
 
 const walk = (dir: string): string[] =>

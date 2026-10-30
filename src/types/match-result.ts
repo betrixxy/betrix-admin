@@ -94,6 +94,8 @@ export interface MatchResultGenerationResult {
   playerImageUrl: string | null;
   /** "03 · Maçın oyuncusu" */
   playerPageLabel: string | null;
+  /** "…de ekle" sayfaları (Maç Analizi, Tahmin Karnesi), yayın sırasıyla; yoksa boş. */
+  extraPages: { url: string; label: string }[];
   /** Tonlanmış, kırpılmış fotoğraf (yazısız sanat katmanı). */
   backgroundImageUrl: string;
   format: MatchDayFormatId;

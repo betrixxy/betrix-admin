@@ -32,17 +32,16 @@ export interface AnalysisPerson {
 }
 
 /**
- * Kırılma anı (kural tabanlı, `match-analysis/moments.ts`): skorun anlamını ya da sayısal dengeyi değiştiren an.
- * İLK GOL (0-0 bozuldu) · EŞİTLİK (skor eşitlendi) · EŞİTLİK BOZULDU (berabere skordan öne geçildi) ·
- * KIRMIZI SONRASI (rakip kırmızı kart gördükten sonraki 15 dakika içinde gol) · 10 KİŞİ (kırmızı kart).
- * Farkı açan gol (2-0 → 3-0) kırılma anı değildir.
+ * Kırılma anı (kural tabanlı, `match-analysis/moments.ts`), öncelik sırasıyla: KAZANDIRAN GOL (galibi belirleyen
+ * gol) > KIRMIZI + GOL (sonrasında sayıca üstün takımın gol attığı kırmızı kart; vurgu kartta) > EŞİTLEYEN GOL
+ * (geriden gelip eşitleyen) > İLK GOL. Bir olaya tek etiket; kartta en fazla 2 an.
  */
-export const BREAK_MOMENT_KINDS = ["FIRST_GOAL", "EQUALISER", "GO_AHEAD", "AFTER_RED", "SENT_OFF"] as const;
+export const BREAK_MOMENT_KINDS = ["DECISIVE_GOAL", "RED_THEN_GOAL", "EQUALISER", "FIRST_GOAL"] as const;
 export type BreakMomentKind = (typeof BREAK_MOMENT_KINDS)[number];
 
 export interface BreakMoment {
   kind: BreakMomentKind;
-  /** Kartta yazan kısa etiket: "İLK GOL", "EŞİTLİK", "10 KİŞİ". */
+  /** Kartta yazan kısa etiket (≤ 16 karakter): "KAZANDIRAN GOL", "KIRMIZI + GOL", "EŞİTLEYEN GOL", "İLK GOL". */
   label: string;
 }
 

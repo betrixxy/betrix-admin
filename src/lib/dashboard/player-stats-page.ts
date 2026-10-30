@@ -77,8 +77,10 @@ async function spotlight(input: PlayerPageInput): Promise<Result<PlayerPage, Pag
   if (rowCount < SPOTLIGHT_MIN_ROWS) return fail("TOO_FEW_STATS", `Seçilen oyuncu için yalnızca ${rowCount} istatistik geldi (en az ${SPOTLIGHT_MIN_ROWS}) — kart üretilmedi.`);
 
   reportJobStep("Oyuncu adı ve fotoğrafı");
+  // Not satırındaki MVP adı da kart adı kuralından (stüdyo özeti kartla aynı adı yazar).
+  const mvpLine = defaultId !== null && defaultId !== line.playerId ? facts.lines.find((candidate) => candidate.playerId === defaultId) : undefined;
   const [names, setImages, photo] = await Promise.all([
-    playerCardNames(facts, [line]),
+    playerCardNames(facts, mvpLine ? [line, mvpLine] : [line]),
     resolveSetImages(facts.match),
     input.photoId === "none" ? null : spotlightPhoto(line, { photoId: input.photoId, avoidPhotoId: input.avoidPhotoId }),
   ]);
@@ -87,8 +89,8 @@ async function spotlight(input: PlayerPageInput): Promise<Result<PlayerPage, Pag
 
   const notes: string[] = [];
   if (defaultId !== null && playerId !== defaultId) {
-    const mvp = facts.lines.find((candidate) => candidate.playerId === defaultId);
-    notes.push(`Oyuncu değiştirildi: maçın oyuncusu önerisi ${mvp?.name ?? "—"}, kartta ${line.name}.`);
+    const mvpName = mvpLine ? (names.get(mvpLine.playerId)?.name ?? mvpLine.name) : "—";
+    notes.push(`Oyuncu değiştirildi: maçın oyuncusu önerisi ${mvpName}, kartta ${names.get(line.playerId)?.name ?? line.name}.`);
   }
   if (rowCount < SPOTLIGHT_TARGET_ROWS) notes.push(`Bu oyuncu için ${rowCount} istatistik geldi (hedef ${SPOTLIGHT_TARGET_ROWS}–8) — eksik satırlar yazılmadı.`);
   if (!card.hero.concat(card.rows).some((row) => row.key === "xg") && line.position === "F") notes.push(facts.sportmonksMatched ? "xG yok: Sportmonks'ta oyuncunun dakikası tutmadı ya da şut verisi yok." : "xG yok: Sportmonks maçı eşleşmedi.");

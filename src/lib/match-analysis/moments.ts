@@ -1,22 +1,37 @@
-import { SCORING_KINDS, SENDING_OFF_KINDS, type AnalysisEvent, type BreakMoment, type SidePair } from "@/types/match-analysis";
+import { SCORING_KINDS, SENDING_OFF_KINDS, type AnalysisEvent, type BreakMoment, type BreakMomentKind, type SidePair } from "@/types/match-analysis";
 import type { MatchSide } from "@/types/match-result";
 
 /**
- * Akan skor + KIRILMA ANI (saf, deterministik). Olaylar sıralı gelir (`sortEvents`).
+ * Akan skor + KIRILMA ANI (saf, deterministik). Olaylar sıralı gelir (`sortEvents`). Kurucu kararı 2026-10-30:
  *
- * Kırılma anı kuralları (öncelik sırasıyla, bir olaya tek etiket):
- *  1. KIRMIZI SONRASI — rakibi kırmızı kart (ya da ikinci sarı) gördükten sonraki `AFTER_RED_WINDOW` dakika
- *     içinde atılan gol (fark açan gol de olsa: sayısal üstünlüğün sonucu).
- *  2. İLK GOL — 0-0 bozuldu.
- *  3. EŞİTLİK — gol skoru eşitledi.
- *  4. EŞİTLİK BOZULDU — berabere skordan (1-1, 2-2…) öne geçildi.
- *  5. 10 KİŞİ / 9 KİŞİ — kırmızı kartın kendisi (takım bir kişi eksildi).
- * Farkı açan ya da azaltan gol (2-0 → 3-0, 2-0 → 2-1) kırılma anı DEĞİLDİR. Kaçan penaltı, sarı kart,
- * değişiklik ve VAR skoru değiştirmez.
+ * Öncelik (yüksekten düşüğe; bir olay yalnızca EN YÜKSEK etiketini alır):
+ *  1. KAZANDIRAN GOL (`DECISIVE_GOAL`) — galibi belirleyen gol: kazananı olan maçta, kazanana bir daha hiç
+ *     kaybetmediği üstünlüğü veren gol (kazananın skoru rakibe eşit ya da gerideyken öne geçirdiği SON gol).
+ *     Maç başına en fazla bir; beraberlikte yok (penaltı atışları gol sayılmaz). Kendi kalesine gol, golün
+ *     yazıldığı (kazanan) tarafa sayılır.
+ *  2. KIRMIZI + GOL (`RED_THEN_GOAL`) — sonrasında gol gelen kırmızı kart: kırmızı kart ya da ikinci sarıdan
+ *     SONRA, maçın geri kalanında, sayıca üstün takım (kartı görmeyen taraf) gol attı ve gol anında kart gören
+ *     taraf hâlâ eksikti (rakibi de eşit sayıda oyuncu kaybettiyse üstünlük bitmiştir). Vurgulanan olay KARTIN
+ *     kendisidir; gol kendi etiketini ayrıca alabilir.
+ *  3. EŞİTLEYEN GOL (`EQUALISER`) — geriden gelip eşitleyen gol: gerideki takımın skoru eşitleyen golü.
+ *  4. İLK GOL (`FIRST_GOAL`) — maçın ilk golü (0-0 bozuldu).
+ * Farkı açan ya da azaltan diğer goller, sarı kart, değişiklik, VAR ve kaçan penaltı kırılma anı değildir.
+ * Kartta EN FAZLA 2 an vurgulanır (`MAX_BREAK_MOMENTS`): önce önceliğe, eşitlikte dakikaya göre seçilir;
+ * seçilmeyen adayların etiketi yazılmaz (kart, gönderi metni ve offline araç aynı alanı okur).
  */
 
-export const AFTER_RED_WINDOW = 15;
-export const BREAK_LABELS = { FIRST_GOAL: "İLK GOL", EQUALISER: "EŞİTLİK", GO_AHEAD: "EŞİTLİK BOZULDU", AFTER_RED: "KIRMIZI SONRASI" } as const;
+export const MAX_BREAK_MOMENTS = 2;
+/** Kart çipi (≤ 16 karakter, Anton/Inter büyük harf güvenli, bahis dili kapısından geçer). */
+export const BREAK_LABELS = { DECISIVE_GOAL: "KAZANDIRAN GOL", RED_THEN_GOAL: "KIRMIZI + GOL", EQUALISER: "EŞİTLEYEN GOL", FIRST_GOAL: "İLK GOL" } as const;
+/** Öncelik sırası (dizin küçük = öncelikli). */
+export const BREAK_PRIORITY: readonly BreakMomentKind[] = ["DECISIVE_GOAL", "RED_THEN_GOAL", "EQUALISER", "FIRST_GOAL"];
+/** Gönderi metnindeki uzun söyleyiş. */
+export const BREAK_CAPTIONS: Record<BreakMomentKind, string> = {
+  DECISIVE_GOAL: "kazandıran gol",
+  RED_THEN_GOAL: "kırmızı kart — sonrasında gol geldi",
+  EQUALISER: "eşitleyen gol",
+  FIRST_GOAL: "ilk gol",
+};
 
 const other = (side: MatchSide): MatchSide => (side === "HOME" ? "AWAY" : "HOME");
 export const isScoring = (event: Pick<AnalysisEvent, "kind">) => SCORING_KINDS.includes(event.kind);
@@ -26,12 +41,64 @@ export const matchMinute = (event: Pick<AnalysisEvent, "elapsed" | "extra">) => 
 /** İlk yarı olayı mı: 45 ve 45+ dahil. */
 export const isFirstHalf = (event: Pick<AnalysisEvent, "elapsed">) => event.elapsed <= 45;
 
-function goalMoment(before: SidePair, after: SidePair, lastRedAgainst: number | null, minute: number): BreakMoment | null {
-  if (lastRedAgainst !== null && minute - lastRedAgainst <= AFTER_RED_WINDOW) return { kind: "AFTER_RED", label: BREAK_LABELS.AFTER_RED };
-  if (before.home === 0 && before.away === 0) return { kind: "FIRST_GOAL", label: BREAK_LABELS.FIRST_GOAL };
-  if (after.home === after.away) return { kind: "EQUALISER", label: BREAK_LABELS.EQUALISER };
-  if (before.home === before.away) return { kind: "GO_AHEAD", label: BREAK_LABELS.GO_AHEAD };
-  return null;
+const lead = (score: SidePair, side: MatchSide) => (side === "HOME" ? score.home - score.away : score.away - score.home);
+
+/** Olaylara akan skoru yazar (golde golden sonraki skor). */
+function withScores(events: readonly AnalysisEvent[]): { events: AnalysisEvent[]; final: SidePair; halftime: SidePair } {
+  const score: SidePair = { home: 0, away: 0 };
+  const halftime: SidePair = { home: 0, away: 0 };
+  const out = events.map((event): AnalysisEvent => {
+    if (!isScoring(event)) return { ...event, score: null, breakMoment: null };
+    if (event.side === "HOME") score.home += 1;
+    else score.away += 1;
+    if (isFirstHalf(event)) {
+      if (event.side === "HOME") halftime.home += 1;
+      else halftime.away += 1;
+    }
+    return { ...event, score: { ...score }, breakMoment: null };
+  });
+  return { events: out, final: { ...score }, halftime };
+}
+
+/** Saf: her olayın aday etiketi (en yüksek öncelikli) — seçimden önce. */
+export function breakCandidates(events: readonly AnalysisEvent[], final: SidePair): (BreakMomentKind | null)[] {
+  const winner: MatchSide | null = final.home === final.away ? null : final.home > final.away ? "HOME" : "AWAY";
+  // Kazandıran gol: kazananın eşit/geride iken öne geçtiği SON gol.
+  let decisive = -1;
+  let before: SidePair = { home: 0, away: 0 };
+  events.forEach((event, index) => {
+    if (!event.score) return;
+    if (winner && event.side === winner && lead(before, winner) <= 0 && lead(event.score, winner) > 0) decisive = index;
+    before = event.score;
+  });
+  // Kırmızı, sonra gol: kart anındaki eksik sayısı; sonraki golde kartı gören taraf hâlâ eksikse.
+  const sentOff: Record<MatchSide, number> = { HOME: 0, AWAY: 0 };
+  const redThenGoal = new Set<number>();
+  const openReds: { index: number; side: MatchSide }[] = [];
+  before = { home: 0, away: 0 };
+  return events.map((event, index) => {
+    if (isSendingOff(event)) {
+      sentOff[event.side] += 1;
+      openReds.push({ index, side: event.side });
+      return null;
+    }
+    if (!event.score) return null;
+    const previous = before;
+    before = event.score;
+    for (const red of openReds) if (event.side === other(red.side) && sentOff[red.side] > sentOff[event.side]) redThenGoal.add(red.index);
+    if (index === decisive) return "DECISIVE_GOAL";
+    if (event.score.home === event.score.away) return "EQUALISER";
+    if (previous.home === 0 && previous.away === 0) return "FIRST_GOAL";
+    return null;
+  }).map((kind, index) => (redThenGoal.has(index) ? "RED_THEN_GOAL" : kind));
+}
+
+/** Saf: adaylardan en fazla `MAX_BREAK_MOMENTS` an — öncelik, sonra dakika (olay sırası). */
+export function pickBreakMoments(candidates: readonly (BreakMomentKind | null)[]): Set<number> {
+  const ranked = candidates
+    .flatMap((kind, index) => (kind ? [{ index, rank: BREAK_PRIORITY.indexOf(kind) }] : []))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index);
+  return new Set(ranked.slice(0, MAX_BREAK_MOMENTS).map((entry) => entry.index));
 }
 
 export interface MomentsResult {
@@ -41,33 +108,18 @@ export interface MomentsResult {
 }
 
 /**
- * Skoru olaylardan sayar, gollere skoru ve kırılma anını yazar. `withBreaks: false` (skor resmi skorla
- * tutmuyor) → skor sayılır ama etiket yazılmaz.
+ * Skoru olaylardan sayar, gollere skoru, seçilen (en fazla 2) olaya kırılma anını yazar. `withBreaks: false`
+ * (skor resmi skorla tutmuyor) → skor sayılır ama etiket yazılmaz.
  */
 export function withMoments(events: readonly AnalysisEvent[], withBreaks = true): MomentsResult {
-  const score: SidePair = { home: 0, away: 0 };
-  const halftime: SidePair = { home: 0, away: 0 };
-  const sentOff: Record<MatchSide, number> = { HOME: 0, AWAY: 0 };
-  const lastRed: Record<MatchSide, number | null> = { HOME: null, AWAY: null };
-  const out = events.map((event): AnalysisEvent => {
-    if (isScoring(event)) {
-      const before = { ...score };
-      if (event.side === "HOME") score.home += 1;
-      else score.away += 1;
-      if (isFirstHalf(event)) {
-        if (event.side === "HOME") halftime.home += 1;
-        else halftime.away += 1;
-      }
-      const moment = withBreaks ? goalMoment(before, score, lastRed[other(event.side)], matchMinute(event)) : null;
-      return { ...event, score: { ...score }, breakMoment: moment };
-    }
-    if (isSendingOff(event)) {
-      sentOff[event.side] += 1;
-      lastRed[event.side] = matchMinute(event);
-      const label = `${11 - sentOff[event.side]} KİŞİ`;
-      return { ...event, score: null, breakMoment: withBreaks ? { kind: "SENT_OFF", label } : null };
-    }
-    return { ...event, score: null, breakMoment: null };
+  const scored = withScores(events);
+  if (!withBreaks) return scored;
+  const candidates = breakCandidates(scored.events, scored.final);
+  const chosen = pickBreakMoments(candidates);
+  const out = scored.events.map((event, index): AnalysisEvent => {
+    const kind = chosen.has(index) ? candidates[index] : null;
+    const moment: BreakMoment | null = kind ? { kind, label: BREAK_LABELS[kind] } : null;
+    return { ...event, breakMoment: moment };
   });
-  return { events: out, final: { ...score }, halftime };
+  return { ...scored, events: out };
 }
