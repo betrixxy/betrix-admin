@@ -10,7 +10,7 @@ import { RAW_MILAN_BOLOGNA } from "../fixtures/api-football/player-match-stats";
 /**
  * Hangi kart hangi ad biçimini yazar (kurucu kararı 2026-10-30): uzun yalnızca posterlerde (Oyuncu
  * İstatistikleri A, Oyuncu Karşılaştırması 01) ve Muhtemel 11 teknik direktöründe; saha, Kahraman Liste,
- * golcüler, MVP satırı, B listesi kısa ("U. ÇAKIR"). Tablo + her kartın tabloyu kendi yuvasıyla okuduğu.
+ * golcüler, MVP satırı, B listesi, Maç Analizi zaman çizelgesi kısa ("U. ÇAKIR"). Tablo + her kartın tabloyu kendi yuvasıyla okuduğu.
  */
 
 const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf8");
@@ -26,6 +26,7 @@ describe("kart ad biçimleri", () => {
       MATCH_RESULT_MVP: "short",
       PLAYER_STATS_TOP: "short",
       MATCH_DAY_REFEREE: "long",
+      MATCH_ANALYSIS_EVENTS: "short",
     });
   });
 
@@ -43,6 +44,7 @@ describe("kart ad biçimleri", () => {
       "src/lib/dashboard/player-stats-card.ts": ["PLAYER_STATS_SPOTLIGHT", "PLAYER_STATS_TOP"],
       "src/lib/player-h2h/names.ts": ["PLAYER_H2H_POSTER"],
       "src/lib/dashboard/match-day-engine.ts": ["MATCH_DAY_REFEREE"],
+      "src/lib/match-analysis/names.ts": ["MATCH_ANALYSIS_EVENTS"],
     };
     for (const [file, slots] of Object.entries(uses)) {
       const source = read(file);
@@ -53,7 +55,7 @@ describe("kart ad biçimleri", () => {
   });
 
   it("görsel testlerin kişi adları kuraldan (sabit Sportmonks yanıtı → card-names.ts), elle değil", () => {
-    for (const file of ["tests/fixtures/studio-cards.ts", "tests/fixtures/player-h2h.ts", "tests/visual/player-stats.test.ts", "tests/visual/checkmatch-set.test.ts"]) {
+    for (const file of ["tests/fixtures/studio-cards.ts", "tests/fixtures/player-h2h.ts", "tests/visual/player-stats.test.ts", "tests/visual/checkmatch-set.test.ts", "tests/visual/match-analysis.test.ts"]) {
       assert.ok(/fixture(PlayerNames|TeamPeople)\(/u.test(read(file)), `${file}: kart adı kuraldan geçmiyor`);
     }
   });

@@ -57,6 +57,11 @@ export const LAYOUT_BLOCKS = [
   // Maç Günü: tarih/saat/stadyum bloğu ve istatistik/künye kutuları.
   "md-date",
   "md-boxes",
+  // Tahmin Karnesi (bkz. templates/prediction-scorecard/).
+  "karne-hero",
+  "karne-strip",
+  "karne-rows",
+  "karne-versions",
   /** SONDA — hiçbir şablon kullanmaz: bununla çizilince bütün bloklar gizlenir, görünen kalan öğe bloksuzdur. */
   "unassigned",
 ] as const;
@@ -106,6 +111,10 @@ export const LAYOUT_BLOCK_LABELS: Record<LayoutBlockId, string> = {
   opponent: "rakip",
   "md-date": "tarih, saat ve stadyum",
   "md-boxes": "istatistik kutuları",
+  "karne-hero": "isabet özeti",
+  "karne-strip": "tuttu/tutmadı şeridi",
+  "karne-rows": "karne satırları",
+  "karne-versions": "model sürümü satırları",
   unassigned: "hiçbir bloğa ait olmayan öğe",
 };
 

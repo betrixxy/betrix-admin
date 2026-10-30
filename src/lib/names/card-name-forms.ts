@@ -3,7 +3,7 @@ import type { CardPersonName, NameForm } from "@/types/person-name";
 /**
  * Hangi kart hangi ad biçimini yazar — TEK KAYNAK (2026-10-30, testle sabit: `tests/unit/card-name-forms.test.ts`).
  * İki biçim de `cardPersonName`'den: uzun posterlerde ("Uğurcan Çakır"; güvenilir yaygın ad yoksa soyad),
- * kısa liste ve sahada ("U. ÇAKIR", "S. MBANGULA"; ad bilinmiyorsa yalnız soyad).
+ * kısa liste, sahada ve zaman çizelgesinde ("U. ÇAKIR", "S. MBANGULA"; ad bilinmiyorsa yalnız soyad).
  */
 export const CARD_NAME_FORMS = {
   /** Oyuncu İstatistikleri A · Maçın Oyuncusu (poster: küçük ilk ad + büyük soyad). */
@@ -22,6 +22,8 @@ export const CARD_NAME_FORMS = {
   PLAYER_STATS_TOP: "short",
   /** Maç Günü künyesindeki hakem ("HAKEM REŞAT ONUR COŞKUNSES"). */
   MATCH_DAY_REFEREE: "long",
+  /** Maç Analizi 01 zaman çizelgesi (golcü, kart, değişiklik, VAR oyuncusu). */
+  MATCH_ANALYSIS_EVENTS: "short",
 } as const satisfies Record<string, NameForm>;
 
 export type CardNameSlot = keyof typeof CARD_NAME_FORMS;
