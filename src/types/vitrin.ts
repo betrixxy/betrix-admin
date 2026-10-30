@@ -44,6 +44,11 @@ export interface VitrinCard {
   accentHex: string;
   homeTeam: string;
   awayTeam: string;
+  /**
+   * KISA takım adı ("M'GLADBACH" büyük harfli, `team-name-forms.ts`): kazanma çubuğu etiketleri; uzun ad
+   * sığmazsa (16:9 dar sütun) poster takım satırı ve manşet de buna düşer (`plain`: büyütülmemiş, manşet için).
+   */
+  shortTeams: { home: string; away: string; plain: { home: string; away: string } };
   /** Büyütülmemiş kart adları (gönderi metni bunları yazar — büyük harften geri üretilmez). */
   names: { home: string; away: string; competition: string; round: string };
   homeLogo: string | null;

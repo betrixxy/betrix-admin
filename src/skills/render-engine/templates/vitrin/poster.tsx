@@ -1,10 +1,11 @@
 import { DRAW_HEX } from "@/lib/dashboard/vitrin-card";
 import type { VitrinCard } from "@/types/vitrin";
-import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
+import { blockOpacity, layerOpacity, STACK_LAYERS, unlayered, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, fitFontSize, px } from "../match-day/shared";
 import type { PosterGeometry } from "./geometry";
-import { MUTED, Percent, SHADE_RGB, TEXT_SHADOW, percentWidth } from "./parts";
+import { MUTED, Percent, SHADE_RGB, TEXT_SHADOW } from "./parts";
+import { winBarColumns } from "./win-bar-layout";
 import { VITRIN_SIZES } from "./geometry";
 
 /**
@@ -50,13 +51,17 @@ export function PosterShade({ g, only }: { g: Pick<PosterGeometry, "frame" | "sh
 
 function Teams({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: BlockFilter }) {
   const width = g.column.right - g.column.left;
-  const size = fitFontSize(`${card.homeTeam} × ${card.awayTeam}`, width, g.teams.height, 0.47, px(40, g.k));
+  // Poster uzun adı yazar; en küçük puntoda bile sığmıyorsa (16:9 dar sütun, "BORUSSIA MÖNCHENGLADBACH") kısa ada düşer.
+  const minSize = px(40, g.k);
+  const long = `${card.homeTeam} × ${card.awayTeam}`;
+  const [home, away] = long.length * 0.47 * minSize > width ? [card.shortTeams.home, card.shortTeams.away] : [card.homeTeam, card.awayTeam];
+  const size = fitFontSize(`${home} × ${away}`, width, g.teams.height, 0.47, minSize);
   const name = { fontFamily: DISPLAY, fontSize: size, lineHeight: 1, color: "#fff", letterSpacing: size * 0.01, textShadow: TEXT_SHADOW };
   return (
     <div tw="absolute flex items-center justify-center" style={{ left: g.column.left, top: g.teams.top, width, height: g.teams.height, opacity: blockOpacity(only, "teams") }}>
-      <span style={name}>{card.homeTeam}</span>
+      <span style={name}>{home}</span>
       <span style={{ fontFamily: BODY, fontWeight: 300, fontSize: Math.round(size * 0.6), lineHeight: 1, color: card.accentHex, margin: `0 ${Math.round(size * 0.22)}px` }}>×</span>
-      <span style={name}>{card.awayTeam}</span>
+      <span style={name}>{away}</span>
     </div>
   );
 }
@@ -81,40 +86,36 @@ function WinBar({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: 
   const [wHome, wDraw, wAway] = segmentWidths([home, draw, away], width - 2 * gap);
   const size = px(s.barPercent, k);
   const percentTop = barHeight + px(16, k);
-  const labelTop = percentTop + size + px(6, k);
-  // Beraberlik yüzdesi kendi segmentinin ortasında; iki uçtaki yüzdelere çarpmayacak şekilde sıkıştırılır.
-  const drawWidth = percentWidth(draw, size);
-  const minCenter = percentWidth(home, size) + px(28, k) + drawWidth / 2;
-  const maxCenter = width - percentWidth(away, size) - px(28, k) - drawWidth / 2;
-  const drawCenter = Math.min(maxCenter, Math.max(minCenter, wHome + gap + wDraw / 2));
-  const labelSize = px(s.barLabel, k);
-  const label = { fontFamily: BODY, fontWeight: 700, fontSize: labelSize, lineHeight: 1, letterSpacing: labelSize * 0.12, color: MUTED };
+  // Üç sütun (yüzde + etiket) birbirine yaklaşmaz: etiket genişliği de hesapta (`win-bar-layout.ts`); etiketler kısa takım adı.
+  const labels: [string, string, string] = [card.shortTeams.home, "BERABERLİK", card.shortTeams.away];
+  const columns = winBarColumns({ values: [home, draw, away], labels, width, drawSegmentCenter: wHome + gap + wDraw / 2, percentSize: size, labelSize: px(s.barLabel, k), minLabel: px(15, k), gap: px(28, k) });
+  const labelSize = columns.labelSize;
+  const label = { fontFamily: BODY, fontWeight: 700, fontSize: labelSize, lineHeight: 1, letterSpacing: labelSize * 0.12, color: MUTED, marginTop: px(6, k) };
   const segment = (w: number, color: string, ends: "left" | "mid" | "right") => (
     <div tw="flex" style={{ width: w, height: barHeight, backgroundColor: color, borderRadius: ends === "left" ? `${radius}px 0 0 ${radius}px` : ends === "right" ? `0 ${radius}px ${radius}px 0` : 0 }} />
   );
+  // Sütunlar sırayla mürekkep katmanında (ev · beraberlik · deplasman = a · b · a): kapı komşu sütunların temasını piksel düzeyinde yakalar.
   return (
-    <div tw="absolute flex" style={{ left: g.column.left, top: g.bar.top, width, height: g.bar.height, opacity: blockOpacity(only, "win-bar") }}>
-      <div tw="absolute flex" style={{ left: 0, top: 0, width, height: barHeight }}>
+    <div tw="absolute flex" style={{ left: g.column.left, top: g.bar.top, width, height: g.bar.height, opacity: blockOpacity(only, "win-bar", STACK_LAYERS) }}>
+      <div tw="absolute flex" style={{ left: 0, top: 0, width, height: barHeight, opacity: unlayered(only) }}>
         {segment(wHome, card.homeHex, "left")}
         <div tw="flex" style={{ width: gap }} />
         {segment(wDraw, DRAW_HEX, "mid")}
         <div tw="flex" style={{ width: gap }} />
         {segment(wAway, card.awayHex, "right")}
       </div>
-      <div tw="absolute flex flex-col items-start" style={{ left: 0, top: percentTop }}>
+      <div tw="absolute flex flex-col items-start" style={{ left: 0, top: percentTop, width: columns.widths[0], opacity: layerOpacity(only, "stack-a") }}>
         <Percent value={home} size={size} color={card.homeHex} />
+        <span style={label}>{labels[0]}</span>
       </div>
-      <div tw="absolute flex flex-col items-center" style={{ left: Math.round(drawCenter - drawWidth / 2), top: percentTop, width: drawWidth }}>
+      <div tw="absolute flex flex-col items-center" style={{ left: columns.drawLeft, top: percentTop, width: columns.widths[1], opacity: layerOpacity(only, "stack-b") }}>
         <Percent value={draw} size={size} color="rgba(255,255,255,0.78)" />
+        <span style={label}>{labels[1]}</span>
       </div>
-      <div tw="absolute flex flex-col items-end" style={{ right: 0, top: percentTop }}>
+      <div tw="absolute flex flex-col items-end" style={{ right: 0, top: percentTop, width: columns.widths[2], opacity: layerOpacity(only, "stack-a") }}>
         <Percent value={away} size={size} color={card.awayHex} />
+        <span style={label}>{labels[2]}</span>
       </div>
-      <span tw="absolute" style={{ ...label, left: 0, top: labelTop }}>{card.homeTeam}</span>
-      <div tw="absolute flex justify-center" style={{ left: Math.round(drawCenter - px(120, k)), top: labelTop, width: px(240, k) }}>
-        <span style={label}>BERABERLİK</span>
-      </div>
-      <span tw="absolute" style={{ ...label, right: 0, top: labelTop }}>{card.awayTeam}</span>
     </div>
   );
 }
@@ -122,8 +123,14 @@ function WinBar({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: 
 /** Tek satır manşet; favori varsa takım adı kendi renginde. */
 function Headline({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: BlockFilter }) {
   const width = g.column.right - g.column.left;
-  const { headline, favourite } = card.winBar;
-  const size = fitFontSize(headline, width, px(38, g.k), 0.52, px(20, g.k));
+  const { favourite } = card.winBar;
+  const minSize = px(20, g.k);
+  // Uzun takım adıyla en küçük puntoda sığmayan manşet kısa adı yazar ("Modelimiz M'gladbach diyor").
+  const short = favourite === "HOME" ? card.shortTeams.plain.home : favourite === "AWAY" ? card.shortTeams.plain.away : null;
+  // Geist 600 karışık harf + kalın takım adı ve iki yanındaki boşluk ≈ 0,58 em/karakter (eski 0,52 dar sütunda taşıyordu).
+  const tooLong = card.winBar.headline.length * 0.58 * minSize > width;
+  const headline = tooLong && short ? `Modelimiz ${short} diyor` : card.winBar.headline;
+  const size = fitFontSize(headline, width, px(38, g.k), 0.58, minSize);
   const text = { fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: 1, color: "#fff", textShadow: TEXT_SHADOW };
   const parts = favourite ? /^(Modelimiz )(.+)( diyor)$/u.exec(headline) : null;
   return (

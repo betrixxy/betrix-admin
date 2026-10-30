@@ -71,7 +71,7 @@ function HalfRow({ row, card, g, width, which, layer, only }: { row: HalvesRowCa
 }
 
 function Facts({ card, g, only }: { card: HalvesCard; g: HalvesGeometry; only: BlockFilter }) {
-  if (card.facts.length === 0) return null;
+  if (g.factTexts.length === 0) return null;
   const s = g.sizes;
   const size = g.factSize;
   const bullet = Math.round(size * 0.42);
@@ -79,10 +79,14 @@ function Facts({ card, g, only }: { card: HalvesCard; g: HalvesGeometry; only: B
   const width = g.box.right - g.box.left;
   return (
     <div tw="absolute flex flex-col" style={{ left: g.box.left, top: g.facts.top, width, height: g.facts.height, opacity: blockOpacity(only, "fact", STACK_LAYERS) }}>
-      {card.facts.map((fact, index) => (
-        <div key={fact} tw="flex items-start" style={{ width, marginTop: index === 0 ? 0 : gap, height: Math.ceil((g.factLines[index] ?? 1) * size * s.factLine), opacity: layerOpacity(only, stackLayer(index)) }}>
+      {g.factTexts.map((lines, index) => (
+        <div key={lines.join(" ")} tw="flex items-start" style={{ width, marginTop: index === 0 ? 0 : gap, height: Math.ceil(lines.length * size * s.factLine), opacity: layerOpacity(only, stackLayer(index)) }}>
           <div tw="flex" style={{ width: bullet, height: bullet, marginTop: Math.round(size * 0.42), marginRight: Math.round(size * 0.68), backgroundColor: card.accentHex }} />
-          <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: s.factLine, color: "rgba(255,255,255,0.92)", width: width - bullet - Math.round(size * 0.68) }}>{fact}</span>
+          <div tw="flex flex-col" style={{ width: width - bullet - Math.round(size * 0.68) }}>
+            {lines.map((line) => (
+              <span key={line} style={{ fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: s.factLine, color: "rgba(255,255,255,0.92)" }}>{line}</span>
+            ))}
+          </div>
         </div>
       ))}
     </div>

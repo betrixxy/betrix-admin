@@ -1,6 +1,7 @@
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { brandLogoWidth } from "../brand";
 import { px } from "../match-day/shared";
+import { tight } from "../../satori-text";
 import { SAFE_MARGIN, type FrameBox } from "../match-result/geometry";
 
 /**
@@ -96,27 +97,46 @@ export interface HalvesGeometry extends AnalysisGeometry {
   columns: [{ left: number; width: number }, { left: number; width: number }];
   rowHeight: number;
   facts: Band;
-  /** Olgu başına satır sayısı tahmini (sarma). */
-  factLines: number[];
+  /** Çizilecek olgular, satırlarına bölünmüş (sığmayan düşmüş). */
+  factTexts: string[][];
   factSize: number;
 }
 
-/** Geist yarı kalın Türkçe metinde ortalama glif genişliği (em) — satır sarma tahmini, cömert. */
-const FACT_EM_PER_CHAR = 0.47;
+/**
+ * Olgu satırları ELLE bölünür: `renderSatori` tek satırlık metnin boşluklarını bölünmez yapar, bölünmemiş olgu satırı
+ * kendiliğinden sarılmaz ve sağ kenardan taşar (canlı test 2026-10-31, Fiorentina–Atalanta 4:5: "olgu satırı güvenli
+ * kenarı 18px aşıyor" — eski tahmin 0,47 em/karakter iki satır sanıyordu, çizim tek satırdı ve ≈ 0,49 em çıktı). Genişlik
+ * Geist 600'ün Satori'de ÖLÇÜLEN karakter sınıfı genişliklerinden (em, 2026-10-31): küçük harf 0,58, dar (i j l ı t ş f) 0,36,
+ * m/w 0,82, büyük harf 0,66, rakam 0,61, "%" 0,82, "→" 0,79, noktalama 0,27, boşluk 0,25. Bir olgu en fazla
+ * `MAX_FACT_LINES` satır; daha uzunu ya da sığmayanı (satırlar asgari yüksekliğin altına inecekse) sondan düşer — olgu
+ * cümlesi kırpılmaz (doğrulanmış cümle yarım yazılmaz).
+ */
+export const MAX_FACT_LINES = 2;
+
+const charEm = (char: string): number =>
+  /\s/u.test(char) ? 0.25 : /[0-9]/u.test(char) ? 0.61 : char === "%" ? 0.82 : char === "→" ? 0.79 : /[ijlıtşf]/u.test(char) ? 0.36 : /[mw]/u.test(char) ? 0.82 : /\p{Lu}/u.test(char) ? 0.66 : /\p{Ll}/u.test(char) ? 0.58 : 0.27;
+
+/** Olgu metninin genişliği (em). */
+export const factEm = (text: string): number => [...text].reduce((sum, char) => sum + charEm(char), 0);
+
+/** Açgözlü sözcük sarma (ölçülen genişliklerle); satırlar `tight`. */
+export function wrapFact(text: string, width: number, size: number): string[] {
+  const limit = width / size;
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.trim().split(/\s+/u)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && factEm(next) > limit) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines.map(tight);
+}
 
 export function factLineCount(text: string, width: number, size: number): number {
-  const perLine = Math.max(1, Math.floor(width / (size * FACT_EM_PER_CHAR)));
-  // Sözcük sınırında sarma: kelimeleri satırlara yerleştir.
-  let lines = 1;
-  let used = 0;
-  for (const word of text.split(/\s+/u)) {
-    const length = word.length + (used > 0 ? 1 : 0);
-    if (used + length > perLine && used > 0) {
-      lines += 1;
-      used = word.length;
-    } else used += length;
-  }
-  return lines;
+  return wrapFact(text, width, size).length;
 }
 
 export function halvesGeometry(frame: MatchDayFrame, rows: number, facts: readonly string[]): HalvesGeometry {
@@ -125,14 +145,16 @@ export function halvesGeometry(frame: MatchDayFrame, rows: number, facts: readon
   const scale = (value: number) => (g.landscape ? value : px(value, g.k));
   const width = g.box.right - g.box.left;
   const factSize = scale(sizes.fact);
-  const bulletSpace = Math.round(factSize * 1.1);
-  const factLines = facts.map((fact) => factLineCount(fact, width - bulletSpace, factSize));
-  const factsHeight = factLines.reduce((sum, lines) => sum + Math.ceil(lines * factSize * sizes.factLine), 0) + Math.max(0, facts.length - 1) * scale(sizes.factGap);
+  const bulletSpace = Math.round(factSize * 0.42) + Math.round(factSize * 0.68);
   const headerHeight = scale(sizes.header) + scale(sizes.headerGap);
-  const available = g.body.height - (facts.length > 0 ? factsHeight + scale(sizes.factsGap) : 0) - headerHeight;
-  const rowHeight = Math.max(scale(sizes.rowMin), Math.min(scale(sizes.row), Math.floor(available / Math.max(1, rows))));
+  const factsHeightOf = (lines: string[][]) => lines.reduce((sum, text) => sum + Math.ceil(text.length * factSize * sizes.factLine), 0) + Math.max(0, lines.length - 1) * scale(sizes.factGap);
+  const availableFor = (lines: string[][]) => g.body.height - (lines.length > 0 ? factsHeightOf(lines) + scale(sizes.factsGap) : 0) - headerHeight;
+  let factTexts = facts.map((fact) => wrapFact(fact, width - bulletSpace, factSize)).filter((lines) => lines.length <= MAX_FACT_LINES);
+  while (factTexts.length > 0 && Math.floor(availableFor(factTexts) / Math.max(1, rows)) < scale(sizes.rowMin)) factTexts = factTexts.slice(0, -1);
+  const factsHeight = factsHeightOf(factTexts);
+  const rowHeight = Math.max(scale(sizes.rowMin), Math.min(scale(sizes.row), Math.floor(availableFor(factTexts) / Math.max(1, rows))));
   const panelHeight = headerHeight + rowHeight * rows;
-  const total = panelHeight + (facts.length > 0 ? scale(sizes.factsGap) + factsHeight : 0);
+  const total = panelHeight + (factTexts.length > 0 ? scale(sizes.factsGap) + factsHeight : 0);
   // Boşluk kalırsa grup gövdenin ortasında (altta boşluk birikmesin).
   const top = g.body.top + Math.max(0, Math.floor((g.body.height - total) / 2));
   const columnWidth = Math.floor((width - scale(sizes.columnGap)) / 2);
@@ -141,5 +163,5 @@ export function halvesGeometry(frame: MatchDayFrame, rows: number, facts: readon
     { left: g.box.right - columnWidth, width: columnWidth },
   ];
   const panel = { top, height: panelHeight };
-  return { ...g, sizes, panel, columns, rowHeight, facts: { top: top + panelHeight + scale(sizes.factsGap), height: factsHeight }, factLines, factSize };
+  return { ...g, sizes, panel, columns, rowHeight, facts: { top: top + panelHeight + scale(sizes.factsGap), height: factsHeight }, factTexts, factSize };
 }

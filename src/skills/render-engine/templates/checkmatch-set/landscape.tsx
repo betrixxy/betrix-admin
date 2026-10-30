@@ -86,17 +86,19 @@ export function LandscapeSetColumn({
         {headline}
       </div>
       <div tw="flex flex-col" style={{ marginTop: 18, opacity: blockOpacity(only, "strip") }}>
-        <div tw="flex items-center" style={{ marginBottom: 12 }}>
-          {card.leagueLogo ? (
-            <div tw="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 20, border: `2px solid ${card.accentHex}`, boxShadow: `0 0 12px ${hexAlpha(card.accentHex, 0.4)}` }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
-              <img src={card.leagueLogo} alt="" width={26} height={26} style={{ objectFit: "contain" }} />
-            </div>
-          ) : (
-            <div tw="flex" style={{ width: 24, height: 5, backgroundColor: card.accentHex }} />
-          )}
-          {card.penaltyLabel ? <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: 15, letterSpacing: 2, color: card.accentHex, marginLeft: 14 }}>{card.penaltyLabel}</span> : null}
-        </div>
+        {/* Lig rozeti (ya da penaltı etiketi) yoksa satır hiç çizilmez — eski yedek kısa vurgu çizgisi takım adının üstünde
+            yetim süs gibi duruyordu (canlı test 2026-10-31). */}
+        {card.leagueLogo || card.penaltyLabel ? (
+          <div tw="flex items-center" style={{ marginBottom: 12 }}>
+            {card.leagueLogo ? (
+              <div tw="flex items-center justify-center" style={{ width: 40, height: 40, borderRadius: 20, border: `2px solid ${card.accentHex}`, boxShadow: `0 0 12px ${hexAlpha(card.accentHex, 0.4)}`, marginRight: 14 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+                <img src={card.leagueLogo} alt="" width={26} height={26} style={{ objectFit: "contain" }} />
+              </div>
+            ) : null}
+            {card.penaltyLabel ? <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: 15, letterSpacing: 2, color: card.accentHex }}>{card.penaltyLabel}</span> : null}
+          </div>
+        ) : null}
         <TeamRow name={card.homeTeam} logo={card.homeLogo} goals={card.homeGoals} dim={card.outcome === "AWAY"} width={width} />
       </div>
       <div tw="flex" style={{ opacity: blockOpacity(only, "scorers") }}>
