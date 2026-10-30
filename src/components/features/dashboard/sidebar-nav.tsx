@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { DASHBOARD_NAV, LEGACY_NAV, isNavItemActive, type NavItem } from "@/lib/dashboard/nav";
+import { DASHBOARD_NAV, isNavItemActive, type NavItem } from "@/lib/dashboard/nav";
 import { cn } from "@/lib/utils";
 
 interface NavListProps {
@@ -38,19 +38,13 @@ function SidebarList({ items, pathname }: NavListProps) {
   );
 }
 
-/** Masaüstü sol menü içeriği: 4 ana modül + ikincil "diğer araçlar" grubu. */
+/** Masaüstü sol menü içeriği. */
 export function SidebarNav() {
   const pathname = usePathname();
 
   return (
     <nav className="flex flex-col gap-6" aria-label="Dashboard modülleri">
       <SidebarList items={DASHBOARD_NAV} pathname={pathname} />
-      <div className="flex flex-col gap-1.5">
-        <span className="px-3 text-[10px] font-medium tracking-wider text-muted-foreground/60 uppercase">
-          Diğer araçlar
-        </span>
-        <SidebarList items={LEGACY_NAV} pathname={pathname} />
-      </div>
     </nav>
   );
 }

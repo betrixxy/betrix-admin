@@ -52,7 +52,6 @@ betrix-studio/
 │  │  │  ├─ analytics/             # Etkileşim ve Reklam Paneli (PostAnalytics)
 │  │  │  ├─ studio/                # AI İçerik Stüdyosu (AiContent)
 │  │  │  └─ traffic/               # Web Trafik Analizi (TrafficLog)
-│  │  ├─ studio/                   # AI görsel/render stüdyosu arayüzü (bkz. Bölüm 3)
 │  │  ├─ calendar/                 # Yalnızca actions.ts (reklam bütçesi, yayın zamanı) — sayfa İçerik Planı'na yönlenir
 │  │  ├─ login/                    # Admin giriş ekranı (bkz. 1.6)
 │  │  └─ api/                      # Route handlers — YALNIZCA ince orkestrasyon, iş mantığı yok (şu an: storage-file/ — yerel depolama servisi (`/api/files/*` rewrite'ı), public-media/ — Instagram'ın indirdiği imzalı kısa ömürlü görsel adresi, track/ — checkmatch.net trafik ingest'i, auth/[platform]/{connect,callback} — sosyal hesap OAuth'u, bkz. 4.4, og/match-day — DEVRE DIŞI (410); Maç Günü kartı artık `/dashboard/studio/match-day` → `lib/dashboard/match-day-engine.ts` (Fal.ai birefnet + flux + image-to-image harmanlama, şablonlar `templates/match-day/{premium-broadcast,data-driven,editorial-portrait}.tsx` × formatlar `lib/dashboard/match-day-formats.ts` (4:5, 1:1, 9:16 güvenli alanlı, 16:9); yazı konumu ve oyuncu yerleşimi TEK kaynaktan: `templates/match-day/geometry.ts`; AI sanat yönetimi `lib/services/fal/match-day-prompts.ts` (gerçekçi spor fotoğrafçılığı, hex yerine renk adı, istenmeyen kavram anılmaz); maliyet: kesim/arka plan önbelleği `lib/dashboard/match-day-cache.ts`, düşük çözünürlüklü arka plan, Ekonomik mod (harmanlamasız), Data Driven programatik zemin; fontlar `public/fonts/` (Geist + Anton + DM Serif Display, OFL), marka logoları `public/brand/`))
@@ -60,7 +59,6 @@ betrix-studio/
 │  │  ├─ ui/                       # Shadcn UI bileşenleri (fork edilmiş kaynak)
 │  │  └─ features/                 # Özellik bazlı bileşenler
 │  │     ├─ dashboard/
-│  │     ├─ studio/
 │  │     ├─ calendar/
 │  │     └─ auth/                  # Login formu vb. (bkz. 1.6)
 │  ├─ lib/
@@ -109,7 +107,7 @@ betrix-studio/
 └─ CLAUDE.md
 ```
 
-**Kural:** Bu yapının dışında yeni bir üst düzey dizin açmadan önce gerekçe kullanıcıya sunulur. `app/dashboard`, `app/studio`, `app/calendar` şimdilik düz klasörlerdir; ileride betrix.pro tanıtım yüzeyi eklenirse `(marketing)` route group'u ayrıca açılır.
+**Kural:** Bu yapının dışında yeni bir üst düzey dizin açmadan önce gerekçe kullanıcıya sunulur. `app/dashboard`, `app/calendar` şimdilik düz klasörlerdir (eski sahte `/studio` "Render Stüdyosu" 2026-10-30 kaldırıldı); ileride betrix.pro tanıtım yüzeyi eklenirse `(marketing)` route group'u ayrıca açılır.
 
 **Not:** `prisma init` çalıştırıldığında proje köküne `.claude/skills/`, `.windsurf/skills/`, `.agents/skills/` (Prisma CLI/Client referans dokümanları, araç tarafından otomatik kurulur) ve `prisma7.config.ts` eklendi. Bunlar uygulama kodu değil, ajan/araç tooling'i içindir; yukarıdaki kuralın istisnasıdır ve elle düzenlenmez.
 
@@ -171,7 +169,7 @@ Veritabanı, kimlik doğrulama ve oturum yönetimi tamamen kendi altyapımızda 
 - Tek admin hesabı `AdminUser` tablosunda tutulur; şifre `bcryptjs` ile hash'lenir (`lib/auth/password.ts`), zamanlama saldırılarına karşı kullanıcı bulunamasa da sabit bir hash ile karşılaştırma yapılır (`lib/auth/credentials.ts`).
 - Oturum, `jose` ile imzalanmış bir JWT olarak `httpOnly` cookie'de tutulur (`lib/auth/session.ts`, `SESSION_COOKIE_NAME`). `jose` seçildi çünkü Next.js Proxy (bkz. aşağı) hem Edge hem Node.js runtime'da çalışabilir ve `jose` her ikisiyle de uyumludur (`jsonwebtoken` Edge'de çalışmaz).
 - Giriş formu bir Server Action'dır (`app/login/actions.ts`) — zod ile doğrulanır, başarılı girişte cookie set edilir, `redirectTo` yalnızca site-içi göreli yollara izin verecek şekilde doğrulanır (open-redirect koruması).
-- **Route koruması:** `src/proxy.ts` — Next.js 16'da `middleware.ts` konvansiyonu deprecate edildi ve `proxy.ts`'e taşındı (fonksiyon adı `middleware` → `proxy`); `/dashboard`, `/calendar` ve `/studio` altındaki tüm yollar, geçerli oturum cookie'si yoksa `/login?from=<yol>`'a yönlendirilir. Giriş sonrası varsayılan hedef `/dashboard`'tur; `/api/files` proxy kapsamında olmadığından oturumu kendisi doğrular, veritabanına yazan her Server Action da `getCurrentSession()` ile oturumu ayrıca kontrol eder.
+- **Route koruması:** `src/proxy.ts` — Next.js 16'da `middleware.ts` konvansiyonu deprecate edildi ve `proxy.ts`'e taşındı (fonksiyon adı `middleware` → `proxy`); `/dashboard` ve `/calendar` altındaki tüm yollar, geçerli oturum cookie'si yoksa `/login?from=<yol>`'a yönlendirilir. Giriş sonrası varsayılan hedef `/dashboard`'tur; `/api/files` proxy kapsamında olmadığından oturumu kendisi doğrular, veritabanına yazan her Server Action da `getCurrentSession()` ile oturumu ayrıca kontrol eder.
 - Yetki modeli şu an tek admin rolüyle sınırlıdır. Çoklu rol/izin (RBAC) ihtiyacı doğarsa `AdminUser` tablosuna alan eklenerek bu katman genişletilir — ayrı bir auth sağlayıcıya geçiş gerekmez, bu katman kalıcıdır.
 
 ### 1.7 Ortam Değişkenleri
