@@ -2,6 +2,7 @@ import { fullDate, shortDate as dayMonth } from "@/lib/format/dates";
 import { nameOrigin, originFromCountry, teamNameOrigin, upperCompetition, upperName } from "@/lib/dashboard/name-case";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { cardTeamColor } from "@/lib/dashboard/vitrin-card";
+import { competitionShortName } from "@/lib/names/competition-names";
 import { drawTeamName } from "@/lib/draw/entry";
 import { headToHeadFact } from "@/lib/draw/facts";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
@@ -16,7 +17,9 @@ import type { Result } from "@/types/result";
 
 const GOLD = "#F5C518";
 const NEUTRAL = "#E8E8EA";
-const SHORT_COMPETITION: Readonly<Record<number, string>> = { 2: "ŞAMPİYONLAR LİGİ", 3: "AVRUPA LİGİ", 848: "KONFERANS LİGİ" };
+/** Çok turnuvalı (B) kartın turnuva etiketleri — kısa kart adı tek tablodan (`competition-names.ts`). */
+const shortCompetition = (id: number, providerName: string) => upperCompetition(competitionShortName(id, providerName));
+const EUROPEAN_CUPS = [2, 3, 848] as const;
 
 
 export interface DrawCardInput {
@@ -76,7 +79,7 @@ function teamBody(state: DrawState, input: DrawCardInput): Result<DrawCardBody> 
 function turkishBody(input: DrawCardInput): Result<DrawCardBody> {
   const multi = input.states.length > 1;
   const rows: DrawTurkishRow[] = input.states.flatMap((state) => {
-    const tag = multi ? (SHORT_COMPETITION[state.competition.id] ?? upperCompetition(state.competition.name)) : "";
+    const tag = multi ? shortCompetition(state.competition.id, state.competition.name) : "";
     return state.teams
       .filter((team) => team.country === "Turkey")
       .flatMap((team): DrawTurkishRow[] => {
@@ -127,7 +130,7 @@ export function buildDrawCard(input: DrawCardInput): Result<DrawCard> {
     pageLabels: PAGE_LABELS[body.data.kind],
     dateLabel: !multi && state.drawDateUtc ? fullDate(state.drawDateUtc) : `${state.season}/${String((state.season + 1) % 100).padStart(2, "0")}`,
     accentHex,
-    footerLine: multi ? `${state.season}/${String((state.season + 1) % 100).padStart(2, "0")} · ŞAMPİYONLAR LİGİ · AVRUPA LİGİ · KONFERANS LİGİ` : footerLine(state),
+    footerLine: multi ? `${state.season}/${String((state.season + 1) % 100).padStart(2, "0")} · ${EUROPEAN_CUPS.map((id) => shortCompetition(id, "")).join(" · ")}` : footerLine(state),
     brandLogo: input.brandLogo,
   };
   const language = drawTextGate(card);

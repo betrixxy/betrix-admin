@@ -1,3 +1,4 @@
+import { competitionCardName } from "@/lib/names/competition-names";
 import { normalizeClock } from "@/lib/format/dates";
 import { MATCH_DAY_FONT_FILES } from "@/lib/dashboard/card-font-files";
 import { upperCompetition, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
@@ -170,7 +171,7 @@ export async function resolveMatchDayCard(
     weekdayLabel: formatWeekday(params.date),
     stats: null,
     ...(origins ? { origins } : {}),
-    leagueLabel: upperCompetition(params.league ?? "Süper Lig"),
+    leagueLabel: upperCompetition(params.league ?? competitionCardName(203, "")),
     weekLabel: formatWeek(params.week),
     dateLabel: formatDate(params.date),
     timeLabel: params.time ? normalizeClock(params.time) : PLACEHOLDER,

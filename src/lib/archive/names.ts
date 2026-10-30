@@ -1,4 +1,4 @@
-import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
+import { competitionCardName } from "@/lib/names/competition-names";
 
 /**
  * Fotoğraf arşivinin isim disiplini — saf, tek kaynak. Lig, takım ve kişi adları API-Football +
@@ -82,10 +82,10 @@ export const ARCHIVE_TEAM_NAMES: Readonly<Record<number, TeamNameEntry>> = {
   167: team("TSG Hoffenheim", "1899 Hoffenheim"),
 };
 
-/** Lig resmi adı: tablo (`OFFICIAL_COMPETITION_NAMES`) → API adı. */
+/** Lig adı: tek tablo (`competition-names.ts`) → API adı. */
 export function officialLeagueName(leagueId: number, apiName: string): string {
   if (leagueId === NATIONAL_ROOT_ID) return NATIONAL_ROOT_NAME;
-  return OFFICIAL_COMPETITION_NAMES[leagueId] ?? apiName;
+  return competitionCardName(leagueId, apiName);
 }
 
 /** Arşiv klasörü adı: arşiv tablosu (sponsorsuz resmi kısa ad) → Türkçe eşleme → API adı. */

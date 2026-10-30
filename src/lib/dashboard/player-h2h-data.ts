@@ -164,7 +164,7 @@ export async function loadPlayerSeasonStats(request: PlayerSeasonRequest): Promi
       season,
       seasonLabel: seasonLabel(season, domestic.calendarYear),
       scope: request.scope,
-      league: leagueDisplay(domestic.id, domestic.name, domestic.country),
+      league: leagueDisplay(domestic.id, domestic.name),
       competitions: aggregate.competitions,
       appearances: aggregate.appearances,
       minutes: aggregate.minutes,

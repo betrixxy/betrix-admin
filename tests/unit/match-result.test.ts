@@ -125,7 +125,7 @@ describe("etiketler ve tema", () => {
     assert.equal(competitionName(204, "OTHER", "1. Lig"), "Trendyol 1. Lig");
     assert.equal(competitionName(206, "TR_CUP", "Cup"), "Ziraat Türkiye Kupası");
     assert.equal(competitionName(848, "UECL", "UEFA Europa Conference League"), "UEFA Konferans Ligi");
-    assert.equal(competitionName(39, "OTHER", "Premier League"), "Premier League");
+    assert.equal(competitionName(39, "OTHER", "Premier League"), "Premier Lig"); // tek kaynak, Türkçe yayıncı adı (2026-10-30)
     assert.equal(resultRoundLabel("Regular Season - 7"), "7. Hafta");
     assert.equal(resultRoundLabel("Quarter-finals"), "Çeyrek Final");
   });

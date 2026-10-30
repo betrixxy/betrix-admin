@@ -1,4 +1,4 @@
-import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
+import { competitionCardName } from "@/lib/names/competition-names";
 import { leagueFixturesFromApi, teamsFromApi, tiesFromApi } from "@/lib/draw/api-mappers";
 import { DRAW_COMPETITIONS, drawRound } from "@/lib/draw/rounds";
 import { emptyParticipantsReason, turkishLeagueScope, type LeagueSeasonInfo } from "@/lib/draw/season-draws";
@@ -56,7 +56,7 @@ export async function drawFromApi(request: DrawFromApiRequest): Promise<Result<D
   return {
     ok: true,
     data: {
-      competition: { id: request.competitionId, name: OFFICIAL_COMPETITION_NAMES[request.competitionId] ?? scoped[0]?.league.name ?? "" },
+      competition: { id: request.competitionId, name: competitionCardName(request.competitionId, scoped[0]?.league.name ?? "") },
       season: request.season,
       roundLabel: request.roundLabel,
       stage: request.stage,
@@ -102,7 +102,7 @@ export async function drawParticipants(competitionId: number, season: number): P
   const parsed = apiFootballTeamsResponseSchema.safeParse(raw.data);
   if (!parsed.success) return fail("INVALID_RESPONSE", `API-Football /teams yanıtı şemaya uymuyor: ${parsed.error.message}`);
   const teams = parsed.data.response.map(({ team }) => ({ id: team.id, apiName: team.name, country: team.country ?? null, logoUrl: team.logo ?? null, pot: null }));
-  const name = OFFICIAL_COMPETITION_NAMES[competitionId] ?? `Turnuva ${competitionId}`;
+  const name = competitionCardName(competitionId, `Turnuva ${competitionId}`);
   const emptyReason = teams.length ? null : emptyParticipantsReason(name, season, await leagueSeasonInfo(competitionId, season));
   return { ok: true, data: { teams, emptyReason } };
 }

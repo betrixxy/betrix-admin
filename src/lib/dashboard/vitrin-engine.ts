@@ -3,7 +3,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
 import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
-import { OFFICIAL_COMPETITION_NAMES } from "@/lib/dashboard/match-result-labels";
+import { competitionCardName } from "@/lib/names/competition-names";
 import { deleteStoredUrl } from "@/lib/dashboard/draft-render";
 import { saveStoredFile } from "@/lib/dashboard/storage";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
@@ -46,7 +46,7 @@ export function vitrinMeta(stats: DeepAnalysisStats): VitrinMeta {
     homeTeamId: Number(fixture.homeTeam.id),
     awayTeamId: Number(fixture.awayTeam.id),
     kickoffUtc: fixture.kickoffUtc,
-    competitionName: OFFICIAL_COMPETITION_NAMES[leagueId] ?? fixture.competition.name,
+    competitionName: competitionCardName(leagueId, fixture.competition.name),
     roundLabel: fixture.details?.round ? roundLabel(fixture.details.round) : "",
     homeForm: stats.home.form.last5,
     awayForm: stats.away.form.last5,

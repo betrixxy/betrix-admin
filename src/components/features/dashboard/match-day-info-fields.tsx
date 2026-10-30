@@ -1,5 +1,6 @@
 "use client";
 
+import { competitionCardName } from "@/lib/names/competition-names";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,13 +20,16 @@ export interface MatchDayInfoValues {
   referee: string;
 }
 
+/** Elle doldurulan formun varsayılan ligi — kart adı tek tablodan (`competition-names.ts`). */
+const DEFAULT_LEAGUE = competitionCardName(203, "");
+
 export const EMPTY_MATCH_DAY_INFO: MatchDayInfoValues = {
   homeTeam: "",
   awayTeam: "",
   homeLogo: "",
   awayLogo: "",
   leagueLogo: "",
-  league: "Süper Lig",
+  league: DEFAULT_LEAGUE,
   week: "",
   date: "",
   time: "",
@@ -41,7 +45,7 @@ interface MatchDayInfoFieldsProps {
 type TextKey = Exclude<keyof MatchDayInfoValues, "homeLogo" | "awayLogo" | "leagueLogo">;
 
 const TEXT_FIELDS: { key: TextKey; label: string; type?: string; placeholder?: string }[] = [
-  { key: "league", label: "Lig", placeholder: "Süper Lig" },
+  { key: "league", label: "Lig", placeholder: DEFAULT_LEAGUE },
   { key: "week", label: "Hafta", placeholder: "3" },
   { key: "date", label: "Tarih", type: "date" },
   { key: "time", label: "Saat", type: "time" },
