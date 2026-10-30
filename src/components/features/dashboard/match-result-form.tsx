@@ -23,10 +23,12 @@ import {
 import { MatchDayFormatPicker } from "./match-day-format-picker";
 import { MatchResultCropControls } from "./match-result-crop-controls";
 import { ArchivePhotoPicker, type PickerSelection } from "@/components/features/archive/archive-photo-picker";
+import { winnerPhotoPreference } from "@/lib/archive/picker-default";
 import { JobProgressLine } from "./job-progress";
 import { SettleCountdown } from "./settle-countdown";
 import type { PlayerDataSettlement } from "@/types/player-match-stats";
 import { MatchResultPreview } from "./match-result-preview";
+import { SetExtrasOptions } from "./set-extras-options";
 
 interface MatchResultFormProps {
   fixtureId: string;
@@ -34,6 +36,8 @@ interface MatchResultFormProps {
   facts: MatchResultFacts;
   /** Oyuncu sayfası (03) verisi kesinleşti mi; null → bilinmiyor. */
   playerSettlement?: PlayerDataSettlement | null;
+  /** "Tahmin karnesini de ekle" kapalıysa sebebi (kayıt yok / sonuç hesaplanmadı); null → açık. */
+  scorecardBlocker?: string | null;
   disabled?: boolean;
 }
 
@@ -62,7 +66,7 @@ function TemplatePicker({ value, onChange }: { value: MatchResultTemplateId; onC
   );
 }
 
-export function MatchResultForm({ fixtureId, facts, playerSettlement = null, disabled = false }: MatchResultFormProps) {
+export function MatchResultForm({ fixtureId, facts, playerSettlement = null, scorecardBlocker = null, disabled = false }: MatchResultFormProps) {
   const router = useRouter();
   const [playerPage, setPlayerPage] = useState("");
   const [playerPageMode, setPlayerPageMode] = useState<"WHEN_READY" | "NOW">("WHEN_READY");
@@ -77,6 +81,8 @@ export function MatchResultForm({ fixtureId, facts, playerSettlement = null, dis
   const onPhotoChange = useCallback((next: PickerSelection) => setSelection(next), []);
   const matchTeams = useMemo(() => [{ id: facts.home.id, name: facts.home.name }, { id: facts.away.id, name: facts.away.name }], [facts.home.id, facts.home.name, facts.away.id, facts.away.name]);
   const [mvpId, setMvpId] = useState(facts.mvp ? String(facts.mvp.playerId) : "");
+  // Fotoğrafın kişisi + forması varsayılan olarak KAZANAN takımdan (beraberlikte ev sahibi), MVP oradaysa o.
+  const preferredPhoto = useMemo(() => winnerPhotoPreference(facts), [facts]);
   const [photoIsMvp, setPhotoIsMvp] = useState(false);
 
   const players = mvpOptions(facts);
@@ -106,7 +112,7 @@ export function MatchResultForm({ fixtureId, facts, playerSettlement = null, dis
             <input type="hidden" name="fixtureId" value={fixtureId} />
             <MatchDayFormatPicker value={format} onChange={setFormat} />
             <TemplatePicker value={template} onChange={setTemplate} />
-            <ArchivePhotoPicker name="photo" label="Fotoğraftaki kişi (Fotoğraf Arşivi)" teams={matchTeams} fixtureId={fixtureId} onChange={onPhotoChange} />
+            <ArchivePhotoPicker name="photo" label="Fotoğraftaki kişi (Fotoğraf Arşivi)" teams={matchTeams} fixtureId={fixtureId} preferred={preferredPhoto} onChange={onPhotoChange} />
             {loserWarning ? (
               <p className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-200" role="status">
                 <AlertCircle className="size-3.5 shrink-0" />
@@ -172,6 +178,8 @@ export function MatchResultForm({ fixtureId, facts, playerSettlement = null, dis
                 </>
               ) : null}
             </div>
+
+            <SetExtrasOptions fixtureId={fixtureId} scorecardBlocker={scorecardBlocker} />
 
             {state.error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">

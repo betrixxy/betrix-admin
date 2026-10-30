@@ -6,6 +6,9 @@ import { MatchResultForm } from "@/components/features/dashboard/match-result-fo
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { validateMatchResultFixture } from "@/lib/dashboard/match-result-studio";
+import { scorecardOptionBlocker } from "@/lib/dashboard/set-extra-data";
+import { studioResultFacts } from "@/lib/dashboard/set-people";
+import { withTeamOrigins } from "@/lib/dashboard/team-origin";
 import { playerDataSettlement } from "@/lib/player-stats/settle";
 import { toPlayerMatchLines } from "@/lib/services/api-football/player-match-mappers";
 import { getMatchResultRaw, parseFixtureId, toFixtureId } from "@/lib/services/api-football";
@@ -80,6 +83,15 @@ function FactsSummary({ facts }: { facts: MatchResultFacts }) {
   );
 }
 
+async function namedFacts(facts: MatchResultFacts): Promise<MatchResultFacts> {
+  try {
+    return await studioResultFacts(await withTeamOrigins(facts));
+  } catch (error: unknown) {
+    console.error("[match-result] stüdyo kişi adları çözülemedi:", error);
+    return facts;
+  }
+}
+
 interface MatchResultPageProps {
   /** Maç Merkezi'nin "Stüdyoya Git" bağlantısı `?fixtureId=api-football-<id>` ile açar. */
   searchParams: Promise<{ fixtureId?: string | string[] }>;
@@ -91,6 +103,10 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
   const raw = apiId ? await getMatchResultRaw(apiId) : null;
   const validation = raw?.ok ? validateMatchResultFixture(raw.data, new Date()) : null;
   // Oyuncu sayfası (03) için kesinleşme durumu — geri sayım; ağ çağrısı yok (aynı yanıt).
+  // Özet ve MVP listesi kartla AYNI ad kuralından ("Y. Akgün", "R. Leão") — okunamazsa sağlayıcı adı.
+  const facts = validation?.ok ? await namedFacts(validation.data) : null;
+  // "Tahmin karnesini de ekle": maçın sayılan kaydı + yazılmış sonucu yoksa kapalı, sebebiyle.
+  const scorecardBlocker = facts && apiId ? await scorecardOptionBlocker(toFixtureId(apiId)) : null;
   const playerSettlement = validation?.ok && raw?.ok && raw.data ? playerDataSettlement({ kickoffUtc: raw.data.fixture.date, statusShort: raw.data.fixture.status.short, lines: toPlayerMatchLines(raw.data), now: new Date() }) : null;
 
   return (
@@ -107,13 +123,14 @@ export default async function MatchResultPage({ searchParams }: MatchResultPageP
       ) : null}
       {raw && !raw.ok ? <Notice>Maç verisi alınamadı: {raw.error.message}</Notice> : null}
       {validation && !validation.ok ? <Notice>{validation.error.message}</Notice> : null}
-      {validation?.ok && apiId ? (
+      {facts && apiId ? (
         <>
-          <FactsSummary facts={validation.data} />
+          <FactsSummary facts={facts} />
           <MatchResultForm
             fixtureId={toFixtureId(apiId)}
-            facts={validation.data}
+            facts={facts}
             playerSettlement={playerSettlement}
+            scorecardBlocker={scorecardBlocker}
           />
         </>
       ) : null}
