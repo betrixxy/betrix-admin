@@ -79,7 +79,9 @@ describe("02 görseli (üretim yolu)", () => {
     assert.equal(lines[0], "MAÇ İSTATİSTİKLERİ | Gençlerbirliği 0-1 Galatasaray");
     assert.equal(lines[1], "Trendyol Süper Lig · 8. Hafta");
     assert.ok(lines.some((line) => /Top hakimiyeti.*%31 – %69/i.test(line)), lines.join(" / "));
-    assert.ok(lines.length <= 6);
+    // Başlık + künye + en fazla 4 istatistik satırı + soru + hashtag satırı (iki boş satırla).
+    assert.ok(lines.length <= 10);
+    assert.ok(lines.some((line) => line === "📊 Top hakimiyeti: %31 – %69"), "iki nokta sonrası boşluk");
   });
 });
 

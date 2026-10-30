@@ -69,6 +69,10 @@ describe("gönderi metni", () => {
         "⚽ Hoffenheim: Fisnik Asllani 68' · Koki Machida 87'",
         "⚽ Beşiktaş: Amir Murillo 60' · Oh Hyeon-gyu 72', 79'",
         "⭐ Maçın oyuncusu: Oh Hyeon-Gyu",
+        "",
+        "Maçın yıldızı sizce kimdi? Yorumlara yazın 👇",
+        "",
+        "#Hoffenheim #Beşiktaş #AvrupaLigi #MaçSonucu #CheckMatch",
       ].join("\n"),
     );
     assert.equal(captionFormatGate(buildMatchResultCaption(WIN, "Oh Hyeon-Gyu")), null);

@@ -1,17 +1,16 @@
-import { hashtag, MAX_HASHTAGS } from "@/lib/dashboard/vitrin-caption";
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import { scoreText } from "@/lib/prediction/scorecard-labels";
 import type { MatchScorecardData, PeriodScorecardData, ScorecardMatch } from "@/types/prediction-scorecard";
 
 /**
  * Tahmin Karnesi gönderi metni — şablondan (LLM yok): her sayı karneden; "tuttu / tutmadı", "isabet oranı";
- * bahis dili yok (kart metinleriyle aynı kapı), link ve alan adı yok, en fazla 5 hashtag, sonunda etkileşim
+ * bahis dili yok (kart metinleriyle aynı kapı), link ve alan adı yok, 3–5 hashtag (`caption-hashtags.ts`), sonunda etkileşim
  * sorusu. Takım/lig adları büyütülmemiş kart adlarından.
  */
 
 export const SCORECARD_QUESTION = "Siz hangisini bildiniz? Yorumlara yazın 👇";
-const TAGS = ["#TahminKarnesi", "#CheckMatch"];
 
-const tags = (extra: string[]) => [...new Set([...extra, ...TAGS])].slice(-MAX_HASHTAGS).join(" ");
+const tags = (names: string[], competitions: string[]) => hashtagLine({ names, competitions, type: CONTENT_TAGS.PREDICTION_SCORECARD });
 
 export function buildMatchScorecardCaption(match: ScorecardMatch, data: MatchScorecardData): string {
   const score = match.score.fulltime ? ` ${scoreText(match.score.fulltime)} ` : " – ";
@@ -26,7 +25,7 @@ export function buildMatchScorecardCaption(match: ScorecardMatch, data: MatchSco
     "",
     SCORECARD_QUESTION,
     "",
-    tags([hashtag(match.home.name), hashtag(match.away.name), hashtag(match.competition.name)]),
+    tags([match.home.name, match.away.name], [match.competition.name]),
   ].join("\n");
 }
 
@@ -47,6 +46,6 @@ export function buildPeriodScorecardCaption(data: PeriodScorecardData): string {
     "",
     SCORECARD_QUESTION,
     "",
-    tags([]),
+    tags([], []),
   ].join("\n");
 }

@@ -1,3 +1,4 @@
+import { CONTENT_TAGS, hashtagLine } from "@/lib/dashboard/caption-hashtags";
 import { weeklyLayout, type WeeklyLayout } from "@/lib/dashboard/weekly-fixtures-layout";
 import type { SupportedLeagueId } from "@/lib/services/api-football/leagues";
 import type { Result } from "@/types/result";
@@ -132,7 +133,9 @@ export function formatGoalDiff(value: number): string {
   return signed(value);
 }
 
-/** Gönderi metni: başlık + bölüm bölüm "1. Galatasaray — 25 P (8 O, +18 AV)". */
+/** Gönderi metni: başlık + bölüm bölüm "1. Galatasaray — 25 P (8 O, +18 AV)" + etkileşim sorusu + 3–5 hashtag. */
+export const STANDINGS_QUESTION = "Sezonun sonunda zirvede kim olur? Yorumlara yazın 👇";
+
 export function standingsCaption(leagueName: string, seasonLabel: string, title: string, sections: StandingsGroup[]): string {
   const lines = [`${leagueName} ${seasonLabel} | ${title}`];
   for (const section of sections) {
@@ -140,6 +143,7 @@ export function standingsCaption(leagueName: string, seasonLabel: string, title:
     else lines.push("");
     for (const row of section.rows) lines.push(`${row.rank}. ${row.teamName} — ${row.points} P (${row.played} O, ${signed(row.goalDiff)} AV)`);
   }
+  lines.push("", STANDINGS_QUESTION, "", hashtagLine({ competitions: [leagueName], type: CONTENT_TAGS.STANDINGS }));
   return lines.join("\n");
 }
 
