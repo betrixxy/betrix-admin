@@ -756,7 +756,7 @@ model Photo {
 /// Maç önü vitrin kartının onaylanan tahmini — "Tahmin Karnesi"nin kaynağı (bkz. CLAUDE.md 1.10).
 /// DEĞİŞTİRİLEMEZ: kart onaylanınca açık 2 senaryo yazılır; UPDATE/DELETE veritabanı trigger'ıyla
 /// reddedilir (migration 20261019200000). İçerik silinse bile kayıt kalır — bu yüzden AiContent'e
-/// yabancı anahtar YOK. Tuttu/tutmadı ayrı bir tabloda hesaplanacak (bu tablo değişmez).
+/// yabancı anahtar YOK. Tuttu/tutmadı ayrı tabloda: `PredictionOutcome` (bu tablo değişmez).
 model PredictionRecord {
   id                   String   @id @default(cuid())
   aiContentId          String
@@ -779,9 +779,54 @@ model PredictionRecord {
   /// Tahminin hesaplandığı an (kaynak) ve kaydın yazıldığı an (onay).
   computedAt           DateTime
   recordedAt           DateTime @default(now())
+  /// Tuttu/tutmadı sonuçları — ayrı tablo; bu satıra hiçbir şey yazılmaz.
+  outcomes             PredictionOutcome[]
 
   @@unique([aiContentId, scenarioId])
   @@index([fixtureId])
+}
+
+enum PredictionOutcomeStatus {
+  /// Tuttu
+  HIT
+  /// Tutmadı
+  MISS
+  /// Sonuçlanmadı (ertelendi / iptal / yarıda kaldı / hükmen) — karneye girmez.
+  VOID
+}
+
+/// Tahmin Karnesi sonuç tablosu (bkz. `lib/prediction/settle.ts`). `PredictionRecord`'a YAZILMAZ; her
+/// değerlendirme ayrı satırdır. YALNIZCA EKLEME: UPDATE/DELETE/TRUNCATE trigger'la reddedilir (migration
+/// 20261030200000). Skor düzeltmesi ya da değerlendirici değişikliği YENİ satır yazar (`revision` + 1); karne
+/// her kaydın EN YÜKSEK revizyonunu okur, eski satır denetim izi olarak kalır.
+model PredictionOutcome {
+  id                 String                  @id @default(cuid())
+  predictionRecordId String
+  predictionRecord   PredictionRecord        @relation(fields: [predictionRecordId], references: [id], onDelete: Restrict)
+  /// Sorgu kolaylığı (kayıttaki ile aynı).
+  fixtureId          String
+  /// 1'den başlar; düzeltme = aynı kayıt için bir sonraki sayı.
+  revision           Int                     @default(1)
+  status             PredictionOutcomeStatus
+  /// Sağlayıcının kısa durum kodu (FT / AET / PEN / PST / CANC / ABD / AWD / WO).
+  fixtureStatus      String
+  /// Maçın başlama anı — dönem karnesi (hafta / ay / sezon) bu ana göre ayrılır.
+  kickoffAt          DateTime
+  /// Normal süre (90 dk) skoru — API-Football `score.fulltime`; uzatma ve penaltı dahil değil. VOID'de null.
+  homeGoals          Int?
+  awayGoals          Int?
+  /// İlk yarı skoru — `HT_RESULT` bununla hesaplanır. VOID'de null.
+  htHomeGoals        Int?
+  htAwayGoals        Int?
+  /// Değerlendirme kuralının sürümü (`settle.ts::EVALUATOR_VERSION`).
+  evaluatorVersion   String
+  /// Düzeltme / sonuçlanmama notu (ör. "Skor düzeltmesi: 1–1 → 1–2").
+  note               String?
+  settledAt          DateTime                @default(now())
+
+  @@unique([predictionRecordId, revision])
+  @@index([fixtureId])
+  @@index([kickoffAt])
 }
 
 /// Stadyum kart adı — admin düzeltmesi (bkz. `lib/names/venue-names.ts`). Anahtar API-Football'un
