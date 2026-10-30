@@ -254,7 +254,7 @@ Sistemin dili ve içerik kalitesi manuel testle oturtulana kadar içerik üretim
   - Değiştirilemez: UPDATE/DELETE/TRUNCATE veritabanı trigger'ıyla reddedilir; `AiContent`'e yabancı anahtar yok.
   - `modelVersion` (nullable): null = v1 ("poisson-v1"), yeni kayıtlar "v2-season-xg" — karne sürüme göre ayırır. Değer tahminin HESAPLANDIĞI sürümdür (`record.ts::recordModelVersion`); sütun eklenirken eski satırlara dokunulmadı.
   - Tuttu/tutmadı ayrı tabloda hesaplanacak (sonraki iş).
-- **Gönderi metni** `vitrin-caption.ts`: şablon, ≤5 hashtag, link yok, sonunda etkileşim sorusu. İncelemede X kısa link yardımcısı gizli.
+- **Gönderi metni** `vitrin-caption.ts`: şablon, ≤5 hashtag, link yok, sonunda etkileşim sorusu. Takım/turnuva adları büyütülmemiş kart adlarından (`VitrinCard.names` — "Borussia", "UEFA"; büyük harften geri üretilmez); 02 göstergesindeki seçenek adı köken kuralıyla (`upperLabel`: "INTER", "BERABERLİK"). Görsel test iki maç: Galatasaray–Kasımpaşa + Inter–Borussia Dortmund (UEFA). İncelemede X kısa link yardımcısı gizli.
 - **Eski kayıtlar:** eski iki kartlı "Derinlemesine Analiz" kayıtları inceleme ekranında kayıtlı PNG'leriyle görüntülenir. Eski stüdyo formu, Fal kapak sahnesi, `market-analysis-engine.ts` ve kartın kendisi (şablon, çizim, kapak kompoziti, taslak kurucular `deep-analysis-insights.ts`/`expert-analysis-apply.ts` — 2026-10-29) kaldırıldı. Veri paketi (`api-football/deep-analysis.ts`) ve olgu denetimi (`expert-analysis-facts.ts`, vitrin gerekçeleri) yerinde; stüdyo kartlarının ortak token/fontları `templates/studio-tokens.ts` + `lib/dashboard/studio-fonts.ts`.
 - **Offline tasarım aracı:** `scripts/render-vitrin.ts` (API okuması, kural tabanlı gerekçe, sentetik ya da repo dışı foto; çıktı repoya yazılmaz).
 

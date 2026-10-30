@@ -12,18 +12,15 @@ export const MAX_HASHTAGS = 5;
 /** "Galatasaray" → "#Galatasaray", "Çaykur Rizespor" → "#ÇaykurRizespor" (harf/rakam dışı atılır). */
 export const hashtag = (text: string): string => `#${text.normalize("NFC").replace(/[^\p{L}\p{N}]+/gu, "")}`;
 
-const titleCase = (upper: string) => upper.toLocaleLowerCase("tr-TR").replace(/(^|\s)(\p{L})/gu, (_match, space: string, letter: string) => `${space}${letter.toLocaleUpperCase("tr-TR")}`);
-
 export function buildVitrinCaption(card: VitrinCard): string {
-  const home = titleCase(card.homeTeam);
-  const away = titleCase(card.awayTeam);
-  const competition = titleCase(card.competitionLabel);
+  // Kart adları büyütülmeden (ortak ad kuralının çıktısı): "Borussia Dortmund", "UEFA Şampiyonlar Ligi".
+  const { home, away, competition, round } = card.names;
   const boxes = card.open.map((box) => {
     const values = box.lines.map((line) => `${line.label} ${line.value}`).join(" · ");
     return `📊 ${box.title}: ${values}\n${box.reason}`;
   });
   const tags = [...new Set([hashtag(home), hashtag(away), hashtag(competition), "#MaçÖnüAnaliz", "#CheckMatch"])].slice(0, MAX_HASHTAGS);
-  return [`${home} – ${away} | Maç önü analiz`, `${competition} · ${titleCase(card.roundLabel)}`, "", ...boxes.flatMap((box) => [box, ""]), card.hook[0], card.hook[1], "", VITRIN_QUESTION, "", tags.join(" ")].join("\n");
+  return [`${home} – ${away} | Maç önü analiz`, `${competition} · ${round}`, "", ...boxes.flatMap((box) => [box, ""]), card.hook[0], card.hook[1], "", VITRIN_QUESTION, "", tags.join(" ")].join("\n");
 }
 
 /** Metindeki hashtag sayısı (test ve inceleme uyarısı). */

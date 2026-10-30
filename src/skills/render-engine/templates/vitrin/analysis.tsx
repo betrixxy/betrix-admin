@@ -96,7 +96,7 @@ function Gauge({ value, label, color, k }: { value: number; label: string; color
       <div tw="absolute flex justify-center" style={{ left: 0, width, top: cy - size + px(4, k) }}>
         <Percent value={value} size={size} color="#fff" />
       </div>
-      <span tw="absolute" style={{ top: cy + stroke / 2 + px(10, k), fontFamily: BODY, fontWeight: 800, fontSize: px(22, k), lineHeight: 1, letterSpacing: px(4, k), color }}>{label.toLocaleUpperCase("tr-TR")}</span>
+      <span tw="absolute" style={{ top: cy + stroke / 2 + px(10, k), fontFamily: BODY, fontWeight: 800, fontSize: px(22, k), lineHeight: 1, letterSpacing: px(4, k), color }}>{label}</span>
     </div>
   );
 }
@@ -123,7 +123,7 @@ function OpenGauge({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; o
         <SectionLabel text={box.title} color={card.accentHex} size={px(19, k)} maxWidth={width} />
       </div>
       <div tw={g.openStacked ? "flex flex-col" : "flex items-center"}>
-        <Gauge value={percentValue(picked?.value ?? "")} label={picked?.label ?? ""} color={card.accentHex} k={k} />
+        <Gauge value={percentValue(picked?.value ?? "")} label={picked?.upperLabel ?? ""} color={card.accentHex} k={k} />
         <div tw="flex" style={g.openStacked ? { marginTop: px(16, k) } : { marginLeft: px(48, k), width: reasonWidth }}>
           {reason}
         </div>
