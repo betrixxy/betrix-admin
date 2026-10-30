@@ -14,13 +14,13 @@ type Category = { key: keyof PlayerMatchNumbers; text: string };
 const LEADER: Record<PlayerPosition, Category[]> = {
   F: [
     { key: "shotsTotal", text: "en çok şut çeken" },
-    { key: "dribblesSuccess", text: "en çok başarılı dripling yapan" },
+    { key: "dribblesSuccess", text: "en çok çalım atan" },
     { key: "keyPasses", text: "en çok kilit pas veren" },
     { key: "duelsWon", text: "en çok ikili mücadele kazanan" },
   ],
   M: [
     { key: "keyPasses", text: "en çok kilit pas veren" },
-    { key: "dribblesSuccess", text: "en çok başarılı dripling yapan" },
+    { key: "dribblesSuccess", text: "en çok çalım atan" },
     { key: "interceptions", text: "en çok top kesen" },
     { key: "tackles", text: "en çok top çalan" },
     { key: "duelsWon", text: "en çok ikili mücadele kazanan" },

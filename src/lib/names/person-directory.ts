@@ -1,5 +1,5 @@
 import type { NameOrigin } from "@/lib/dashboard/name-case";
-import { cardCoachName, cardPlayerNames, cardRefereeName, splitReferee, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
+import { cardCoachName, cardPlayerNames, coachSearchTerm, cardRefereeName, splitReferee, type PersonEntry, type TeamPeople } from "@/lib/names/person-name";
 import { prisma } from "@/lib/prisma";
 import { findSportmonksTeamId, getSportmonksSquad, searchSportmonksCoaches, searchSportmonksReferees } from "@/lib/services/sportmonks/people";
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
@@ -50,9 +50,9 @@ export async function resolvePlayerNames(team: TeamRefForNames, entries: readonl
 
 /** Teknik direktör adı ("Ilhan Palut" → "İlhan Palut"); aynı kural. */
 export async function resolveCoachName(team: TeamRefForNames, coach: PersonEntry): Promise<CardPersonName> {
-  const surname = coach.apiName.trim().split(/\s+/u).at(-1) ?? "";
   const [fixes, teamId] = await Promise.all([overrides(coach.apiId === null ? [] : [coach.apiId], "COACH"), findSportmonksTeamId(team.apiName, team.country)]);
-  const people = surname.length >= 3 ? await searchSportmonksCoaches(surname, teamId) : [];
+  const term = coachSearchTerm(coach.apiName);
+  const people = term ? await searchSportmonksCoaches(term, teamId) : [];
   // Birden çok aday tutarsa takımı çalıştırmış olan (ilk sırada) seçilir.
   return cardCoachName(coach, { people, overrides: fixes, teamHint: team.peopleHint });
 }

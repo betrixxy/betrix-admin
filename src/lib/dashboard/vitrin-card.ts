@@ -1,6 +1,6 @@
 import { setDateLabel } from "@/lib/dashboard/checkmatch-set";
 import { clubColors } from "@/lib/dashboard/club-colors";
-import { isReadableOnCard, isSimilarColor } from "@/lib/dashboard/color-math";
+import { isSimilarColor, nearReadable } from "@/lib/dashboard/color-math";
 import { upperTr } from "@/lib/dashboard/match-result-labels";
 import { upperCompetition, upperTeamName, type TeamOrigin } from "@/lib/dashboard/name-case";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
@@ -58,12 +58,14 @@ function scenarioOf(prediction: PredictionSet, id: ScenarioId): Scenario {
 
 /**
  * Kartın takım rengi (2026-10-19 kararı): ana renk koyu zeminde OLDUĞU GİBİ okunuyorsa o, değilse
- * ikincil — açıklık yükseltilmez (bordo → pembe yok). Beraberlik grisine ve rakibin rengine benzeyen
+ * ikincil — açıklık yükseltilmez (bordo → pembe yok; tek istisna sınırın hemen altı, `nearReadable` ≤ 0,06).
+ * Beraberlik grisine ve rakibin rengine benzeyen
  * aday atlanır. Çubuk, manşet, vurgu ve fotoğraf tonu bu tek rengi kullanır.
  */
 export function cardTeamColor(teamId: number, avoid: string[]): string | null {
   const club = clubColors(teamId);
-  return [club?.primary, club?.secondary].find((hex): hex is string => isReadableOnCard(hex) && avoid.every((other) => !isSimilarColor(hex, other))) ?? null;
+  // Sınırın hemen altındaki doygun renk az yükseltilmiş hâliyle (Göztepe kırmızısı, `nearReadable`).
+  return [club?.primary, club?.secondary].map(nearReadable).find((hex): hex is string => hex !== null && avoid.every((other) => !isSimilarColor(hex, other))) ?? null;
 }
 
 export function sideColors(homeTeamId: number, awayTeamId: number): [string, string] {

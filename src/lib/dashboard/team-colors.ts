@@ -1,8 +1,9 @@
-import { CLUB_COLORS, registerClubColors } from "@/lib/dashboard/club-colors";
+import { registerClubColors } from "@/lib/dashboard/club-colors";
 import { isHex } from "@/lib/dashboard/color-math";
 import { logoSwatches } from "@/lib/dashboard/logo-swatches";
 import { resolveImage } from "@/lib/dashboard/match-day-assets";
 import { logoTeamColors } from "@/lib/dashboard/team-color-pick";
+import { warmWithStore, type TeamColorRef, type TeamColorStore } from "@/lib/dashboard/team-color-warm";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -10,30 +11,27 @@ import { prisma } from "@/lib/prisma";
  * (`club-colors.ts`) önce; tabloda olmayan takımın rengi `TeamColor` kaydından (APPROVED = onaylı, AUTO =
  * logodan otomatik), kayıt yoksa logodan ŞİMDİ çıkarılır ve AUTO olarak yazılır (admin Ad Raporu'nda onaylar).
  * Kart çizen her akış önce `warmTeamColors` çağırır; sonra saf `clubColors()` bu renkleri görür. Logo okunamazsa
- * ya da okunur renk yoksa kayıt açılmaz — kart nötr beyaz çizer (asla altın/marka rengi).
+ * ya da okunur renk yoksa kayıt açılmaz — kart nötr beyaz çizer (asla altın/marka rengi). Çekirdek kural depodan
+ * bağımsız: `team-color-warm.ts` (toplu lig işi de aynı yoldan, `team-colors-leagues.ts`).
  */
 
-export interface TeamColorRef {
-  id: number;
-  name: string;
-  logoUrl?: string | null | undefined;
-}
+export type { TeamColorRef };
+
+/** Prisma deposu: kayıt okuma, logodan çıkarma (sharp + Vibrant), yalnızca oluşturan upsert (onaylı kayıt ezilmez). */
+export const prismaTeamColorStore: TeamColorStore = {
+  rows: (teamIds) => prisma.teamColor.findMany({ where: { teamId: { in: [...teamIds] } }, select: { teamId: true, teamName: true, primary: true, secondary: true, status: true } }),
+  async extract(team) {
+    const logo = await resolveImage(team.logoUrl ?? undefined, 300);
+    return logo ? logoTeamColors(await logoSwatches(team.logoUrl ?? "", logo)) : null;
+  },
+  async create(team, colors) {
+    await prisma.teamColor.upsert({ where: { teamId: team.id }, create: { teamId: team.id, teamName: team.name, ...colors, logoUrl: team.logoUrl ?? null }, update: {} });
+  },
+};
 
 export async function warmTeamColors(teams: readonly TeamColorRef[]): Promise<void> {
-  const missing = teams.filter((team) => team.id > 0 && !CLUB_COLORS[team.id]);
-  if (missing.length === 0) return;
   try {
-    const rows = await prisma.teamColor.findMany({ where: { teamId: { in: missing.map((team) => team.id) } } });
-    for (const row of rows) registerClubColors(row.teamId, { name: row.teamName, primary: row.primary, secondary: row.secondary }, row.status);
-    const known = new Set(rows.map((row) => row.teamId));
-    for (const team of missing.filter((candidate) => !known.has(candidate.id) && candidate.logoUrl)) {
-      const logo = await resolveImage(team.logoUrl ?? undefined, 300);
-      const colors = logo ? logoTeamColors(await logoSwatches(team.logoUrl ?? "", logo)) : null;
-      if (!colors) continue;
-      // Aynı anda iki akış çıkarırsa ilk yazan kalır; onaylı kayıt asla ezilmez.
-      await prisma.teamColor.upsert({ where: { teamId: team.id }, create: { teamId: team.id, teamName: team.name, ...colors, logoUrl: team.logoUrl ?? null }, update: {} });
-      registerClubColors(team.id, { name: team.name, ...colors }, "AUTO");
-    }
+    await warmWithStore(teams, prismaTeamColorStore);
   } catch (cause) {
     console.error("[team-colors] takım rengi okunamadı/yazılamadı:", cause);
   }

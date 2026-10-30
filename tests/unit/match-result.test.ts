@@ -33,7 +33,8 @@ describe("Maç Sonucu — gerçek maç (Hoffenheim 2-3 Beşiktaş)", () => {
     assert.ok(facts);
     assert.deepEqual(
       facts.away.scorers.map((line) => [line.name, line.minutes.join(", ")]),
-      [["Amir Murillo", "60'"], ["Oh Hyeon-gyu", "72', 79'"]],
+      // Olay akışı "Amir Murillo" / "Oh Hyeon-gyu" verir; ad maçın oyuncu bloğundan (`fixture-player-names.ts`).
+      [["A. Murillo", "60'"], ["Oh Hyeon-Gyu", "72', 79'"]],
     );
     assert.deepEqual(facts.home.scorers.map((line) => line.minutes[0]), ["68'", "87'"]);
   });

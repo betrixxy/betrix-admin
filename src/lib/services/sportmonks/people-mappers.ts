@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { foldName } from "@/lib/names/person-name";
 import type { SportmonksPerson } from "@/types/person-name";
 
 /**
@@ -60,4 +61,14 @@ export function searchedPeople(data: unknown): SportmonksPerson[] {
     const person = toPerson(raw, null);
     return person ? [person] : [];
   });
+}
+
+/** Takım adı karşılaştırma anahtarı: katlanmış, nokta/tire yok ("Gaziantep F.K." = "Gaziantep FK"). */
+export const teamKey = (name: string) => foldName(name).replace(/[.-]/gu, "").replace(/\s+/gu, " ").trim();
+
+/** Arama sonucundan takım: adı (anahtarla) birebir tutan, yoksa adı içeren; ülke verilirse o ülkeden. */
+export function pickSportmonksTeam(teams: readonly { id: number; name: string; country?: { name: string } | null | undefined }[], teamName: string, country: string | null): number | null {
+  const wanted = teamKey(teamName);
+  const inCountry = teams.filter((team) => !country || !team.country || foldName(team.country.name) === foldName(country));
+  return (inCountry.find((team) => teamKey(team.name) === wanted) ?? inCountry.find((team) => teamKey(team.name).includes(wanted)))?.id ?? null;
 }

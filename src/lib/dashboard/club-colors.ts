@@ -73,6 +73,9 @@ export const CLUB_COLORS: Readonly<Record<number, ClubColors>> = {
   497: club("AS Roma", "#8E1F2F", "#F0BC42"),
   499: club("Atalanta", "#1E71B8", "#000000"),
   505: club("Inter", "#0068A8", "#000000"),
+  // Fiorentina "viola": kulübün resmi Pantone kodu doğrulanamadı — yaygın kullanılan mor (#4B2A84 civarı), ikincil beyaz.
+  // Logodan otomatik renk kırmızı zambağı seçiyordu (canlı test 2026-10-31).
+  502: club("Fiorentina", "#4B2A84", "#FFFFFF"),
   // Fransa
   79: club("Lille", "#E01E13", "#24215B"),
   80: club("Lyon", "#FFFFFF", "#14387F"),

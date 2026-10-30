@@ -142,6 +142,11 @@ describe("olgu satırı", () => {
     assert.equal(spotlightFact(all[2]!, all), null);
   });
 
+  it("çalım olgusu doğru Türkçe (canlı test 2026-10-31: \"en çok başarılı dripling yapan\" bozuktu)", () => {
+    const dribbler = line(31, "F", { dribblesSuccess: 3 });
+    assert.equal(spotlightFact(dribbler, [dribbler, line(32, "M", { dribblesSuccess: 1 })]), "Maçın en çok çalım atan oyuncusu (3)");
+  });
+
   it("kaleci: tek lider kurtarış; gol yemediyse ve lider değilse 'Gol yemedi'", () => {
     assert.equal(spotlightFact(all[4]!, all), "Maçın en çok kurtarış yapan oyuncusu (6)");
     assert.equal(spotlightFact(line(6, "G", { saves: 2, conceded: 0 }), all), "Gol yemedi · 2 kurtarış");

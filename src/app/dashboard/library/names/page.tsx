@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PersonNameFix, TeamColorFix, VenueNameFix } from "@/components/features/archive/name-fix-form";
+import { ExtractLeagueColorsButton, PersonNameFix, TeamColorFix, VenueNameFix } from "@/components/features/archive/name-fix-form";
 import { listAutoTeamColors } from "@/lib/dashboard/team-colors";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { accentReport, personReport, venueReport } from "@/lib/names/name-report";
@@ -133,8 +133,9 @@ export default async function NameReportPage() {
       <section className="mt-8 flex flex-col gap-2">
         <h2 className="text-sm font-medium">Otomatik renkler · {colors.length} onay bekliyor</h2>
         <p className="text-xs text-muted-foreground">
-          Kulüp renk tablosunda olmayan takımların rengi logodan çıkarıldı (koyu zeminde okunurluk kuralıyla) ve kartlarda şimdiden kullanılıyor. Onaylanan renk tablo gibi kullanılır; düzeltmek için rengi değiştirip onaylayın.
+          Kulüp renk tablosunda olmayan takımların rengi logodan çıkarıldı (koyu zeminde okunurluk kuralıyla, baskın alan önce) ve kartlarda şimdiden kullanılıyor. Kapsanan 10 ligin bütün takımları için düğmeyle toplu çıkarılabilir (yalnızca okuma + kayıt; ücretli çağrı yok). Onaylanan renk tablo gibi kullanılır; düzeltmek için rengi değiştirip onaylayın.
         </p>
+        <ExtractLeagueColorsButton />
         {colors.length === 0 ? (
           <p className="text-sm text-muted-foreground">Onay bekleyen otomatik renk yok.</p>
         ) : (

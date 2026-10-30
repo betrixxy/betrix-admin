@@ -4,6 +4,8 @@ import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
 import { approveTeamColor } from "@/lib/dashboard/team-colors";
+import { extractAllLeagueTeamColors, leagueColorNotice } from "@/lib/dashboard/team-colors-leagues";
+import { startStudioJob } from "@/lib/jobs/studio-jobs";
 import { setVenueOverride } from "@/lib/names/venue-directory";
 import type { ArchiveActionState } from "@/types/archive";
 
@@ -29,4 +31,28 @@ export async function approveTeamColorAction(_prev: ArchiveActionState, formData
   if (!(await approveTeamColor(parsed.data.teamId, parsed.data.primary, parsed.data.secondary))) return { error: "Takım rengi kaydı bulunamadı." };
   refreshDashboard();
   return { notice: "Renk onaylandı." };
+}
+
+/**
+ * "Bütün liglerin takım renklerini çıkar" — kapsanan 10 ligin takımlarının logosundan AUTO renk (onay listesine
+ * düşer). Yalnızca bu tıklamayla (zamanlayıcı yok); uzun sürebileceği için arka plan işi (Cloudflare 100 sn).
+ */
+export async function extractLeagueTeamColorsAction(): Promise<ArchiveActionState> {
+  if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const job = startStudioJob<ArchiveActionState>({
+    kind: "team-colors",
+    key: "team-colors:all-leagues",
+    firstStep: "Ligler okunuyor",
+    run: async () => {
+      const report = await extractAllLeagueTeamColors();
+      try {
+        refreshDashboard();
+      } catch {
+        // istek kapsamı kapanmış — sayfa force-dynamic, yenileyince görünür
+      }
+      return { notice: leagueColorNotice(report) };
+    },
+    fail: (message) => ({ error: message }),
+  });
+  return { job };
 }
