@@ -51,13 +51,14 @@ function ScorerList({ lines, size, accent }: { lines: ScorerLine[]; size: number
   );
 }
 
-function TeamRow({ name, logo, goals, dim, width }: { name: string; logo: string | null; goals: number; dim: boolean; width: number }) {
-  const nameWidth = width - LOGO - 14 - SCORE_COLUMN - 12;
+function TeamRow({ name, logo, goals, dim, width, score = SCORE }: { name: string; logo: string | null; goals: number; dim: boolean; width: number; score?: number }) {
+  const scoreColumn = Math.round((SCORE_COLUMN * score) / SCORE);
+  const nameWidth = width - LOGO - 14 - scoreColumn - 12;
   return (
     <div tw="flex items-center" style={{ width }}>
       <TeamLogo src={logo} name={name} size={LOGO} />
       <span style={{ fontFamily: DISPLAY, fontSize: fitFontSize(name, nameWidth, NAME, 0.48, 18), lineHeight: 1, letterSpacing: 1, color: "white", marginLeft: 14, width: nameWidth }}>{name}</span>
-      <span style={{ fontFamily: DISPLAY, fontSize: SCORE, lineHeight: 1, width: SCORE_COLUMN, textAlign: "right", color: dim ? `rgba(255,255,255,${LOSER_ALPHA})` : "white" }}>{String(goals)}</span>
+      <span style={{ fontFamily: DISPLAY, fontSize: score, lineHeight: 1, width: scoreColumn, textAlign: "right", color: dim ? `rgba(255,255,255,${LOSER_ALPHA})` : "white" }}>{String(goals)}</span>
     </div>
   );
 }
@@ -69,6 +70,7 @@ export function LandscapeSetColumn({
   only,
   headlineHeight = 26,
   headlineId = "headline",
+  scoreSize = SCORE,
 }: {
   card: SetCard;
   box: SetBox;
@@ -77,6 +79,8 @@ export function LandscapeSetColumn({
   /** Başlık yuvası — C · Manşet'te büyük "MAÇ SONUCU" için yükseltilir. */
   headlineHeight?: number;
   headlineId?: LayoutBlockId;
+  /** Skor rakamı (px) — C · Manşet'te büyütülür; set sayfaları varsayılanı (76) kullanır. */
+  scoreSize?: number;
 }) {
   const width = box.right - box.left;
   const size = scorerSize(card);
@@ -99,14 +103,14 @@ export function LandscapeSetColumn({
             {card.penaltyLabel ? <span style={{ fontFamily: BODY, fontWeight: 700, fontSize: 15, letterSpacing: 2, color: card.accentHex }}>{card.penaltyLabel}</span> : null}
           </div>
         ) : null}
-        <TeamRow name={card.homeTeam} logo={card.homeLogo} goals={card.homeGoals} dim={card.outcome === "AWAY"} width={width} />
+        <TeamRow name={card.homeTeam} logo={card.homeLogo} goals={card.homeGoals} dim={card.outcome === "AWAY"} width={width} score={scoreSize} />
       </div>
       <div tw="flex" style={{ opacity: blockOpacity(only, "scorers") }}>
         <ScorerList lines={card.homeScorers} size={size} accent={card.accentHex} />
       </div>
       <div tw="flex" style={{ height: 1, width, backgroundColor: "rgba(255,255,255,0.18)", margin: "14px 0", opacity: blockOpacity(only, "strip-away") }} />
       <div tw="flex" style={{ opacity: blockOpacity(only, "strip-away") }}>
-        <TeamRow name={card.awayTeam} logo={card.awayLogo} goals={card.awayGoals} dim={card.outcome === "HOME"} width={width} />
+        <TeamRow name={card.awayTeam} logo={card.awayLogo} goals={card.awayGoals} dim={card.outcome === "HOME"} width={width} score={scoreSize} />
       </div>
       <div tw="flex" style={{ opacity: blockOpacity(only, "scorers-away") }}>
         <ScorerList lines={card.awayScorers} size={size} accent={card.accentHex} />

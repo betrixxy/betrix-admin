@@ -287,3 +287,29 @@ export function SetFooter({ card, box, size, logoHeight, only }: { card: Pick<Se
     </div>
   );
 }
+
+/** Sütun künyesinin satır yüksekliği + logoyla arası — sütun içeriği bu kadar yukarıda biter. */
+export const COLUMN_FOOTER_LIFT = 30;
+
+/**
+ * 16:9 sütun künyesi (Maç Sonucu B/C, canlı test 2026-10-31): künye fotoğrafın üstüne (oyuncunun gövdesi/yüzü
+ * bölgesine) değil, yazı sütununun altına, CheckMatch logosunun ÜSTÜNE yazılır — sütunun dış kenarına hizalı,
+ * gradyanın koyu bölgesinde. Logo bütün set kartlarındaki yerinde (sağ alt köşe).
+ */
+export function SetColumnFooter({ card, box, column, size, logoHeight, only }: { card: Pick<SetCard, "competitionLabel" | "roundLabel" | "brandLogo">; box: SetBox; column: SetBox; size: number; logoHeight: number; only?: BlockFilter }) {
+  const line = footerLine(card);
+  const width = column.right - column.left;
+  const fontSize = Math.min(size, Math.floor(width / Math.max(1, line.length * FOOTER_EM_PER_CHAR)));
+  const alignRight = column.right >= box.right - 1;
+  return (
+    <>
+      <div tw="absolute flex" style={{ left: column.left, width, top: box.bottom - logoHeight - COLUMN_FOOTER_LIFT + 4, height: fontSize + 4, justifyContent: alignRight ? "flex-end" : "flex-start" }}>
+        <span style={{ fontFamily: BODY, fontWeight: 700, fontSize, lineHeight: 1, letterSpacing: fontSize * FOOTER_TRACKING, color: "rgba(255,255,255,0.85)", opacity: blockOpacity(only, "footer-text") }}>{line}</span>
+      </div>
+      <div tw="absolute flex" style={{ left: box.right - brandLogoWidth(logoHeight), top: box.bottom - logoHeight, height: logoHeight }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+        <img src={card.brandLogo} alt={BRAND_LOGO_ALT} width={brandLogoWidth(logoHeight)} height={logoHeight} style={{ opacity: blockOpacity(only, "footer-logo") }} />
+      </div>
+    </>
+  );
+}
