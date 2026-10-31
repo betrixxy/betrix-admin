@@ -12,10 +12,10 @@ import type { AnalysisGeometry, Band } from "./geometry";
  */
 
 /**
- * `row`: satır yüksekliğinin üst sınırı. 60 → 80 (2026-10-31, dikey denge): az olaylı maçta satırlar gövdeyi doldurur,
+ * `row`: satır yüksekliğinin üst sınırı. 60 → 104 (2026-10-31, dikey denge; 80 uzatmalı maçta yetmedi): az olaylı maçta satırlar gövdeyi doldurur,
  * künyenin üstünde boş bant kalmaz (`shared/vertical-balance.ts`); yazı boyu satırla değil kendi sınırıyla büyür.
  */
-export const VERTICAL_TIMELINE = { row: 80, rowMin: 36, divider: 0.7, pill: 100, gap: 14, text: 24 } as const;
+export const VERTICAL_TIMELINE = { row: 104, rowMin: 36, divider: 0.7, pill: 100, gap: 14, text: 24 } as const;
 
 export type TimelineSlotKind = "row" | "divider";
 
