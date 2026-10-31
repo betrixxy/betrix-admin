@@ -26,7 +26,7 @@ export interface VitrinPhotos {
   away: UploadedImage | null;
 }
 
-export type PosterArtGeometry = Pick<PosterGeometry, "photo" | "frame">;
+export type PosterArtGeometry = Pick<PosterGeometry, "photo" | "frame"> & { shade?: PosterGeometry["shade"] | undefined };
 
 /** Fotoğrafsız yarının yedek tasarımı için iki takım (ev = sol yarı, deplasman = sağ yarı). */
 export interface PosterTeams {
@@ -144,9 +144,11 @@ export async function preparePosterArt(input: PosterArtInput): Promise<Result<Bu
   const { g } = input;
   const upscale = input.upscale ?? noUpscale;
   const { home: homePanel, away: awayPanel } = g.photo.panels;
+  // 16:9: yazı sütununa doğru karartma başladığı yerde dev ad söner — "JUA" (canlı test v3); ad karartmadan önce biter.
+  const fadeAt = (bounds: TypeBounds, panel: FrameBox): TypeBounds => (g.shade?.direction === "right" ? { left: bounds.left, right: Math.min(bounds.right, g.shade.start - panel.left) } : bounds);
   const [home, away] = await Promise.all([
-    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home, input.teams?.home, { typeBounds: posterTypeBounds(g.photo, "home"), crest: input.fallbackCrest }),
-    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away, input.teams?.away, { typeBounds: posterTypeBounds(g.photo, "away"), crest: input.fallbackCrest }),
+    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home, input.teams?.home, { typeBounds: fadeAt(posterTypeBounds(g.photo, "home"), homePanel), crest: input.fallbackCrest }),
+    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away, input.teams?.away, { typeBounds: fadeAt(posterTypeBounds(g.photo, "away"), awayPanel), crest: input.fallbackCrest }),
   ]);
   if (!home.ok) return { ok: false, error: { ...home.error, message: `Ev sahibi fotoğrafı: ${home.error.message}` } };
   if (!away.ok) return { ok: false, error: { ...away.error, message: `Deplasman fotoğrafı: ${away.error.message}` } };
