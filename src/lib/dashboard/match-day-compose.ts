@@ -1,5 +1,6 @@
 import sharp, { type OverlayOptions } from "sharp";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
+import { EMBLEM_FOCUS_Y, EmblemPlacementError, placeEmblem, type Box, type ObstacleSpan } from "@/lib/dashboard/match-day-emblem";
 import { getMatchDayLayout, type MatchDayLayout, type PlayerSlot } from "@/lib/dashboard/match-day-layouts";
 import { renderTeamFallback, type FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
 import type { MatchDayTemplateId } from "@/types/match-day";
@@ -22,12 +23,11 @@ export interface PlayerCutout {
   team?: FallbackTeamSource | undefined;
 }
 
-/** Fotoğrafsız tarafın armasının (yüzün düşeceği yer) slot içindeki dikey konumu. */
-const EMBLEM_FOCUS_Y = 0.32;
-
 export interface ComposeTarget {
   template: MatchDayTemplateId;
   frame: MatchDayFrame;
+  /** Yazı katmanının ölçülmüş blokları (`matchDayLayoutGate` kutuları) — fotoğrafsız tarafın arması bunlara değmez. */
+  textBlocks?: readonly Box[] | undefined;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -82,37 +82,99 @@ export async function silhouette(cutout: Buffer, width: number, height: number, 
     .toBuffer();
 }
 
-/** Fotoğrafsız taraf: oyuncunun yerine şeffaf zeminli yedek tasarım (takım ışığı + filigran + arma). */
-async function emblemLayers(player: PlayerCutout, slot: PlayerSlot, frame: MatchDayFrame, side: "home" | "away"): Promise<OverlayOptions[]> {
+/** Fotoğraflı taraftaki oyuncunun tuvaldeki kesimi — fotoğrafsız tarafın arması için engel. */
+interface PlacedCutout {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  /** Ham alfa (genişlik × yükseklik). */
+  alpha: Buffer;
+}
+
+/** Engel: verilen satırlarda opak (alfa > 32) piksellerin yatay uzanımı. */
+function obstacleOf(cutout: PlacedCutout): ObstacleSpan {
+  return (top, bottom) => {
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    const y0 = Math.max(0, Math.floor(top - cutout.top));
+    const y1 = Math.min(cutout.height, Math.ceil(bottom - cutout.top));
+    for (let y = y0; y < y1; y += 1) {
+      const row = y * cutout.width;
+      for (let x = 0; x < cutout.width; x += 1) {
+        if ((cutout.alpha[row + x] ?? 0) > 32) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+        }
+      }
+    }
+    return Number.isFinite(minX) ? { left: cutout.left + minX, right: cutout.left + maxX + 1 } : null;
+  };
+}
+
+/**
+ * Arka ışık armada oyuncudakinin bu oranı: aynı bulanıklıkta toplu bir kalkan, ince bir vücut kenarından daha yoğun
+ * hale bırakır — algılanan yoğunluk eşitlensin (canlı test v2: arma "yapıştırılmış" gibi parlıyordu).
+ */
+const EMBLEM_BACKLIGHT_SCALE = 0.7;
+
+/** Armanın opak kısmı (yarı saydam ışık/filigran hariç) — arka ışık ve temas gölgesi bundan türetilir. */
+async function crestMask(emblem: Buffer, width: number, height: number): Promise<Buffer> {
+  const alpha = await sharp(emblem).ensureAlpha().extractChannel(3).threshold(128).raw().toBuffer();
+  return sharp({ create: { width, height, channels: 3, background: { r: 255, g: 255, b: 255 } } }).joinChannel(alpha, { raw: { width, height, channels: 1 } }).png().toBuffer();
+}
+
+/**
+ * Fotoğrafsız taraf: oyuncunun yerine şeffaf zeminli yedek tasarım. Işık dili fotoğraflı tarafla AYNI: armanın
+ * opak kısmından oyuncudakiyle aynı temas gölgesi (siyah, aynı kayma) ve aynı arka ışık (şablonun tonu/opaklığı);
+ * takım rengi yalnızca geniş, düşük opaklıklı bir ışık (sarı hale yok). Yer yerleşim kapısından (`placeEmblem`).
+ */
+async function emblemLayers(player: PlayerCutout, slot: PlayerSlot, layout: MatchDayLayout, target: ComposeTarget, side: "home" | "away", withLight: boolean, obstacle: PlacedCutout | null): Promise<OverlayOptions[]> {
+  const { frame } = target;
   const team = player.team ?? { name: "", hex: player.colorHex, logo: null };
-  const width = slot.maxWidth;
-  const height = Math.min(slot.maxHeight, Math.round(slot.maxWidth * 1.35));
+  const placement = placeEmblem(slot, side, layout.bounds, obstacle ? obstacleOf(obstacle) : null, target.textBlocks ?? []);
+  if (!placement) throw new EmblemPlacementError(`${team.name || "Fotoğrafsız taraf"} arması oyuncu fotoğrafıyla çakışıyor; kaydırılıp küçültülünce de sığmıyor — kart üretilmedi.`);
+  const { width, height, left, top } = placement;
   const emblem = await renderTeamFallback(team, { width, height }, { side, mode: "emblem", focus: { x: 0.5, y: EMBLEM_FOCUS_Y } });
-  const layer = await clipToCanvas(emblem, Math.round(slot.centerX - width / 2), slot.top, frame);
-  return layer ? [layer] : [];
+  const layers: (OverlayOptions | null)[] = [];
+  if (withLight) {
+    const crest = await crestMask(emblem, width, height);
+    const shadow = await silhouette(crest, width, height, { r: 0, g: 0, b: 0 }, 0.55);
+    layers.push(await clipToCanvas(shadow, left - LIGHT_PADDING + 14, top - LIGHT_PADDING + 18, frame));
+    if (layout.backlight) {
+      const rgb = layout.backlight.tint === "team" ? hexToRgb(player.colorHex) : { r: 255, g: 255, b: 255 };
+      const light = await silhouette(crest, width, height, rgb, layout.backlight.alpha * EMBLEM_BACKLIGHT_SCALE);
+      layers.push(await clipToCanvas(light, left - LIGHT_PADDING, top - LIGHT_PADDING, frame));
+    }
+  }
+  layers.push(await clipToCanvas(emblem, left, top, frame));
+  return layers.filter((layer): layer is OverlayOptions => layer !== null);
+}
+
+/** Fotoğraflı tarafın kesimini yerleştirir (engel ölçümü ve katmanlar aynı yerleşimi kullanır). */
+async function placeCutout(bytes: Buffer, slot: PlayerSlot): Promise<{ data: Buffer; placed: PlacedCutout }> {
+  const cutout = await fitCutout(bytes, slot);
+  const alpha = await sharp(cutout.data).ensureAlpha().extractChannel(3).raw().toBuffer();
+  return { data: cutout.data, placed: { left: Math.round(slot.centerX - cutout.width / 2), top: slot.top, width: cutout.width, height: cutout.height, alpha } };
 }
 
 async function playerLayers(
   player: PlayerCutout,
-  slot: PlayerSlot,
+  cutout: { data: Buffer; placed: PlacedCutout },
   layout: MatchDayLayout,
   frame: MatchDayFrame,
   withLight: boolean,
-  side: "home" | "away",
 ): Promise<OverlayOptions[]> {
-  if (!player.bytes) return emblemLayers(player, slot, frame, side);
-  const cutout = await fitCutout(player.bytes, slot);
-  const left = Math.round(slot.centerX - cutout.width / 2);
-  const top = slot.top;
+  const { left, top, width, height } = cutout.placed;
   const layers: (OverlayOptions | null)[] = [];
 
   if (withLight) {
     // Zemin temas gölgesi — oyuncuyu sahneye "oturtur" (yapıştırılmış görüntüsünü engeller).
-    const shadow = await silhouette(cutout.data, cutout.width, cutout.height, { r: 0, g: 0, b: 0 }, 0.55);
+    const shadow = await silhouette(cutout.data, width, height, { r: 0, g: 0, b: 0 }, 0.55);
     layers.push(await clipToCanvas(shadow, left - LIGHT_PADDING + 14, top - LIGHT_PADDING + 18, frame));
     if (layout.backlight) {
       const rgb = layout.backlight.tint === "team" ? hexToRgb(player.colorHex) : { r: 255, g: 255, b: 255 };
-      const light = await silhouette(cutout.data, cutout.width, cutout.height, rgb, layout.backlight.alpha);
+      const light = await silhouette(cutout.data, width, height, rgb, layout.backlight.alpha);
       layers.push(await clipToCanvas(light, left - LIGHT_PADDING, top - LIGHT_PADDING, frame));
     }
   }
@@ -123,13 +185,16 @@ async function playerLayers(
 async function layerPlayers(base: Buffer, target: ComposeTarget, home: PlayerCutout, away: PlayerCutout, withLight: boolean): Promise<Buffer> {
   const { frame } = target;
   const layout = getMatchDayLayout(target.template, frame);
+  const [homeCut, awayCut] = await Promise.all([home.bytes ? placeCutout(home.bytes, layout.home) : null, away.bytes ? placeCutout(away.bytes, layout.away) : null]);
   const [homeLayers, awayLayers] = await Promise.all([
-    playerLayers(home, layout.home, layout, frame, withLight, "home"),
-    playerLayers(away, layout.away, layout, frame, withLight, "away"),
+    homeCut ? playerLayers(home, homeCut, layout, frame, withLight) : emblemLayers(home, layout.home, layout, target, "home", withLight, awayCut?.placed ?? null),
+    awayCut ? playerLayers(away, awayCut, layout, frame, withLight) : emblemLayers(away, layout.away, layout, target, "away", withLight, homeCut?.placed ?? null),
   ]);
+  // Fotoğrafsız tarafın katmanları oyuncunun ALTINDA: ışığı/filigranı oyuncunun üstüne binmez.
+  const ordered = homeCut && !awayCut ? [...awayLayers, ...homeLayers] : [...homeLayers, ...awayLayers];
   return sharp(base)
     .resize(frame.width, frame.height, { fit: "cover" })
-    .composite([...homeLayers, ...awayLayers, { input: Buffer.from(layout.shadeSvg) }])
+    .composite([...ordered, { input: Buffer.from(layout.shadeSvg) }])
     .png()
     .toBuffer();
 }
