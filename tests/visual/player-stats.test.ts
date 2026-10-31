@@ -21,6 +21,7 @@ import { RAW_MILAN_BOLOGNA, SM_MILAN_BOLOGNA_IDS, SM_MILAN_BOLOGNA_LINEUP } from
 import { fixturePlayerNames, type FixtureTeam } from "../fixtures/card-names";
 import { SM_SQUAD_BOLOGNA, SM_SQUAD_MILAN } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -82,8 +83,9 @@ async function images(): Promise<PlayerCardImages> {
 }
 
 async function assertLayout(label: string, frame: MatchDayFrame, render: Parameters<typeof checkLayout>[1]) {
-  const { issues } = await checkLayout(frame, render);
+  const { issues, boxes } = await checkLayout(frame, render);
   assert.equal(issues.length, 0, `${label}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  assertVerticalBalance(label, frame, boxes);
 }
 
 async function photoArt(frame: MatchDayFrame, card: SpotlightCard) {

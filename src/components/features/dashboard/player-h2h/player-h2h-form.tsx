@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, LoaderCircle, Save } from "lucide-react";
+import { cardTeamName } from "@/lib/archive/names";
 import { analyzeH2HAction, matchContextAction, previewH2HAction, saveH2HAction, type H2HAnalysis, type H2HStudioRequest } from "@/app/dashboard/studio/player-h2h/actions";
 import { Button } from "@/components/ui/button";
 import { resultFromJob, runGuarded, type JobProgress } from "@/hooks/use-action-form";
@@ -174,11 +175,11 @@ export function PlayerH2HForm({ fixtures, players, initialFixtureId }: { fixture
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <PlayerSlot id="h2h-left" label={matchShown ? `Sol · ${matchShown.homeTeam.name}` : "Sol oyuncu"} options={options.left} value={left} onChange={(value) => change("left", value)} />
+              <PlayerSlot id="h2h-left" label={matchShown ? `Sol · ${cardTeamName(matchShown.homeTeam.name)}` : "Sol oyuncu"} options={options.left} value={left} onChange={(value) => change("left", value)} />
               {hintFor("left")}
             </div>
             <div className="flex flex-col gap-1">
-              <PlayerSlot id="h2h-right" label={matchShown ? `Sağ · ${matchShown.awayTeam.name}` : "Sağ oyuncu"} options={options.right} value={right} onChange={(value) => change("right", value)} />
+              <PlayerSlot id="h2h-right" label={matchShown ? `Sağ · ${cardTeamName(matchShown.awayTeam.name)}` : "Sağ oyuncu"} options={options.right} value={right} onChange={(value) => change("right", value)} />
               {hintFor("right")}
             </div>
           </div>

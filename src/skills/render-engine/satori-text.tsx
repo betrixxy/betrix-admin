@@ -17,6 +17,13 @@ import { legibleMonoTree } from "./satori-mono";
 
 const NBSP = String.fromCharCode(0xa0);
 
+/**
+ * Çift boşluk bekçisi (2026-10-31, BÜTÜN kartlar): veri birleştirmesinden gelen ardışık boşluklar tek boşluğa
+ * iner. Tek istisna künye ayıracı "  ·  " (ayıraca bitişik boşluk dizisi bilerek geniş). Bölünmez boşluk
+ * (U+00A0) dokunulmaz — şablonun elle koyduğu aralık. Bekçi test `tests/unit/text-spacing.test.ts`.
+ */
+export const tidyText = (text: string): string => text.replace(/(?<![·\s]) {2,}(?![·\s])/gu, " ");
+
 /** Tek satırlık metin: boşluklar bölünmez. */
 export const tight = (text: string): string => text.replace(/ /g, NBSP);
 
@@ -47,7 +54,7 @@ type Props = { children?: ReactNode; "data-wrap"?: unknown } & Record<string, un
 
 /** Ağacı çözer (fonksiyon bileşenleri çağrılır) ve `data-wrap` dışındaki metin düğümlerini sıkılaştırır. */
 export function tightenTree(node: ReactNode, wrap = false): ReactNode {
-  if (typeof node === "string") return wrap ? node : tight(node);
+  if (typeof node === "string") return wrap ? tidyText(node) : tight(tidyText(node));
   if (typeof node === "number" || node === null || node === undefined || typeof node === "boolean") return node;
   if (Array.isArray(node)) return node.map((child) => tightenTree(child, wrap));
   if (!isValidElement(node)) return node;

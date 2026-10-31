@@ -5,6 +5,7 @@ import { SetFooter, SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { VITRIN_SIZES, type AnalysisColumn, type AnalysisGeometry } from "./geometry";
 import { wrapLines } from "../../satori-text";
+import { teamNamesIn } from "@/lib/names/team-name-forms";
 import { MUTED, Percent, SectionLabel, percentValue } from "./parts";
 import { LockedTicket } from "./ticket";
 
@@ -116,7 +117,7 @@ function OpenGauge({ card, g, only }: { card: VitrinCard; g: AnalysisGeometry; o
   const reasonSize = px(g.openStacked ? 28 : 36, k);
   const reason = (
     <div tw="flex flex-col">
-      {wrapLines(box.reason, reasonWidth, reasonSize).map((line) => (
+      {wrapLines(teamNamesIn("VITRIN_GAUGE_REASON", box.reason, [card.names.home, card.names.away]), reasonWidth, reasonSize).map((line) => (
         <span key={line} style={{ fontFamily: BODY, fontWeight: 700, fontSize: reasonSize, lineHeight: 1.22, color: "#fff" }}>{line}</span>
       ))}
     </div>

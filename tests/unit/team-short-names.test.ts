@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { cardTeamName } from "@/lib/archive/names";
 import { upperTeamName } from "@/lib/dashboard/name-case";
-import { TEAM_NAME_FORMS, teamNameFor } from "@/lib/names/team-name-forms";
+import { TEAM_NAME_FORMS, teamNameFor, teamNamesIn } from "@/lib/names/team-name-forms";
 import { SHORT_MAX, TEAM_SHORT_NAMES, ruleShortName, shortTeamName } from "@/lib/names/team-short-names";
 
 /**
@@ -47,6 +47,7 @@ describe("takım ad biçimleri", () => {
       VITRIN_BAR_LABELS: "short",
       VITRIN_FORM_ROWS: "long",
       VITRIN_GAUGE_LABEL: "short",
+      VITRIN_GAUGE_REASON: "short",
       VITRIN_CAPTION: "long",
       MATCH_ANALYSIS_TEAMS_ROW: "short",
       MATCH_ANALYSIS_FACTS: "long",
@@ -61,5 +62,14 @@ describe("takım ad biçimleri", () => {
     assert.match(vitrin, /teamNameFor\("VITRIN_GAUGE_LABEL"/);
     assert.match(read("src/lib/dashboard/match-analysis-card.ts"), /teamNameFor\("MATCH_ANALYSIS_TEAMS_ROW"/);
     assert.match(read("src/skills/render-engine/templates/vitrin/poster.tsx"), /card\.shortTeams\.home/);
+    assert.match(read("src/skills/render-engine/templates/vitrin/analysis.tsx"), /teamNamesIn\("VITRIN_GAUGE_REASON"/);
+  });
+
+  it("serbest metindeki takım adı alanın biçimine (yalnız tam ad, uzun ad önce)", () => {
+    const names = ["Borussia Mönchengladbach", "SC Paderborn 07"];
+    assert.equal(teamNamesIn("VITRIN_GAUGE_REASON", "Borussia Mönchengladbach son 5 maçta maç başı 1,4 gol yedi.", names), "M'gladbach son 5 maçta maç başı 1,4 gol yedi.");
+    assert.equal(teamNamesIn("VITRIN_GAUGE_REASON", "SC Paderborn 07 son 5 maçta 2 kez gol yemedi.", names), "Paderborn son 5 maçta 2 kez gol yemedi.");
+    assert.equal(teamNamesIn("VITRIN_CAPTION", "Borussia Mönchengladbach kazanır", names), "Borussia Mönchengladbach kazanır");
+    assert.equal(teamNamesIn("VITRIN_GAUGE_REASON", "Galatasaray son 5 maçında 4 galibiyet aldı.", ["Galatasaray", "Kasımpaşa"]), "Galatasaray son 5 maçında 4 galibiyet aldı.");
   });
 });

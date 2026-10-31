@@ -154,7 +154,7 @@ export const TEAM_NAMES_TR: Readonly<Record<string, string>> = {
  */
 export const EUROPEAN_TEAM_NAMES_TR: Readonly<Record<string, string>> = {
   "AS Roma": "Roma",
-  "Atletico Madrid": "Atletico Madrid",
+  "Atletico Madrid": "Atlético Madrid",
   "Lask Linz": "LASK",
   "Shakhtar Donetsk": "Şahtar Donetsk",
   "Slavia Praha": "Slavia Prag",

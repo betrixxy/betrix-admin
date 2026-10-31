@@ -95,7 +95,7 @@ describe("kura sonrası API karşılaştırması (otomatik düzeltme yok)", () =
     ];
     assert.deepEqual(
       compareTies(entered, api).map((d) => d.text),
-      ["Fenerbahçe – Benfica: API'de ilk maç Benfica sahasında", "Girilen eşleşme API'de yok: Galatasaray – Beşiktaş", "API'de var, girilmemiş: Atletico Madrid – Liverpool"],
+      ["Fenerbahçe – Benfica: API'de ilk maç Benfica sahasında", "Girilen eşleşme API'de yok: Galatasaray – Beşiktaş", "API'de var, girilmemiş: Atlético Madrid – Liverpool"],
     );
     assert.deepEqual(compareTies({ ...knockoutEmpty, ties: api }, api), []);
   });

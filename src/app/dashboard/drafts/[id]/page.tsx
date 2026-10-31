@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { cardTeamName } from "@/lib/archive/names";
 import { CopyTextButton } from "@/components/features/dashboard/copy-text-button";
 import { DraftPreview as Preview } from "@/components/features/dashboard/draft-preview";
 import { DraftReviewForm } from "@/components/features/dashboard/draft-review-form";
@@ -136,7 +137,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   return (
     <>
       <PageHeader
-        title={`${fixture.homeTeam.name} – ${fixture.awayTeam.name}`}
+        title={`${cardTeamName(fixture.homeTeam.name)} – ${cardTeamName(fixture.awayTeam.name)}`}
         description={`${fixture.competition.name} · ${formatDef.label} (${formatDef.width}×${formatDef.height}) · AI taslağı — onayınız olmadan yayına hazır sayılmaz.`}
         actions={backLink}
       />

@@ -38,10 +38,12 @@ function BreakTag({ label, accent, size }: { label: string; accent: string; size
 function Row({ row, card, g, t, top, index, only }: { row: TimelineRowCard; card: TimelineCard; g: AnalysisGeometry; t: VerticalTimeline; top: number; index: number; only: BlockFilter }) {
   const h = t.rowHeight;
   const home = row.side === "HOME";
-  const icon = Math.round(h * 0.5);
-  const gap = Math.round(h * 0.18);
+  // Satır 80'e kadar uzayabilir (dikey denge); simge, aralık ve etiket 60'lık satırdaki boylarının en çok %15 üstü.
+  const icon = Math.min(Math.round(h * 0.5), px(34, g.k));
+  const gap = Math.min(Math.round(h * 0.18), px(12, g.k));
   const max = Math.min(px(26, g.k), Math.round(h * 0.4));
-  const tagSize = Math.max(10, Math.round(h * 0.2));
+  const pill = Math.min(Math.round(h * 0.62), px(43, g.k));
+  const tagSize = Math.max(10, Math.min(Math.round(h * 0.2), px(14, g.k)));
   const tagWidth = row.breakLabel ? Math.ceil(row.breakLabel.length * tagSize * 0.72) + tagSize * 2 + gap : 0;
   const scoreSize = Math.round(max * 0.95);
   const scoreWidth = row.scoreLabel ? Math.ceil(row.scoreLabel.length * scoreSize * 0.62) + gap : 0;
@@ -74,15 +76,15 @@ function Row({ row, card, g, t, top, index, only }: { row: TimelineRowCard; card
       <div tw="absolute flex items-center" style={{ left: sideBox.left - g.box.left, top: 0, width: sideBox.width, height: h, flexDirection: home ? "row-reverse" : "row" }}>
         {parts}
       </div>
-      <div tw="absolute flex items-center justify-center" style={{ left: t.center - g.box.left - t.pillWidth / 2, top: Math.round(h * 0.19), width: t.pillWidth, height: Math.round(h * 0.62), borderRadius: Math.round(h * 0.31), backgroundColor: row.breakLabel ? accent : "rgba(16,18,26,0.92)", border: row.breakLabel ? "none" : "1.5px solid rgba(255,255,255,0.28)" }}>
-        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: Math.round(h * 0.3), lineHeight: 1, color: row.breakLabel ? "#0B0C10" : "#fff" }}>{row.minuteLabel}</span>
+      <div tw="absolute flex items-center justify-center" style={{ left: t.center - g.box.left - t.pillWidth / 2, top: Math.round((h - pill) / 2), width: t.pillWidth, height: pill, borderRadius: Math.round(pill / 2), backgroundColor: row.breakLabel ? accent : "rgba(16,18,26,0.92)", border: row.breakLabel ? "none" : "1.5px solid rgba(255,255,255,0.28)" }}>
+        <span style={{ fontFamily: BODY, fontWeight: 800, fontSize: Math.min(Math.round(h * 0.3), px(21, g.k)), lineHeight: 1, color: row.breakLabel ? "#0B0C10" : "#fff" }}>{row.minuteLabel}</span>
       </div>
     </div>
   );
 }
 
 function Divider({ label, g, t, top, height, only }: { label: string; g: AnalysisGeometry; t: VerticalTimeline; top: number; height: number; only: BlockFilter }) {
-  const size = Math.max(10, Math.round(t.rowHeight * 0.26));
+  const size = Math.max(10, Math.min(Math.round(t.rowHeight * 0.26), px(18, g.k)));
   return (
     <div tw="absolute flex items-center justify-center" style={{ left: g.box.left, top, width: g.box.right - g.box.left, height, opacity: unlayered(only) }}>
       <div tw="absolute flex" style={{ left: 0, top: Math.round(height / 2), width: g.box.right - g.box.left, height: 1, backgroundColor: "rgba(255,255,255,0.3)" }} />

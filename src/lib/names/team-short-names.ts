@@ -44,8 +44,8 @@ export const TEAM_SHORT_NAMES: Readonly<Record<string, string>> = {
   "Tottenham Hotspur": "Tottenham",
   "West Ham United": "West Ham",
   // LaLiga
-  "Atletico Madrid": "Atletico",
-  "Atlético Madrid": "Atletico",
+  "Atletico Madrid": "Atlético",
+  "Atlético Madrid": "Atlético",
   "Rayo Vallecano": "Rayo",
   "Deportivo Alaves": "Alaves",
   "Real Sociedad": "R. Sociedad",

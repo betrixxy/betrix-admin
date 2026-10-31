@@ -106,9 +106,10 @@ export function buildPeriodScorecard(input: { period: ScorecardPeriod; entries: 
     return fail("NO_RECORDS", `${input.period.label}: sonuçlanmış onaylı tahmin yok${extra} — Tahmin Karnesi üretilmedi.`);
   }
   const count = (list: readonly Settled[]) => ({ total: list.length, hits: list.filter((entry) => entry.status === "HIT").length });
+  const summary = hitSummary(settled.length, count(settled).hits);
   const breakdown = SCENARIO_IDS.flatMap((scenarioId) => {
     const { total, hits } = count(settled.filter((entry) => entry.record.scenarioId === scenarioId));
-    return total > 0 ? [{ scenarioId, label: SCENARIO_KIND_LABELS[scenarioId], total, hits, value: breakdownValue(total, hits) }] : [];
+    return total > 0 ? [{ scenarioId, label: SCENARIO_KIND_LABELS[scenarioId], total, hits, value: breakdownValue(total, hits, summary.kind === "RATE") }] : [];
   });
   const keys = [...new Set(settled.map((entry) => versionKey(entry.record.modelVersion)))].sort();
   const versions =
@@ -118,9 +119,8 @@ export function buildPeriodScorecard(input: { period: ScorecardPeriod; entries: 
           return { modelVersion: key, label: versionLabel(key), summary: hitSummary(total, hits) };
         })
       : null;
-  const { total, hits } = count(settled);
   return {
     ok: true,
-    data: { period: input.period, summary: hitSummary(total, hits), breakdown, strip: settled.slice(-STRIP_LENGTH).map((entry) => entry.status), versions, pending, voided, duplicates },
+    data: { period: input.period, summary, breakdown, strip: settled.slice(-STRIP_LENGTH).map((entry) => entry.status), versions, pending, voided, duplicates },
   };
 }

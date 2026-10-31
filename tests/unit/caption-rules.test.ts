@@ -5,7 +5,7 @@ import { BRAND_TAG, captionHashtags, competitionTag, FALLBACK_TAG, MIN_HASHTAGS,
 import { buildLineupCaption } from "@/lib/dashboard/lineup-caption";
 import { buildMatchDayCaption } from "@/lib/dashboard/match-day-caption";
 import { captionLength } from "@/lib/dashboard/publish-caption";
-import { MORE_LINE, shortenLine, templateCaption, tidyCaption, X_LIMIT, xCaptionFrom } from "@/lib/dashboard/x-caption";
+import { MORE_LINE, shortenLine, templateCaption, tidyCaption, X_LIMIT, X_TARGET, xCaptionFrom } from "@/lib/dashboard/x-caption";
 import { findBannedWords } from "@/lib/prediction/banned-words";
 import { contentLanguageGate } from "@/lib/prediction/content-language";
 import { worstCaseCaptions } from "../fixtures/captions";
@@ -84,11 +84,12 @@ describe("Instagram metni — her tür 3–5 hashtag, kapıdan geçer", () => {
   });
 });
 
-describe("X sürümü — kural tabanlı, ≤ 280, AI'sız", () => {
+describe("X sürümü — kural tabanlı, ≤ 270 (pay 10), AI'sız", () => {
   for (const { type, caption } of CASES) {
     it(type, () => {
       const x = xCaptionFrom(caption);
-      assert.ok(captionLength(x, "X") <= X_LIMIT, `${captionLength(x, "X")} karakter\n${x}`);
+      assert.ok(captionLength(x, "X") <= X_TARGET, `${captionLength(x, "X")} karakter (hedef ≤ ${X_TARGET})\n${x}`);
+      assert.ok(X_TARGET <= X_LIMIT - 10);
       assert.equal(captionFormatGate(x, "X"), null, x);
       assert.equal(contentLanguageGate({ caption: x, platform: "X" }), null, x);
       const tags = hashtagCount(x);
@@ -117,7 +118,7 @@ describe("X sürümü — kural tabanlı, ≤ 280, AI'sız", () => {
     assert.doesNotMatch(beforeMore, /GRUBU$/u, x);
   });
 
-  it("eski kayıt (hashtagsiz, biçim hatalı) da ≤ 280 ve düzeltilmiş: yalnızca marka etiketi", () => {
+  it("eski kayıt (hashtagsiz, biçim hatalı) da ≤ 270 ve düzeltilmiş: yalnızca marka etiketi", () => {
     const old = ["MAÇ İSTATİSTİKLERİ | Konyaspor 0-4 Galatasaray", "Trendyol Süper Lig · 10. Hafta", "📊 Top hakimiyeti:%46 – %54", "📊 Beklenen gol (xG):1,31 – 2,66"].join("\n");
     const x = xCaptionFrom(old);
     assert.match(x, /Top hakimiyeti: %46 – %54\n📊 Beklenen gol \(xG\): 1,31 – 2,66/u);

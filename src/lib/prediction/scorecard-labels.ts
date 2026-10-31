@@ -79,9 +79,13 @@ export function hitSummary(total: number, hits: number): HitSummary {
   return { kind: "RATE", total, hits, percent, text: `${total} tahminde ${hits} tuttu · ${percentText(percent)} isabet oranı` };
 }
 
-/** Kırılım satırının değeri: "2/3", n ≥ 10 → "7/12 · %58". */
-export function breakdownValue(total: number, hits: number): string {
-  return total < SMALL_SAMPLE_LIMIT ? `${hits}/${total}` : `${hits}/${total} · ${percentText((hits / total) * 100)}`;
+/**
+ * Kırılım satırının değeri — kartın BÜTÜN satırları aynı biçimde (canlı test 2026-10-31: "7/11 · %64" yanında
+ * "5/9", "1/2" vardı). Biçim kartın ana sayısından: dönem toplamı n ≥ 10 (oran gösteriliyor) → her satır
+ * "7/12 · %58" (tamsayı, % önde); n < 10 ("İLK TAHMİNLER") → her satır yalnızca "2/3".
+ */
+export function breakdownValue(total: number, hits: number, withPercent: boolean): string {
+  return withPercent ? `${hits}/${total} · ${percentText((hits / total) * 100)}` : `${hits}/${total}`;
 }
 
 /** Kayıttaki sürüm → karne anahtarı (null = v1). */

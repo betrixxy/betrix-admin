@@ -120,30 +120,43 @@ function WinBar({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: 
   );
 }
 
-/** Tek satır manşet; favori varsa takım adı kendi renginde. */
+/**
+ * Tek satır manşet; favori varsa takım adı kendi renginde.
+ *
+ * Renkli ad ayrı `span` olarak dizilmez: Satori her metin düğümünün genişliğini çizimden biraz büyük ölçer
+ * (fark harflere göre 2–8 px) ve fazlası düğümün sonuna boşluk olarak eklenir — renkli addan sonra "çift
+ * boşluk" görünüyordu (canlı test 2026-10-31: "Modelimiz Trabzonspor  diyor"). Satır TEK metin düğümü
+ * olarak çizilir (boşluklar düz metindeki gibi); renk, aynı noktadan başlayan iki üst katmanla verilir:
+ * takım renginde "Modelimiz Trabzonspor", üstünde beyaz "Modelimiz" (aynı başlangıç, aynı glif dizisi →
+ * harfler birebir üst üste). Satırın genişliği (ortalama) yalnızca alttaki tam satırdan gelir. Katmanlar iç içe
+ * `div`: Satori `<>` Fragment içindeki mutlak konumlu çocukları yerleştirmiyor (satıra diziyordu).
+ */
 function Headline({ card, g, only }: { card: VitrinCard; g: PosterGeometry; only: BlockFilter }) {
   const width = g.column.right - g.column.left;
   const { favourite } = card.winBar;
   const minSize = px(20, g.k);
   // Uzun takım adıyla en küçük puntoda sığmayan manşet kısa adı yazar ("Modelimiz M'gladbach diyor").
   const short = favourite === "HOME" ? card.shortTeams.plain.home : favourite === "AWAY" ? card.shortTeams.plain.away : null;
-  // Geist 600 karışık harf + kalın takım adı ve iki yanındaki boşluk ≈ 0,58 em/karakter (eski 0,52 dar sütunda taşıyordu).
+  // Geist 600 karışık harf ve boşluklar ≈ 0,58 em/karakter (eski 0,52 dar sütunda taşıyordu).
   const tooLong = card.winBar.headline.length * 0.58 * minSize > width;
   const headline = tooLong && short ? `Modelimiz ${short} diyor` : card.winBar.headline;
   const size = fitFontSize(headline, width, px(38, g.k), 0.58, minSize);
-  const text = { fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: 1, color: "#fff", textShadow: TEXT_SHADOW };
+  const text = { fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: 1, color: "#fff" };
   const parts = favourite ? /^(Modelimiz )(.+)( diyor)$/u.exec(headline) : null;
+  const overlay = { position: "absolute", left: 0, top: 0 } as const;
   return (
     <div tw="absolute flex items-center justify-center" style={{ left: g.column.left, top: g.headline.top, width, height: g.headline.height, opacity: blockOpacity(only, "headline") }}>
-      {parts ? (
-        <>
-          <span style={text}>{(parts[1] ?? "").trim()}</span>
-          <span style={{ ...text, fontWeight: 800, color: favourite === "HOME" ? card.homeHex : card.awayHex, margin: `0 ${Math.round(size * 0.28)}px` }}>{parts[2]}</span>
-          <span style={text}>{(parts[3] ?? "").trim()}</span>
-        </>
-      ) : (
-        <span style={text}>{headline}</span>
-      )}
+      <div style={{ position: "relative", display: "flex" }}>
+        <span style={{ ...text, textShadow: TEXT_SHADOW }}>{headline}</span>
+        {parts ? (
+          <div style={{ ...overlay, display: "flex" }}>
+            <span style={{ ...text, color: favourite === "HOME" ? card.homeHex : card.awayHex }}>{`${parts[1] ?? ""}${parts[2] ?? ""}`}</span>
+            <div style={{ ...overlay, display: "flex" }}>
+              <span style={text}>{(parts[1] ?? "").trim()}</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -10,10 +10,15 @@ import { PUBLISH_PLATFORM_DEFS, type PublishPlatform } from "@/types/publishing"
  * 1. etkileşim sorusu, 2. açıklama cümleleri (gerekçe, kanca, not — "Tamamı görselde."), 3. uzun liste satırları
  * ayraçtan ("A, B, …" / " · …") eşit sınıra kısalır, 4. sondan satır düşer (altı kalmamış ara başlık da), 5. hashtag
  * 3 → 2, 6. başlık sözcük sınırından.
- * Hashtag: şablonun ilk iki etiketi + #CheckMatch (X önerisi 2–3). Uzunluk `captionLength` (emoji 2 sayılır).
+ * Hedef `X_TARGET` = 270 (platform sınırı 280, pay 10). Hashtag: şablonun ilk iki etiketi + #CheckMatch (X önerisi 2–3). Uzunluk `captionLength` (emoji 2 sayılır).
  */
 
 export const X_LIMIT = PUBLISH_PLATFORM_DEFS.X.captionLimit;
+/**
+ * Türetilen sürümün hedef üst sınırı — platform sınırının (280) 10 karakter altı (canlı test v2 2026-10-31: en
+ * uzun iki metin tam 280'deydi; admin'in tek sözcük eklemesi ya da emoji sayımı farkı yayını engelliyordu).
+ */
+export const X_TARGET = X_LIMIT - 10;
 export const MORE_LINE = "Tamamı görselde.";
 const MIN_CAP = 70;
 const TAG = /#[\p{L}\p{N}_]+/gu;
@@ -88,7 +93,7 @@ export function xHashtags(tags: string[], count: 2 | 3 = 3): string[] {
 
 const compose = (title: string, lines: string[], tags: string[]) => [title, ...lines, tags.join(" ")].filter((line) => line.length > 0).join("\n");
 
-/** Şablon metninden ≤ 280 karakterlik X sürümü. */
+/** Şablon metninden ≤ 270 (`X_TARGET`) karakterlik X sürümü. */
 export function xCaptionFrom(caption: string): string {
   const raw = tidyCaption(caption).split("\n");
   const tags = raw.filter((line) => TAG_LINE.test(line)).flatMap((line) => line.match(TAG) ?? []);
@@ -108,7 +113,7 @@ export function xCaptionFrom(caption: string): string {
   const prose = (line: BodyLine, index: number) => body[index - 1]?.block === line.block && /^\p{L}/u.test(line.text) && line.text.endsWith(".");
   const core = body.filter((line, index) => !prose(line, index));
   const texts = (lines: BodyLine[], cap = Infinity) => lines.map((line) => shortenLine(line.text, cap));
-  const fits = (text: string) => xLength(text) <= X_LIMIT;
+  const fits = (text: string) => xLength(text) <= X_TARGET;
   const full = xHashtags(tags, 3);
   const more = core.length < body.length ? [MORE_LINE] : [];
 
@@ -130,10 +135,10 @@ export function xCaptionFrom(caption: string): string {
       }
     }
   }
-  return compose(shortenLine(title, X_LIMIT - xLength(BRAND_TAG) - 1), [], [BRAND_TAG]);
+  return compose(shortenLine(title, X_TARGET - xLength(BRAND_TAG) - 1), [], [BRAND_TAG]);
 }
 
-/** Yayın Merkezi'nin platform başlangıç metni (AI yok): X → kural tabanlı ≤280 sürüm, diğerleri biçimi düzeltilmiş şablon. */
+/** Yayın Merkezi'nin platform başlangıç metni (AI yok): X → kural tabanlı ≤270 sürüm, diğerleri biçimi düzeltilmiş şablon. */
 export function templateCaption(caption: string, platform: PublishPlatform): string {
   return platform === "X" ? xCaptionFrom(caption) : tidyCaption(caption);
 }
