@@ -65,6 +65,8 @@ function Thumb({ photo, selected, onSelect }: { photo: PickerPhoto; selected: bo
   );
 }
 
+const idList = (joined: string): number[] => (joined ? joined.split(",").map(Number) : []);
+
 export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubject = "player", preferred = null, kitOnly = false, reload, onChange }: ArchivePhotoPickerProps) {
   const [data, setData] = useState<ArchivePickerData | null>(null);
   const [subjectKey, setSubjectKey] = useState("");
@@ -79,6 +81,9 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
   const preferredTeamId = preferred?.teamId ?? null;
   const preferredPlayerId = preferred?.playerId ?? null;
   const preferredFal = preferred?.falAvailable ?? true;
+  // Diziler her çizimde yeni nesne — etkinin bağımlılığı metin anahtarı (aynı sıra → aynı anahtar).
+  const preferredScorers = (preferred?.scorerIds ?? []).join(",");
+  const preferredRanked = (preferred?.rankedPlayerIds ?? []).join(",");
 
   /** Konu seçilince ızgaradaki ilk fotoğraf (sıralamada en uygun olan) seçili gelir; yoksa yükleme açılır. */
   function selectSubject(key: string, source: ArchivePickerData | null) {
@@ -101,7 +106,7 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
         setUpload(false);
         return;
       }
-      const chosen = preferredTeamId === null ? null : preferredPickerDefault(loaded, { teamId: preferredTeamId, playerId: preferredPlayerId, falAvailable: preferredFal });
+      const chosen = preferredTeamId === null ? null : preferredPickerDefault(loaded, { teamId: preferredTeamId, playerId: preferredPlayerId, falAvailable: preferredFal, scorerIds: idList(preferredScorers), rankedPlayerIds: idList(preferredRanked) });
       if (chosen) {
         setSubjectKey(chosen.subjectKey);
         setPhotoId(chosen.photoId);
@@ -112,7 +117,7 @@ export function ArchivePhotoPicker({ name, label, teams, fixtureId, defaultSubje
       const first = defaultSubject === "team" ? subjects.find((subject) => subject.key.startsWith("team:")) : subjects.find((subject) => subject.isPlayer && (loaded.teams.find((team) => team.photos[subject.key]?.length)?.photos[subject.key]?.length ?? 0) > 0) ?? subjects.find((subject) => subject.isPlayer);
       selectSubject(first?.key ?? subjects[0]?.key ?? "", loaded);
     });
-  }, [teamKey, fixtureId, defaultSubject, kitOnly, reloadKey, selectPhotoId, preferredTeamId, preferredPlayerId, preferredFal]);
+  }, [teamKey, fixtureId, defaultSubject, kitOnly, reloadKey, selectPhotoId, preferredTeamId, preferredPlayerId, preferredFal, preferredScorers, preferredRanked]);
 
   const subjects = useMemo(() => data?.teams.flatMap((team) => team.groups.flatMap((group) => group.subjects)) ?? [], [data]);
   // Aramalı kutunun grupları: takım fotoğrafı, teknik direktör, mevkiler (takım adıyla); sağda fotoğraf sayısı.
