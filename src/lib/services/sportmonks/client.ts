@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { fetchJson, type HttpFailure } from "@/lib/services/shared/http";
+import { sanitizeProviderTree } from "@/lib/names/text-encoding";
 import { TtlCache } from "@/lib/services/shared/ttl-cache";
 import type { SportmonksError } from "@/lib/services/sportmonks/types";
 import type { Result } from "@/types/result";
@@ -67,8 +68,10 @@ export async function sportmonksRequest(
     return { ok: false, error: mapHttpFailure(result.error) };
   }
 
+  // Bütün metinler ortak temizleyiciden (bozuk kodlama, görünmez karakter, boşluk — `names/text-encoding.ts`).
+  const data = sanitizeProviderTree(result.data);
   // Hatalar asla önbelleğe alınmaz — yalnızca başarılı yanıtlar.
   const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
-  if (ttlMs > 0) responseCache.set(cacheKey, result.data, ttlMs);
-  return { ok: true, data: result.data };
+  if (ttlMs > 0) responseCache.set(cacheKey, data, ttlMs);
+  return { ok: true, data };
 }

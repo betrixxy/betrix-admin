@@ -105,7 +105,10 @@ function fallbackPanel(panel: FrameBox, safe: FrameBox, team: FallbackTeamSource
   const { width, height } = size(panel);
   const fx = Math.min(0.85, Math.max(0.15, ((safe.left + safe.right) / 2) / width));
   const fy = Math.min(0.6, Math.max(0.2, (safe.top + (safe.bottom - safe.top) * 0.35) / height));
-  return renderTeamFallback(team, { width, height }, { side, focus: { x: fx, y: fy }, typeBounds: fallbackPanelTypeBounds(panel, frameWidth, options?.typeBounds), crest: options?.crest });
+  // Dev ad yazısız bölgenin içinde kalır: üstüne binen liste paneli / yazı sütunu adı kesik gösterirdi ("GÖZTEPE S", "JUA" — canlı test v3).
+  const visible = fallbackPanelTypeBounds(panel, frameWidth, options?.typeBounds);
+  const typeBounds = { left: Math.max(visible.left, safe.left), right: Math.min(visible.right, safe.right) };
+  return renderTeamFallback(team, { width, height }, { side, focus: { x: fx, y: fy }, typeBounds, crest: options?.crest });
 }
 
 /**

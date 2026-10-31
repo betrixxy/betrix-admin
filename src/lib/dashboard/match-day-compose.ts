@@ -3,6 +3,7 @@ import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
 import { EMBLEM_FOCUS_Y, EmblemPlacementError, placeEmblem, type Box, type ObstacleSpan } from "@/lib/dashboard/match-day-emblem";
 import { getMatchDayLayout, type MatchDayLayout, type PlayerSlot } from "@/lib/dashboard/match-day-layouts";
 import { renderTeamFallback, type FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
+import { isHex, luminance } from "@/lib/dashboard/color-math";
 import type { MatchDayTemplateId } from "@/types/match-day";
 
 /**
@@ -118,6 +119,19 @@ function obstacleOf(cutout: PlacedCutout): ObstacleSpan {
  */
 const EMBLEM_BACKLIGHT_SCALE = 0.7;
 
+/**
+ * Takım tonlu arka ışık rengin PARLAKLIĞIYLA da ölçeklenir: aynı opaklıkta sarı (#FFD200, göreli parlaklık ≈ 0,67)
+ * koyu zeminde lacivertten (≈ 0,04) kat kat parlak algılanır — canlı test v3'te Göztepe armasında güçlü sarı hale
+ * kalıyordu. Bu parlaklığın üstündeki renklerde opaklık oranla düşer (koyu/orta tonlar aynen).
+ */
+export const EMBLEM_LIGHT_REFERENCE_LUMINANCE = 0.18;
+
+/** Arma arka ışığının opaklığı (şablon opaklığı × arma oranı × parlaklık dengesi). */
+export function emblemBacklightAlpha(alpha: number, tintHex: string | null): number {
+  const lum = tintHex && isHex(tintHex) ? luminance(tintHex) : 1;
+  return alpha * EMBLEM_BACKLIGHT_SCALE * Math.min(1, EMBLEM_LIGHT_REFERENCE_LUMINANCE / Math.max(lum, 1e-3));
+}
+
 /** Armanın opak kısmı (yarı saydam ışık/filigran hariç) — arka ışık ve temas gölgesi bundan türetilir. */
 async function crestMask(emblem: Buffer, width: number, height: number): Promise<Buffer> {
   const alpha = await sharp(emblem).ensureAlpha().extractChannel(3).threshold(128).raw().toBuffer();
@@ -143,7 +157,7 @@ async function emblemLayers(player: PlayerCutout, slot: PlayerSlot, layout: Matc
     layers.push(await clipToCanvas(shadow, left - LIGHT_PADDING + 14, top - LIGHT_PADDING + 18, frame));
     if (layout.backlight) {
       const rgb = layout.backlight.tint === "team" ? hexToRgb(player.colorHex) : { r: 255, g: 255, b: 255 };
-      const light = await silhouette(crest, width, height, rgb, layout.backlight.alpha * EMBLEM_BACKLIGHT_SCALE);
+      const light = await silhouette(crest, width, height, rgb, emblemBacklightAlpha(layout.backlight.alpha, layout.backlight.tint === "team" ? player.colorHex : null));
       layers.push(await clipToCanvas(light, left - LIGHT_PADDING, top - LIGHT_PADDING, frame));
     }
   }

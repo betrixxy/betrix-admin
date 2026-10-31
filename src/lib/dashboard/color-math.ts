@@ -49,7 +49,8 @@ export function fromHsl(h: number, s: number, l: number): string {
   return toHex(rgb.map((c) => c * 255) as Rgb);
 }
 
-function luminance(hex: string): number {
+/** WCAG göreli parlaklık (0–1). */
+export function luminance(hex: string): number {
   const [r, g, b] = channels(hex).map((c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
