@@ -85,7 +85,7 @@ describe("Fotoğrafsız / tek fotoğraflı yedek tasarım (baseline yok, __outpu
           assert.ok(layout.ok, layout.ok ? "" : layout.error.message);
           const home = { bytes: variant === "tek-fotograf" ? await syntheticCutout(card.homeColorHex) : null, colorHex: card.homeColorHex, team: { name: card.homeTeam, hex: card.homeColorHex, logo: card.homeLogo } };
           const away = { bytes: null, colorHex: card.awayColorHex, team: { name: card.awayTeam, hex: card.awayColorHex, logo: card.awayLogo } };
-          const art = await composeMatchDayArt(await buildProgrammaticBackground(frame, card.homeColorHex), { template, frame }, home, away);
+          const art = await composeMatchDayArt(await buildProgrammaticBackground(frame, card.homeColorHex), { template, frame, textBlocks: layout.ok ? layout.data.boxes : [] }, home, away);
           await save(`mac-gunu_${template}_${format}_${variant}`, await finalizeMatchDayImage(art, await renderMatchDayOverlay(card, template, frame), frame));
         });
       }

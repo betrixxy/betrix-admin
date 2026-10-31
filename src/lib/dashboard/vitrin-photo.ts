@@ -6,6 +6,7 @@ import { detectFaces } from "@/lib/dashboard/match-photo/faces";
 import { cropAndGrade } from "@/lib/dashboard/match-photo/grade";
 import { checkPhotoQuality, type PhotoUpscaler } from "@/lib/dashboard/match-photo/quality";
 import type { UploadedImage } from "@/lib/dashboard/studio-images";
+import { posterTypeBounds, type TypeBounds } from "@/lib/dashboard/fallback-type";
 import { renderTeamFallback, type FallbackTeamSource } from "@/lib/dashboard/team-fallback-art";
 import type { FrameBox } from "@/skills/render-engine/templates/match-result/geometry";
 import type { PosterGeometry } from "@/skills/render-engine/templates/vitrin/geometry";
@@ -44,6 +45,17 @@ export interface PosterArtInput {
   teams?: PosterTeams | undefined;
   /** Elle kırpma ayarı (taraf başına); verilmezse otomatik. */
   adjust?: { home?: CropAdjust | undefined; away?: CropAdjust | undefined } | undefined;
+  /**
+   * Yedek tasarımın ön plan arması (varsayılan açık). Kartın kendi takım logosu panelin hemen altındaysa kapatılır —
+   * arma iki kez görünmesin (Oyuncu Karşılaştırması dikey formatlar, canlı test v2).
+   */
+  fallbackCrest?: boolean | undefined;
+}
+
+/** Yedek tasarım panelinin ek ayarları: dev adın izinli aralığı ve ön plan arması. */
+export interface FallbackPanelOptions {
+  typeBounds?: TypeBounds | undefined;
+  crest?: boolean | undefined;
 }
 
 /** Elle kırpma: kaydırma (−1..1, kadraj boyunun yarısı) ve zoom (1..1,6); alan yoksa otomatik. */
@@ -82,21 +94,27 @@ async function programmaticPanel(width: number, height: number, hex: string, sid
   return sharp(Buffer.from(svg)).png().toBuffer();
 }
 
+/** Yedek tasarımın dev adının izinli aralığı (panel koordinatı): tuvalin görünen kısmı ∩ verilen aralık (çizginin kendi tarafı). */
+export function fallbackPanelTypeBounds(panel: FrameBox, frameWidth: number, bounds: TypeBounds | undefined): TypeBounds {
+  const width = panel.right - panel.left;
+  return { left: Math.max(bounds?.left ?? 0, -panel.left, 0), right: Math.min(bounds?.right ?? width, frameWidth - panel.left, width) };
+}
+
 /** Yedek tasarım paneli: arma, fotoğrafta yüzün düşeceği yere (yazısız bölgenin üst üçte biri) oturur. */
-function fallbackPanel(panel: FrameBox, safe: FrameBox, team: FallbackTeamSource, side: "home" | "away"): Promise<Buffer> {
+function fallbackPanel(panel: FrameBox, safe: FrameBox, team: FallbackTeamSource, side: "home" | "away", frameWidth: number, options?: FallbackPanelOptions): Promise<Buffer> {
   const { width, height } = size(panel);
   const fx = Math.min(0.85, Math.max(0.15, ((safe.left + safe.right) / 2) / width));
   const fy = Math.min(0.6, Math.max(0.2, (safe.top + (safe.bottom - safe.top) * 0.35) / height));
-  return renderTeamFallback(team, { width, height }, { side, focus: { x: fx, y: fy } });
+  return renderTeamFallback(team, { width, height }, { side, focus: { x: fx, y: fy }, typeBounds: fallbackPanelTypeBounds(panel, frameWidth, options?.typeBounds), crest: options?.crest });
 }
 
 /**
  * Tek fotoğraf paneli (kalite kapısı → yüz tespiti → akıllı kırpma / elle ayar → split-tone → takım ışığı);
  * fotoğraf yoksa programatik panel. `safe` panele göre yüzün düşeceği bölge. Muhtemel 11 kapağı da kullanır.
  */
-export async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined, fallback?: FallbackTeamSource): Promise<Result<Buffer>> {
+export async function photoPanel(image: UploadedImage | null, panel: FrameBox, safe: FrameBox, frame: MatchDayFrame, hex: string, side: "home" | "away", upscale: PhotoUpscaler, adjust: CropAdjust | undefined, fallback?: FallbackTeamSource, fallbackOptions?: FallbackPanelOptions): Promise<Result<Buffer>> {
   const { width, height } = size(panel);
-  if (!image) return { ok: true, data: fallback ? await fallbackPanel(panel, safe, fallback, side) : await programmaticPanel(width, height, hex, side) };
+  if (!image) return { ok: true, data: fallback ? await fallbackPanel(panel, safe, fallback, side, frame.width, fallbackOptions) : await programmaticPanel(width, height, hex, side) };
   const quality = await checkPhotoQuality(image, upscale);
   if (!quality.ok) return quality;
   const source = quality.data.image;
@@ -124,8 +142,8 @@ export async function preparePosterArt(input: PosterArtInput): Promise<Result<Bu
   const upscale = input.upscale ?? noUpscale;
   const { home: homePanel, away: awayPanel } = g.photo.panels;
   const [home, away] = await Promise.all([
-    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home, input.teams?.home),
-    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away, input.teams?.away),
+    photoPanel(input.photos.home, homePanel, g.photo.safe.home, g.frame, input.homeHex, "home", upscale, input.adjust?.home, input.teams?.home, { typeBounds: posterTypeBounds(g.photo, "home"), crest: input.fallbackCrest }),
+    photoPanel(input.photos.away, awayPanel, g.photo.safe.away, g.frame, input.awayHex, "away", upscale, input.adjust?.away, input.teams?.away, { typeBounds: posterTypeBounds(g.photo, "away"), crest: input.fallbackCrest }),
   ]);
   if (!home.ok) return { ok: false, error: { ...home.error, message: `Ev sahibi fotoğrafı: ${home.error.message}` } };
   if (!away.ok) return { ok: false, error: { ...away.error, message: `Deplasman fotoğrafı: ${away.error.message}` } };

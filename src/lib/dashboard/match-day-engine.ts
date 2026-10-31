@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import sharp from "sharp";
 import { resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
 import { composeMatchDayArt, finalizeMatchDayImage, restorePlayers } from "@/lib/dashboard/match-day-compose";
+import { EmblemPlacementError } from "@/lib/dashboard/match-day-emblem";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { resolveBackground, resolveSideCutout } from "@/lib/dashboard/match-day-sides";
 import { matchDayLayoutGate, renderMatchDayOverlay } from "@/lib/dashboard/match-day-overlay";
@@ -131,14 +132,17 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
   const home = { bytes: homeCut.bytes, colorHex: input.homeColorHex, team: { name: card.homeTeam, hex: input.homeColorHex, logo: card.homeLogo } };
   const away = { bytes: awayCut.bytes, colorHex: input.awayColorHex, team: { name: card.awayTeam, hex: input.awayColorHex, logo: card.awayLogo } };
   const fallbackSide = home.bytes === null || away.bytes === null;
-  const target = { template: input.template, frame };
+  // Fotoğrafsız tarafın arması yazı bloklarına da değmez (kapının ölçtüğü kutular).
+  const target = { template: input.template, frame, textBlocks: layout.data.boxes };
 
   // 2. Kaba kompozit.
   reportJobStep("Kompozit hazırlanıyor");
   let composite: Buffer;
   try {
     composite = await composeMatchDayArt(background.bytes, target, home, away);
-  } catch {
+  } catch (error: unknown) {
+    // Yerleşim kapısı (fotoğrafsız tarafın arması oyuncuyla çakışıyor): sebep okunur, kart üretilmez.
+    if (error instanceof EmblemPlacementError) return fail("LAYOUT_OVERLAP", `${meta.label} (${frame.ratioLabel}): ${error.message}`);
     return fail("COMPOSE_FAILED", "Oyuncu kesimleri arka planla birleştirilemedi.");
   }
 

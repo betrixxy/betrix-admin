@@ -55,7 +55,10 @@ export async function renderH2HImages(input: H2HImageInput): Promise<Result<[Buf
   if (!compareGate.ok) return compareGate;
   // Fotoğrafsız yarı: ortak yedek tasarım (oyuncunun takım rengi + arması, soluk dev soyadı).
   const teams = { home: { name: input.card.left.name, hex: input.card.left.hex, logo: input.card.left.teamLogo }, away: { name: input.card.right.name, hex: input.card.right.hex, logo: input.card.right.teamLogo } };
-  const art = await preparePosterArt({ photos: input.photos, g: poster, homeHex: input.card.left.hex, awayHex: input.card.right.hex, upscale: input.upscale, adjust: input.adjust, teams });
+  // Dikey/kare formatlarda oyuncu adının üstünde takım logosu zaten var: yedek panelde ikinci arma çizilmez
+  // (canlı test v2, 4:5'te arma iki kez); 16:9'da logo ayrı sütunda, panel armasız boş kalırdı.
+  const fallbackCrest = input.frame.orientation === "landscape";
+  const art = await preparePosterArt({ photos: input.photos, g: poster, homeHex: input.card.left.hex, awayHex: input.card.right.hex, upscale: input.upscale, adjust: input.adjust, teams, fallbackCrest });
   if (!art.ok) return art;
   const [posterOverlay, compareOverlay, compareBase] = await Promise.all([renderH2HLayer(input.card, poster), renderH2HLayer(input.card, compare), analysisArt(art.data, compare.k)]);
   const pages = await Promise.all([finalizeSetImage(art.data, posterOverlay, input.frame, input.seedKey), finalizeSetImage(compareBase, compareOverlay, input.frame, input.seedKey)]);

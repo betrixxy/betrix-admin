@@ -1,4 +1,5 @@
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
+import { bandSafeArea } from "@/lib/dashboard/layout-check";
 import { matchDayGeometry, type PlayerSlot, type TemplateGeometry } from "@/skills/render-engine/templates/match-day/geometry";
 import type { MatchDayTemplateId } from "@/types/match-day";
 
@@ -17,6 +18,8 @@ export interface MatchDayLayout {
   shadeSvg: string;
   /** `team`: takım rengi, `white`: stüdyo arka ışığı, `null`: ışık yok. */
   backlight: { tint: "team" | "white"; alpha: number } | null;
+  /** Sanat katmanının yatay sınırları (yerleşim kapısının güvenli kenarı, `bandSafeArea`) — fotoğrafsız tarafın arması bunun içinde kalır. */
+  bounds: { left: number; right: number };
 }
 
 const NAVY = "#020617";
@@ -74,5 +77,5 @@ const BACKLIGHT: Record<MatchDayTemplateId, MatchDayLayout["backlight"]> = {
 
 export function getMatchDayLayout(template: MatchDayTemplateId, frame: MatchDayFrame): MatchDayLayout {
   const g = matchDayGeometry(template, frame);
-  return { home: g.home, away: g.away, shadeSvg: shade(template, g), backlight: BACKLIGHT[template] };
+  return { home: g.home, away: g.away, shadeSvg: shade(template, g), backlight: BACKLIGHT[template], bounds: { left: bandSafeArea(frame).left, right: bandSafeArea(frame).right } };
 }
