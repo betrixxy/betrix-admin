@@ -128,6 +128,19 @@ describe("künye ve uyarılar: güncellik", () => {
     assert.deepEqual(missingWarning(comparisonWarnings(konya, galatasaray)), []);
   });
 
+  it("canlı test v2 (31.10): FB–Göztepe künyesi 26.10 DOĞRU (FB son lig maçı 26.10, Göztepe 25.10); Galatasaray oyuncusunda 30.10 (Konya–GS dahil)", () => {
+    // API-Football salt okuma 2026-10-31: FB 26.10 18:30 FT, Göztepe 25.10 16:00 FT, GS 30.10 17:00 FT — üçünde de eksik maç 0.
+    const muriqi = withAsOf("2026-10-26T18:30:00Z");
+    const juan = withAsOf("2026-10-25T16:00:00Z");
+    const gs = withAsOf("2026-10-30T17:00:00Z");
+    assert.equal(freshnessLabel(muriqi, juan), "26.10 İTİBARIYLA");
+    assert.equal(freshnessLabel(muriqi, gs), "30.10 İTİBARIYLA", "en son oynayan takımın tarihi");
+  });
+
+  it("gece maçı İstanbul gününe yazılır (UTC 21:00 → ertesi gün)", () => {
+    assert.equal(freshnessLabel(withAsOf("2026-10-30T21:30:00Z"), withAsOf("2026-10-30T17:00:00Z")), "31.10 İTİBARIYLA");
+  });
+
   it("gerçekten eksik maç: iki tarih + oyuncu başına uyarı", () => {
     const a = withAsOf("2026-10-26T16:00:00Z");
     const stale = withAsOf("2026-10-19T16:00:00Z", 1);
