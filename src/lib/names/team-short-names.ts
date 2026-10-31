@@ -34,7 +34,7 @@ export const TEAM_SHORT_NAMES: Readonly<Record<string, string>> = {
   "FC St. Pauli": "St. Pauli",
   // Premier Lig
   "Wolverhampton Wanderers": "Wolves",
-  "Nottingham Forest": "N. Forest",
+  "Nottingham Forest": "Nottingham",
   "Brighton & Hove Albion": "Brighton",
   "Brighton and Hove Albion": "Brighton",
   "Manchester United": "Man. United",

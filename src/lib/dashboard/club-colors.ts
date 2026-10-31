@@ -65,6 +65,8 @@ export const CLUB_COLORS: Readonly<Record<number, ClubColors>> = {
   172: club("VfB Stuttgart", "#E32219", "#FFFFFF"),
   173: club("RB Leipzig", "#DD0741", "#001F47"),
   160: club("SC Freiburg", "#E2001A", "#000000"),
+  // Heidenheim kırmızı — kullanıcı onayı 2026-10-31 (logo seçici soluk maviyi seçiyordu).
+  180: club("1. FC Heidenheim", "#E2001A", "#003A79"),
   // İtalya
   489: club("AC Milan", "#FB090B", "#000000"),
   500: club("Bologna", "#A6192E", "#1B2A4A"),
@@ -73,8 +75,9 @@ export const CLUB_COLORS: Readonly<Record<number, ClubColors>> = {
   497: club("AS Roma", "#8E1F2F", "#F0BC42"),
   499: club("Atalanta", "#1E71B8", "#000000"),
   505: club("Inter", "#0068A8", "#000000"),
-  // Fiorentina "viola": kulübün resmi Pantone kodu doğrulanamadı — yaygın kullanılan mor (#4B2A84 civarı), ikincil beyaz.
-  // Logodan otomatik renk kırmızı zambağı seçiyordu (canlı test 2026-10-31).
+  // Lecce sarı — kullanıcı onayı 2026-10-31 (logo seçici laciverti seçiyordu).
+  867: club("Lecce", "#FFD200", "#C8102E"),
+  // Fiorentina "viola" #4B2A84 — kullanıcı onayı 2026-10-31. Logodan otomatik renk kırmızı zambağı seçiyordu.
   502: club("Fiorentina", "#4B2A84", "#FFFFFF"),
   // Fransa
   79: club("Lille", "#E01E13", "#24215B"),
