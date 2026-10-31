@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { fetchJson, type HttpFailure } from "@/lib/services/shared/http";
+import { repairMojibakeDeep } from "@/lib/names/text-encoding";
 import { TtlCache } from "@/lib/services/shared/ttl-cache";
 import { apiFootballErrorsEnvelopeSchema, type ApiFootballError } from "@/lib/services/api-football/types";
 import type { Result } from "@/types/result";
@@ -143,9 +144,11 @@ export async function apiFootballRequest(
       return { ok: false, error };
     }
 
+    // Bozuk kodlanmış adlar ("ObriÄ" → "Obrić") API sınırında onarılır — senkron, kartlar, eşleşme aynı veriyi görür.
+    const data = repairMojibakeDeep(result.data);
     // Hatalar asla önbelleğe alınmaz — yalnızca başarılı yanıtlar.
     const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
-    if (ttlMs > 0) responseCache.set(url, result.data, ttlMs);
-    return { ok: true, data: result.data };
+    if (ttlMs > 0) responseCache.set(url, data, ttlMs);
+    return { ok: true, data };
   }
 }

@@ -1,6 +1,7 @@
 import { Children, cloneElement, Fragment, isValidElement, type ReactElement, type ReactNode } from "react";
 import { ImageResponse } from "next/og";
 import { legibleMonoTree } from "./satori-mono";
+import { repairMojibake } from "@/lib/names/text-encoding";
 
 /**
  * Satori metin katmanı — bütün kartların ORTAK giriş noktası (`renderSatori`).
@@ -22,7 +23,7 @@ const NBSP = String.fromCharCode(0xa0);
  * iner. Tek istisna künye ayıracı "  ·  " (ayıraca bitişik boşluk dizisi bilerek geniş). Bölünmez boşluk
  * (U+00A0) dokunulmaz — şablonun elle koyduğu aralık. Bekçi test `tests/unit/text-spacing.test.ts`.
  */
-export const tidyText = (text: string): string => text.replace(/(?<![·\s]) {2,}(?![·\s])/gu, " ");
+export const tidyText = (text: string): string => repairMojibake(text).replace(/(?<![·\s]) {2,}(?![·\s])/gu, " ");
 
 /** Tek satırlık metin: boşluklar bölünmez. */
 export const tight = (text: string): string => text.replace(/ /g, NBSP);

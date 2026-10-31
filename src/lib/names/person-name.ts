@@ -1,5 +1,6 @@
 import { nameOrigin, originFromCountry, type NameOrigin } from "@/lib/dashboard/name-case";
 import type { CardPersonName, SportmonksPerson } from "@/types/person-name";
+import { repairMojibake } from "./text-encoding";
 
 /**
  * Kişi kart adı — TEK KAYNAK (saf), BÜTÜN kartlar (2026-10-30). Resmi tam ad (API ya da Sportmonks
@@ -178,7 +179,9 @@ export interface CardPersonNameInput {
   teamHint?: NameOrigin | null | undefined;
 }
 
-export function cardPersonName(input: CardPersonNameInput): CardPersonName {
+export function cardPersonName(raw: CardPersonNameInput): CardPersonName {
+  // Arşivde bozuk kodlamayla kayıtlı adlar (senkron, 2026-10-31 öncesi) kartta onarılır.
+  const input = { ...raw, apiName: repairMojibake(raw.apiName), override: raw.override == null ? raw.override : repairMojibake(raw.override) };
   const hint = input.teamHint ?? null;
   const person = matchPerson(input.apiName, input.people ?? [], input.jersey ?? null);
   const override = input.override?.trim();
