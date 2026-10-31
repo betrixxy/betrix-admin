@@ -11,7 +11,11 @@ import type { AnalysisGeometry, Band } from "./geometry";
  * Sığmazsa `planTimeline` yoğunluk kuralı devreye girer (bkz. `lib/match-analysis/timeline.ts`).
  */
 
-export const VERTICAL_TIMELINE = { row: 60, rowMin: 36, divider: 0.7, pill: 100, gap: 14, text: 24 } as const;
+/**
+ * `row`: satır yüksekliğinin üst sınırı. 60 → 80 (2026-10-31, dikey denge): az olaylı maçta satırlar gövdeyi doldurur,
+ * künyenin üstünde boş bant kalmaz (`shared/vertical-balance.ts`); yazı boyu satırla değil kendi sınırıyla büyür.
+ */
+export const VERTICAL_TIMELINE = { row: 80, rowMin: 36, divider: 0.7, pill: 100, gap: 14, text: 24 } as const;
 
 export type TimelineSlotKind = "row" | "divider";
 

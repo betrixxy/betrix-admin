@@ -7,6 +7,7 @@ import { checkLayout, describeLayoutIssues } from "@/lib/dashboard/layout-check"
 import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { MATCH_DAY_FRAMES } from "@/lib/dashboard/match-day-formats";
 import { inspectImageBytes } from "@/lib/dashboard/studio-images";
+import { textSpacingProblems } from "@/lib/dashboard/text-spacing";
 import { buildVitrinCaption } from "@/lib/dashboard/vitrin-caption";
 import { buildVitrinCard, type VitrinMeta } from "@/lib/dashboard/vitrin-card";
 import { ANALYSIS_BLOCKS, POSTER_BLOCKS, renderVitrinImages, renderVitrinLayer, vitrinGeometries } from "@/lib/dashboard/vitrin-render";
@@ -16,6 +17,7 @@ import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import type { PredictionSet } from "@/types/prediction";
 import type { VitrinCard } from "@/types/vitrin";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 import { syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -101,9 +103,11 @@ async function render(id: MatchDayFormatId, name: CaseName = "gs-kas", given?: V
   const frame = MATCH_DAY_FRAMES[id];
   const vitrin = given ?? (await card(name));
   const { poster, analysis } = vitrinGeometries(frame);
+  assert.deepEqual(textSpacingProblems(vitrin), [], "kart metninde çift/baş/son boşluk");
   for (const [g, blocks] of [[poster, POSTER_BLOCKS], [analysis, ANALYSIS_BLOCKS]] as const) {
-    const { issues } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, g, only), blocks);
+    const { issues, boxes } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, g, only), blocks);
     assert.equal(issues.length, 0, `${id} ${g.page}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+    assertVerticalBalance(`${id} ${g.page}`, frame, boxes);
   }
   const image = await inspectImageBytes(await syntheticPhoto(), "sentetik");
   assert.ok(image.ok);
@@ -164,6 +168,21 @@ describe("Maç önü vitrin carousel'i — görsel regresyon + yerleşim", async
     assert.equal(vitrin.homeTeam, "BORUSSIA MÖNCHENGLADBACH");
     assert.deepEqual(vitrin.shortTeams, { home: "M'GLADBACH", away: "PADERBORN", plain: { home: "M'gladbach", away: "Paderborn" } });
     assert.equal(vitrin.open[1].lines.find((line) => line.picked)?.upperLabel, "M'GLADBACH");
+  });
+
+  // Canlı test v2 (2026-10-31): 2. açık kutu BTTS, kural tabanlı gerekçe uzun adla ("Borussia Mönchengladbach son 5
+  // maçta maç başı 1,4 gol yedi.") 4:5 ve 9:16'da göstergenin yanındaki kutuyu 15px taşırıyordu — gerekçe dar
+  // kutuda kısa adla ("M'gladbach …"; `team-name-forms.ts::VITRIN_GAUGE_REASON`), gönderi metni uzun adla.
+  test("Gladbach–Paderborn canlı gerekçeleri: 02 bütün formatlarda kapıdan geçer, gerekçe kısa adla", async () => {
+    const reasons = { RESULT_1X2: "Borussia Mönchengladbach son 5 maçta maç başı 1,6 gol attı.", BTTS: "Borussia Mönchengladbach son 5 maçta maç başı 1,4 gol yedi." };
+    const vitrin = buildVitrinCard(syntheticPrediction({ home: 1.6, away: 1.2 }, reasons), { open: ["RESULT_1X2", "BTTS"], locked: ["HT_RESULT", "GOALS_4PLUS", "COMBO"] } as never, NEW_CASES["bmg-scp"].meta, { homeLogo: null, awayLogo: null, brandLogo: await loadBrandLogo() });
+    for (const id of MATCH_DAY_FORMAT_IDS) {
+      const frame = MATCH_DAY_FRAMES[id];
+      const { analysis } = vitrinGeometries(frame);
+      const { issues } = await checkLayout(frame, (only) => renderVitrinLayer(vitrin, analysis, only), ANALYSIS_BLOCKS);
+      assert.equal(issues.length, 0, `${id} 02: ${describeLayoutIssues(issues)}`);
+    }
+    assert.ok(buildVitrinCaption(vitrin).includes("Borussia Mönchengladbach son 5 maçta maç başı 1,4 gol yedi."));
   });
 
   test("yabancı ad: kart köken kuralıyla, gönderi metni büyütülmemiş kart adıyla", async () => {

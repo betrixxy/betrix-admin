@@ -38,7 +38,7 @@ describe("gönderi metni — yalnızca olgu", () => {
   it("A lig aşaması: iç saha / deplasman listesi, yorum ve bahis dili yok, link yok, ≤5 hashtag", () => {
     const caption = buildDrawCaption("TEAM", [DRAW_LEAGUE], 611);
     assert.match(caption, /^Fenerbahçe \| Şampiyonlar Ligi Lig Aşaması rakipleri belli oldu/);
-    assert.match(caption, /🏠 İç saha: Borussia Mönchengladbach, Atletico Madrid, Roma, Slavia Prag/);
+    assert.match(caption, /🏠 İç saha: Borussia Mönchengladbach, Atlético Madrid, Roma, Slavia Prag/);
     assert.match(caption, /✈️ Deplasman: Benfica, Liverpool, Aston Villa, Şahtar Donetsk/);
     assert.equal(bannedWordsGate({ metin: caption }), null);
     assert.doesNotMatch(caption, /zorlu|kolay|şanslı|şanssız/i);

@@ -3,11 +3,13 @@ import type { ScorecardCard, ScorecardHero } from "@/types/prediction-scorecard-
 import { DISPLAY_DESCENT_EM, px } from "../match-day/shared";
 import { SAFE_MARGIN, type FrameBox } from "../match-result/geometry";
 import type { Band } from "../player-stats/geometry";
+import { balanceVertical } from "../shared/vertical-balance";
 
 /**
  * Tahmin Karnesi geometrisi — TEK KAYNAK (Satori blokları + yerleşim kapısı aynı sayıları okur). Dikeyde
  * (4:5, 1:1, 9:16 güvenli bantlı) yukarıdan aşağı: üst satır → başlık → alt başlık → isabet özeti → ✅/❌
- * şeridi → satırlar (kalan alan; A'da ortalı) → dipnot → künye + logo (alttan sabit). 16:9'da sol sütun başlık + özet +
+ * şeridi → satırlar (kalan alan; A'da ortalı) → dipnot → künye + logo (alttan sabit). Dikeyde yığın alanı
+ * doldurmuyorsa ölçek büyür (≤ 1,3) ve kalan boşluk yığının üstü/altı arasında eşit (`shared/vertical-balance.ts`). 16:9'da sol sütun başlık + özet +
  * şerit, sağ sütun satırlar; künye ve logo altta tam genişlik. Satırlar sabit yükseklikte (`rowHeight`).
  */
 
@@ -71,15 +73,37 @@ export function heroHeight(hero: ScorecardHero, k: number): number {
 
 const rowCount = (card: ScorecardCard) => (card.kind === "MATCH" ? card.rows.length : card.breakdown.length);
 
+/** Dikey formatlarda yığın en çok bu kadar büyür (başlık "TAHMİN KARNESİ" 1,3× hâlâ tek satır). */
+const MAX_FILL_SCALE = 1.3;
+
 export function scorecardGeometry(frame: MatchDayFrame, card: ScorecardCard): ScorecardGeometry {
+  const landscape = frame.orientation === "landscape";
+  const base = landscape ? LANDSCAPE_K : Math.min(1, frame.height / 1350, (frame.height - frame.safeTop - frame.safeBottom) / 1350);
+  if (landscape) return layout(frame, card, base, 0);
+  // Dikey denge (`shared/vertical-balance.ts`): satırlar doğal yükseklikte alanı doldurmuyorsa önce ölçek, sonra
+  // kalan boşluk yığının üstü ve altı arasında eşit (künye ve dipnot alttan sabit kalır).
+  const natural = (k: number) => {
+    const g = layout(frame, card, k, 0);
+    const rows = rowCount(card) * px(card.kind === "MATCH" ? SCORECARD_SIZES.rowMax : SCORECARD_SIZES.periodRowMax, k);
+    return { stack: g.body.top - g.box.top + rows, room: g.body.bottom - g.box.top };
+  };
+  const first = natural(base);
+  const { scale } = balanceVertical(first.stack, first.room, MAX_FILL_SCALE);
+  // Ölçek künye/dipnotu da büyütür; sığana kadar küçült.
+  let k = base * scale;
+  while (k > base && natural(k).stack > natural(k).room) k = Math.max(base, k - 0.02);
+  const fit = natural(k);
+  return layout(frame, card, k, Math.max(0, Math.floor((fit.room - fit.stack) / 2)));
+}
+
+function layout(frame: MatchDayFrame, card: ScorecardCard, k: number, offset: number): ScorecardGeometry {
   const s = SCORECARD_SIZES;
   const landscape = frame.orientation === "landscape";
-  const k = landscape ? LANDSCAPE_K : Math.min(1, frame.height / 1350, (frame.height - frame.safeTop - frame.safeBottom) / 1350);
   const box = { left: SAFE_MARGIN, right: frame.width - SAFE_MARGIN, top: frame.safeTop + SAFE_MARGIN, bottom: frame.height - frame.safeBottom - SAFE_MARGIN };
   const head = landscape ? { left: box.left, right: box.left + LANDSCAPE_LEFT } : { left: box.left, right: box.right };
 
-  // Üstten: üst satır → başlık → alt başlık → özet → şerit.
-  const kicker = { top: box.top, height: px(s.kicker, k) };
+  // Üstten: üst satır → başlık → alt başlık → özet → şerit (dikey dengede `offset` kadar aşağıda).
+  const kicker = { top: box.top + offset, height: px(s.kicker, k) };
   const title = { top: kicker.top + kicker.height + px(s.kickerGap, k), height: px(s.title, k) };
   const subtitle = { top: title.top + title.height + px(s.title * DISPLAY_DESCENT_EM + s.titleGap, k), height: px(s.subtitle, k) };
   const hero = { top: subtitle.top + subtitle.height + px(s.heroGap, k), height: heroHeight(card.hero, k) };
@@ -91,7 +115,8 @@ export function scorecardGeometry(frame: MatchDayFrame, card: ScorecardCard): Sc
 
   const versionsHeight = card.kind === "PERIOD" && card.versions ? card.versions.length * px(s.versionRow, k) : 0;
   const bodyTop = landscape ? box.top : strip.top + strip.height + px(s.bodyGap, k);
-  const bodyBottom = (landscape ? footer.top : footnote.top) - px(s.footnoteGap, k) - (versionsHeight ? versionsHeight + px(s.versionsGap, k) : 0);
+  // Dikey dengede satırların altındaki boşluk da `offset` kadar (yığın ortada).
+  const bodyBottom = (landscape ? footer.top : footnote.top) - px(s.footnoteGap, k) - (versionsHeight ? versionsHeight + px(s.versionsGap, k) : 0) - offset;
   const body = landscape ? { left: head.right + LANDSCAPE_COLUMN_GAP, right: box.right, top: bodyTop, bottom: bodyBottom } : { left: box.left, right: box.right, top: bodyTop, bottom: bodyBottom };
   const rowHeight = Math.min(px(card.kind === "MATCH" ? s.rowMax : s.periodRowMax, k * (landscape ? 1.25 : 1)), Math.floor((body.bottom - body.top) / Math.max(1, rowCount(card))));
   const rowsTop = card.kind === "MATCH" ? body.top + Math.floor((body.bottom - body.top - rowHeight * rowCount(card)) / 2) : body.top;

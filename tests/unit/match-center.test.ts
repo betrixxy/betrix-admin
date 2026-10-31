@@ -130,3 +130,15 @@ describe("dünün fikstürü önbelleği", () => {
     assert.equal(isSettledPastDay("2026-10-17", [fixture("FT")], AFTER_MIDNIGHT), false);
   });
 });
+
+describe("maç satırı takım adı = kart adı (canlı test 2026-10-31: kart \"GÖZTEPE SK\", Maç Merkezi \"Göztepe\")", () => {
+  it("Maç Merkezi ve İçerik Planı satırı names.ts kart adını yazar", async () => {
+    const { fixtureToRow, watchedToRow } = await import("@/lib/dashboard/fixture-row");
+    const fixture = mapApiFootballFixtureToFixture(RAW_HOFFENHEIM_BESIKTAS);
+    const raw = { ...fixture, homeTeam: { ...fixture.homeTeam, name: "Fenerbahce" }, awayTeam: { ...fixture.awayTeam, name: "Goztepe" } } as Fixture;
+    const row = fixtureToRow(raw);
+    assert.deepEqual([row.homeName, row.awayName], ["Fenerbahçe", "Göztepe SK"]);
+    const watched = watchedToRow({ fixtureId: "1", kickoffUtc: new Date("2030-01-01T00:00:00Z"), homeName: "Göztepe", homeLogo: "", awayName: "Atletico Madrid", awayLogo: "", leagueName: "" }, undefined, new Date("2026-10-31T00:00:00Z"));
+    assert.deepEqual([watched.homeName, watched.awayName], ["Göztepe SK", "Atlético Madrid"]);
+  });
+});

@@ -100,7 +100,12 @@ export interface HalvesGeometry extends AnalysisGeometry {
   /** Çizilecek olgular, satırlarına bölünmüş (sığmayan düşmüş). */
   factTexts: string[][];
   factSize: number;
+  /** Dikey dengede gövdenin ek ölçeği (`shared/vertical-balance.ts`; 16:9'da 1). Şablon `g.k × fill` ile çizer. */
+  fill: number;
 }
+
+/** Devre panelleri dikeyde en çok bu kadar büyür (alan boş kalmasın; olgu düşürülerek büyütülmez). */
+const MAX_HALVES_FILL = 1.3;
 
 /**
  * Olgu satırları ELLE bölünür: `renderSatori` tek satırlık metnin boşluklarını bölünmez yapar, bölünmemiş olgu satırı
@@ -140,9 +145,21 @@ export function factLineCount(text: string, width: number, size: number): number
 }
 
 export function halvesGeometry(frame: MatchDayFrame, rows: number, facts: readonly string[]): HalvesGeometry {
+  const natural = halvesAt(frame, rows, facts, 1);
+  if (natural.landscape) return natural;
+  // Dikey denge: satırlar üst sınırında ve gövde hâlâ boşsa panel + olgular büyür (aynı olgu sayısıyla sığdığı sürece),
+  // kalan boşluk grubun üstü/altına eşit (grup gövdenin ortasında).
+  for (let fill = MAX_HALVES_FILL; fill > 1; fill = Math.round((fill - 0.05) * 100) / 100) {
+    const grown = halvesAt(frame, rows, facts, fill);
+    if (grown.factTexts.length === natural.factTexts.length && grown.rowHeight >= px(grown.sizes.row, grown.k * fill) && grown.panel.top + grown.panel.height + (grown.factTexts.length ? grown.facts.height + px(grown.sizes.factsGap, grown.k * fill) : 0) <= grown.body.top + grown.body.height) return grown;
+  }
+  return natural;
+}
+
+function halvesAt(frame: MatchDayFrame, rows: number, facts: readonly string[], fill: number): HalvesGeometry {
   const g = analysisGeometry(frame);
   const sizes = g.landscape ? HALVES_SIZES.landscape : HALVES_SIZES.vertical;
-  const scale = (value: number) => (g.landscape ? value : px(value, g.k));
+  const scale = (value: number) => (g.landscape ? value : px(value, g.k * fill));
   const width = g.box.right - g.box.left;
   const factSize = scale(sizes.fact);
   const bulletSpace = Math.round(factSize * 0.42) + Math.round(factSize * 0.68);
@@ -163,5 +180,5 @@ export function halvesGeometry(frame: MatchDayFrame, rows: number, facts: readon
     { left: g.box.right - columnWidth, width: columnWidth },
   ];
   const panel = { top, height: panelHeight };
-  return { ...g, sizes, panel, columns, rowHeight, facts: { top: top + panelHeight + scale(sizes.factsGap), height: factsHeight }, factTexts, factSize };
+  return { ...g, sizes, panel, columns, rowHeight, facts: { top: top + panelHeight + scale(sizes.factsGap), height: factsHeight }, factTexts, factSize, fill: g.landscape ? 1 : fill };
 }

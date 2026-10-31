@@ -16,6 +16,9 @@ export const TEAM_NAME_FORMS = {
   VITRIN_FORM_ROWS: "long",
   /** Vitrin 02 göstergesinin altındaki seçenek adı (360 px yay). */
   VITRIN_GAUGE_LABEL: "short",
+  /** Vitrin 02 göstergenin yanındaki gerekçe cümlesi (sabit genişlikli dar kutu; canlı test 2026-10-31: "Borussia
+   *  Mönchengladbach son 5 maçta…" 4:5/9:16'da kutuyu 15px taşırıyordu). Gönderi metni aynı gerekçeyi uzun adla yazar. */
+  VITRIN_GAUGE_REASON: "short",
   /** Vitrin gönderi metni. */
   VITRIN_CAPTION: "long",
   /** Maç Analizi 01/02 "logo · AD · skor · AD · logo" satırı. */
@@ -29,4 +32,21 @@ export type TeamNameSlot = keyof typeof TEAM_NAME_FORMS;
 /** Alanın biçimindeki takım adı (büyütülmemiş kart adından). */
 export function teamNameFor(slot: TeamNameSlot, cardName: string): string {
   return TEAM_NAME_FORMS[slot] === "long" ? cardName : shortTeamName(cardName);
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+/**
+ * Serbest metindeki (ör. kural tabanlı gerekçe) uzun kart adlarını alanın biçimine çevirir. Yalnız tam ad
+ * eşleşir (sözcük sınırı); en uzun ad önce denenir ("SC Paderborn 07" ≠ "Paderborn").
+ */
+export function teamNamesIn(slot: TeamNameSlot, text: string, cardNames: readonly string[]): string {
+  if (TEAM_NAME_FORMS[slot] === "long") return text;
+  return [...cardNames]
+    .filter((name) => name.trim() !== "")
+    .sort((a, b) => b.length - a.length)
+    .reduce((out, name) => {
+      const short = teamNameFor(slot, name);
+      return short === name ? out : out.replace(new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(name)}(?![\\p{L}\\p{N}])`, "gu"), short);
+    }, text);
 }

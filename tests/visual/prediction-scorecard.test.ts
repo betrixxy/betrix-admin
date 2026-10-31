@@ -15,6 +15,7 @@ import type { ScorecardRecord } from "@/types/prediction-scorecard";
 import type { ScorecardCard } from "@/types/prediction-scorecard-card";
 import { KONYA_GS, KONYA_GS_ALL_SIX, KONYA_GS_RECORDS, octoberEntries } from "../fixtures/prediction-scorecard";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 
 /**
  * Tahmin Karnesi görsel testi (bkz. CLAUDE.md 5.3) — A · maç karnesi (2 kayıt: Vitrin onayının yazdığı gibi;
@@ -49,8 +50,9 @@ async function periodCard(count: number): Promise<ScorecardCard> {
 
 async function render(label: string, card: ScorecardCard, id: MatchDayFormatId): Promise<Buffer> {
   const frame = MATCH_DAY_FRAMES[id];
-  const { issues } = await checkLayout(frame, (only) => renderScorecardOverlay(card, frame, { only }));
+  const { issues, boxes } = await checkLayout(frame, (only) => renderScorecardOverlay(card, frame, { only }));
   assert.equal(issues.length, 0, `${label} ${id}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  assertVerticalBalance(`${label} ${id}`, frame, boxes);
   const rendered = await renderScorecardImage({ card, frame, resultImage: null, seedKey: `karne-${label}` });
   assert.ok(rendered.ok, rendered.ok ? "" : rendered.error.message);
   return rendered.data;

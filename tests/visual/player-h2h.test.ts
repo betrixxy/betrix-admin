@@ -12,6 +12,7 @@ import { inspectImageBytes } from "@/lib/dashboard/studio-images";
 import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
 import { H2H_LEFT, H2H_RIGHT } from "../fixtures/player-h2h";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 import { syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -41,8 +42,9 @@ async function render(id: MatchDayFormatId) {
   const { card } = built.data;
   const { poster, compare } = h2hGeometries(frame);
   for (const [g, blocks] of [[poster, H2H_POSTER_BLOCKS], [compare, H2H_COMPARE_BLOCKS]] as const) {
-    const { issues } = await checkLayout(frame, (only) => renderH2HLayer(card, g, only), blocks);
+    const { issues, boxes } = await checkLayout(frame, (only) => renderH2HLayer(card, g, only), blocks);
     assert.equal(issues.length, 0, `${id} ${g.page}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+    assertVerticalBalance(`${id} ${g.page}`, frame, boxes);
   }
   const image = await inspectImageBytes(await syntheticPhoto(), "sentetik");
   assert.ok(image.ok);

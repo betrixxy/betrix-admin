@@ -33,6 +33,7 @@ import { fixtureTeamPeople, type FixtureTeam } from "../fixtures/card-names";
 import { SM_BESIKTAS_MIDTJYLLAND, SM_BESIKTAS_MIDTJYLLAND_IDS, SM_HOFFENHEIM_BESIKTAS, SM_HOFFENHEIM_BESIKTAS_IDS } from "../fixtures/sportmonks/match-stats";
 import { SM_SQUAD_BESIKTAS, SM_SQUAD_GALATASARAY, SM_SQUAD_GENCLERBIRLIGI, SM_SQUAD_HOFFENHEIM } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 import { SYNTHETIC_PHOTO_SIZE, syntheticPhoto } from "./synthetic-photo";
 
 /**
@@ -90,8 +91,9 @@ async function art(frame: MatchDayFrame, accentHex: string, deepHex: string | un
 }
 
 async function assertLayout(label: string, frame: MatchDayFrame, render: Parameters<typeof checkLayout>[1]) {
-  const { issues } = await checkLayout(frame, render);
+  const { issues, boxes } = await checkLayout(frame, render);
   assert.equal(issues.length, 0, `${label}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  assertVerticalBalance(label, frame, boxes);
 }
 
 async function renderSet(match: Match, id: MatchDayFormatId, templates: readonly MatchResultTemplateId[], side: ColumnSide) {

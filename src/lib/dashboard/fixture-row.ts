@@ -1,3 +1,4 @@
+import { cardTeamName } from "@/lib/archive/names";
 import { isPastDay } from "@/lib/dashboard/match-center-window";
 import { matchRowState, type MatchRowState } from "@/lib/dashboard/match-row-state";
 import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
@@ -6,7 +7,8 @@ import type { Fixture } from "@/types/sports";
 /**
  * Maç satırı — Maç Merkezi ve İçerik Planı aynı satırı çizer (`components/features/dashboard/
  * fixture-row.tsx`). Saf; istemci bileşenleri de içe aktarır. Satır sağlayıcıdan (Maç Merkezi)
- * ya da yıldızlama anındaki anlık görüntüden (İçerik Planı) beslenir — ikisi de bu şekle çevrilir.
+ * ya da yıldızlama anındaki anlık görüntüden (İçerik Planı) beslenir — ikisi de bu şekle çevrilir. Takım adı
+ * kartlarla aynı kaynaktan (`cardTeamName`: "Göztepe" → "Göztepe SK"; canlı test 2026-10-31).
  */
 export interface FixtureRowData {
   id: string;
@@ -27,9 +29,9 @@ export function fixtureToRow(fixture: Fixture): FixtureRowData {
   return {
     id: fixture.id,
     kickoffUtc: fixture.kickoffUtc,
-    homeName: fixture.homeTeam.name,
+    homeName: cardTeamName(fixture.homeTeam.name),
     homeLogo: fixture.homeTeam.logoUrl,
-    awayName: fixture.awayTeam.name,
+    awayName: cardTeamName(fixture.awayTeam.name),
     awayLogo: fixture.awayTeam.logoUrl,
     leagueName: fixture.competition.shortName,
     state: matchRowState(fixture),
@@ -55,9 +57,9 @@ export function watchedToRow(watched: WatchedSnapshot, fresh: Fixture | undefine
   return {
     id: watched.fixtureId,
     kickoffUtc: watched.kickoffUtc.toISOString(),
-    homeName: watched.homeName,
+    homeName: cardTeamName(watched.homeName),
     homeLogo: watched.homeLogo,
-    awayName: watched.awayName,
+    awayName: cardTeamName(watched.awayName),
     awayLogo: watched.awayLogo,
     leagueName: watched.leagueName,
     state: upcoming ? { kind: "upcoming", phase: "pre_match" } : { kind: "inactive", phase: null, label: "Durum alınamadı" },

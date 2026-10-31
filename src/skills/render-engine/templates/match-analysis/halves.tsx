@@ -15,7 +15,7 @@ const TRACK = "rgba(255,255,255,0.1)";
 
 function HalfColumn({ card, g, column, which, only }: { card: HalvesCard; g: HalvesGeometry; column: { left: number; width: number }; which: "first" | "second"; only: BlockFilter }) {
   const s = g.sizes;
-  const scale = (value: number) => (g.landscape ? value : Math.round(value * g.k));
+  const scale = (value: number) => (g.landscape ? value : Math.round(value * g.k * g.fill));
   const header = scale(s.header);
   return (
     <div tw="absolute flex flex-col" style={{ left: column.left, top: g.panel.top, width: column.width, height: g.panel.height }}>
@@ -48,7 +48,7 @@ function HalfValue({ text, size, width, align }: { text: string; size: number; w
 
 function HalfRow({ row, card, g, width, which, layer, only }: { row: HalvesRowCard; card: HalvesCard; g: HalvesGeometry; width: number; which: "first" | "second"; layer: number; only: BlockFilter }) {
   const s = g.sizes;
-  const scale = (value: number) => (g.landscape ? value : Math.round(value * g.k));
+  const scale = (value: number) => (g.landscape ? value : Math.round(value * g.k * g.fill));
   const values = row[which];
   const valueSize = scale(s.value);
   const valueWidth = Math.ceil(4 * valueSize * 0.5);
@@ -75,7 +75,7 @@ function Facts({ card, g, only }: { card: HalvesCard; g: HalvesGeometry; only: B
   const s = g.sizes;
   const size = g.factSize;
   const bullet = Math.round(size * 0.42);
-  const gap = g.landscape ? s.factGap : Math.round(s.factGap * g.k);
+  const gap = g.landscape ? s.factGap : Math.round(s.factGap * g.k * g.fill);
   const width = g.box.right - g.box.left;
   return (
     <div tw="absolute flex flex-col" style={{ left: g.box.left, top: g.facts.top, width, height: g.facts.height, opacity: blockOpacity(only, "fact", STACK_LAYERS) }}>

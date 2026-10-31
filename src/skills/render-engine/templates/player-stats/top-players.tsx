@@ -17,17 +17,20 @@ const TRACK = "rgba(255,255,255,0.12)";
 function Row({ row, card, g, index, only }: { row: TopPlayerRow; card: TopPlayersCard; g: TopPlayersGeometry; index: number; only: BlockFilter }) {
   const { k, panel, rowHeight: h } = g;
   const width = panel.right - panel.left;
-  const rankWidth = Math.round(h * 0.38);
-  const portrait = Math.min(Math.round(h * 0.7), px(150, k));
-  const ratingSize = Math.min(Math.round(h * 0.42), px(84, k));
+  // Üçlü listede satır öğeleri %25 büyür (dikey denge — satır alanı doldurur, künyenin üstünde boş bant kalmaz);
+  // satır 290'dan uzun olsa da sıra/aralık/çubuk 290'lık satırdaki boyunu aşmaz.
+  const m = g.grow;
+  const rankWidth = Math.min(Math.round(h * 0.38), px(110 * m, k));
+  const portrait = Math.min(Math.round(h * 0.7), px(150 * m, k));
+  const ratingSize = Math.min(Math.round(h * 0.42), px(84 * m, k));
   const ratingWidth = Math.round(ratingSize * 0.5 * 3) + px(8, k);
-  const gap = Math.round(h * 0.12);
+  const gap = Math.min(Math.round(h * 0.12), px(35, k));
   const textWidth = width - rankWidth - portrait - ratingWidth - gap * 3;
-  const nameSize = fitFontSize(row.name, textWidth, Math.min(Math.round(h * 0.32), px(56, k)), 0.47, 16);
+  const nameSize = fitFontSize(row.name, textWidth, Math.min(Math.round(h * 0.32), px(56 * m, k)), 0.47, 16);
   const sub = [row.teamName, row.highlight].filter(Boolean).join(" · ");
   // Alt satır en az 12 px (16:9 beşli listede satır ≈ 67 px).
-  const subSize = fitFontSize(sub, textWidth, Math.max(12, Math.min(Math.round(h * 0.16), px(22, k))), 0.74, 10);
-  const bar = Math.max(4, Math.round(h * 0.035));
+  const subSize = fitFontSize(sub, textWidth, Math.max(12, Math.min(Math.round(h * 0.16), px(22 * m, k))), 0.74, 10);
+  const bar = Math.max(4, Math.min(Math.round(h * 0.035), px(10, k)));
   const fill = Math.round(textWidth * Math.min(1, Math.max(0, row.rating / 10)));
   return (
     <div tw="flex items-center" style={{ width, height: h }}>

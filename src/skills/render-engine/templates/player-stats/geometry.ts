@@ -134,6 +134,8 @@ export interface TopPlayersGeometry extends PlayerFrame {
   title: Band;
   rowsArea: Band;
   rowHeight: number;
+  /** Satır öğelerinin büyüme katsayısı (dikeyde ≤ 3 satır: 1,25; diğerleri 1). */
+  grow: number;
 }
 
 export function topPlayersGeometry(frame: MatchDayFrame, card: Pick<TopPlayersCard, "rows">): TopPlayersGeometry {
@@ -149,8 +151,11 @@ export function topPlayersGeometry(frame: MatchDayFrame, card: Pick<TopPlayersCa
   const bottom = base.footnote.top - px(s.gap, k);
   // Dikeyde (4:5 / 9:16) satır en fazla 290 (eskiden 220): üç satırlık listede başlık ile liste arasında ~180 px boşluk
   // kalıyordu (canlı test 2026-10-31) — satırlar alanı doldurur, kalan pay liste üstü/altına eşit.
-  const rowHeight = Math.min(px(landscape ? 220 : 290, k), Math.floor((bottom - top) / Math.max(1, card.rows.length)));
+  // ≤ 3 satır (B3) dikeyde satırlar alanı tamamen doldurur (üst sınır 360) ve öğeleri %25 büyür — dikey denge
+  // (`shared/vertical-balance.ts`; canlı test v2: B3 4:5 / 9:16'da künyenin üstünde ~125 px boş bant).
+  const few = !landscape && card.rows.length <= 3;
+  const rowHeight = Math.min(px(landscape ? 220 : few ? 360 : 290, k), Math.floor((bottom - top) / Math.max(1, card.rows.length)));
   // Az satırda (3) liste alanın ortasında — altta boşluk birikmez.
   const height = rowHeight * card.rows.length;
-  return { ...base, title, rowsArea: { top: top + Math.floor((bottom - top - height) / 2), height }, rowHeight };
+  return { ...base, title, rowsArea: { top: top + Math.floor((bottom - top - height) / 2), height }, rowHeight, grow: few ? 1.25 : 1 };
 }

@@ -21,6 +21,7 @@ import { HALF_KONYASPOR_GALATASARAY, RAW_KONYASPOR_GALATASARAY } from "../fixtur
 import { fixtureTeamPeople } from "../fixtures/card-names";
 import { SM_SQUAD_GALATASARAY, SM_SQUAD_KURGU } from "../fixtures/sportmonks/people";
 import { MAX_DIFF_RATIO, diffPng } from "./image-diff";
+import { assertVerticalBalance } from "./vertical-balance";
 
 /**
  * Maç Analizi görsel testi (bkz. CLAUDE.md 5.3) — 01 Zaman çizelgesi + 02 Devre devre × 4 format. Veri: gerçek
@@ -81,8 +82,9 @@ async function images(): Promise<AnalysisImages> {
 async function timeline(id: MatchDayFormatId, facts: MatchAnalysisFacts, label: string) {
   const frame = MATCH_DAY_FRAMES[id];
   const card = buildTimelineCard(facts, frame, await images());
-  const { issues } = await checkLayout(frame, (only) => renderTimelineOverlay(card, frame, only), ANALYSIS_BLOCKS);
+  const { issues, boxes } = await checkLayout(frame, (only) => renderTimelineOverlay(card, frame, only), ANALYSIS_BLOCKS);
   assert.equal(issues.length, 0, `${label} 01 ${id}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  assertVerticalBalance(`${label} 01 ${id}`, frame, boxes);
   const rendered = await renderTimelineImage({ card, frame, resultImage: null, seedKey: facts.match.fixtureId });
   assert.ok(rendered.ok, rendered.ok ? "" : rendered.error.message);
   return rendered.data;
@@ -92,8 +94,9 @@ async function halves(id: MatchDayFormatId, facts: MatchAnalysisFacts, label: st
   const frame = MATCH_DAY_FRAMES[id];
   assert.ok(facts.halves.available, `${label}: devre verisi olmalı`);
   const card = buildHalvesCard(facts, facts.halves.stats, await images());
-  const { issues } = await checkLayout(frame, (only) => renderHalvesOverlay(card, frame, only), ANALYSIS_BLOCKS);
+  const { issues, boxes } = await checkLayout(frame, (only) => renderHalvesOverlay(card, frame, only), ANALYSIS_BLOCKS);
   assert.equal(issues.length, 0, `${label} 02 ${id}: yerleşim çakışması — ${describeLayoutIssues(issues)}`);
+  assertVerticalBalance(`${label} 02 ${id}`, frame, boxes);
   const rendered = await renderHalvesImage({ card, frame, resultImage: null, seedKey: facts.match.fixtureId });
   assert.ok(rendered.ok, rendered.ok ? "" : rendered.error.message);
   return rendered.data;
