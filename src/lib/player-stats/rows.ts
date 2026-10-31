@@ -5,6 +5,10 @@ import { positionKeys, readStat } from "./catalog";
  * Kartın satırları (saf): mevki listesi + yedek sırasıyla okunur, okunamayan (eksik) satır düşer, sıradaki
  * gelir. Orta saha/defans oyuncusu gol attıysa gol satırı başa alınır. A kartı 6–8 satır hedefler; kahraman ilk 2–3 SIFIR OLMAYAN satırdır (sıfır rakam büyük yazılmaz),
  * kalanlar sırasını koruyarak kompakt listeye.
+ *
+ * SIFIR satırı yazılmaz (canlı test v2, 2026-10-31: "TOP ÇALMA 0", "ASİST 0" anlamsız): yerine yedekten sıradaki
+ * sıfır olmayan satır gelir. Anlamlı sıfır istisnadır — kalecinin YENİLEN GOL 0'ı (kalesini gole kapattı). Sıfırsız
+ * satır `SPOTLIGHT_MIN_ROWS`'a yetmezse eksik kadar sıfır satırı (sırasıyla) geri gelir — kart kurala göre yine düşebilir.
  */
 
 export const SPOTLIGHT_MAX_ROWS = 8;
@@ -19,14 +23,18 @@ function orderedKeys(line: PlayerMatchLine): PlayerStatKey[] {
   return scored ? ["goals", ...keys.filter((key) => key !== "goals")] : keys;
 }
 
+/** Sıfırı bilgi taşıyan satırlar (kartta kalır). */
+export const MEANINGFUL_ZERO: ReadonlySet<PlayerStatKey> = new Set<PlayerStatKey>(["conceded"]);
+
 export function statRows(line: PlayerMatchLine, max = SPOTLIGHT_MAX_ROWS): PlayerStatRow[] {
-  const rows: PlayerStatRow[] = [];
-  for (const key of orderedKeys(line)) {
-    if (rows.length >= max) break;
+  const read = orderedKeys(line).flatMap((key) => {
     const row = readStat(line, key);
-    if (row) rows.push(row);
-  }
-  return rows;
+    return row ? [row] : [];
+  });
+  const kept = read.filter((row) => !row.zero || MEANINGFUL_ZERO.has(row.key));
+  const missing = Math.max(0, SPOTLIGHT_MIN_ROWS - kept.length);
+  const restored = new Set(read.filter((row) => !kept.includes(row)).slice(0, missing));
+  return read.filter((row) => kept.includes(row) || restored.has(row)).slice(0, max);
 }
 
 export function spotlightRows(line: PlayerMatchLine): { hero: PlayerStatRow[]; rows: PlayerStatRow[] } {
