@@ -1,7 +1,7 @@
 import type { MatchResultCard } from "@/types/match-result";
 import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { LandscapeSetColumn } from "../checkmatch-set/landscape";
-import { ScorerColumns, SET_VERTICAL, SetFooter, SetHeader, setBlockBottom } from "../checkmatch-set/set-parts";
+import { COLUMN_FOOTER_LIFT, ScorerColumns, SET_VERTICAL, SetColumnFooter, SetFooter, SetHeader, setBlockBottom } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { HEADLINE_VERTICAL, type ResultGeometry } from "./geometry";
 import { Shade, TopShade, type ResultTemplateProps } from "./shared";
@@ -15,7 +15,10 @@ import { Shade, TopShade, type ResultTemplateProps } from "./shared";
  */
 
 const TITLE = "MAÇ SONUCU";
-const MINI = { logo: 52, name: 34, score: 72, gap: 16, scorer: 20, scorerGap: 6 } as const;
+/** Skor belirgin (canlı test 2026-10-31: 72px skor takım adlarının yanında kayboluyordu). */
+const MINI = { logo: 52, name: 34, score: 116, scoreWidth: 2, gap: 16, scorer: 20, scorerGap: 8 } as const;
+/** 16:9 sütununda skor (set sütununun varsayılanı 76). */
+const LANDSCAPE_SCORE = 100;
 const LOSER_ALPHA = 0.5;
 
 function Title({ card, size, rule }: { card: MatchResultCard; size: number; rule: number }) {
@@ -29,7 +32,7 @@ function Title({ card, size, rule }: { card: MatchResultCard; size: number; rule
 }
 
 function MiniScore({ card, k, width }: { card: MatchResultCard; k: number; width: number }) {
-  const scoreWidth = px(MINI.score * 2.2, k);
+  const scoreWidth = px(MINI.score * MINI.scoreWidth, k);
   const side = (width - scoreWidth) / 2;
   const nameSize = (name: string) => fitFontSize(name, side - px(MINI.logo + MINI.gap, k), px(MINI.name, k), 0.48, px(18, k));
   const digit = (value: number, dim: boolean) => (
@@ -68,7 +71,7 @@ function Vertical({ card, g, only }: { card: MatchResultCard; g: ResultGeometry;
           <MiniScore card={card} k={k} width={width} />
         </div>
         <div tw="flex" style={{ marginTop: px(MINI.scorerGap, k), opacity: blockOpacity(only, "scorers") }}>
-          <ScorerColumns card={card} width={width} size={px(MINI.scorer, k)} gap={px(MINI.score * 2.2, k)} />
+          <ScorerColumns card={card} width={width} size={px(MINI.scorer, k)} gap={px(MINI.score * MINI.scoreWidth, k)} />
         </div>
       </div>
     </>
@@ -83,12 +86,12 @@ export function HeadlineTemplate({ card, g, shadeStrength, only }: ResultTemplat
       <TopShade g={g} strength={Math.max(shadeStrength, 0.5)} only={only} />
       <SetHeader card={card} box={g} k={landscape ? 0.8 : g.k} only={only} />
       {g.column ? (
-        <LandscapeSetColumn card={card} box={g.column} headline={<Title card={card} size={58} rule={4} />} headlineHeight={78} headlineId="title" only={only} />
+        <LandscapeSetColumn card={card} box={{ ...g.column, bottom: g.column.bottom - COLUMN_FOOTER_LIFT }} headline={<Title card={card} size={58} rule={4} />} headlineHeight={78} headlineId="title" scoreSize={LANDSCAPE_SCORE} only={only} />
       ) : (
         <Vertical card={card} g={g} only={only} />
       )}
-      {landscape ? (
-        <SetFooter card={card} box={g} size={17} logoHeight={26} only={only} />
+      {g.column ? (
+        <SetColumnFooter card={card} box={g} column={g.column} size={17} logoHeight={26} only={only} />
       ) : (
         <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, g.k)} logoHeight={px(SET_VERTICAL.logoHeight, g.k)} only={only} />
       )}

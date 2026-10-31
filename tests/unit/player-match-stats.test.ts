@@ -43,7 +43,7 @@ describe("mevki önceliği ve eksik veri", () => {
 
   it("defans: top kesme, ikili mücadele %, pas isabeti %, blok; top uzaklaştırma / hava topu düşer → yedek (top çalma…)", () => {
     const defender = line(2, "D", { interceptions: 3, duelsTotal: 8, duelsWon: 6, passesTotal: 50, passesAccurate: 45, blocks: 2, tackles: 4, goals: 0, assists: 0 });
-    assert.deepEqual(keys(defender).slice(0, 6), ["interceptions", "duels", "passAccuracy", "blocks", "tackles", "goals"]);
+    assert.deepEqual(keys(defender), ["interceptions", "duels", "passAccuracy", "blocks", "tackles", "passes"], "gol 0 / asist 0 yazılmaz, yedekten pas gelir");
   });
 
   it("orta saha / defans gol attıysa gol satırı başa gelir", () => {
@@ -57,7 +57,7 @@ describe("mevki önceliği ve eksik veri", () => {
     assert.deepEqual(keys(line(6, "G", { saves: 4, conceded: 0, penaltySaved: 1 })), ["saves", "conceded", "penaltySaved"]);
   });
 
-  it("hiç denemesi olmayan oran satırı (0/0 şut, 0 pas) yazılmaz; gerçek sıfır sayım yazılır", () => {
+  it("hiç denemesi olmayan oran satırı (0/0 şut, 0 pas) yazılmaz; sıfır sayım yalnızca satır yetmezse geri gelir", () => {
     const rows = statRows(line(7, "F", { goals: 0, shotsTotal: 0, shotsOn: 0, passesTotal: 0, passesAccurate: 0, dribblesAttempts: 0, dribblesSuccess: 0 }));
     assert.deepEqual(rows.map((row) => row.key), ["goals"]);
     assert.equal(rows[0]?.value, "0");
@@ -67,7 +67,19 @@ describe("mevki önceliği ve eksik veri", () => {
     const l = line(8, "F", { goals: 0, assists: 1, shotsTotal: 2, shotsOn: 1, keyPasses: 2, dribblesAttempts: 2, dribblesSuccess: 1, duelsTotal: 5, duelsWon: 2 }, { xg: 0.3 });
     const { hero, rows } = spotlightRows(l);
     assert.deepEqual(hero.map((row) => row.key), ["assists", "shots", "xg"]);
-    assert.ok(rows.some((row) => row.key === "goals"));
+    assert.ok(!rows.some((row) => row.key === "goals"), "gol 0 kompakt listede de yok");
+  });
+
+  it("canlı test v2: anlamsız 0 satırları (asist 0, top çalma 0) düşer, yedekten sıfır olmayan gelir; kalecinin yenilen gol 0'ı kalır", () => {
+    const mid = line(9, "M", { assists: 0, keyPasses: 2, passesTotal: 40, passesAccurate: 36, dribblesAttempts: 2, dribblesSuccess: 2, duelsTotal: 6, duelsWon: 4, shotsTotal: 1, shotsOn: 0, goals: 0, interceptions: 1, tackles: 0, foulsDrawn: 3 });
+    const rows = statRows(mid);
+    assert.ok(rows.every((row) => !row.zero), "sıfır satır yok");
+    assert.deepEqual(rows.map((row) => row.key), ["keyPasses", "passAccuracy", "dribbles", "duels", "interceptions", "passes", "foulsDrawn"]);
+    const keeper = statRows(line(10, "G", { saves: 3, conceded: 0, penaltySaved: 0, passesTotal: 25, passesAccurate: 20 }));
+    assert.deepEqual(keeper.map((row) => [row.key, row.value]), [["saves", "3"], ["conceded", "0"], ["passAccuracy", "%80"], ["passes", "25"]]);
+    // Sıfırsız satır 3'e yetmezse eksik kadar sıfır geri gelir (kart yine kurala göre).
+    const quiet = statRows(line(11, "F", { goals: 0, assists: 0, keyPasses: 1, passesTotal: 10, passesAccurate: 8 }));
+    assert.deepEqual(quiet.map((row) => row.key), ["goals", "keyPasses", "passAccuracy"]);
   });
 
   it("gerçek maçta pas isabeti = isabetli pas SAYISI / pas (API-Football maç ucu); xG Sportmonks kaynaklı", () => {

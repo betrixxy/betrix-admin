@@ -71,14 +71,60 @@ describe("Maç Sonucu fotoğraf varsayılanı — kazanan takım (beraberlikte e
     assert.deepEqual(preferredPickerDefault(data, preferred), { subjectKey: "person:g9", photoId: "g9" });
   });
 
-  it("MVP kaybedendeyse/yoksa: kazananın bu maç fotoğraflı oyuncusu, sonra takım fotoğrafı; beraberlikte ev sahibi", () => {
+  it("MVP kaybedendeyse/yoksa: kazananın bu maç fotoğraflı saha oyuncusu, sonra diğer saha oyuncusu; beraberlikte ev sahibi", () => {
     const preferred = winnerPhotoPreference({ ...facts, mvp: { playerId: 100, side: "HOME" } });
     assert.deepEqual(preferred, { teamId: 645, playerId: null });
     assert.deepEqual(preferredPickerDefault(data, preferred), { subjectKey: "person:g7", photoId: "g7" });
     const noMatchPhotos: ArchivePickerData = { ...data, teams: data.teams.map((team) => ({ ...team, photos: Object.fromEntries(Object.entries(team.photos).map(([key, list]) => [key, list.filter((entry) => entry.bucket !== "THIS_MATCH")])) })) };
-    assert.deepEqual(preferredPickerDefault(noMatchPhotos, preferred), { subjectKey: "team:645", photoId: "t" });
+    // Saha oyuncusu takım fotoğrafından ve kaleciden önce (kullanıcı kararı 2026-10-31).
+    assert.deepEqual(preferredPickerDefault(noMatchPhotos, preferred), { subjectKey: "person:g9", photoId: "g9" });
+    const onlyTeamAndKeeper: ArchivePickerData = { ...data, teams: data.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:g9": [], "person:g7": [] } })) };
+    assert.deepEqual(preferredPickerDefault(onlyTeamAndKeeper, preferred), { subjectKey: "team:645", photoId: "t" }, "takım fotoğrafı kaleciden önce");
     assert.deepEqual(winnerPhotoPreference({ outcome: "DRAW", home: { id: 607 }, away: { id: 645 }, mvp: { playerId: 2780, side: "AWAY" } }), { teamId: 607, playerId: null });
-    assert.deepEqual(preferredPickerDefault(data, { teamId: 607, playerId: null }), { subjectKey: "person:k1", photoId: "k1" });
+    assert.deepEqual(preferredPickerDefault(data, { teamId: 607, playerId: null }), { subjectKey: "person:k1", photoId: "k1" }, "tek seçenek kaleciyse o");
+  });
+
+  it("canlı test v2 Konyaspor 0-4 Galatasaray: MVP fotoğrafsız → golcü (gol sayısına göre), kaleci Uğurcan Çakır değil — Fal varken de yokken de", () => {
+    const pic = (id: string, ready: boolean, bucket: PickerPhoto["bucket"] = "CURRENT_KIT"): PickerPhoto => ({ id, url: `/p/${id}`, caption: "", kind: "CELEBRATION", kitTeamName: "GS", kitTeamId: 645, bucket, width: ready ? 2000 : 864, height: ready ? 2500 : 486, upscaled: false });
+    const gs: ArchivePickerData = {
+      warnings: [],
+      teams: [
+        {
+          teamId: 645,
+          name: "Galatasaray",
+          groups: [
+            { group: "TEAM", label: "Takım", subjects: [{ key: "team:645", label: "Takım fotoğrafı", personApiId: null, isPlayer: false }] },
+            { group: "GK", label: "Kaleciler", subjects: [{ key: "person:ugurcan", label: "Uğurcan Çakır", personApiId: 200, isPlayer: true }] },
+            { group: "MID", label: "Orta Saha", subjects: [{ key: "person:batrakov", label: "Batrakov", personApiId: 9, isPlayer: true }, { key: "person:sara", label: "Gabriel Sara", personApiId: 300, isPlayer: true }] },
+            { group: "FWD", label: "Forvet", subjects: [{ key: "person:akgun", label: "Yunus Akgün", personApiId: 454, isPlayer: true }, { key: "person:osimhen", label: "Victor Osimhen", personApiId: 2780, isPlayer: true }] },
+          ],
+          photos: { "team:645": [pic("takim", false)], "person:ugurcan": [pic("ugurcan", true)], "person:batrakov": [], "person:sara": [pic("sara", true, "THIS_MATCH")], "person:akgun": [pic("akgun", true)], "person:osimhen": [pic("osimhen", false)] },
+        },
+      ],
+    };
+    const preferred = winnerPhotoPreference({
+      outcome: "AWAY",
+      home: { id: 607, scorers: [] },
+      away: { id: 645, scorers: [{ playerId: 2780, minutes: ["12'", "55'"] }, { playerId: 454, minutes: ["70'"] }] },
+      mvp: { playerId: 9, side: "AWAY" },
+      players: [
+        { playerId: 9, side: "AWAY", rating: 8.6, goals: 0 },
+        { playerId: 2780, side: "AWAY", rating: 8.1, goals: 2 },
+        { playerId: 300, side: "AWAY", rating: 7.9, goals: 0 },
+        { playerId: 454, side: "AWAY", rating: 7.4, goals: 1 },
+        { playerId: 200, side: "AWAY", rating: 7.2, goals: 0 },
+      ],
+    });
+    assert.deepEqual(preferred.scorerIds, [2780, 454], "golcüler gol sayısına göre");
+    assert.deepEqual(preferredPickerDefault(gs, preferred), { subjectKey: "person:osimhen", photoId: "osimhen" }, "Fal var: en çok gol atan");
+    // Fal yok: karta hazır olmak sıranın İÇİNDE ölçüt — hazır golcü (Akgün) hazır olmayan golcüden önce; kaleci asla.
+    assert.deepEqual(preferredPickerDefault(gs, { ...preferred, falAvailable: false }), { subjectKey: "person:akgun", photoId: "akgun" });
+    const noReadyOutfield: ArchivePickerData = { ...gs, teams: gs.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:akgun": [], "person:sara": [] } })) };
+    assert.deepEqual(preferredPickerDefault(noReadyOutfield, { ...preferred, falAvailable: false }), { subjectKey: "person:osimhen", photoId: "osimhen" }, "hazır saha fotoğrafı yoksa yine golcü (düşük çözünürlük uyarısıyla), karta hazır kaleci değil");
+    const noScorerPhotos: ArchivePickerData = { ...gs, teams: gs.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:akgun": [], "person:osimhen": [] } })) };
+    assert.deepEqual(preferredPickerDefault(noScorerPhotos, preferred), { subjectKey: "person:sara", photoId: "sara" }, "golcü fotoğrafsız → saha oyuncusu (bu maç fotoğrafı)");
+    const onlyKeeper: ArchivePickerData = { ...gs, teams: gs.teams.map((team) => ({ ...team, photos: { "person:ugurcan": team.photos["person:ugurcan"] ?? [] } })) };
+    assert.deepEqual(preferredPickerDefault(onlyKeeper, preferred), { subjectKey: "person:ugurcan", photoId: "ugurcan" }, "kaleci en son seçenek");
   });
 });
 

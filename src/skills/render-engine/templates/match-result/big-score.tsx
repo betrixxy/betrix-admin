@@ -1,7 +1,7 @@
 import type { MatchResultCard } from "@/types/match-result";
 import { blockOpacity, type BlockFilter } from "../checkmatch-set/blocks";
 import { LANDSCAPE_COLUMN_WIDTH } from "../checkmatch-set/landscape";
-import { ScorerColumns, SET_VERTICAL, SetFooter, SetHeader, hexAlpha, setBlockBottom } from "../checkmatch-set/set-parts";
+import { COLUMN_FOOTER_LIFT, ScorerColumns, SET_VERTICAL, SetColumnFooter, SetFooter, SetHeader, hexAlpha, setBlockBottom } from "../checkmatch-set/set-parts";
 import { BODY, DISPLAY, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import type { ResultGeometry } from "./geometry";
 import { MvpLine, Shade, type ResultTemplateProps } from "./shared";
@@ -75,7 +75,9 @@ function Vertical({ card, g, only }: { card: MatchResultCard; g: ResultGeometry;
 
 /** 16:9 — set sütununda: başlık · logolar · dev "0  1" · golcüler (iki liste alt alta). */
 function Landscape({ card, g, only }: { card: MatchResultCard; g: ResultGeometry; only: BlockFilter }) {
-  const column = g.column ?? { left: g.left, right: g.right, top: g.top, bottom: g.bottom };
+  const base = g.column ?? { left: g.left, right: g.right, top: g.top, bottom: g.bottom };
+  // Künye sütunun altında, logonun üstünde (fotoğrafa binmez) — sütun içeriği o kadar yukarıda biter.
+  const column = { ...base, bottom: base.bottom - COLUMN_FOOTER_LIFT };
   const width = Math.min(LANDSCAPE_COLUMN_WIDTH, column.right - column.left);
   const half = width / 2;
   return (
@@ -110,8 +112,8 @@ export function BigScoreTemplate({ card, g, shadeStrength, only }: ResultTemplat
       <Shade g={g} strength={Math.max(shadeStrength, 0.45)} only={only} />
       <SetHeader card={card} box={g} k={landscape ? 0.8 : g.k} only={only} />
       {landscape ? <Landscape card={card} g={g} only={only} /> : <Vertical card={card} g={g} only={only} />}
-      {landscape ? (
-        <SetFooter card={card} box={g} size={17} logoHeight={26} only={only} />
+      {g.column ? (
+        <SetColumnFooter card={card} box={g} column={g.column} size={17} logoHeight={26} only={only} />
       ) : (
         <SetFooter card={card} box={g} size={px(SET_VERTICAL.footerSize, g.k)} logoHeight={px(SET_VERTICAL.logoHeight, g.k)} only={only} />
       )}

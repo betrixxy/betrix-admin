@@ -112,17 +112,19 @@ describe("Fal yokken fotoğraf varsayılanı karta hazır olanı seçer", () => 
     ],
   };
 
-  it("canlı test: MVP fotoğrafsız → Fal varken takım fotoğrafı (864×486), Fal yokken büyütülmüş sürümü olan Osimhen", () => {
+  it("canlı test: MVP fotoğrafsız → saha oyuncusu Osimhen takım fotoğrafından önce (Fal olsa da olmasa da)", () => {
     assert.equal(isCardReady({ upscaled: false, width: 864, height: 486 }), false);
     assert.equal(isCardReady({ upscaled: false, width: 1920, height: 1080 }), true);
     assert.equal(isCardReady({ upscaled: true, width: 480, height: 640 }), true);
-    assert.deepEqual(preferredPickerDefault(data, { teamId: 645, playerId: 9 }), { subjectKey: "team:645", photoId: "takim" });
+    assert.deepEqual(preferredPickerDefault(data, { teamId: 645, playerId: 9 }), { subjectKey: "person:osimhen", photoId: "osimhen" });
     assert.deepEqual(preferredPickerDefault(data, { teamId: 645, playerId: 9, falAvailable: false }), { subjectKey: "person:osimhen", photoId: "osimhen" });
   });
 
   it("karta hazır fotoğraf hiç yoksa normal sıraya döner (kart yine üretilir, düşük çözünürlük uyarısıyla)", () => {
-    const none: ArchivePickerData = { ...data, teams: data.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:osimhen": [] } })) };
-    assert.deepEqual(preferredPickerDefault(none, { teamId: 645, playerId: 9, falAvailable: false }), { subjectKey: "team:645", photoId: "takim" });
+    const none: ArchivePickerData = { ...data, teams: data.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:osimhen": [pic("osimhen-kucuk", 864, 486, false)], "person:batrakov": [] } })) };
+    assert.deepEqual(preferredPickerDefault(none, { teamId: 645, playerId: 9, falAvailable: false }), { subjectKey: "person:osimhen", photoId: "osimhen-kucuk" }, "hazır değil ama saha oyuncusu");
+    const teamOnly: ArchivePickerData = { ...data, teams: data.teams.map((team) => ({ ...team, photos: { ...team.photos, "person:osimhen": [] } })) };
+    assert.deepEqual(preferredPickerDefault(teamOnly, { teamId: 645, playerId: 9, falAvailable: false }), { subjectKey: "team:645", photoId: "takim" });
   });
 });
 
