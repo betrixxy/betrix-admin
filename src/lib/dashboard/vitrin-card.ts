@@ -21,6 +21,12 @@ export const DRAW_HEX = "#5B606B";
 const FALLBACK_SIDE_HEX: [string, string] = ["#E8E8EA", "#9AA3B5"];
 /** İki favori arasındaki fark bu puanın altındaysa manşet "kararsız" der. */
 export const CLEAR_FAVOURITE_POINTS = 8;
+/**
+ * En yüksek olasılık bu yüzdenin altındaysa manşet "kararsız" der (canlı prova 2026-11-01: Kasımpaşa %42 ·
+ * beraberlik %24 · Beşiktaş %34 "Modelimiz Kasımpaşa diyor" yazıyordu — %42 favori değil). Sabit, testle.
+ */
+export const MIN_FAVOURITE_PERCENT = 45;
+export const UNDECIDED_HEADLINE = "Model kararsız: dengeli maç";
 
 export interface VitrinMeta {
   sides: MatchSides;
@@ -96,7 +102,7 @@ export function wholePercents(values: [number, number, number]): [number, number
   return floors as [number, number, number];
 }
 
-/** Kazanma çubuğu + kural tabanlı manşet: favori net değilse (fark < 8 puan ya da beraberlik önde) kararsız. */
+/** Kazanma çubuğu + kural tabanlı manşet: favori net değilse (en yüksek < %45, fark < 8 puan ya da beraberlik önde) kararsız. */
 export function winBar(prediction: PredictionSet, sides: MatchSides): VitrinWinBar {
   const p = scenarioOf(prediction, "RESULT_1X2").outcomeProbabilities;
   const [home, draw, away] = wholePercents([p.HOME ?? 0, p.DRAW ?? 0, p.AWAY ?? 0]);
@@ -106,7 +112,7 @@ export function winBar(prediction: PredictionSet, sides: MatchSides): VitrinWinB
     { side: "AWAY" as const, value: away },
   ].sort((a, b) => b.value - a.value);
   const [top, second] = ranked;
-  if (!top || !second || top.side === "DRAW" || top.value - second.value < CLEAR_FAVOURITE_POINTS) return { home, draw, away, favourite: null, headline: "Model kararsız: dengeli bir maç" };
+  if (!top || !second || top.side === "DRAW" || top.value < MIN_FAVOURITE_PERCENT || top.value - second.value < CLEAR_FAVOURITE_POINTS) return { home, draw, away, favourite: null, headline: UNDECIDED_HEADLINE };
   return { home, draw, away, favourite: top.side, headline: `Modelimiz ${top.side === "HOME" ? sides.home : sides.away} diyor` };
 }
 

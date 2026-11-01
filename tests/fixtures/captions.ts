@@ -171,3 +171,22 @@ export function worstCaseCaptions(): CaptionCase[] {
     { type: "STUDIO", caption: buildDraftCaption(DRAFT_STATS) },
   ];
 }
+
+/**
+ * Boş değerli satır bekçisinin SEYREK durum metinleri (canlı prova 2026-11-01, Maç Günü "🏟️ —"): API'nin
+ * vermediği alanlar — stadyum, hakem, saat, tur etiketi, diziliş, golcü, MVP, form, xG, H2H — eksik.
+ */
+export function sparseCaptions(): CaptionCase[] {
+  const noScorers = { ...RESULT_FACTS, roundLabel: "", penaltyScore: null, home: { ...RESULT_FACTS.home, goals: 0, scorers: [] }, away: { ...RESULT_FACTS.away, goals: 0, scorers: [] } } as unknown as MatchResultFacts;
+  const noTime: WeeklyMatch = { ...weekly(5), time: "" };
+  const emptyForm = { last5: [], goalsForAvg: null, xgForAvg: null };
+  return [
+    { type: "MATCH_DAY stadyum/hakem yok", caption: buildMatchDayCaption({ ...MATCH_DAY, stadiumLabel: "—", refereeLabel: "—" } as MatchDayCard) },
+    { type: "MATCH_DAY yalnız hakem", caption: buildMatchDayCaption({ ...MATCH_DAY, stadiumLabel: "—" } as MatchDayCard) },
+    { type: "MATCH_DAY saat/künye yok", caption: buildMatchDayCaption({ ...MATCH_DAY, timeLabel: "—", weekLabel: "", stadiumLabel: "", refereeLabel: "—" } as MatchDayCard) },
+    { type: "MATCH_RESULT 0-0, tur yok, MVP yok", caption: buildMatchResultCaption(noScorers, null) },
+    { type: "WEEKLY saatsiz maç", caption: weeklyCaption("Trendyol Süper Lig", "10. Hafta", [noTime, { ...weekly(6), status: "postponed" } as WeeklyMatch], "date") },
+    { type: "PROBABLE_LINEUPS dizilişsiz", caption: buildLineupCaption({ ...LINEUP, home: { ...LINEUP.home, formation: "" } } as LineupDraft) },
+    { type: "STUDIO form/xG/H2H yok", caption: buildDraftCaption({ ...DRAFT_STATS, home: { ...DRAFT_STATS.home, ...emptyForm }, away: { ...DRAFT_STATS.away, ...emptyForm }, headToHead: { matches: [], homeWins: 0, draws: 0, awayWins: 0 } } as unknown as MatchStats) },
+  ];
+}

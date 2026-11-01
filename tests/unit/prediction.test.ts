@@ -288,7 +288,7 @@ describe("gerekçeler — Çelik Kasa denetimi", () => {
 });
 
 describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
-  const { buildVitrinCard, hookLine, hookLines, validSelection, vitrinTextGate, wholePercents, winBar } = await import("@/lib/dashboard/vitrin-card");
+  const { buildVitrinCard, hookLine, hookLines, MIN_FAVOURITE_PERCENT, UNDECIDED_HEADLINE, validSelection, vitrinTextGate, wholePercents, winBar } = await import("@/lib/dashboard/vitrin-card");
   const { buildVitrinCaption, hashtagCount, hasLink, MAX_HASHTAGS, VITRIN_QUESTION } = await import("@/lib/dashboard/vitrin-caption");
   const { parseVitrinOptions, predictionRecordsFor } = await import("@/lib/prediction/record");
   const { LOCKED_ANSWER } = await import("@/skills/render-engine/templates/vitrin/ticket");
@@ -330,9 +330,20 @@ describe("vitrin kartı, gönderi metni ve tahmin kaydı", async () => {
     assert.equal(bar.favourite, "HOME");
     assert.equal(bar.headline, "Modelimiz Galatasaray diyor");
     const close = scenarios.map((s) => (s.id === "RESULT_1X2" ? { ...s, outcomeProbabilities: { HOME: 0.38, DRAW: 0.31, AWAY: 0.31 } } : s));
-    assert.deepEqual(winBar({ ...prediction, scenarios: close }, meta.sides), { home: 38, draw: 31, away: 31, favourite: null, headline: "Model kararsız: dengeli bir maç" });
+    assert.deepEqual(winBar({ ...prediction, scenarios: close }, meta.sides), { home: 38, draw: 31, away: 31, favourite: null, headline: "Model kararsız: dengeli maç" });
     const drawLeads = scenarios.map((s) => (s.id === "RESULT_1X2" ? { ...s, outcomeProbabilities: { HOME: 0.25, DRAW: 0.5, AWAY: 0.25 } } : s));
     assert.equal(winBar({ ...prediction, scenarios: drawLeads }, meta.sides).favourite, null);
+  });
+
+  it("manşet eşiği: en yüksek olasılık %45'in altındaysa kararsız (canlı prova Kasımpaşa %42 · %24 · %34)", () => {
+    assert.equal(MIN_FAVOURITE_PERCENT, 45);
+    assert.equal(UNDECIDED_HEADLINE, "Model kararsız: dengeli maç");
+    const at = (HOME: number, DRAW: number, AWAY: number) => winBar({ ...prediction, scenarios: scenarios.map((s) => (s.id === "RESULT_1X2" ? { ...s, outcomeProbabilities: { HOME, DRAW, AWAY } } : s)) }, meta.sides);
+    assert.deepEqual(at(0.42, 0.24, 0.34), { home: 42, draw: 24, away: 34, favourite: null, headline: UNDECIDED_HEADLINE });
+    assert.deepEqual(at(0.44, 0.2, 0.36), { home: 44, draw: 20, away: 36, favourite: null, headline: UNDECIDED_HEADLINE }, "%44, fark 8 — yine kararsız");
+    assert.equal(at(0.45, 0.2, 0.35).headline, "Modelimiz Galatasaray diyor", "%45 sınırı favori");
+    assert.equal(at(0.2, 0.33, 0.47).headline, "Modelimiz Kasımpaşa diyor");
+    assert.equal(at(0.46, 0.15, 0.39).favourite, null, "%46 ama fark < 8 — kararsız");
   });
 
   it("form: eskiden yeniye, kaynaktan aynen", () => {

@@ -13,8 +13,9 @@ import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-ca
 import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
 import { PUBLISH_PLATFORMS } from "@/types/publishing";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, LINEUP_TEMPLATE_STYLES } from "@/types/lineup";
-import { MATCH_DAY_FORMAT_IDS, type MatchDayFormatId } from "@/types/match-day";
-import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS, type SocialFormatId } from "@/types/studio-formats";
+import { MATCH_DAY_FORMAT_IDS } from "@/types/match-day";
+import { MATCH_DAY_SOCIAL_FORMAT, matchDayDraftFields } from "@/lib/dashboard/match-day-draft";
+import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 
 /** Format seçiminden önceki kayıtlarda alan yok — o kartlar 4:5 (post) çizilmişti. */
 const formatField = z.enum(SOCIAL_FORMAT_IDS).catch(DEFAULT_SOCIAL_FORMAT);
@@ -50,7 +51,7 @@ const h2hViewSchema = z.object({
   subtitle: z.string(),
   carousel: z.array(z.object({ url: z.string(), label: z.string() })),
 });
-const VITRIN_SOCIAL_FORMAT: Record<MatchDayFormatId, SocialFormatId> = { IG_PORTRAIT: "post", IG_SQUARE: "square", STORY: "story", X_LANDSCAPE: "landscape" };
+const VITRIN_SOCIAL_FORMAT = MATCH_DAY_SOCIAL_FORMAT;
 
 /** `AiContent.renderOptions` — Muhtemel 11 kaydı (yalnızca inceleme ekranının okuduğu alanlar). */
 const lineupOptionsSchema = z.object({
@@ -211,6 +212,32 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
           away: { teamName: away.teamName, imageUrl: awayImageUrl },
           marketPick,
           marketRationale,
+        },
+      };
+    }
+  }
+
+  if (record.contentType === "MATCH_DAY") {
+    // Maç Günü: snapshot yok — eskiden "Eski Kayıt"a düşüyordu; artık onay + Yayın Merkezi + kapılar (`match-day-draft.ts`).
+    const fields = matchDayDraftFields(record.renderOptions, record.resultImageUrl);
+    if (fields) {
+      return {
+        kind: "match-result",
+        draft: {
+          id: record.id,
+          fixtureId: record.fixtureId,
+          status: record.status,
+          caption: record.caption ?? "",
+          postId: record.postId,
+          reviewedAt: record.reviewedAt?.toISOString() ?? null,
+          ...publishable(record),
+          ...fields,
+          mvpName: null,
+          // Tahmin kaydı yok: yayın akışı normal, gönderi metni bahis dili + biçim kapısından geçer.
+          vitrin: false,
+          languageGate: true,
+          playerPage: null,
+          slug: "mac-gunu",
         },
       };
     }

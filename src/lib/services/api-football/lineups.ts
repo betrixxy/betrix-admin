@@ -108,3 +108,19 @@ export async function getLineupReference(
   if (!away.ok) return away;
   return { ok: true, data: { fixtureId, fixture, home: home.data, away: away.data } };
 }
+
+/**
+ * Kayıt anında resmi ilk 11 denetimi (canlı prova 2026-11-01): maçın açıklanmış ilk 11'lerinin oyuncu kimlikleri;
+ * açıklanmayan tarafta null. Form maç günü erken açıldıysa kart yine güncel API durumuyla başlıklanır.
+ */
+export async function getAnnouncedStarterIds(apiFootballFixtureId: number): Promise<Result<{ home: number[] | null; away: number[] | null }, ApiFootballError>> {
+  const details = await getFixtureDetailsByIds([apiFootballFixtureId], { ttlMs: FIXTURE_TTL_MS });
+  if (!details.ok) return details;
+  const current = details.data[0];
+  if (!current) return { ok: false, error: { code: "NOT_FOUND", message: "Maç API-Football'da bulunamadı." } };
+  const ids = (teamId: number): number[] | null => {
+    const lineup = findTeamLineup(current.lineups, teamId);
+    return lineup ? lineupStarters(lineup).flatMap((starter) => (starter.id !== null ? [starter.id] : [])) : null;
+  };
+  return { ok: true, data: { home: ids(current.teams.home.id), away: ids(current.teams.away.id) } };
+}

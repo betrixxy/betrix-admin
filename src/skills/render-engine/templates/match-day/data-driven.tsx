@@ -51,7 +51,7 @@ function FormRow({ logo, name, form, size }: { logo: string | null; name: string
 }
 
 interface StatBoxData {
-  /** Kutu grubunu anlatan küçük üst satır ("GOL ORTALAMASI", "SON 5 MAÇ") — takım adı kırpılmasın diye etiketten ayrı. */
+  /** Kutu grubunu anlatan küçük üst satır ("GOL ORTALAMASI", "ARALARINDAKİ SON 5 MAÇ") — takım adı kırpılmasın diye etiketten ayrı. */
   caption?: string;
   label: string;
   value: string;
@@ -75,6 +75,13 @@ function StatBox({ caption, label, value, accent, size, width }: StatBoxData & {
     </div>
   );
 }
+
+/**
+ * Form satırı ile H2H kutuları ayrı etiket taşır (canlı prova 2026-11-01): ikisi de "SON 5 MAÇ" yazıyordu —
+ * form takımın kendi son 5 maçı, H2H iki takımın aralarındaki son karşılaşmaları.
+ */
+export const FORM_EYEBROW = "FORM · SON 5 MAÇ";
+export const h2hCaption = (played: number): string => `ARALARINDAKİ SON ${played} MAÇ`;
 
 /** Takım adı kutuda iki satıra kırılabilir; yalnızca gerçekten aşırı uzun adlar kısaltılır. */
 const BOX_TEAM_CHARS = 18;
@@ -102,7 +109,7 @@ function statBoxes(card: MatchDayCard): StatBoxData[] {
     if (value !== null) boxes.push({ caption: "GOL ORTALAMASI", label: clip(team, BOX_TEAM_CHARS), value: formatNumber(value, { maxDecimals: 1 }) });
   }
   if (stats.h2h.played > 0) {
-    const caption = `SON ${stats.h2h.played} MAÇ`;
+    const caption = h2hCaption(stats.h2h.played);
     boxes.push(
       { caption, label: clip(card.homeTeam, BOX_TEAM_CHARS), value: String(stats.h2h.homeWins) },
       { caption, label: "BERABERLİK", value: String(stats.h2h.draws) },
@@ -125,7 +132,7 @@ function formRows(card: MatchDayCard): { logo: string | null; name: string; form
 function FormSection({ card, accent, size, eyebrowSize, gap }: { card: MatchDayCard; accent: string; size: number; eyebrowSize: number; gap: number }) {
   return (
     <div tw="flex flex-col">
-      <Eyebrow size={eyebrowSize} color={accent}>SON 5 MAÇ</Eyebrow>
+      <Eyebrow size={eyebrowSize} color={accent}>{FORM_EYEBROW}</Eyebrow>
       <div tw="flex flex-col" style={{ marginTop: gap }}>
         {formRows(card).map((row) => (
           <FormRow key={row.name} logo={row.logo} name={row.name} form={row.form} size={size} />

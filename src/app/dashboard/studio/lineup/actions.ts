@@ -7,18 +7,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { lineupDraftFromReference, lineupIssues } from "@/lib/dashboard/lineup-draft";
+import { lineupDraftFromReference, lineupHeadline, lineupIssues, officialLineupIssue } from "@/lib/dashboard/lineup-draft";
 import { isValidFormation } from "@/lib/dashboard/lineup-formations";
 import { createLineupDraft } from "@/lib/dashboard/lineup-engine";
 import { renderLineupCard } from "@/lib/dashboard/lineup-render";
-import { getFixtureById, getLineupReference, parseFixtureId } from "@/lib/services/api-football";
+import { getAnnouncedStarterIds, getFixtureById, getLineupReference, parseFixtureId } from "@/lib/services/api-football";
 import { resolveLineupHeroPhoto } from "@/lib/dashboard/lineup-hero-photo";
 import { resolveArchivePhoto } from "@/lib/archive/picker-input";
 import { matchTeamIds } from "@/lib/archive/studio-photo";
 import { LINEUP_SIZE, LINEUP_TEMPLATE_STYLES, type LineupDraft, type LineupTemplateStyle, type TeamLineupReference } from "@/types/lineup";
 import type { Result } from "@/types/result";
 import type { StudioJobStart } from "@/types/studio-job";
-import { reportJobStep, startResultJob } from "@/lib/jobs/studio-jobs";
+import { reportJobNote, reportJobStep, startResultJob } from "@/lib/jobs/studio-jobs";
 import { DEFAULT_SOCIAL_FORMAT, SOCIAL_FORMAT_IDS } from "@/types/studio-formats";
 import type { Fixture } from "@/types/sports";
 
@@ -107,7 +107,7 @@ export async function uploadLineupHeroAction(formData: FormData): Promise<Result
 }
 
 /** Tek takımın kartını çizer — kaydetmez (yalnızca önizleme). */
-async function previewLineup(input: unknown): Promise<Result<{ dataUrl: string; templateStyle: LineupTemplateStyle }>> {
+async function previewLineup(input: unknown): Promise<Result<{ dataUrl: string; templateStyle: LineupTemplateStyle; notes: string[] }>> {
   const parsed = previewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: { code: "INVALID_INPUT", message: firstIssue(parsed.error) } };
 
@@ -117,15 +117,15 @@ async function previewLineup(input: unknown): Promise<Result<{ dataUrl: string; 
     if (input.templateStyle === "hero_list" && input.team.heroPhotoId && (!fixtureId || !side)) {
       return { ok: false, error: { code: "INVALID_INPUT", message: "Kapak fotoğrafı için önce maçı seçin." } };
     }
-    const heroPhoto = fixtureId && side ? await resolveLineupHeroPhoto(fixtureId, side, input.team, input.templateStyle) : { ok: true as const, data: null };
-    if (!heroPhoto.ok) return heroPhoto;
+    const hero = fixtureId && side ? await resolveLineupHeroPhoto(fixtureId, side, input.team, input.templateStyle) : { ok: true as const, data: { image: null, photoId: "", note: null } };
+    if (!hero.ok) return hero;
     const origins = await fixtureOrigins(fixtureId ?? null);
     const sideOrigins = origins && side ? { team: side === "home" ? origins.home : origins.away, opponent: side === "home" ? origins.away : origins.home } : undefined;
     reportJobStep("Kart çiziliyor");
-    const rendered = await renderLineupCard({ ...input, heroPhoto: heroPhoto.data, ...(sideOrigins ? { origins: sideOrigins } : {}) });
+    const rendered = await renderLineupCard({ ...input, heroPhoto: hero.data.image, ...(sideOrigins ? { origins: sideOrigins } : {}) });
     if (!rendered.ok) return rendered;
     const { png, templateStyle } = rendered.data;
-    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle } };
+    return { ok: true, data: { dataUrl: `data:image/png;base64,${png.toString("base64")}`, templateStyle, notes: hero.data.note ? [hero.data.note] : [] } };
   } catch (cause) {
     console.error("[lineup] önizleme çizilemedi:", cause);
     return { ok: false, error: { code: "RENDER_FAILED", message: "Önizleme çizilemedi.", cause } };
@@ -145,8 +145,19 @@ async function saveLineup(input: unknown): Promise<Result<{ id: string }>> {
   const fixture = await getFixtureById(apiId);
   if (!fixture.ok) return { ok: false, error: { code: fixture.error.code, message: fixture.error.message } };
 
+  // Başlık ve kadro API'nin GÜNCEL durumundan (form erken açılmış olabilir): resmi 11 açıklandıysa "İLK 11" ve
+  // gerçek kadro zorunlu, değilse "MUHTEMEL 11". API okunamazsa MUHTEMEL 11 + not (kart düşmez).
+  reportJobStep("Resmi ilk 11 denetleniyor");
+  const announced = await getAnnouncedStarterIds(apiId);
+  let headline = lineupHeadline({ home: false, away: false });
+  if (announced.ok) {
+    const official = [officialLineupIssue(parsed.data.home, announced.data.home), officialLineupIssue(parsed.data.away, announced.data.away)].filter((issue): issue is string => issue !== null);
+    if (official.length > 0) return { ok: false, error: { code: "LINEUP_ANNOUNCED", message: official.join(" ") } };
+    headline = lineupHeadline({ home: announced.data.home !== null, away: announced.data.away !== null });
+  } else reportJobNote(`Resmi ilk 11 durumu okunamadı (${announced.error.message}) — başlık ${headline}.`);
+
   reportJobStep("İki kart çiziliyor ve kaydediliyor");
-  const saved = await createLineupDraft(parsed.data);
+  const saved = await createLineupDraft({ ...parsed.data, headline });
   if (!saved.ok) return saved;
   try {
     revalidatePath("/dashboard/plan");

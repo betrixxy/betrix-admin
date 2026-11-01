@@ -24,15 +24,18 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
   /** Son çizilen kartın gerçek şablonu — her takım bağımsız (kapağı olmayan takım taktik tahtası). */
   const [drawnStyle, setDrawnStyle] = useState<LineupTemplateStyle | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Kapak notu (11 dışı kapak → 11'den oyuncu / yedek tasarım) — son çizimin. */
+  const [notes, setNotes] = useState<string[]>([]);
   const [isRendering, startRendering] = useTransition();
   const [progress, setProgress] = useState<JobProgress | null>(null);
 
   function render(target: TeamSide) {
     setSide(target);
     setError(null);
+    setNotes([]);
     const opponent = target === "home" ? draft.away : draft.home;
     startRendering(() => runGuarded(async () => {
-      const result = await resultFromJob<{ dataUrl: string; templateStyle: LineupTemplateStyle }>(await previewLineupAction({
+      const result = await resultFromJob<{ dataUrl: string; templateStyle: LineupTemplateStyle; notes: string[] }>(await previewLineupAction({
         templateStyle: cardTemplateStyle(draft.templateStyle, draft[target]),
         team: draft[target],
         opponentName: opponent.teamName,
@@ -50,6 +53,7 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
       }
       setDrawn({ dataUrl: result.data.dataUrl, format: draft.format });
       setDrawnStyle(result.data.templateStyle);
+      setNotes(result.data.notes);
     }, setError));
   }
 
@@ -89,6 +93,13 @@ export function LineupPreview({ draft }: { draft: LineupDraft }) {
         </FormatPreviewFrame>
 
         <JobProgressLine progress={progress} />
+        {image && notes.length > 0 ? (
+          <div className="flex flex-col gap-0.5 text-xs text-amber-300" role="status">
+            {notes.map((note) => (
+              <span key={note}>• {note}</span>
+            ))}
+          </div>
+        ) : null}
         {error ? (
           <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
             <AlertCircle className="size-3.5 shrink-0" />

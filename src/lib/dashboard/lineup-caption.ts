@@ -9,7 +9,8 @@ import type { LineupDraft, TeamLineupDraft } from "@/types/lineup";
 export const LINEUP_QUESTION = "Sizin 11'iniz nasıl olurdu? Yorumlara yazın 👇";
 
 function teamLine(team: TeamLineupDraft): string {
-  return `${team.teamName} (${team.formation}): ${team.slots.map((slot) => slot.name.trim()).join(", ")}`;
+  const formation = team.formation.trim().length > 0 ? ` (${team.formation.trim()})` : "";
+  return `${team.teamName}${formation}: ${team.slots.map((slot) => slot.name.trim()).join(", ")}`;
 }
 
 export function buildLineupCaption(draft: LineupDraft): string {

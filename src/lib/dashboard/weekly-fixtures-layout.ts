@@ -91,7 +91,9 @@ export function weeklyCaptionLine(match: WeeklyMatch, grouping: WeeklyGrouping):
   if (match.status === "live") return `${match.home.name} - ${match.away.name} (canlı)`;
   const center = matchCenter(match, grouping);
   if (match.status === "abandoned") return `${match.home.name} ${center.primary} ${match.away.name} (yarıda kaldı)`;
-  return center.kind === "score" ? `${match.home.name} ${center.primary} ${match.away.name}` : `${center.primary} ${match.home.name} - ${match.away.name}`;
+  if (center.kind === "score") return `${match.home.name} ${center.primary} ${match.away.name}`;
+  // Saati olmayan maçta "—" yazılmaz (boş değerli satır bekçisi, `caption-format.ts::emptyValueLines`).
+  return center.primary === "—" ? `${match.home.name} - ${match.away.name}` : `${center.primary} ${match.home.name} - ${match.away.name}`;
 }
 
 export const WEEKLY_QUESTION = "Haftanın en çok beklenen maçı hangisi? Yorumlara yazın 👇";

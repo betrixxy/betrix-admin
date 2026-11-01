@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { HEADLINE_ANNOUNCED, HEADLINE_PREDICTED, describeSource, emptyTeamLineup, lineupIssues } from "@/lib/dashboard/lineup-draft";
+import { HEADLINE_PREDICTED, describeSource, emptyTeamLineup, lineupIssues, lineupStatusLine } from "@/lib/dashboard/lineup-draft";
 import { cn } from "@/lib/utils";
 import type { TeamSide } from "@/types/deep-analysis";
 import { DEFAULT_LINEUP_TEMPLATE_STYLE, type LineupDraft, type LineupTemplateStyle } from "@/types/lineup";
@@ -130,8 +130,9 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
           <CardHeader>
             <CardTitle>Maç ve Kaynak</CardTitle>
             <CardDescription>
-              Maçı seçin — açıklanmış ilk 11 varsa o, yoksa iki takımın son maçındaki ilk 11 ve diziliş referans taslak olarak
-              yüklenir. Seçim listeleri takımların güncel kadrosudur; her pozisyon değiştirilebilir.
+              Maçı seçin — resmi ilk 11 açıklandıysa (API-Football) kart başlığı İLK 11 olur ve gerçek kadro kullanılır;
+              açıklanmadıysa MUHTEMEL 11 ve iki takımın son maçındaki ilk 11 yüklenir (pozisyonlar değiştirilebilir). Başlık
+              kayıtta API&apos;nin güncel durumuyla yeniden belirlenir.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -154,17 +155,31 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="lineup-headline">Kart başlığı</Label>
-                <NativeSelect id="lineup-headline" value={draft.headline} onChange={(event) => setDraft({ ...draft, headline: event.target.value })}>
-                  <option value={HEADLINE_PREDICTED}>{HEADLINE_PREDICTED}</option>
-                  <option value={HEADLINE_ANNOUNCED}>{HEADLINE_ANNOUNCED}</option>
-                </NativeSelect>
+                <Label>Kart başlığı</Label>
+                <p className="flex h-9 items-center rounded-md border border-input px-3 text-sm font-semibold" aria-live="polite">
+                  {draft.headline}
+                </p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="lineup-match-label">Maç künyesi</Label>
                 <Input id="lineup-match-label" value={draft.matchLabel} maxLength={80} onChange={(event) => setDraft({ ...draft, matchLabel: event.target.value })} />
               </div>
             </div>
+            {loaded ? (
+              <p
+                className={cn(
+                  "flex items-start gap-1.5 rounded-lg px-3 py-2 text-xs",
+                  draft.headline === HEADLINE_PREDICTED ? "bg-amber-400/10 text-amber-200" : "bg-emerald-400/10 text-emerald-200",
+                )}
+                role="status"
+              >
+                <Info className="mt-px size-3.5 shrink-0" />
+                {lineupStatusLine({
+                  home: { teamName: draft.home.teamName, announced: loaded.home.source.kind === "announced" },
+                  away: { teamName: draft.away.teamName, announced: loaded.away.source.kind === "announced" },
+                })}
+              </p>
+            ) : null}
             {error ? (
               <p className="flex items-center gap-1.5 text-xs text-destructive" role="alert">
                 <AlertCircle className="size-3.5 shrink-0" />
@@ -221,8 +236,8 @@ export function LineupForm({ fixtures, initialFixtureId }: LineupFormProps) {
         {missingHeroes.length > 0 ? (
           <p className="-mt-3 flex items-start gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200" role="status">
             <AlertCircle className="mt-px size-3.5 shrink-0" />
-            Kapak fotoğrafı seçilmeyen takım ({missingHeroes.join(", ")}) Taktik Tahtası olarak çizilir; kapağı olan takım Kahraman Liste olur.
-            Her iki kartın da liste olması için aşağıdan iki takıma da kapak fotoğrafı seçin.
+            Kapak fotoğrafı seçilmeyen takımda ({missingHeroes.join(", ")}) kapak 11&apos;den otomatik seçilir: takım formalı arşiv fotoğrafı olan bir
+            oyuncu, o da yoksa yedek tasarım (takım rengi + arma). Her iki kart da Kahraman Liste olarak çizilir.
           </p>
         ) : null}
 

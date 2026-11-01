@@ -116,7 +116,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
   if (lookup.kind === "legacy") {
     return (
       <>
-        <PageHeader title="Eski Kayıt" description="Bu görsel maç istatistiği anlık görüntüsü olmadan üretildi (ör. Maç Günü kartı veya eski bir kayıt) — yalnızca görüntülenebilir ve indirilebilir." actions={backLink} />
+        <PageHeader title="Eski Kayıt" description="Bu görsel maç istatistiği anlık görüntüsü olmadan üretildi (eski bir kayıt) — yalnızca görüntülenebilir ve indirilebilir." actions={backLink} />
         {notice}
         <Card className="max-w-md">
           <CardContent className="flex flex-col gap-3 pt-6">

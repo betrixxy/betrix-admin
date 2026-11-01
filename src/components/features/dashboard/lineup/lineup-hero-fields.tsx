@@ -36,8 +36,9 @@ export function LineupHeroFields({ draft, teamIds, onHeroChange }: LineupHeroFie
       <CardHeader>
         <CardTitle>Kapak Fotoğrafı · Kahraman Liste</CardTitle>
         <CardDescription>
-          Her takım için arşivden takımın kendi formalı bir fotoğraf seçin ya da yeni yükleyin (saha oyuncusu önerilir). Yüz otomatik
-          bulunur ve kartın sol bölgesine yerleştirilir; gerekirse elle ayarlayın. Fotoğrafı olmayan takım Taktik Tahtası olarak çizilir.
+          Her takım için arşivden takımın kendi formalı bir fotoğraf seçin ya da yeni yükleyin. Kapak oyuncusu kartın 11&apos;inde olmalı:
+          değilse 11&apos;de takım formalı fotoğrafı olan bir oyuncu kullanılır, o da yoksa yedek tasarım (takım rengi + arma) çizilir — kart
+          her durumda Kahraman Liste kalır. Yüz otomatik bulunur ve kartın sol bölgesine yerleştirilir; gerekirse elle ayarlayın.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-2">

@@ -40,3 +40,27 @@ export function captionFormatGate(caption: string, platform: PublishPlatform | n
   }
   return null;
 }
+
+/**
+ * Boş değerli satırlar (bekçi, canlı prova 2026-11-01 — Maç Günü "🏟️ —"): şablon metninde değeri olmayan alan
+ * yazılmaz, satırı boş kalan satır tamamen düşer. Yakalananlar: tek başına "—"/"-" değer ("🏟️ — · 🧑‍⚖️ X"),
+ * sarkan ayraç ("Süper Lig · "), değersiz etiket ("Hakem:" ardından boş satır ya da metin sonu, "Hakem: ·"),
+ * harf/rakamsız satır (yalnızca emoji), boş parantez, "undefined"/"null"/"NaN". Boş satır (paragraf ayracı) serbest.
+ */
+export function emptyValueLines(caption: string): string[] {
+  const lines = caption.split("\n");
+  return lines.filter((line, index) => {
+    const text = line.trim();
+    if (text.length === 0) return false;
+    const next = lines[index + 1]?.trim() ?? "";
+    return (
+      /(?:^|[\s:·|])[—–-]\s*(?=$|·|\|)/u.test(text) ||
+      /^[·|]|[·|]$|^[—–-]\s/u.test(text) ||
+      /:\s*[·|]/u.test(text) ||
+      (/:$/u.test(text) && (next.length === 0 || /:$/u.test(next))) ||
+      !/[\p{L}\p{N}]/u.test(text) ||
+      /\(\s*\)/u.test(text) ||
+      /\b(?:undefined|null|NaN)\b/u.test(text)
+    );
+  });
+}

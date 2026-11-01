@@ -17,7 +17,7 @@ function scorersLine(team: ResultTeam): string | null {
 export function buildMatchResultCaption(facts: MatchResultFacts, mvpName: string | null): string {
   const lines = [
     `MAÇ SONUCU | ${matchResultTitle(facts)}`,
-    `${facts.competition.name} · ${facts.roundLabel}`,
+    [facts.competition.name, facts.roundLabel].filter((part) => part.trim().length > 0).join(" · ") || null,
     scorersLine(facts.home),
     scorersLine(facts.away),
     mvpName ? `⭐ Maçın oyuncusu: ${mvpName}` : null,

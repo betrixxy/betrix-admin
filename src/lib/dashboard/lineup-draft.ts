@@ -48,11 +48,10 @@ export function teamDraftFromReference(ref: TeamLineupReference): TeamLineupDraf
 }
 
 export function lineupDraftFromReference(ref: LineupReference, matchLabel: string): LineupDraft {
-  const announced = ref.home.source.kind === "announced" && ref.away.source.kind === "announced";
   return {
     fixtureId: ref.fixtureId,
     templateStyle: DEFAULT_LINEUP_TEMPLATE_STYLE,
-    headline: announced ? HEADLINE_ANNOUNCED : HEADLINE_PREDICTED,
+    headline: lineupHeadline({ home: ref.home.source.kind === "announced", away: ref.away.source.kind === "announced" }),
     matchLabel,
     format: DEFAULT_SOCIAL_FORMAT,
     home: teamDraftFromReference(ref.home),
@@ -97,4 +96,33 @@ export function lineupIssues(team: TeamLineupDraft): string[] {
 export function cardTemplateStyle(selected: LineupTemplateStyle, team: Pick<TeamLineupDraft, "heroPhotoId">): LineupTemplateStyle {
   void team;
   return selected;
+}
+
+/**
+ * Kart başlığı API durumundan (canlı prova 2026-11-01): iki takımın resmi ilk 11'i açıklandıysa "İLK 11",
+ * değilse "MUHTEMEL 11" (son maç kadrosu). Formdaki başlığa güvenilmez — sunucu kayıtta yeniden belirler.
+ */
+export function lineupHeadline(announced: { home: boolean; away: boolean }): string {
+  return announced.home && announced.away ? HEADLINE_ANNOUNCED : HEADLINE_PREDICTED;
+}
+
+/** Stüdyoda kadro kaynağının tek satırlık özeti (hangi başlıkla çizileceği). */
+export function lineupStatusLine(teams: { home: { teamName: string; announced: boolean }; away: { teamName: string; announced: boolean } }): string {
+  const { home, away } = teams;
+  if (home.announced && away.announced) return `Resmi ilk 11'ler açıklandı (API-Football) — kart başlığı ${HEADLINE_ANNOUNCED}, gerçek kadro kullanılır.`;
+  const one = home.announced ? home : away.announced ? away : null;
+  if (one) return `Yalnızca ${one.teamName} ilk 11'ini açıkladı — kart başlığı ${HEADLINE_PREDICTED}; açıklanan tarafta gerçek kadro, diğerinde son maç kadrosu.`;
+  return `Resmi ilk 11 henüz açıklanmadı — kart başlığı ${HEADLINE_PREDICTED}, son maçın ilk 11'i. Kadrolar açıklanınca "Veriden doldur".`;
+}
+
+/**
+ * Açıklanmış resmi 11 varsa kayıttaki 11 onunla aynı oyuncular olmalı (sıra/konum serbest). Açıklanmadıysa
+ * (null) denetim yok. Sorun metni ya da null.
+ */
+export function officialLineupIssue(team: Pick<TeamLineupDraft, "teamName" | "slots">, announcedIds: number[] | null): string | null {
+  if (announcedIds === null) return null;
+  const official = new Set(announcedIds);
+  const chosen = team.slots.flatMap((slot) => (slot.playerId !== null ? [slot.playerId] : []));
+  const same = chosen.length === official.size && chosen.every((id) => official.has(id));
+  return same ? null : `${team.teamName} resmi ilk 11'ini açıkladı — kart gerçek kadroyla çizilir: "Veriden doldur" ile yükleyin.`;
 }
