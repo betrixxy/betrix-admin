@@ -1,111 +1,153 @@
-import type { CSSProperties, ReactNode } from "react";
-import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { cropFor, focusOrigin, placeCrop, type Frame } from "../lib/crop";
-import { HEIGHT, LINE2_DELAY_FRAMES, SAFE, WIDTH } from "../lib/motion";
-import type { ReelPhoto } from "../schema";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
+import { AbsoluteFill, continueRender, delayRender, Easing, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { cropFor, focusOrigin, placeCrop } from "../lib/crop";
+import { AUDIT_PREFIX, measureDom } from "../lib/dom-audit";
+import { buildTimeline, CONTENT_WIDTH, LINE2_DELAY_FRAMES, SAFE, spokenThousands, TYPE, ZONES } from "../lib/motion";
+import type { PhotoSlot } from "../lib/photo-layouts";
+import type { ReelPhoto, ReelScript } from "../schema";
 
 export const FONT_FAMILY = "Geist";
+export const COLORS = { ground: "#0A0F0C", surface: "#131A16", border: "rgba(255,255,255,0.13)", ink: "#FFFFFF", ink2: "#C4CEC8", ink3: "#93A099", draw: "#8E9A94", track: "rgba(255,255,255,0.12)" } as const;
+export const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
+export const tabular = { fontVariantNumeric: "tabular-nums" } as const;
 
 const NOISE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
 
-/** Bütün videonun zemini: koyu, ortada hafif parlama, ince kum. Geçişlerde siyah kare çıkmaz. */
+/** Zemin hep marka koyusu + yeşil. Takım rengi burada yoktur. */
 export function Backdrop({ accent }: { accent: string }) {
   return (
-    <AbsoluteFill style={{ backgroundColor: "#090D0B" }}>
-      <AbsoluteFill style={{ background: `radial-gradient(ellipse 72% 46% at 50% 44%, ${accent}2E 0%, ${accent}12 45%, transparent 75%)` }} />
-      <AbsoluteFill style={{ backgroundImage: NOISE, opacity: 0.07 }} />
+    <AbsoluteFill style={{ backgroundColor: COLORS.ground }}>
+      <AbsoluteFill style={{ background: `radial-gradient(ellipse 78% 44% at 50% 46%, ${accent}24 0%, ${accent}0D 50%, transparent 78%)` }} />
+      <AbsoluteFill style={{ backgroundImage: NOISE, opacity: 0.06 }} />
     </AbsoluteFill>
   );
 }
 
-/** Sol üst imza: tüm video boyunca aynı yerde. */
-export function Signature({ logo }: { logo: string }) {
-  return <Img src={staticFile(logo)} style={{ position: "absolute", left: SAFE.left, top: SAFE.top + 12, height: 44, width: "auto" }} />;
-}
-
-/** İçerik alanı: Instagram güvenli alanının içi. */
-export function SafeArea({ children, style }: { children: ReactNode; style?: CSSProperties }) {
-  return (
-    <div style={{ position: "absolute", left: SAFE.left, right: SAFE.right, top: SAFE.top, bottom: SAFE.bottom, display: "flex", flexDirection: "column", fontFamily: FONT_FAMILY, ...style }}>
-      {children}
-    </div>
-  );
-}
-
-/** 876 px içerik genişliğine sığacak başlık boyutu: Geist Black ortalama harf genişliğine göre. */
-const headlineSize = (text: string, base: number): number => Math.min(base, Math.floor(860 / (text.length * 0.56)));
-
-/** Başlık kalıbı: 1. satır beyaz, 2. satır vurgu rengi ve ~300 ms gecikmeli. */
-export function Headline({ line1, line2, accent }: { line1: string; line2: string; accent: string }) {
+/** Sabit HUD: sol üst logo, sağ üst maç etiketi, altta sahne sahne dolan ilerleme çubuğu. */
+export function Hud({ script }: { script: ReelScript }) {
   const frame = useCurrentFrame();
-  const size = Math.min(headlineSize(line1, 104), headlineSize(line2, 104));
-  const appear = (delay: number) => ({
-    opacity: interpolate(frame, [delay, delay + 8], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }),
-    transform: `translateY(${interpolate(frame, [delay, delay + 12], [26, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) })}px)`,
-  });
+  const { home, away } = script.meta.teams;
+  const { entries } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
   return (
-    <div style={{ marginTop: 90, fontWeight: 900, fontSize: size, lineHeight: 1.04, letterSpacing: -2 }}>
-      <div style={{ color: "#FFFFFF", ...appear(4) }}>{line1}</div>
-      <div style={{ color: accent, ...appear(4 + LINE2_DELAY_FRAMES) }}>{line2}</div>
+    <>
+      <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top: ZONES.hudTop, height: 44, display: "flex", alignItems: "center", justifyContent: "space-between", fontFamily: FONT_FAMILY }}>
+        <Img src={staticFile(script.brand.logo)} style={{ height: 44, width: "auto" }} />
+        <div style={{ color: COLORS.ink2, fontSize: 30, fontWeight: 700, whiteSpace: "nowrap", ...tabular }}>{home.shortName} – {away.shortName} · {script.meta.match.kickoffLabel}</div>
+      </div>
+      <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top: ZONES.progressTop, height: 6, display: "flex", gap: 4 }}>
+        {entries.map((entry, index) => (
+          <div key={index} style={{ flex: 1, background: COLORS.track, borderRadius: 3, overflow: "hidden" }}>
+            <div style={{ height: "100%", background: script.brand.accent, width: `${interpolate(frame, [entry.from, entry.from + entry.duration - 8], [0, 100], clamp)}%` }} />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+const fitSize = (text: string): number => Math.min(TYPE.title, Math.floor(860 / (text.length * 0.56)));
+
+export function useReveal(start: number, distance = 22): CSSProperties {
+  const frame = useCurrentFrame();
+  return {
+    opacity: interpolate(frame, [start, start + 8], [0, 1], clamp),
+    transform: `translateY(${interpolate(frame, [start, start + 12], [distance, 0], { ...clamp, easing: Easing.out(Easing.cubic) })}px)`,
+  };
+}
+
+/** Başlık: 1. satır beyaz, 2. satır yeşil ve ~300 ms sonra. `still`: kapakta ilk kare tam dolu olsun diye hareketsiz. */
+export function Title({ line1, line2, accent, start = 6, still = false }: { line1: string; line2: string; accent: string; start?: number; still?: boolean }) {
+  const size = Math.min(fitSize(line1), fitSize(line2));
+  const first = useReveal(start);
+  const second = useReveal(start + LINE2_DELAY_FRAMES);
+  return (
+    <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top: ZONES.titleTop, fontFamily: FONT_FAMILY, fontWeight: 900, fontSize: size, lineHeight: 1.04, letterSpacing: -2 }}>
+      <div style={{ color: COLORS.ink, ...(still ? {} : first) }}>{line1}</div>
+      <div style={{ color: accent, ...(still ? {} : second) }}>{line2}</div>
     </div>
   );
 }
 
-/** Alt yazı: alt güvenli alanın hemen üstünde. */
-export function Caption({ text }: { text: string }) {
+/** Ana görsel bölgesi: hafif kamera itişi güvenli alanın dışına taşmaz (içeri doğru başlar, tam boyda biter). */
+export function Main({ children, style, top = ZONES.mainTop, height = ZONES.mainHeight }: { children: ReactNode; style?: CSSProperties; top?: number; height?: number }) {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const push = interpolate(frame, [0, durationInFrames - 8], [0.985, 1], clamp);
+  return <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top, height, display: "flex", flexDirection: "column", fontFamily: FONT_FAMILY, color: COLORS.ink, transform: `scale(${push})`, ...style }}>{children}</div>;
+}
+
+export function Strip({ children, style }: { children: ReactNode; style?: CSSProperties }) {
+  return <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top: ZONES.stripTop, height: ZONES.stripHeight, display: "flex", gap: 14, fontFamily: FONT_FAMILY, color: COLORS.ink, ...style }}>{children}</div>;
+}
+
+/** Her veri sahnesinin altındaki güvenilirlik satırı. */
+export function TrustLine({ script }: { script: ReelScript }) {
+  const { modelVersion, simulations, computedLabel } = script.meta.snapshot;
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, color: "#C9D2CD", fontSize: 38, fontWeight: 500, lineHeight: 1.25, opacity: interpolate(frame, [24, 34], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) }}>
-      {text}
+    <div style={{ position: "absolute", left: SAFE.left, width: CONTENT_WIDTH, top: ZONES.trustTop, fontFamily: FONT_FAMILY, fontSize: TYPE.note, fontWeight: 500, letterSpacing: -0.5, color: COLORS.ink3, whiteSpace: "nowrap", ...tabular }}>
+      checkmatch modeli v{modelVersion} · {spokenThousands(simulations)} simülasyon · hesap {computedLabel}
     </div>
   );
+}
+
+/** Düz koyu yüzey, ince kenarlık, 24 px köşe. */
+export function Card({ name, children, style, edge }: { name: string; children: ReactNode; style?: CSSProperties; edge?: string }) {
+  return <div data-block={name} style={{ background: COLORS.surface, border: `2px solid ${edge ?? COLORS.border}`, borderRadius: 24, padding: "18px 24px", display: "flex", flexDirection: "column", minWidth: 0, ...style }}>{children}</div>;
 }
 
 export function Crest({ src, size }: { src: string; size: number }) {
-  return <Img src={staticFile(src)} style={{ width: size, height: size, objectFit: "contain" }} />;
+  return <Img src={staticFile(src)} style={{ width: size, height: size, objectFit: "contain", flexShrink: 0 }} />;
 }
 
-/**
- * Şeffaf kesim: takım rengiyle duotone, yavaş zoom ve parallax. Tonlama render anındadır, arşiv nötr kalır.
- * Kırpma ve zoom merkezi fotoğrafın metadata'sından gelir.
- */
-export function Cutout({ photo, color, frame, left, bottom, flip = false, opacity = 1, drift = 0 }: {
-  photo: ReelPhoto;
-  color: string;
-  frame: Frame;
-  left: number;
-  bottom: number;
-  flip?: boolean;
-  opacity?: number;
-  /** Parallax yönü ve miktarı (px). */
-  drift?: number;
-}) {
-  const current = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  const progress = current / Math.max(1, durationInFrames);
-  const place = placeCrop(cropFor(photo, frame), photo.aspect, frame);
-  const origin = focusOrigin(photo, frame);
-  const src = staticFile(photo.src);
+/** Takım rengi işaret: rakam beyaz kalır, kimliği bu taşır. */
+export const Swatch = ({ color, size = 20 }: { color: string; size?: number }) => <span style={{ display: "inline-block", width: size, height: size, borderRadius: 6, background: color, flexShrink: 0 }} />;
+
+export function Bar({ fraction, color, height = 16 }: { fraction: number; color: string; height?: number }) {
   return (
-    <div style={{
-      position: "absolute", left, top: HEIGHT - bottom - frame.height, width: frame.width, height: frame.height, overflow: "hidden", opacity,
-      // Alt kenar düz kesilmez, zemine erir.
-      WebkitMaskImage: "linear-gradient(#000 72%, transparent 100%)", maskImage: "linear-gradient(#000 72%, transparent 100%)",
-      transform: `translateX(${drift * progress}px) scale(${1 + 0.05 * progress}) ${flip ? "scaleX(-1)" : ""}`, transformOrigin: `${origin.x}% ${origin.y}%`,
-    }}>
+    <div style={{ height, background: COLORS.track, borderRadius: height / 2, overflow: "hidden", width: "100%" }}>
+      <div style={{ height: "100%", width: `${Math.max(0, Math.min(1, fraction)) * 100}%`, background: color, borderRadius: height / 2 }} />
+    </div>
+  );
+}
+
+const MASK = "linear-gradient(#000 70%, transparent 100%)";
+
+/**
+ * Şeffaf kesim: takım rengiyle duotone, zemine eriyen alt kenar, yavaş zoom ve parallax. Tonlama render anındadır,
+ * arşiv nötr kalır. Yüz kutuları metadata'dan gelir ve `data-face` ile ölçüme girer.
+ */
+export function Cutout({ photo, color, slot, drift = 0, opacity = 1 }: { photo: ReelPhoto; color: string; slot: PhotoSlot; drift?: number; opacity?: number }) {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const progress = frame / Math.max(1, durationInFrames);
+  const place = placeCrop(cropFor(photo, slot.frame), photo.aspect, slot.frame);
+  const origin = focusOrigin(photo, slot.frame);
+  const src = staticFile(photo.src);
+  const silhouette: CSSProperties = { position: "absolute", inset: 0, WebkitMaskImage: `url("${src}")`, WebkitMaskSize: "100% 100%", maskImage: `url("${src}")`, maskSize: "100% 100%" };
+  return (
+    <div style={{ position: "absolute", left: slot.left, top: slot.top, width: slot.frame.width, height: slot.frame.height, overflow: "hidden", opacity, transform: `translateX(${drift * progress}px) scale(${1 + 0.035 * progress}) ${slot.flip ? "scaleX(-1)" : ""}`, transformOrigin: `${origin.x}% ${origin.y}%`, WebkitMaskImage: MASK, maskImage: MASK }}>
       <div style={{ position: "absolute", ...place, isolation: "isolate" }}>
-        <Img src={src} style={{ width: "100%", height: "100%", filter: "grayscale(1) contrast(1.15)" }} />
-        <div style={{
-          position: "absolute", inset: 0, mixBlendMode: "color", background: color,
-          WebkitMaskImage: `url("${src}")`, WebkitMaskSize: "100% 100%", maskImage: `url("${src}")`, maskSize: "100% 100%",
-        }} />
-        <div style={{
-          position: "absolute", inset: 0, mixBlendMode: "soft-light", background: `linear-gradient(170deg, #FFFFFF, ${color} 55%, #000000)`,
-          WebkitMaskImage: `url("${src}")`, WebkitMaskSize: "100% 100%", maskImage: `url("${src}")`, maskSize: "100% 100%",
-        }} />
+        <Img src={src} style={{ width: "100%", height: "100%", filter: "grayscale(1) contrast(1.1) brightness(0.92)" }} />
+        <div style={{ ...silhouette, mixBlendMode: "color", background: color }} />
+        <div style={{ ...silhouette, mixBlendMode: "soft-light", background: `linear-gradient(170deg, #FFFFFF, ${color} 50%, #000000)` }} />
+        {photo.faces.map((face, index) => (
+          <div key={index} data-face="" style={{ position: "absolute", left: `${face.x * 100}%`, top: `${face.y * 100}%`, width: `${face.width * 100}%`, height: `${face.height * 100}%` }} />
+        ))}
       </div>
     </div>
   );
 }
 
-export { WIDTH };
+/** Render denetimi: kare çizildikten sonra gerçek kutuları konsola yazar. Yalnız tek kare denetiminde açılır. */
+export function AuditProbe() {
+  const frame = useCurrentFrame();
+  useEffect(() => {
+    const handle = delayRender("yerleşim denetimi");
+    void document.fonts.ready.then(() => {
+      const root = document.querySelector("[data-reel-root]");
+      if (root) console.log(AUDIT_PREFIX + JSON.stringify({ frame, audit: measureDom(root) }));
+      continueRender(handle);
+    });
+  }, [frame]);
+  return null;
+}

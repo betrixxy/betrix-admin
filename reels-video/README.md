@@ -3,16 +3,24 @@
 checkmatch reels video prototipi (Remotion). Next uygulamasından ayrı pakettir: kendi `package.json`'ı vardır, Docker imajına ve kök tip denetimine girmez.
 
 - **Girdi:** tek JSON, `ReelScript` (`src/schema.ts`). Senaryo motoru bunu üretir, render bunu tüketir.
-- **Örnekler:** `src/samples` iki kurgusal maç. Gerçek oyuncu fotoğrafı ve gerçek takım yok; siluet ve armalar yer tutucudur.
-- **Çıktı:** repoya yazılmaz, `test-photos/reels-video`.
+- **Sahne havuzu:** `src/story/pool.ts`. 16 sahne; verisi eksik sahne kendini kapatır ve nedenini döner. Hikâye açısı havuzdan 12–14 sahne seçer (60–75 sn).
+- **Örnekler:** `src/samples` iki kurgusal maç. Gerçek oyuncu fotoğrafı ve gerçek takım yok; siluet ve armalar yer tutucudur. Modelin karnesi dahil bütün sayılar uydurmadır.
+- **Servis ihtiyaçları:** `docs/contract-v1.1-ihtiyac.md`.
+- **Çıktı:** repoya yazılmaz, `test-photos/reels-video/v2`.
 
 ```sh
 npm install
 npm run studio       # tarayıcıda önizleme
 npm test
-npm run stills       # sahne kareleri + kontak sayfası
-npm run render       # iki MP4; ağır iş, maç penceresinde çalıştırılmaz
+npm run stills       # 16 sahne, 4×4 kontak sayfası, yerleşim denetimi
+npm run render       # hikâye MP4'leri; ağır iş, maç penceresinde çalıştırılmaz
 ```
+
+## Yerleşim denetimi
+
+`npm run stills` her sahneyi render ederken gerçek kutuları ölçer (`src/lib/dom-audit.ts`) ve sorun varsa 1 ile çıkar: yüze binen öğe (fotoğraf metadata'sındaki yüz kutusuna göre), güvenli alan dışına taşma, karttan taşan metin, çakışan metin, 26 px altı yazı. Fotoğraflı sahnede yüz kutusu ölçülemezse denetim boş geçmiş sayılır ve hata verir. Sonuç `denetim.json`.
+
+Bu denetim tek karede çalışır. Tasarım kararı ve hareket için kareler ve video gözle incelenir.
 
 ## Lisanslar
 

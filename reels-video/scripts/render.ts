@@ -1,65 +1,111 @@
-import { mkdirSync, statSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
+import { openBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import sharp from "sharp";
+import { AUDIT_PREFIX } from "../src/lib/dom-audit";
+import { auditProblems, type LayoutAudit } from "../src/lib/layout-check";
 import { buildTimeline } from "../src/lib/motion";
-import { SAMPLES, type SampleId } from "../src/samples";
+import { SAMPLE_KEYS, sampleScripts } from "../src/samples";
+import type { ReelScene, ReelScript } from "../src/schema";
 
 /**
- * `--stills`: her sahneden bir kare + kontak sayfası (hafif). `--video`: iki MP4 (ağır iş, maç penceresinde çalıştırılmaz).
- * Çıktı repoya yazılmaz: test-photos/reels-video.
+ * `--stills`: havuzun 16 sahnesinden tek kare + 4×4 kontak sayfası + yerleşim denetimi (sorun varsa çıkış 1).
+ * `--video`: seçilen hikâyelerin MP4'ü (ağır iş; maç penceresinde çalıştırılmaz). Çıktı repoya yazılmaz.
  */
 
-const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video");
-const mode = process.argv.includes("--video") ? "video" : "stills";
+const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video/v2");
+const video = process.argv.includes("--video");
 const concurrency = Number(process.argv.find((arg) => arg.startsWith("--concurrency="))?.split("=")[1] ?? 2);
+const PHOTO_SCENES = new Set(["S01_COVER", "S03_HOOK", "S06_WINNER", "S07_KEY_GAP", "S13_SCORER", "S16_SUMMARY"]);
+const WIPE = 8;
 
-const ids = Object.keys(SAMPLES) as SampleId[];
 mkdirSync(OUT, { recursive: true });
-
-const bundleStart = Date.now();
+const startedAt = Date.now();
 const serveUrl = await bundle({ entryPoint: path.resolve("src/index.ts") });
-console.log(`paket ${((Date.now() - bundleStart) / 1000).toFixed(1)} sn`);
+console.log(`paket ${((Date.now() - startedAt) / 1000).toFixed(1)} sn`);
+const browser = await openBrowser("chrome");
 
-/** Animasyonun oturduğu kare: sahnenin sonuna yakın, geçişten önce. */
-const stillOffset = (duration: number): number => (duration <= 20 ? 0 : Math.max(0, duration - 14));
+/** Fotoğraf çıkan kare: animasyon oturmuş, çıkış geçişi başlamamış. */
+const settleFrame = (scene: ReelScene): number => (scene.type === "S16_SUMMARY" ? 195 : scene.durationInFrames - WIPE - 4);
+/** Denetim kareleri: yakın (hareket ortası) + oturmuş; özet kartında üç evre. */
+const auditFrames = (scene: ReelScene): number[] => (scene.type === "S16_SUMMARY" ? [195, 260, 320] : [Math.max(WIPE + 2, Math.floor(scene.durationInFrames * 0.45)), settleFrame(scene)]);
 
-if (mode === "stills") {
-  const sheet: { input: string; left: number; top: number }[] = [];
-  const thumb = { width: 270, height: 480 };
-  for (const [row, id] of ids.entries()) {
-    const script = SAMPLES[id];
-    const composition = await selectComposition({ serveUrl, id, inputProps: { script } });
-    const { entries } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
-    mkdirSync(path.join(OUT, id), { recursive: true });
-    for (const [column, scene] of script.scenes.entries()) {
-      const entry = entries[column];
-      if (!entry) continue;
-      const output = path.join(OUT, id, `${String(column).padStart(2, "0")}-${scene.type}.png`);
-      await renderStill({ composition, serveUrl, output, frame: entry.from + stillOffset(entry.duration), inputProps: { script } });
-      const thumbFile = `${output}.thumb.png`;
-      await sharp(output).resize(thumb).toFile(thumbFile);
-      sheet.push({ input: thumbFile, left: column * (thumb.width + 10) + 10, top: row * (thumb.height + 10) + 10 });
-    }
-    console.log(`kareler: ${id} (${script.scenes.length})`);
-  }
-  const columns = Math.max(...ids.map((id) => SAMPLES[id].scenes.length));
-  await sharp({ create: { width: columns * (thumb.width + 10) + 10, height: ids.length * (thumb.height + 10) + 10, channels: 3, background: "#222" } })
-    .composite(sheet)
-    .png()
-    .toFile(path.join(OUT, "kontak-sayfasi.png"));
-  const { rmSync } = await import("node:fs");
-  for (const item of sheet) rmSync(item.input);
-  console.log(`kontak: ${path.join(OUT, "kontak-sayfasi.png")}`);
-} else {
-  for (const id of ids) {
-    const script = SAMPLES[id];
-    const composition = await selectComposition({ serveUrl, id, inputProps: { script } });
+async function still(id: string, script: ReelScript, frame: number, output: string | null): Promise<LayoutAudit> {
+  const composition = await selectComposition({ serveUrl, id, inputProps: { script, audit: true }, puppeteerInstance: browser });
+  let audit: LayoutAudit | null = null;
+  await renderStill({
+    composition, serveUrl, frame, output, imageFormat: output ? "png" : "jpeg", inputProps: { script, audit: true }, puppeteerInstance: browser,
+    onBrowserLog: ({ text }) => {
+      if (!text.includes(AUDIT_PREFIX)) return;
+      const parsed = JSON.parse(text.slice(text.indexOf(AUDIT_PREFIX) + AUDIT_PREFIX.length)) as { frame: number; audit: LayoutAudit };
+      if (parsed.frame === frame) audit = parsed.audit;
+    },
+  });
+  if (!audit) throw new Error(`Denetim sonucu gelmedi: ${id} kare ${frame}`);
+  return audit;
+}
+
+if (video) {
+  for (const key of SAMPLE_KEYS) {
+    const { story } = sampleScripts(key);
+    const id = `reel-${key}`;
+    const composition = await selectComposition({ serveUrl, id, inputProps: { script: story }, puppeteerInstance: browser });
     const output = path.join(OUT, `${id}.mp4`);
     const started = Date.now();
-    await renderMedia({ composition, serveUrl, codec: "h264", crf: 18, pixelFormat: "yuv420p", outputLocation: output, inputProps: { script }, concurrency });
-    const seconds = (Date.now() - started) / 1000;
-    console.log(`${id}: ${composition.durationInFrames} kare (${(composition.durationInFrames / composition.fps).toFixed(1)} sn), render ${seconds.toFixed(0)} sn, ${(statSync(output).size / 1024 / 1024).toFixed(1)} MB → ${output}`);
+    await renderMedia({ composition, serveUrl, codec: "h264", crf: 18, pixelFormat: "yuv420p", outputLocation: output, inputProps: { script: story }, concurrency, puppeteerInstance: browser });
+    console.log(`${id}: ${composition.durationInFrames} kare (${(composition.durationInFrames / composition.fps).toFixed(1)} sn), render ${((Date.now() - started) / 1000).toFixed(0)} sn, ${(statSync(output).size / 1024 / 1024).toFixed(1)} MB → ${output}`);
   }
+} else {
+  const report: Record<string, unknown> = {};
+  const problems: string[] = [];
+  const thumb = { width: 360, height: 640 };
+  const gap = 12;
+  for (const key of SAMPLE_KEYS) {
+    const { pool, story } = sampleScripts(key);
+    const id = `havuz-${key}`;
+    const { entries } = buildTimeline(pool.scenes.map((scene) => scene.durationInFrames));
+    const folder = path.join(OUT, key);
+    mkdirSync(folder, { recursive: true });
+    const sheet: { input: Buffer; left: number; top: number }[] = [];
+    if (pool.disabled.length) console.log(`${key} havuz dışı: ${pool.disabled.map((item) => `${item.type} (${item.reason})`).join(", ")}`);
+    for (const [index, scene] of pool.scenes.entries()) {
+      const entry = entries[index];
+      if (!entry) continue;
+      const file = path.join(folder, `${String(index + 1).padStart(2, "0")}-${scene.type}.png`);
+      for (const offset of auditFrames(scene)) {
+        const audit = await still(id, pool, entry.from + offset, offset === settleFrame(scene) ? file : null);
+        report[`${key}/${scene.type}@${offset}`] = audit;
+        problems.push(...auditProblems(audit).map((problem) => `${key}/${scene.type}@${offset}: ${problem}`));
+        const photoShown = PHOTO_SCENES.has(scene.type) && !(scene.type === "S16_SUMMARY" && offset !== 260);
+        if (photoShown && audit.faces === 0) problems.push(`${key}/${scene.type}@${offset}: yüz kutusu ölçülmedi, denetim boş geçti`);
+      }
+      sheet.push({ input: await sharp(file).resize(thumb).toBuffer(), left: (index % 4) * (thumb.width + gap) + gap, top: Math.floor(index / 4) * (thumb.height + gap) + gap });
+    }
+    // Akışta görünen ama kontak sayfasına girmeyen evreler ve yedek dal.
+    const summaryIndex = pool.scenes.findIndex((scene) => scene.type === "S16_SUMMARY");
+    const summaryEntry = entries[summaryIndex];
+    if (summaryEntry) {
+      await still(id, pool, summaryEntry.from + 260, path.join(folder, "ek-S16-soru.png"));
+      await still(id, pool, summaryEntry.from + 320, path.join(folder, "ek-S16-kapanis.png"));
+    }
+    const bothIndex = pool.scenes.findIndex((scene) => scene.type === "S09_BOTH_SCORE");
+    const both = pool.scenes[bothIndex];
+    const bothEntry = entries[bothIndex];
+    if (both?.type === "S09_BOTH_SCORE" && bothEntry) {
+      const fallback = { ...pool, scenes: pool.scenes.map((scene) => (scene === both ? { ...both, data: { ...both.data, teamChance: null } } : scene)) };
+      const audit = await still(id, fallback, bothEntry.from + settleFrame(both), path.join(folder, "ek-S09-tek-gauge.png"));
+      problems.push(...auditProblems(audit).map((problem) => `${key}/S09 tek gauge: ${problem}`));
+    }
+    const rows = Math.ceil(pool.scenes.length / 4);
+    await sharp({ create: { width: 4 * (thumb.width + gap) + gap, height: rows * (thumb.height + gap) + gap, channels: 3, background: "#2A2A2A" } }).composite(sheet).png().toFile(path.join(OUT, `kontak-${key}.png`));
+    const seconds = buildTimeline(story.scenes.map((scene) => scene.durationInFrames)).total / 30;
+    console.log(`${key}: havuz ${pool.scenes.length} sahne; hikâye ${story.scenes.length} sahne, ${seconds.toFixed(1)} sn: ${story.scenes.map((scene) => scene.type.slice(0, 3)).join(" ")}`);
+  }
+  writeFileSync(path.join(OUT, "denetim.json"), JSON.stringify(report, null, 1));
+  console.log(`denetim: ${Object.keys(report).length} kare, ${problems.length} sorun, ${((Date.now() - startedAt) / 1000).toFixed(0)} sn`);
+  for (const problem of problems) console.log(`  ${problem}`);
+  await browser.close({ silent: true });
+  process.exit(problems.length ? 1 : 0);
 }
+await browser.close({ silent: true });
