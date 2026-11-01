@@ -71,18 +71,21 @@ export function HookScene({ script, scene, accent }: Common & { scene: SceneOf<"
   const shown = countUp(frame, { to: scene.data.simulations, start: 20, duration: 110 });
   const homePhoto = photoOf(script, scene.assets.photoIds, "home");
   const awayPhoto = photoOf(script, scene.assets.photoIds, "away");
-  const cut = { width: 430, height: 520 };
+  // Yüzün üstüne yazı binmez: sayaç yukarıda, oyuncular ızgaranın altında.
+  const cut = { width: 400, height: 330 };
   return (
     <AbsoluteFill>
-      {homePhoto ? <Cutout photo={homePhoto} color={home.colors.primary} frame={cut} left={-30} bottom={SAFE.bottom + 44} drift={16} opacity={0.62} /> : null}
-      {awayPhoto ? <Cutout photo={awayPhoto} color={away.colors.primary} frame={cut} left={470} bottom={SAFE.bottom + 44} drift={-16} flip opacity={0.62} /> : null}
+      {homePhoto ? <Cutout photo={homePhoto} color={home.colors.primary} frame={cut} left={40} bottom={SAFE.bottom + 44} drift={12} /> : null}
+      {awayPhoto ? <Cutout photo={awayPhoto} color={away.colors.primary} frame={cut} left={510} bottom={SAFE.bottom + 44} drift={-12} flip /> : null}
       <SafeArea>
         <Headline line1={scene.headline?.line1 ?? ""} line2={scene.headline?.line2 ?? ""} accent={accent} />
-        <div style={{ marginTop: 44 }}>
-          <DotGrid size={CONTENT_WIDTH} segments={[{ color: `${accent}D9`, lit: Math.floor((shown / scene.data.simulations) * 1000) }]} />
+        <div style={{ marginTop: 24, display: "flex", alignItems: "baseline", gap: 18 }}>
+          <div style={{ color: "#FFFFFF", fontSize: 112, fontWeight: 900, letterSpacing: -3, lineHeight: 1, ...tabular }}>{formatInt(shown)}</div>
+          <div style={{ color: "#FFFFFF", fontSize: 38, fontWeight: 500 }}>simülasyon</div>
         </div>
-        <div style={{ marginTop: 26, color: "#FFFFFF", fontSize: 128, fontWeight: 900, letterSpacing: -3, lineHeight: 1, textShadow: "0 4px 28px rgba(0,0,0,0.75)", ...tabular }}>{formatInt(shown)}</div>
-        <div style={{ marginTop: 6, color: "#FFFFFF", fontSize: 38, fontWeight: 500, textShadow: "0 2px 16px rgba(0,0,0,0.8)" }}>simülasyon</div>
+        <div style={{ marginTop: 24 }}>
+          <DotGrid size={CONTENT_WIDTH} rows={20} columns={50} segments={[{ color: `${accent}D9`, lit: Math.floor((shown / scene.data.simulations) * 1000) }]} />
+        </div>
         {scene.caption ? <Caption text={scene.caption} /> : null}
       </SafeArea>
     </AbsoluteFill>
