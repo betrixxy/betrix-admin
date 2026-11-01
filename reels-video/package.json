@@ -1,0 +1,32 @@
+{
+  "name": "reels-video",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "checkmatch reels video prototype (Remotion). Next uygulamasından ayrı paket.",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "stills": "tsx scripts/render.ts --stills",
+    "render": "tsx scripts/render.ts --video"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/fonts": "4.0.539",
+    "@remotion/renderer": "4.0.539",
+    "@remotion/transitions": "4.0.539",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.539",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "sharp": "^0.35.4",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  }
+}
