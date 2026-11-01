@@ -1,40 +1,47 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Check, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, Minus, X } from "lucide-react";
 import { PageHeader } from "@/components/features/dashboard/page-header";
-import { FreezeButton } from "@/components/features/dashboard/reels-action-buttons";
+import { CancelProjectButton, FreezeButton } from "@/components/features/dashboard/reels-action-buttons";
+import { ReelsSnapshotCard } from "@/components/features/dashboard/reels-snapshot-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { competitionShortName } from "@/lib/names/competition-names";
 import { prisma } from "@/lib/prisma";
 import { formatIstanbulDateTime, formatPublishWindow, publishWindowState } from "@/lib/reels/publish-window";
-import { reelCheckLabel, REEL_SCENE_IDS, REEL_SCENE_LABELS, type ReelSceneAvailability } from "@/lib/reels/scenes";
-import { canFreezeReel, REEL_STATUS_LABELS } from "@/lib/reels/selection";
-import { reelsCheckSchema, type ReelsCheck } from "@/lib/services/reels-schema";
+import { groupReelChecks, reelCheckLabel, REEL_SCENE_IDS, REEL_SCENE_LABELS, type ReelSceneAvailability } from "@/lib/reels/scenes";
+import { canCancelReel, canFreezeReel, REEL_STATUS_LABELS } from "@/lib/reels/selection";
+import { reelSnapshotView } from "@/lib/reels/snapshot-view";
+import { reelsMatchDetailSchema, type ReelsCheck } from "@/lib/services/reels-schema";
 
 export const metadata: Metadata = { title: "Reels projesi — betrix.pro" };
 
 export const dynamic = "force-dynamic";
 
-/** Dondurulmuş yanıttan yalnız kalite satırları okunur; ham yanıt ekrana çıkmaz. */
-function storedChecks(payload: unknown): ReelsCheck[] {
-  const quality = payload && typeof payload === "object" && "quality" in payload ? payload.quality : null;
-  const checks = quality && typeof quality === "object" && "checks" in quality ? quality.checks : null;
-  return Array.isArray(checks) ? checks.flatMap((check) => {
-    const parsed = reelsCheckSchema.safeParse(check);
-    return parsed.success ? [parsed.data] : [];
-  }) : [];
-}
-
-function storedSimulations(payload: unknown): number | null {
-  const model = payload && typeof payload === "object" && "model" in payload ? payload.model : null;
-  const value = model && typeof model === "object" && "simulations" in model ? model.simulations : null;
-  return typeof value === "number" ? value : null;
-}
-
 function Mark({ ok }: { ok: boolean }) {
   return ok ? <Check className="size-4 shrink-0 text-emerald-300" /> : <X className="size-4 shrink-0 text-amber-300" />;
+}
+
+function CheckList({ checks, muted = false }: { checks: ReelsCheck[]; muted?: boolean }) {
+  return (
+    <ul className="flex flex-col gap-1.5 text-sm">
+      {checks.map((check) => (
+        <li key={check.name} className="flex items-start gap-2">
+          {muted ? (
+            check.ok ? <Check className="size-4 shrink-0 text-muted-foreground" /> : <Minus className="size-4 shrink-0 text-muted-foreground" />
+          ) : (
+            <Mark ok={check.ok} />
+          )}
+          <span className={muted ? "text-muted-foreground" : "text-white"}>{reelCheckLabel(check.name)}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{children}</h3>;
 }
 
 export default async function ReelProjectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,10 +56,14 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
   const window = { publishFrom: project.publishFrom, publishTo: project.publishTo };
   const latest = project.snapshots[0];
   const availability = latest ? (latest.sceneAvailability as unknown as ReelSceneAvailability) : null;
-  const checks = latest ? storedChecks(latest.payload) : [];
-  const simulations = latest ? storedSimulations(latest.payload) : null;
-  const passed = checks.filter((check) => check.ok).length;
-  const freezeBlocked = canFreezeReel(project.status) ? null : "Onaydan sonra yeni veri dondurulamaz.";
+  const stored = latest ? reelsMatchDetailSchema.safeParse(latest.payload) : null;
+  const detail = stored?.success ? stored.data : null;
+  const groups = detail ? groupReelChecks(detail) : null;
+  const freezeBlocked = canFreezeReel(project.status)
+    ? null
+    : project.status === "CANCELLED"
+      ? "İptal edilen proje için yeniden seçin."
+      : "Onaydan sonra yeni veri dondurulamaz.";
 
   return (
     <>
@@ -63,7 +74,12 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
       <PageHeader
         title={`${project.homeName} – ${project.awayName}`}
         description={`${competitionShortName(project.leagueId, project.leagueName)} · ${formatIstanbulDateTime(project.kickoffUtc)} (İstanbul)`}
-        actions={<FreezeButton projectId={project.id} hasSnapshot={latest !== undefined} disabledReason={freezeBlocked} />}
+        actions={
+          <div className="flex flex-wrap items-start gap-2">
+            {canCancelReel(project.status) ? <CancelProjectButton projectId={project.id} /> : null}
+            <FreezeButton projectId={project.id} hasSnapshot={latest !== undefined} disabledReason={freezeBlocked} />
+          </div>
+        }
       />
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
         <Badge variant="secondary">{REEL_STATUS_LABELS[project.status]}</Badge>
@@ -87,11 +103,12 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
         </Card>
       ) : (
         <>
+          {detail ? <ReelsSnapshotCard view={reelSnapshotView(detail)} /> : null}
           <Card>
             <CardHeader>
               <CardTitle>Sürüm {latest.version}</CardTitle>
               <CardDescription>
-                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}
+                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {detail?.model.simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
@@ -110,17 +127,28 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
                   })}
                 </ul>
               </section>
-              <section className="flex flex-col gap-2">
-                <h2 className="text-sm font-medium text-white">Kalite kontrolleri · {passed}/{checks.length} geçti</h2>
-                <ul className="flex flex-col gap-1.5 text-sm">
-                  {checks.map((check) => (
-                    <li key={check.name} className="flex items-start gap-2">
-                      <Mark ok={check.ok} />
-                      <span className="text-white">{reelCheckLabel(check.name)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              {groups ? (
+                <section className="flex flex-col gap-4">
+                  <h2 className="text-sm font-medium text-white">Kalite kontrolleri</h2>
+                  <div className="flex flex-col gap-2">
+                    <SubHeading>Zorunlu</SubHeading>
+                    <CheckList checks={groups.required} />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <SubHeading>Sahneyi etkileyen · M2 En olası skor</SubHeading>
+                    <CheckList checks={groups.scoreScene} />
+                    {groups.scoreSceneClosedByModels ? <p className="text-xs text-muted-foreground">Bu üç kontrol geçti; sahneyi model uyumu kapatıyor (Bilgi grubunda).</p> : null}
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <SubHeading>Sahneyi etkileyen · M7 Golcü adayı</SubHeading>
+                    <CheckList checks={groups.scorerScene} />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <SubHeading>Bilgi</SubHeading>
+                    <CheckList checks={groups.info} muted />
+                  </div>
+                </section>
+              ) : null}
             </CardContent>
           </Card>
           <Card>
@@ -134,7 +162,7 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
                   <li key={snapshot.id} className="flex flex-wrap justify-between gap-2 border-b border-border/60 py-2 last:border-0">
                     <span className="text-white">Sürüm {snapshot.version}</span>
                     <span className="text-muted-foreground">
-                      Model {snapshot.modelVersion} · hesap {formatIstanbulDateTime(snapshot.computedAt)} · donduruldu {formatIstanbulDateTime(snapshot.fetchedAt)} · {snapshot.qualityOk ? "kalite tamam" : "kalite sorunlu"}
+                      Model {snapshot.modelVersion} · hesap {formatIstanbulDateTime(snapshot.computedAt)} · donduruldu {formatIstanbulDateTime(snapshot.fetchedAt)} · {snapshot.qualityOk ? "zorunlu kontroller tamam" : "zorunlu kontrolde hata"}
                     </span>
                   </li>
                 ))}

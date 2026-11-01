@@ -868,6 +868,7 @@ enum ReelProjectStatus {
   READY
   FAILED
   PUBLISHED
+  CANCELLED
 }
 
 /// Reels için seçilen maç. Maç başına tek proje. Yayın penceresi: başlama − 30 sa ile − 6 sa.

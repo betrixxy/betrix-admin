@@ -3,8 +3,14 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { formatIstanbulDateTime, publishWindow, publishWindowState } from "@/lib/reels/publish-window";
-import { reelCheckLabel, reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
-import { canFreezeReel, isReelSelectable, overbookedDays, parseReelsLeagues, REEL_STATUSES, REELS_DEFAULT_LEAGUE_IDS, reelsWeekRange } from "@/lib/reels/selection";
+import { buildReelListDays, filterReelDays } from "@/lib/reels/match-list";
+import { contentLanguageGate } from "@/lib/prediction/content-language";
+import { groupReelChecks, reelCheckLabel, reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
+import { reelFormBoxes, reelPercent, reelSnapshotView } from "@/lib/reels/snapshot-view";
+import {
+  canCancelReel, canFreezeReel, isReelActive, isReelSelectable, missingReelMatchIds, overbookedDays, parseReelsLeagues,
+  REEL_STATUSES, REELS_DEFAULT_LEAGUE_IDS, reelsWeekRange, reelWatchRange,
+} from "@/lib/reels/selection";
 import { parseReelsMatchDetail, parseReelsMatchList, parseReelsResults, reelsFailure, reelsTextValues } from "@/lib/services/reels-schema";
 import { reelsMatchFixture, withCheck } from "../fixtures/reels/match-detail";
 
@@ -144,12 +150,32 @@ describe("sahne uygunluğu", () => {
     assert.ok(Object.values(availability.scenes).every((scene) => scene.available));
   });
 
-  it("çekirdek kalite: yalnız üç kontrol belirler, eksik kontrol geçmez", () => {
+  it("zorunlu kalite: dört kontrol belirler, eksik kontrol geçmez", () => {
     assert.equal(reelQualityOk(reelsMatchFixture()), true);
-    assert.equal(reelQualityOk(withCheck("outcome_sum", false)), false);
-    assert.equal(reelQualityOk(withCheck("score_distribution_aligned", false)), false);
+    for (const name of ["outcome_sum", "probabilities_in_range", "computed_at_fresh", "score_distribution_aligned"]) {
+      assert.equal(reelQualityOk(withCheck(name, false)), false, name);
+    }
     assert.equal(reelQualityOk(withCheck("models_disagree", false)), true);
+    assert.equal(reelQualityOk(withCheck("player_data_fresh", false)), true);
     assert.equal(reelQualityOk(reelsMatchFixture({ quality: { stale: false, checks: [] } })), false);
+  });
+
+  it("kontroller üç gruba ayrılır, bilinmeyen Bilgi'ye düşer", () => {
+    const names = (checks: { name: string }[]) => checks.map((check) => check.name).sort();
+    const base = reelsMatchFixture();
+    const groups = groupReelChecks({ ...base, quality: { ...base.quality, checks: [...base.quality.checks, { name: "yeni_kontrol", ok: true, detail: "x" }] } });
+    assert.deepEqual(names(groups.required), ["computed_at_fresh", "outcome_sum", "probabilities_in_range", "score_distribution_aligned"]);
+    assert.deepEqual(names(groups.scoreScene), ["scene_both_score_close", "scene_nil_nil_within_first_goal", "scene_three_plus_close"]);
+    assert.deepEqual(names(groups.scorerScene), ["season_xg_fresh"]);
+    assert.deepEqual(names(groups.info), ["models_disagree", "player_data_fresh", "scorer_value_within_team_chance", "yeni_kontrol"]);
+    assert.equal(groups.required.length + groups.scoreScene.length + groups.scorerScene.length + groups.info.length, base.quality.checks.length + 1);
+  });
+
+  it("skor sahnesini yalnız model uyumu kapatıyorsa bunu söyler", () => {
+    assert.equal(groupReelChecks(reelsMatchFixture({ score_scene_allowed: false })).scoreSceneClosedByModels, true);
+    assert.equal(groupReelChecks(reelsMatchFixture()).scoreSceneClosedByModels, false);
+    const failing = withCheck("scene_three_plus_close", false);
+    assert.equal(groupReelChecks({ ...failing, score_scene_allowed: false }).scoreSceneClosedByModels, false);
   });
 
   it("kontrol etiketleri ham adı göstermez", () => {
@@ -238,9 +264,132 @@ describe("seçim kuralları", () => {
     assert.equal(isReelSelectable(kickoff, new Date("2026-11-08T16:01:00Z")), false);
   });
 
-  it("dondurma yalnız onaydan önce", () => {
+  it("dondurma yalnız onaydan önce; iptal edilen proje dondurulamaz", () => {
     const open = REEL_STATUSES.filter(canFreezeReel);
     assert.deepEqual(open, ["SELECTED", "SNAPSHOT_READY", "SCRIPT_DRAFT"]);
+  });
+
+  it("iptal: üretim sürerken, yayından sonra ve iki kez yapılamaz", () => {
+    assert.equal(canCancelReel("SELECTED"), true);
+    assert.equal(canCancelReel("SNAPSHOT_READY"), true);
+    assert.equal(canCancelReel("APPROVED"), true);
+    assert.equal(canCancelReel("RENDERING"), false);
+    assert.equal(canCancelReel("PUBLISHED"), false);
+    assert.equal(canCancelReel("CANCELLED"), false);
+  });
+
+  it("iptal edilen proje günlük sayıma ve maç aramasına girmez", () => {
+    assert.equal(isReelActive("CANCELLED"), false);
+    assert.equal(isReelActive("PUBLISHED"), false);
+    assert.equal(isReelActive("SELECTED"), true);
+  });
+
+  describe("listede olmayan maç uyarısı", () => {
+    const now = new Date("2026-11-02T10:00:00Z");
+    const future = new Date("2026-11-05T17:00:00Z");
+    const ref = (matchId: number, status: (typeof REEL_STATUSES)[number] = "SELECTED", kickoffUtc = future) => ({ matchId, status, kickoffUtc });
+
+    it("listede yoksa uyarır, varsa uyarmaz", () => {
+      assert.deepEqual([...missingReelMatchIds([ref(1), ref(2)], new Set([1]), now)], [2]);
+    });
+
+    it("başlamış maç için uyarmaz", () => {
+      assert.equal(missingReelMatchIds([ref(1, "SELECTED", new Date("2026-11-02T09:00:00Z"))], new Set(), now).size, 0);
+    });
+
+    it("iptal edilmiş ve yayınlanmış proje için uyarmaz", () => {
+      assert.equal(missingReelMatchIds([ref(1, "CANCELLED"), ref(2, "PUBLISHED")], new Set(), now).size, 0);
+    });
+
+    it("denetim aralığı en geç maça kadar, en fazla 31 gün", () => {
+      assert.deepEqual(reelWatchRange([future], now), { from: "2026-11-02", to: "2026-11-05" });
+      assert.deepEqual(reelWatchRange([new Date("2027-03-01T10:00:00Z")], now), { from: "2026-11-02", to: "2026-12-03" });
+      assert.deepEqual(reelWatchRange([], now), { from: "2026-11-02", to: "2026-11-02" });
+    });
+  });
+});
+
+describe("maç listesi", () => {
+  const item = (id: number, kickoff: string, home: string, away = "Örnek FK") => ({
+    ...LIST_ITEM, match_id: id, kickoff_utc: kickoff, home: { id, name: home, logo_url: null }, away: { id: id + 1000, name: away, logo_url: null },
+  });
+  const now = new Date("2026-11-02T07:00:00Z"); // Pazartesi 10:00 İstanbul
+  const days = buildReelListDays([
+    item(1, "2026-11-02T17:00:00Z", "Gençlerbirliği S.K."),
+    item(2, "2026-11-02T20:30:00Z", "Kurgu Spor"),
+    item(3, "2026-11-02T21:30:00Z", "Şanlıurfaspor"), // İstanbul 3 Kasım 00:30
+    item(4, "2026-11-05T17:00:00Z", "Atlético Madrid", "Beşiktaş"),
+  ], new Set([2]), now);
+
+  it("İstanbul gününe göre gruplar, başlık Türkçe", () => {
+    assert.deepEqual(days.map((day) => [day.key, day.heading, day.rows.length]), [
+      ["2026-11-02", "Pazartesi 2 Kasım", 2],
+      ["2026-11-03", "Salı 3 Kasım", 1],
+      ["2026-11-05", "Perşembe 5 Kasım", 1],
+    ]);
+  });
+
+  it("yalnız bugün ve yarın açık başlar", () => {
+    assert.deepEqual(days.map((day) => day.defaultOpen), [true, true, false]);
+  });
+
+  it("satırda tek son tarih ve durum", () => {
+    const row = days[0]!.rows[0]!;
+    assert.equal(row.deadline, "En geç: 02.11 14:00");
+    assert.equal(row.phaseLabel, "açık");
+    assert.equal(days[2]!.rows[0]!.phaseLabel, "açılıyor");
+    const passed = buildReelListDays([item(1, "2026-11-02T10:00:00Z", "A")], new Set(), now)[0]!.rows[0]!;
+    assert.equal(passed.phaseLabel, "kapandı");
+  });
+
+  it("seçili maç listede kalır", () => {
+    assert.equal(days[0]!.rows[1]!.selected, true);
+    assert.equal(days[0]!.rows[0]!.selected, false);
+  });
+
+  it("arama aksan duyarsız, deplasman takımını da bulur, boş gün düşer", () => {
+    const ids = (query: string) => filterReelDays(days, query).flatMap((day) => day.rows.map((row) => row.matchId));
+    assert.deepEqual(ids("gencler"), [1]);
+    assert.deepEqual(ids("GENÇLER"), [1]);
+    assert.deepEqual(ids("sanliurfa"), [3]);
+    assert.deepEqual(ids("atletico"), [4]);
+    assert.deepEqual(ids("besiktas"), [4]);
+    assert.deepEqual(ids("yok-boyle-takim"), []);
+    assert.equal(filterReelDays(days, "gencler").length, 1);
+    assert.equal(ids("  ").length, 4);
+  });
+});
+
+describe("dondurulan veriler kartı", () => {
+  it("yüzde tam sayıya yuvarlanır", () => {
+    assert.equal(reelPercent(0.684), "%68");
+    assert.equal(reelPercent(0.685), "%69");
+    assert.equal(reelPercent(null), "–");
+  });
+
+  it("form G/B/M, en yeni solda, en fazla 5", () => {
+    assert.deepEqual(reelFormBoxes("WDLWWLD"), ["G", "B", "M", "G", "G"]);
+    assert.deepEqual(reelFormBoxes("WL"), ["G", "M"]);
+    assert.deepEqual(reelFormBoxes(null), []);
+  });
+
+  it("skor listesi yalnız izin varsa; ilk 5", () => {
+    const cell = { home_goals: 1, away_goals: 0, p: 0.1234 };
+    const allowed = reelSnapshotView(reelsMatchFixture({ score_distribution: Array(6).fill(cell) }));
+    assert.equal(allowed.scores?.length, 5);
+    assert.deepEqual(allowed.scores?.[0], { label: "1-0", percent: "%12" });
+    assert.equal(reelSnapshotView(reelsMatchFixture({ score_scene_allowed: false })).scores, null);
+  });
+
+  it("xG liderleri: yalnız dolu takım, güncelleme tarihiyle", () => {
+    const view = reelSnapshotView(reelsMatchFixture());
+    assert.equal(view.leaders.length, 1);
+    assert.equal(view.leaders[0]?.updated, "05.11");
+    assert.match(view.leaders[0]?.players[0]?.line ?? "", /3 gol · 2\.50 xG · 7 maç/);
+  });
+
+  it("kartta bahis dili yok", () => {
+    assert.equal(contentLanguageGate({ card: reelsTextValues(reelSnapshotView(reelsMatchFixture())) }), null);
   });
 });
 

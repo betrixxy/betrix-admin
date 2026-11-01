@@ -34,8 +34,10 @@ export interface ReelSceneAvailability {
 const MIN_FORM_MATCHES = 3;
 const MIN_H2H_MATCHES = 3;
 
-/** Bu kontroller geçmezse veri kullanılamaz; diğerleri sahne bazında ya da yalnız bilgi amaçlıdır. */
-const CORE_CHECKS = ["outcome_sum", "probabilities_in_range", "score_distribution_aligned"] as const;
+/** Zorunlu kontroller: `qualityOk` yalnız bunlara bakar; diğerleri sahne bazında ya da yalnız bilgi amaçlıdır. */
+const REQUIRED_CHECKS = ["outcome_sum", "probabilities_in_range", "computed_at_fresh", "score_distribution_aligned"] as const;
+const M2_CHECKS = ["scene_both_score_close", "scene_three_plus_close", "scene_nil_nil_within_first_goal"] as const;
+const M7_CHECKS = ["season_xg_fresh"] as const;
 
 const ready = (reason = "Veri hazır"): ReelSceneState => ({ available: true, reason });
 const blocked = (reason: string): ReelSceneState => ({ available: false, reason });
@@ -75,9 +77,34 @@ export function reelSceneAvailability(detail: ReelsMatchDetail): ReelSceneAvaila
   return { scenes, warnings };
 }
 
-/** Çekirdek kalite: sonuç toplamı, olasılık aralığı ve skor hizalaması. Eksik kontrol geçmemiş sayılır. */
+/** Zorunlu kontrollerin hepsi geçti mi. Eksik kontrol geçmemiş sayılır. */
 export function reelQualityOk(detail: ReelsMatchDetail): boolean {
-  return CORE_CHECKS.every((name) => checkOf(detail.quality.checks, name)?.ok === true);
+  return REQUIRED_CHECKS.every((name) => checkOf(detail.quality.checks, name)?.ok === true);
+}
+
+export interface ReelCheckGroups {
+  required: ReelsCheck[];
+  /** M2'yi etkileyenler. */
+  scoreScene: ReelsCheck[];
+  /** M7'yi etkileyenler. */
+  scorerScene: ReelsCheck[];
+  /** Yalnız bilgi: bilinmeyen kontrol de buraya düşer. */
+  info: ReelsCheck[];
+  /** Skor sahnesi kapalı ama M2'nin kendi kontrolleri geçti: kapatan neden bilgi grubundaki model uyumudur. */
+  scoreSceneClosedByModels: boolean;
+}
+
+export function groupReelChecks(detail: ReelsMatchDetail): ReelCheckGroups {
+  const pick = (names: readonly string[]) => detail.quality.checks.filter((check) => names.includes(check.name));
+  const known: readonly string[] = [...REQUIRED_CHECKS, ...M2_CHECKS, ...M7_CHECKS];
+  const scoreScene = pick(M2_CHECKS);
+  return {
+    required: pick(REQUIRED_CHECKS),
+    scoreScene,
+    scorerScene: pick(M7_CHECKS),
+    info: detail.quality.checks.filter((check) => !known.includes(check.name)),
+    scoreSceneClosedByModels: !detail.score_scene_allowed && scoreScene.length > 0 && scoreScene.every((check) => check.ok),
+  };
 }
 
 /** Kalite kontrollerinin ekrandaki adı. Sözleşmedeki kontrol adı arayüze çıkmaz. */

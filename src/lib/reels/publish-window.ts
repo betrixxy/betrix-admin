@@ -32,7 +32,18 @@ export function formatIstanbulDateTime(at: Date): string {
 /** "19:00" (İstanbul). */
 export const formatIstanbulTime = (at: Date): string => timeFormat.format(at);
 
-export const formatPublishWindow = (window: PublishWindow): string =>
+const dayHeadingFormat = new Intl.DateTimeFormat("tr-TR", { timeZone: ISTANBUL_TZ, weekday: "long", day: "numeric", month: "long" });
+
+/** "Pazartesi 2 Kasım" (İstanbul). */
+export function formatIstanbulDayHeading(at: Date): string {
+  const part = (type: Intl.DateTimeFormatPartTypes) => dayHeadingFormat.formatToParts(at).find((item) => item.type === type)?.value ?? "";
+  return `${part("weekday")} ${part("day")} ${part("month")}`;
+}
+
+/** "02.11" (İstanbul). */
+export const formatIstanbulDate = (at: Date): string => formatIstanbulDateTime(at).split(" ")[0] ?? "";
+
+export const formatPublishWindow =(window: PublishWindow): string =>
   `${formatIstanbulDateTime(window.publishFrom)} – ${formatIstanbulDateTime(window.publishTo)}`;
 
 function duration(ms: number): string {
@@ -49,6 +60,14 @@ export type PublishWindowPhase = "BEFORE" | "OPEN" | "CLOSED";
 export interface PublishWindowState {
   phase: PublishWindowPhase;
   label: string;
+}
+
+const PHASE_WORDS: Record<PublishWindowPhase, string> = { BEFORE: "açılıyor", OPEN: "açık", CLOSED: "kapandı" };
+
+/** Listedeki tek satır: "En geç: 02.11 14:00". Tam pencere proje sayfasındadır. */
+export function publishDeadline(window: PublishWindow, now: Date): { label: string; phase: PublishWindowPhase; phaseLabel: string } {
+  const phase = publishWindowState(window, now).phase;
+  return { label: `En geç: ${formatIstanbulDateTime(window.publishTo)}`, phase, phaseLabel: PHASE_WORDS[phase] };
 }
 
 export function publishWindowState(window: PublishWindow, now: Date): PublishWindowState {

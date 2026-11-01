@@ -63,7 +63,7 @@ export function overbookedDays(kickoffs: readonly Date[]): Array<{ day: string; 
     .sort((a, b) => a.day.localeCompare(b.day));
 }
 
-export const REEL_STATUSES = ["SELECTED", "SNAPSHOT_READY", "SCRIPT_DRAFT", "APPROVED", "RENDERING", "READY", "FAILED", "PUBLISHED"] as const;
+export const REEL_STATUSES = ["SELECTED", "SNAPSHOT_READY", "SCRIPT_DRAFT", "APPROVED", "RENDERING", "READY", "FAILED", "PUBLISHED", "CANCELLED"] as const;
 export type ReelStatus = (typeof REEL_STATUSES)[number];
 
 export const REEL_STATUS_LABELS: Record<ReelStatus, string> = {
@@ -75,9 +75,49 @@ export const REEL_STATUS_LABELS: Record<ReelStatus, string> = {
   READY: "Hazır",
   FAILED: "Başarısız",
   PUBLISHED: "Yayınlandı",
+  CANCELLED: "İptal edildi",
 };
 
 const FREEZABLE: readonly ReelStatus[] = ["SELECTED", "SNAPSHOT_READY", "SCRIPT_DRAFT"];
 
 /** Onaydan sonra (APPROVED ve sonrası) yeni veri dondurulamaz. Veritabanı trigger'ı da aynı kuralı uygular. */
 export const canFreezeReel = (status: ReelStatus): boolean => FREEZABLE.includes(status);
+
+const CANCELLABLE: readonly ReelStatus[] = ["SELECTED", "SNAPSHOT_READY", "SCRIPT_DRAFT", "APPROVED", "READY", "FAILED"];
+
+/** Üretim sürerken ya da yayından sonra iptal edilemez. Sürümler silinmez; proje yeniden seçilebilir. */
+export const canCancelReel = (status: ReelStatus): boolean => CANCELLABLE.includes(status);
+
+/** Takip edilen proje: maç listesinde aranır, günlük sayıma girer. */
+export const isReelActive = (status: ReelStatus): boolean => status !== "CANCELLED" && status !== "PUBLISHED";
+
+export interface ReelProjectRef {
+  matchId: number;
+  kickoffUtc: Date;
+  status: ReelStatus;
+}
+
+/**
+ * Takip edilen, henüz başlamamış projelerin maçı servis listesinde yoksa uyarı gerekir. Servis ertelenen ve
+ * iptal edilen maçları listelemez; sözleşmede durum alanı olmadığı için ikisi burada ayırt edilemez.
+ */
+export function missingReelMatchIds(projects: readonly ReelProjectRef[], listedMatchIds: ReadonlySet<number>, now: Date): Set<number> {
+  return new Set(
+    projects
+      .filter((project) => isReelActive(project.status) && project.kickoffUtc > now && !listedMatchIds.has(project.matchId))
+      .map((project) => project.matchId),
+  );
+}
+
+export const REEL_MATCH_MISSING_MESSAGE = "Maç servis listesinde yok: ertelenmiş ya da iptal edilmiş olabilir. Yayın öncesi kontrol edin.";
+
+/** Uyarı denetiminin aralığı: bugünden en geç başlayan projeye, servis sınırı olan 31 günü aşmadan. */
+export function reelWatchRange(kickoffs: readonly Date[], now: Date): DayRange {
+  const today = istanbulDay(now);
+  const latest = kickoffs.reduce((max, kickoff) => {
+    const day = istanbulDay(kickoff);
+    return day > max ? day : max;
+  }, today);
+  const limit = addDays(today, 31);
+  return { from: today, to: latest < limit ? latest : limit };
+}

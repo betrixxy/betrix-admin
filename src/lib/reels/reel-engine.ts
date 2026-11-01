@@ -1,10 +1,11 @@
 import { Prisma } from "@/generated/prisma/client";
+import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
 import { prisma } from "@/lib/prisma";
 import { publishWindow } from "@/lib/reels/publish-window";
 import { reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
-import { canFreezeReel, isReelSelectable, REEL_STATUS_LABELS, REELS_MAX_DAYS_AHEAD } from "@/lib/reels/selection";
-import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
+import { canCancelReel, canFreezeReel, isReelSelectable, REEL_STATUS_LABELS, REELS_MAX_DAYS_AHEAD } from "@/lib/reels/selection";
 import { getReelsMatch, getReelsMatches } from "@/lib/services/reels-client";
+import type { ReelsMatchListItem } from "@/lib/services/reels-schema";
 import type { Result } from "@/types/result";
 
 /**
@@ -16,34 +17,54 @@ export interface ReelActionError {
   message: string;
 }
 
+function projectFields(match: ReelsMatchListItem) {
+  const kickoffUtc = new Date(match.kickoff_utc);
+  return {
+    leagueId: match.league.id,
+    leagueName: match.league.name,
+    homeTeamId: match.home.id,
+    homeName: match.home.name,
+    awayTeamId: match.away.id,
+    awayName: match.away.name,
+    kickoffUtc,
+    ...publishWindow(kickoffUtc),
+  };
+}
+
+const isUniqueViolation = (cause: unknown): boolean =>
+  cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === "P2002";
+
+/** Seçim idempotent: seçili maç olduğu gibi kalır, iptal edilmiş proje güncel bilgiyle SELECTED'a döner. */
 export async function selectReelMatch(matchId: number, now: Date = new Date()): Promise<Result<{ id: string }, ReelActionError>> {
   const today = istanbulDay(now);
   const list = await getReelsMatches({ from: today, to: addDays(today, REELS_MAX_DAYS_AHEAD) });
   if (!list.ok) return { ok: false, error: { message: list.error.message } };
   const match = list.data.matches.find((item) => item.match_id === matchId);
   if (!match) return { ok: false, error: { message: `Maç önümüzdeki ${REELS_MAX_DAYS_AHEAD} gün içinde bulunamadı.` } };
+  if (!isReelSelectable(new Date(match.kickoff_utc), now)) return { ok: false, error: { message: "Maç başladı, seçilemez." } };
 
-  const kickoffUtc = new Date(match.kickoff_utc);
-  if (!isReelSelectable(kickoffUtc, now)) return { ok: false, error: { message: "Maç başladı, seçilemez." } };
-  const { publishFrom, publishTo } = publishWindow(kickoffUtc);
-  const project = await prisma.reelProject.upsert({
-    where: { matchId },
-    update: {},
-    create: {
-      matchId,
-      leagueId: match.league.id,
-      leagueName: match.league.name,
-      homeTeamId: match.home.id,
-      homeName: match.home.name,
-      awayTeamId: match.away.id,
-      awayName: match.away.name,
-      kickoffUtc,
-      publishFrom,
-      publishTo,
-    },
-    select: { id: true },
-  });
-  return { ok: true, data: project };
+  const fields = projectFields(match);
+  await prisma.reelProject.updateMany({ where: { matchId, status: "CANCELLED" }, data: { ...fields, status: "SELECTED" } });
+  try {
+    const project = await prisma.reelProject.upsert({ where: { matchId }, update: {}, create: { matchId, ...fields }, select: { id: true } });
+    return { ok: true, data: project };
+  } catch (cause) {
+    // Aynı maç için eşzamanlı iki istek: ikisi de "yok" görüp eklemeye kalkar. Kazanan kayıt geçerlidir.
+    if (!isUniqueViolation(cause)) throw cause;
+    const existing = await prisma.reelProject.findUnique({ where: { matchId }, select: { id: true } });
+    return existing ? { ok: true, data: existing } : { ok: false, error: { message: "Maç seçilemedi, yeniden deneyin." } };
+  }
+}
+
+export async function cancelReelProject(projectId: string): Promise<Result<true, ReelActionError>> {
+  const project = await prisma.reelProject.findUnique({ where: { id: projectId }, select: { status: true } });
+  if (!project) return { ok: false, error: { message: "Proje bulunamadı." } };
+  if (!canCancelReel(project.status)) {
+    return { ok: false, error: { message: `Bu aşamada iptal edilemez (${REEL_STATUS_LABELS[project.status]}).` } };
+  }
+  // Okuma ile yazma arasında durum değiştiyse iptal uygulanmaz.
+  const changed = await prisma.reelProject.updateMany({ where: { id: projectId, status: project.status }, data: { status: "CANCELLED" } });
+  return changed.count === 1 ? { ok: true, data: true } : { ok: false, error: { message: "Proje durumu değişti, sayfayı yenileyin." } };
 }
 
 export interface FrozenSnapshot {
@@ -86,9 +107,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
     });
     return { ok: true, data: { version: snapshot.version, qualityOk } };
   } catch (cause) {
-    if (cause instanceof Prisma.PrismaClientKnownRequestError && cause.code === "P2002") {
-      return { ok: false, error: { message: "Aynı anda başka bir dondurma yapıldı, sayfayı yenileyin." } };
-    }
+    if (isUniqueViolation(cause)) return { ok: false, error: { message: "Aynı anda başka bir dondurma yapıldı, sayfayı yenileyin." } };
     throw cause;
   }
 }

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { freezeReelSnapshot, selectReelMatch } from "@/lib/reels/reel-engine";
+import { cancelReelProject, freezeReelSnapshot, selectReelMatch } from "@/lib/reels/reel-engine";
 
 /** Reels Stüdyo eylemleri: yalnızca admin tıklamasıyla; zamanlayıcıdan çağrılmaz (CLAUDE.md 1.10). */
 
@@ -23,6 +23,16 @@ export async function selectReelMatchAction(_previous: ReelActionState, formData
   if (!result.ok) return { error: result.error.message };
   refreshDashboard();
   return { message: "Seçildi." };
+}
+
+export async function cancelReelProjectAction(_previous: ReelActionState, formData: FormData): Promise<ReelActionState> {
+  if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const parsed = projectId.safeParse(formData.get("projectId"));
+  if (!parsed.success) return { error: "Geçersiz proje." };
+  const result = await cancelReelProject(parsed.data);
+  if (!result.ok) return { error: result.error.message };
+  refreshDashboard();
+  return { message: "Seçim iptal edildi." };
 }
 
 export async function freezeReelSnapshotAction(_previous: ReelActionState, formData: FormData): Promise<ReelActionState> {

@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertCircle, Check, Plus, Snowflake } from "lucide-react";
-import { freezeReelSnapshotAction, selectReelMatchAction, type ReelActionState } from "@/app/dashboard/studio/reels/actions";
+import { AlertCircle, Ban, Check, Plus, Snowflake } from "lucide-react";
+import { cancelReelProjectAction, freezeReelSnapshotAction, selectReelMatchAction, type ReelActionState } from "@/app/dashboard/studio/reels/actions";
 import { Button } from "@/components/ui/button";
 import { useSafeActionState } from "@/hooks/use-action-form";
 
@@ -35,6 +35,20 @@ export function SelectMatchButton({ matchId, selected }: { matchId: number; sele
       <Button type="submit" size="sm" variant="outline" disabled={isPending}>
         <Plus />
         {isPending ? "Seçiliyor…" : "Seç"}
+      </Button>
+      <Feedback state={state} />
+    </form>
+  );
+}
+
+export function CancelProjectButton({ projectId }: { projectId: string }) {
+  const [state, action, isPending] = useSafeActionState(cancelReelProjectAction, INITIAL);
+  return (
+    <form action={action} className="flex flex-col items-end gap-1">
+      <input type="hidden" name="projectId" value={projectId} />
+      <Button type="submit" variant="outline" disabled={isPending}>
+        <Ban />
+        {isPending ? "İptal ediliyor…" : "Seçimi iptal et"}
       </Button>
       <Feedback state={state} />
     </form>

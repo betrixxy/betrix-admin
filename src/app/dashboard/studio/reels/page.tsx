@@ -2,18 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/features/dashboard/page-header";
-import { SelectMatchButton } from "@/components/features/dashboard/reels-action-buttons";
+import { ReelsMatchBrowser } from "@/components/features/dashboard/reels-match-browser";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { competitionShortName } from "@/lib/names/competition-names";
 import { prisma } from "@/lib/prisma";
-import { formatIstanbulDateTime, formatIstanbulTime, formatPublishWindow, publishWindow, publishWindowState } from "@/lib/reels/publish-window";
+import { buildReelListDays } from "@/lib/reels/match-list";
+import { formatIstanbulDateTime, publishWindowState } from "@/lib/reels/publish-window";
 import {
-  isReelSelectable, overbookedDays, parseReelsLeagues, REEL_STATUS_LABELS, REELS_DAILY_SELECTION_LIMIT, REELS_DEFAULT_LEAGUE_IDS,
-  REELS_LEAGUE_CHOICES, reelsWeekRange, type ReelsWeekView,
+  isReelActive, isReelSelectable, missingReelMatchIds, overbookedDays, parseReelsLeagues, REEL_MATCH_MISSING_MESSAGE, REEL_STATUS_LABELS,
+  REELS_DAILY_SELECTION_LIMIT, REELS_DEFAULT_LEAGUE_IDS, REELS_LEAGUE_CHOICES, reelsWeekRange, reelWatchRange, type ReelsWeekView,
 } from "@/lib/reels/selection";
 import { getReelsMatches } from "@/lib/services/reels-client";
-import type { ReelsMatchListItem } from "@/lib/services/reels-schema";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -48,43 +47,6 @@ function FilterLink({ href, active, children }: { href: string; active: boolean;
   );
 }
 
-function TeamName({ name, logoUrl }: { name: string; logoUrl: string | null }) {
-  return (
-    <span className="flex min-w-0 items-center gap-2">
-      {logoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={logoUrl} alt="" width={20} height={20} className="size-5 shrink-0 object-contain" loading="lazy" />
-      ) : null}
-      <span className="truncate">{name}</span>
-    </span>
-  );
-}
-
-function MatchRow({ match, selected, now }: { match: ReelsMatchListItem; selected: boolean; now: Date }) {
-  const kickoff = new Date(match.kickoff_utc);
-  const window = publishWindow(kickoff);
-  return (
-    <li className="grid grid-cols-1 items-center gap-2 border-b border-border/60 py-3 text-sm last:border-0 md:grid-cols-[7rem_minmax(0,1fr)_11rem_auto]">
-      <div className="text-muted-foreground">
-        <div className="font-medium text-white">{formatIstanbulTime(kickoff)}</div>
-        <div className="text-xs">{formatIstanbulDateTime(kickoff).split(" ")[0]} · {competitionShortName(match.league.id, match.league.name)}</div>
-      </div>
-      <div className="flex min-w-0 flex-col gap-1">
-        <TeamName name={match.home.name} logoUrl={match.home.logo_url} />
-        <TeamName name={match.away.name} logoUrl={match.away.logo_url} />
-      </div>
-      <div className="text-xs text-muted-foreground">
-        <div className={match.analysis.available ? "text-emerald-300" : "text-amber-300"}>{match.analysis.available ? "Analiz var" : "Analiz yok"}</div>
-        <div>{formatPublishWindow(window)}</div>
-        <div>{publishWindowState(window, now).label}</div>
-      </div>
-      <div className="justify-self-end">
-        <SelectMatchButton matchId={match.match_id} selected={selected} />
-      </div>
-    </li>
-  );
-}
-
 interface ReelsPageProps {
   searchParams: Promise<{ week?: string | string[]; leagues?: string | string[] }>;
 }
@@ -102,9 +64,16 @@ export default async function ReelsStudioPage({ searchParams }: ReelsPageProps) 
     getReelsMatches({ ...range, leagues }),
     prisma.reelProject.findMany({ orderBy: { kickoffUtc: "asc" }, where: { kickoffUtc: { gte: new Date(now.getTime() - 86_400_000) } } }),
   ]);
-  const selectedIds = new Set(projects.map((project) => project.matchId));
+  const activeProjects = projects.filter((project) => isReelActive(project.status));
+  const cancelledProjects = projects.filter((project) => project.status === "CANCELLED");
+  const selectedIds = new Set(activeProjects.map((project) => project.matchId));
   const matches = list.ok ? list.data.matches.filter((match) => isReelSelectable(new Date(match.kickoff_utc), now)) : [];
-  const overbooked = overbookedDays(projects.map((project) => project.kickoffUtc));
+  const days = buildReelListDays(matches, selectedIds, now);
+  const overbooked = overbookedDays(activeProjects.map((project) => project.kickoffUtc));
+
+  // Seçili maçlar süzgeçten bağımsız aranır: görünen lig ya da hafta uyarıyı etkilemez.
+  const watched = activeProjects.length > 0 ? await getReelsMatches(reelWatchRange(activeProjects.map((project) => project.kickoffUtc), now)) : null;
+  const missing = watched?.ok ? missingReelMatchIds(activeProjects, new Set(watched.data.matches.map((match) => match.match_id)), now) : new Set<number>();
   const href = (next: { week?: ReelsWeekView; leagues?: string | null }) => {
     const query = new URLSearchParams();
     const week = next.week ?? view;
@@ -129,26 +98,56 @@ export default async function ReelsStudioPage({ searchParams }: ReelsPageProps) 
           <CardDescription>Yayın penceresi: başlama − 30 saat ile başlama − 6 saat arası (İstanbul).</CardDescription>
         </CardHeader>
         <CardContent>
-          {projects.length === 0 ? (
+          {watched && !watched.ok ? <Notice>Seçili maçlar servisle karşılaştırılamadı: {watched.error.message}</Notice> : null}
+          {activeProjects.length === 0 ? (
             <p className="text-sm text-muted-foreground">Henüz seçili maç yok.</p>
           ) : (
             <ul className="flex flex-col">
-              {projects.map((project) => (
-                <li key={project.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-2.5 text-sm last:border-0">
-                  <Link href={`/dashboard/studio/reels/${project.id}`} className="font-medium text-white hover:underline">
-                    {project.homeName} – {project.awayName}
-                  </Link>
-                  <span className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                    <span>{formatIstanbulDateTime(project.kickoffUtc)}</span>
-                    <span>{publishWindowState({ publishFrom: project.publishFrom, publishTo: project.publishTo }, now).label}</span>
-                    <Badge variant="secondary">{REEL_STATUS_LABELS[project.status]}</Badge>
-                  </span>
+              {activeProjects.map((project) => (
+                <li key={project.id} className="flex flex-col gap-2 border-b border-border/60 py-2.5 text-sm last:border-0">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <Link href={`/dashboard/studio/reels/${project.id}`} className="font-medium text-white hover:underline">
+                      {project.homeName} – {project.awayName}
+                    </Link>
+                    <span className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                      <span>{formatIstanbulDateTime(project.kickoffUtc)}</span>
+                      <span>{publishWindowState({ publishFrom: project.publishFrom, publishTo: project.publishTo }, now).label}</span>
+                      <Badge variant="secondary">{REEL_STATUS_LABELS[project.status]}</Badge>
+                    </span>
+                  </div>
+                  {missing.has(project.matchId) ? (
+                    <p role="alert" className="flex items-start gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                      <AlertTriangle className="mt-px size-3.5 shrink-0" />
+                      {REEL_MATCH_MISSING_MESSAGE}
+                    </p>
+                  ) : null}
                 </li>
               ))}
             </ul>
           )}
         </CardContent>
       </Card>
+
+      {cancelledProjects.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>İptal edilenler</CardTitle>
+            <CardDescription>Dondurulan sürümler saklanır. Maçı listeden yeniden seçince aynı proje açılır.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col">
+              {cancelledProjects.map((project) => (
+                <li key={project.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 py-2.5 text-sm last:border-0">
+                  <Link href={`/dashboard/studio/reels/${project.id}`} className="text-muted-foreground hover:text-white hover:underline">
+                    {project.homeName} – {project.awayName}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">{formatIstanbulDateTime(project.kickoffUtc)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -173,15 +172,7 @@ export default async function ReelsStudioPage({ searchParams }: ReelsPageProps) 
           ) : (
             <>
               {list.data.blocked > 0 ? <Notice>{list.data.blocked} maç dil kapısına takıldığı için listelenmedi.</Notice> : null}
-              {matches.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Bu aralıkta başlamamış maç yok.</p>
-              ) : (
-                <ul className="flex flex-col">
-                  {matches.map((match) => (
-                    <MatchRow key={match.match_id} match={match} selected={selectedIds.has(match.match_id)} now={now} />
-                  ))}
-                </ul>
-              )}
+              {days.length === 0 ? <p className="text-sm text-muted-foreground">Bu aralıkta başlamamış maç yok.</p> : <ReelsMatchBrowser days={days} />}
             </>
           )}
         </CardContent>
