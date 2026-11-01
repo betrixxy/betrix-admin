@@ -26,6 +26,10 @@ const envSchema = z.object({
   API_FOOTBALL_KEY: z.string().optional().default(""),
   CHECKMATCH_MAC_SERVER_URL: z.string().optional().default(""),
   CHECKMATCH_API_SECRET: z.string().optional().default(""),
+  /** Reels okuma servisinin kökü (üretimde `http://reels-tunnel:8011`). Boşsa Reels Stüdyo "bağlı değil" gösterir. */
+  REELS_API_URL: z.string().optional().default(""),
+  /** `X-Reels-Key` değeri — Mac'teki `~/reels-service/.env` ile aynı. */
+  REELS_API_KEY: z.string().optional().default(""),
   /** Oturum JWT'lerini imzalamak için — bkz. lib/auth/session.ts. Zorunlu; yoksa uygulama açılmaz. */
   JWT_SECRET: z
     .string({ error: "JWT_SECRET tanımlı değil." })
@@ -124,6 +128,8 @@ const parsed = envSchema.safeParse({
   API_FOOTBALL_KEY: read("API_FOOTBALL_KEY"),
   CHECKMATCH_MAC_SERVER_URL: read("CHECKMATCH_MAC_SERVER_URL"),
   CHECKMATCH_API_SECRET: read("CHECKMATCH_API_SECRET"),
+  REELS_API_URL: read("REELS_API_URL"),
+  REELS_API_KEY: read("REELS_API_KEY"),
   JWT_SECRET: read("JWT_SECRET"),
   ADMIN_EMAIL: read("ADMIN_EMAIL"),
   ADMIN_PASSWORD: read("ADMIN_PASSWORD"),

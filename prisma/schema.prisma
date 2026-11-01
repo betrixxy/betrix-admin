@@ -857,3 +857,59 @@ model TeamColor {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 }
+
+/// Reels projesinin durumu (bkz. `lib/reels/selection.ts`). Dondurma APPROVED ve sonrasında kapalıdır.
+enum ReelProjectStatus {
+  SELECTED
+  SNAPSHOT_READY
+  SCRIPT_DRAFT
+  APPROVED
+  RENDERING
+  READY
+  FAILED
+  PUBLISHED
+}
+
+/// Reels için seçilen maç. Maç başına tek proje. Yayın penceresi: başlama − 30 sa ile − 6 sa.
+model ReelProject {
+  id          String            @id @default(cuid())
+  /// Reels servisindeki maç kimliği (API-Football fixture id).
+  matchId     Int               @unique
+  leagueId    Int
+  leagueName  String
+  homeTeamId  Int
+  homeName    String
+  awayTeamId  Int
+  awayName    String
+  kickoffUtc  DateTime
+  publishFrom DateTime
+  publishTo   DateTime
+  status      ReelProjectStatus @default(SELECTED)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  snapshots   ReelSnapshot[]
+
+  @@index([kickoffUtc])
+}
+
+/// Dondurulmuş servis yanıtı. Video her zaman buradaki rakamları gösterir. Değiştirilemez ve silinemez;
+/// proje onaylandıktan sonra eklenemez (veritabanı trigger'ları, bkz. migration `reel_projects`).
+model ReelSnapshot {
+  id                String      @id @default(cuid())
+  projectId         String
+  project           ReelProject @relation(fields: [projectId], references: [id], onDelete: Restrict)
+  /// 1, 2, 3… proje başına.
+  version           Int
+  contractVersion   String
+  /// Servis yanıtının tamamı.
+  payload           Json
+  computedAt        DateTime
+  modelVersion      String
+  fetchedAt         DateTime    @default(now())
+  /// Çekirdek kalite kontrolleri geçti mi (bkz. `lib/reels/scenes.ts::reelQualityOk`).
+  qualityOk         Boolean
+  /// `ReelSceneAvailability`: dondurma anındaki sahne uygunluğu.
+  sceneAvailability Json
+
+  @@unique([projectId, version])
+}

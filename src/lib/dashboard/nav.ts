@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Clapperboard,
   Globe,
   Images,
   LayoutDashboard,
@@ -61,6 +62,12 @@ export const DASHBOARD_NAV: readonly NavItem[] = [
     label: "AI İçerik Stüdyosu",
     description: "Görsel üretimi",
     icon: Sparkles,
+  },
+  {
+    href: "/dashboard/studio/reels",
+    label: "Reels Stüdyo",
+    description: "Maç seçimi ve veri dondurma",
+    icon: Clapperboard,
   },
   {
     href: "/dashboard/studio/weekly-fixtures",

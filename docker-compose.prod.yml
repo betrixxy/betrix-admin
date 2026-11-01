@@ -88,6 +88,7 @@ services:
     networks:
       - backend
       - frontend
+      - reels
     expose:
       - "3000"
     read_only: true
@@ -142,6 +143,50 @@ services:
       - no-new-privileges:true
     logging: *logging
 
+  # Mac'teki reels okuma servisine (127.0.0.1:8011) kısıtlı SSH tüneli. Port host'a YAYINLANMAZ; yalnız `reels`
+  # ağındaki app erişir (http://reels-tunnel:8011). Sunucudaki anahtar yalnız 8011'e yönlendirme yapabilir.
+  # Bağlantı koparsa ssh çıkar, Docker yeniden başlatır. Windows bind mount'unda dosya izni 0777 göründüğü için
+  # anahtar tmpfs'e 600 izinle kopyalanır. Tünel düşerse site etkilenmez: app buna bağımlı değildir.
+  reels-tunnel:
+    build:
+      context: ./docker/reels-tunnel
+    image: betrix-reels-tunnel:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        umask 077
+        cp /run/reels-tunnel/id_ed25519 /tmp/id_ed25519
+        exec ssh -F none -N -T \
+          -i /tmp/id_ed25519 \
+          -p 2222 \
+          -o BatchMode=yes \
+          -o IdentitiesOnly=yes \
+          -o StrictHostKeyChecking=yes \
+          -o UserKnownHostsFile=/run/reels-tunnel/known_hosts \
+          -o ExitOnForwardFailure=yes \
+          -o ServerAliveInterval=30 \
+          -o ServerAliveCountMax=3 \
+          -o ConnectTimeout=15 \
+          -L 0.0.0.0:8011:127.0.0.1:8011 \
+          betrix@95.14.225.43
+    expose:
+      - "8011"
+    volumes:
+      - ../secrets/reels-tunnel:/run/reels-tunnel:ro
+    networks:
+      - reels
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
   # İç ters vekil: güvenlik başlıkları, gövde sınırı, gerçek ziyaretçi IP'si. HTTPS Cloudflare
   # kenarında sonlandığı için ACME yok ve host'a HİÇBİR port açılmaz (bkz. Caddyfile).
   caddy:
@@ -191,6 +236,8 @@ networks:
   backend:
     internal: true
   frontend: {}
+  # Yalnız app + reels-tunnel. Tünelin Mac'e çıkması için internal değildir.
+  reels: {}
 
 volumes:
   pgdata:
