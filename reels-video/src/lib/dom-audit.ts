@@ -52,5 +52,6 @@ export function measureDom(root: Element): LayoutAudit {
     }).map((text) => text.name)),
     tooSmall: unique(texts.filter((text) => Number.parseFloat(getComputedStyle(text.parent).fontSize) < MIN_FONT_PX).map((text) => text.name)),
     textCollisions: unique(textCollisions),
+    monoWords: unique(texts.filter((text) => getComputedStyle(text.parent).fontFamily.includes("JetBrains") && /\p{L}/u.test(text.name)).map((text) => text.name)),
   };
 }

@@ -3,7 +3,7 @@ import { TYPE } from "../lib/motion";
 
 /**
  * Role göre üç aile (hepsi SIL OFL, lisans dosyaları `public/fonts`).
- * Barlow Condensed: başlık, büyük rakam, takım adı. JetBrains Mono: skor, tarih, istatistik. Geist: cümleler.
+ * Barlow Condensed: başlık, büyük rakam, takım adı. JetBrains Mono: yalnız rakamlar. Geist: cümleler ve kelime etiketleri.
  */
 export const FONTS = { display: "Barlow Condensed", mono: "JetBrains Mono", body: "Geist" } as const;
 
@@ -28,10 +28,10 @@ export const heroNumber = (size: number = TYPE.hero): CSSProperties => ({ fontFa
 
 export const teamName = (size: number = TYPE.team): CSSProperties => ({ fontFamily: FONTS.display, fontWeight: 600, fontSize: size, lineHeight: 1.05, whiteSpace: "nowrap" });
 
-/** Skor kutucuğu, istatistik değeri, tarih. */
+/** Yalnız rakam içeren öğeler: skor kutucuğu, istatistik değeri, tarih. Harf içeren metinde kullanılmaz (render denetimi). */
 export const monoValue = (size: number = TYPE.value): CSSProperties => ({ fontFamily: FONTS.mono, fontWeight: 700, fontSize: size, lineHeight: 1.15, letterSpacing: -1 });
 
-/** xG, ort., gün gibi istatistik etiketleri. */
-export const monoLabel = (size: number = TYPE.label): CSSProperties => ({ fontFamily: FONTS.mono, fontWeight: 500, fontSize: size, lineHeight: 1.15, letterSpacing: -1 });
+/** Kelime etiketleri ve birimler ("ort.", "gün", "maç", "simülasyon"). */
+export const wordLabel = (size: number = TYPE.label): CSSProperties => ({ fontFamily: FONTS.body, fontWeight: 500, fontSize: size, lineHeight: 1.15 });
 
 export const sentence = (size: number = 38, weight: number = 700): CSSProperties => ({ fontFamily: FONTS.body, fontWeight: weight, fontSize: size, lineHeight: 1.2 });

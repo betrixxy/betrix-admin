@@ -59,6 +59,8 @@ export const reelSceneSchema = z.discriminatedUnion("type", [
   scene("S06_WINNER", z.strictObject({
     home: percent, draw: percent, away: percent, leader: z.enum(["home", "draw", "away"]),
     dots: z.strictObject({ home: z.number().int(), draw: z.number().int(), away: z.number().int() }),
+    /** Bir noktanın karşılığı: simülasyon / nokta sayısı. Sayı yoksa açıklama çizilmez. */
+    simulationsPerDot: z.number().int().positive().nullable(),
   })),
   scene("S07_KEY_GAP", z.strictObject({ metric: z.string(), leader: side, leaderValue: z.string(), otherValue: z.string(), sentence: z.string() })),
   scene("S08_GOALS", z.strictObject({ percent, xg: pair(z.number()), h2hAvg: z.number().nullable() })),

@@ -117,6 +117,11 @@ if (video) {
       await still(id, pool, summaryEntry.from + 260, path.join(folder, "ek-S16-soru.png"));
       await still(id, pool, summaryEntry.from + 320, path.join(folder, "ek-S16-kapanis.png"));
     }
+    // Hareketin ara kareleri: silme geçişi ve kendini çizen tik. Video öncesi tek kare kontrol.
+    const hookEntry = entries[pool.scenes.findIndex((scene) => scene.type === "S03_HOOK")];
+    if (hookEntry) await still(id, pool, hookEntry.from + 4, path.join(folder, "ek-gecis.png"));
+    const logoEntry = entries[pool.scenes.findIndex((scene) => scene.type === "S02_LOGO")];
+    if (logoEntry) await still(id, pool, logoEntry.from + 12, path.join(folder, "ek-logo-cizim.png"));
     const bothIndex = pool.scenes.findIndex((scene) => scene.type === "S09_BOTH_SCORE");
     const both = pool.scenes[bothIndex];
     const bothEntry = entries[bothIndex];

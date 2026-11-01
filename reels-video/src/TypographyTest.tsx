@@ -42,12 +42,12 @@ export function TypographyTest({ script }: { script: ReelScript }) {
       <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 44, color: "#FFFFFF" }}>
         {FONT_FILES.map((font) => (
           <div key={font.file}>
-            <div style={{ fontFamily: FONTS.mono, fontWeight: 500, fontSize: 26, color: "#93A099" }}>{font.family} {font.sample}</div>
+            <div style={{ fontFamily: FONTS.body, fontWeight: 500, fontSize: 26, color: "#93A099" }}>{font.family} {font.sample}</div>
             <div style={{ fontFamily: `"${font.family}", monospace`, fontWeight: font.sample, fontSize: 62, lineHeight: 1.15 }}>{GLYPH_TEST}</div>
           </div>
         ))}
         <div>
-          <div style={{ fontFamily: FONTS.mono, fontWeight: 500, fontSize: 26, color: "#93A099" }}>lang=tr büyük harf: kim kazanır, ışığı, iğde</div>
+          <div style={{ fontFamily: FONTS.body, fontWeight: 500, fontSize: 26, color: "#93A099" }}>lang=tr büyük harf: kim kazanır, ışığı, iğde</div>
           <div data-upper="" style={{ fontFamily: FONTS.display, fontWeight: 800, fontSize: 96, textTransform: "uppercase", color: BRAND.accent }}>kim kazanır, ışığı, iğde</div>
         </div>
       </div>

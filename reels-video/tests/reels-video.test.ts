@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { FONT_FILES, GLYPH_TEST, LICENSE_FILES } from "../src/components/typography";
 import { cropFor, focusOrigin, placeCrop } from "../src/lib/crop";
 import { glyphId, missingGlyphs } from "../src/lib/font-check";
-import { faceOverlaps, facesOnCanvas, insideSafeArea, rectsOverlap, type Rect } from "../src/lib/layout-check";
+import { auditProblems, faceOverlaps, facesOnCanvas, insideSafeArea, rectsOverlap, type Rect } from "../src/lib/layout-check";
 import { buildTimeline, countUp, countUpTenths, HEIGHT, ofTen, SAFE, splitDots, TRANSITION_FRAMES, TYPE, WIDTH, withLocative, ZONES } from "../src/lib/motion";
 import { LAYOUTS } from "../src/lib/photo-layouts";
 import { DERBY, FAVOURITE, SAMPLE_KEYS, sampleScripts } from "../src/samples";
@@ -82,8 +82,26 @@ describe("güvenilirlik satırı ve simülasyon sayısı", () => {
       assert.ok(!pool.scenes.some((scene) => "trust" in scene));
     }
   });
+  it("nokta açıklaması veriden: simülasyon / nokta sayısı", () => {
+    const perDot = (data: MatchData) => {
+      const scene = evaluatePool(data, BRAND).find((entry) => entry.type === "S06_WINNER")?.scene;
+      assert.ok(scene?.type === "S06_WINNER");
+      return scene.data.simulationsPerDot;
+    };
+    assert.equal(perDot(DERBY), 500);
+    const other = clone(DERBY);
+    other.model.simulations = 200000;
+    assert.equal(perDot(other), 200);
+    other.model.simulations = null;
+    assert.equal(perDot(other), null);
+  });
+  it("mono fontta harf yasağı denetimde sorun olarak raporlanır", () => {
+    const empty = { faceOverlaps: [], outsideSafe: [], textOverflow: [], tooSmall: [], textCollisions: [], faces: 0, blocks: 0 };
+    assert.deepEqual(auditProblems({ ...empty, monoWords: [] }), []);
+    assert.deepEqual(auditProblems({ ...empty, monoWords: ["ort."] }), ["mono fontta kelime: ort."]);
+  });
   it("kaynakta güvenilirlik satırı ve sahne içi simülasyon metni kalmadı", () => {
-    for (const file of ["compare", "context", "outcome", "summary"]) {
+    for (const file of ["compare", "context", "summary"]) {
       const source = readFileSync(`src/scenes/${file}.tsx`, "utf8");
       assert.ok(!source.includes("TrustLine"), file);
       assert.ok(!/simülasyon/iu.test(source.replace(/\/\*\*[\s\S]*?\*\//g, "")), file);

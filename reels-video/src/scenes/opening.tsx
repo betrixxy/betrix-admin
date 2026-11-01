@@ -1,6 +1,6 @@
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Bar, Card, clamp, COLORS, Crest, Cutout, Main, PhotoPair, Strip, Swatch, Title } from "../components/Primitives";
-import { heroNumber, monoLabel, monoValue, sentence, teamName } from "../components/typography";
+import { heroNumber, wordLabel, monoValue, sentence, teamName } from "../components/typography";
 import { countUp, formatInt, SAFE, TYPE, WIDTH, ZONES } from "../lib/motion";
 import { LAYOUTS } from "../lib/photo-layouts";
 import { rollingScore } from "../story/rolling";
@@ -92,7 +92,7 @@ export function HookScene({ script, scene }: SceneProps<"S03_HOOK">) {
       <Main height={380}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 18, height: 186 }}>
           <div style={heroNumber(180)}>{formatInt(shown)}</div>
-          <div style={monoLabel()}>simülasyon</div>
+          <div style={wordLabel()}>simülasyon</div>
         </div>
         <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {Array.from({ length: TILES }, (_, index) => {

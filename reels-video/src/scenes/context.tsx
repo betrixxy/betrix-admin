@@ -1,6 +1,6 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { Bar, Card, clamp, COLORS, Crest, Cutout, Main, Strip, Title } from "../components/Primitives";
-import { heroNumber, monoLabel, monoValue, sentence, teamName } from "../components/typography";
+import { heroNumber, wordLabel, monoValue, sentence, teamName } from "../components/typography";
 import { countUp, formatDecimal, TYPE, withLocative } from "../lib/motion";
 import { LAYOUTS } from "../lib/photo-layouts";
 import { photoOf, type SceneProps } from "./common";
@@ -41,7 +41,7 @@ export function FatigueScene({ script, scene }: SceneProps<"S11_FATIGUE">) {
                 <div style={{ display: "flex", gap: 8 }}>
                   {Array.from({ length: 7 }, (_, index) => <div key={index} style={{ width: 42, height: 42, borderRadius: "50%", background: index < Math.min(days, 7) ? team.colors.primary : COLORS.track }} />)}
                 </div>
-                <div style={{ ...monoLabel(TYPE.note), color: COLORS.ink3 }}>1 daire = 1 gün</div>
+                <div style={{ ...wordLabel(TYPE.note), color: COLORS.ink3 }}><span style={monoValue(TYPE.note)}>1</span> daire = <span style={monoValue(TYPE.note)}>1</span> gün</div>
               </>
             )}
           </Card>
@@ -68,7 +68,7 @@ export function ScoreScene({ script, scene }: SceneProps<"S12_SCORE">) {
           <div style={heroNumber(250)}>{top.label}</div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
             <div style={heroNumber(TYPE.big)}>%{countUp(frame, { to: top.percent, start: 18, duration: 40 })}</div>
-            <div style={{ ...monoLabel(), color: COLORS.ink2 }}>en olası</div>
+            <div style={{ ...wordLabel(), color: COLORS.ink2 }}>en olası</div>
           </div>
         </Card>
         <Card name="diğer skorlar" style={{ flex: 1, justifyContent: "space-evenly" }}>
@@ -104,7 +104,7 @@ export function ScorerScene({ script, scene }: SceneProps<"S13_SCORER">) {
         <div style={{ display: "flex", alignItems: "center", gap: 10, ...teamName(40), color: COLORS.ink2 }}><Crest src={team.logo} size={44} />{team.shortName}</div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
           <div style={heroNumber(TYPE.hero + 40)}>{countUp(frame, { to: data.goals, start: 18, duration: 34 })}</div>
-          <div style={{ ...monoLabel(), color: COLORS.ink2 }}>sezon golü</div>
+          <div style={{ ...wordLabel(), color: COLORS.ink2 }}>sezon golü</div>
         </div>
       </Main>
       <Main top={900} height={400}>
@@ -113,11 +113,11 @@ export function ScorerScene({ script, scene }: SceneProps<"S13_SCORER">) {
             {cells.map((cell) => (
               <div key={cell.label}>
                 <div style={monoValue(72)}>{cell.value}</div>
-                <div style={{ ...monoLabel(), color: COLORS.ink2 }}>{cell.label}</div>
+                <div style={{ ...wordLabel(), color: COLORS.ink2 }}>{cell.label}</div>
               </div>
             ))}
           </div>
-          <div style={{ ...monoLabel(TYPE.note), color: COLORS.ink3 }}>Sezon verisi {data.updated} itibarıyla</div>
+          <div style={{ ...wordLabel(TYPE.note), color: COLORS.ink3 }}>Sezon verisi <span style={monoValue(TYPE.note)}>{data.updated}</span> itibarıyla</div>
         </Card>
       </Main>
       {data.other ? <SentenceStrip name="rakip golcü" text={`Karşı tarafta ${data.other.name} (${rival.shortName}): ${data.other.goals} gol, ${formatDecimal(data.other.xg, 2)} xG.`} /> : null}
@@ -148,7 +148,7 @@ export function TrackRecordScene({ script, scene }: SceneProps<"S14_TRACK_RECORD
                 <div style={{ position: "absolute", left: -2, right: -2, bottom: `${bucket.mid}%`, height: 5, background: COLORS.ink }} />
                 <div style={{ position: "absolute", left: 0, right: 0, textAlign: "center", bottom: `calc(${Math.max(bucket.hitRate, bucket.mid)}% + 8px)`, ...monoValue(TYPE.label), color: bucket.active ? COLORS.ink : COLORS.ink2, opacity: grow }}>%{bucket.hitRate}</div>
               </div>
-              <div style={{ ...monoLabel(TYPE.note), color: COLORS.ink2, whiteSpace: "nowrap", letterSpacing: -2 }}>{bucket.range}</div>
+              <div style={{ ...monoValue(TYPE.note), fontWeight: 500, color: COLORS.ink2, whiteSpace: "nowrap", letterSpacing: -2 }}>{bucket.range}</div>
             </div>
           ))}
         </Card>

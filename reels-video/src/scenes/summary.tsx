@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Card, clamp, COLORS, Crest, Cutout, Main, PhotoPair, Strip, Swatch, Title } from "../components/Primitives";
-import { FONTS, heroNumber, monoLabel, monoValue, sentence } from "../components/typography";
+import { FONTS, heroNumber, wordLabel, monoValue, sentence } from "../components/typography";
 import { formatDecimal, TYPE, ZONES } from "../lib/motion";
 import { LAYOUTS } from "../lib/photo-layouts";
 import { photoOf, type SceneProps } from "./common";
@@ -15,7 +15,7 @@ const NOW = { home: -60, draw: -60, away: -60 };
 function Tile({ name, label, children }: { name: string; label: string; children: ReactNode }) {
   return (
     <Card name={name} style={{ flex: 1, justifyContent: "center", gap: 4, padding: "10px 20px" }}>
-      <div style={{ ...monoLabel(), color: COLORS.ink2, whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ ...wordLabel(), color: COLORS.ink2, whiteSpace: "nowrap" }}>{label}</div>
       {children}
     </Card>
   );
@@ -49,7 +49,7 @@ export function SummaryScene({ script, scene }: SceneProps<"S16_SUMMARY">) {
         <Title line1={scene.headline?.line1 ?? ""} line2={scene.headline?.line2 ?? ""} accent={accent} />
         <Main height={ZONES.stripTop + ZONES.stripHeight - ZONES.mainTop} style={{ gap: 12, transform: "none" }}>
           <Card name="kim kazanır" style={{ padding: "14px 22px", gap: 8 }}>
-            <div style={{ ...monoLabel(), color: COLORS.ink2 }}>Kim kazanır?</div>
+            <div style={{ ...wordLabel(), color: COLORS.ink2 }}>Kim kazanır?</div>
             <OutcomeStats script={script} values={data.outcome} leader={leader} start={NOW} sizes={{ lead: 170, rest: 104 }} />
           </Card>
           <div style={{ flex: 1, display: "flex", gap: 12 }}>
@@ -62,7 +62,7 @@ export function SummaryScene({ script, scene }: SceneProps<"S16_SUMMARY">) {
           </div>
           {data.h2hAvg !== null ? (
             <Card name="h2h özeti" style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: "8px 22px" }}>
-              <div style={{ ...monoLabel(), color: COLORS.ink2 }}>H2H maç başına gol</div>
+              <div style={{ ...wordLabel(), color: COLORS.ink2 }}>H2H maç başına gol</div>
               <div style={monoValue()}>{formatDecimal(data.h2hAvg)}</div>
             </Card>
           ) : null}
@@ -94,7 +94,7 @@ export function SummaryScene({ script, scene }: SceneProps<"S16_SUMMARY">) {
       {close > 0 ? (
         <AbsoluteFill style={{ opacity: close, alignItems: "center", justifyContent: "center", gap: 34, paddingBottom: 200, fontFamily: FONTS.body }}>
           <Img src={staticFile(script.brand.logo)} style={{ width: 720 }} />
-          <div style={{ color: accent, ...monoValue(52) }}>{data.handle}</div>
+          <div style={{ color: accent, ...sentence(58) }}>{data.handle}</div>
         </AbsoluteFill>
       ) : null}
     </AbsoluteFill>

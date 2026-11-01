@@ -58,6 +58,8 @@ export interface LayoutAudit {
   textOverflow: string[];
   tooSmall: string[];
   textCollisions: string[];
+  /** Mono fontta harf içeren metin. */
+  monoWords: string[];
   faces: number;
   blocks: number;
 }
@@ -68,4 +70,5 @@ export const auditProblems = (audit: LayoutAudit): string[] => [
   ...audit.textOverflow.map((name) => `metin taşıyor: ${name}`),
   ...audit.tooSmall.map((name) => `yazı küçük: ${name}`),
   ...audit.textCollisions.map((name) => `metin çakışıyor: ${name}`),
+  ...audit.monoWords.map((name) => `mono fontta kelime: ${name}`),
 ];

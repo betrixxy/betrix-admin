@@ -1,6 +1,6 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { Bar, Card, clamp, COLORS, Crest, Cutout, Main, Strip, Swatch, Title } from "../components/Primitives";
-import { heroNumber, monoLabel, monoValue, sentence, teamName } from "../components/typography";
+import { heroNumber, wordLabel, monoValue, sentence, teamName } from "../components/typography";
 import { countUpTenths, formatDecimal, TYPE } from "../lib/motion";
 import { LAYOUTS } from "../lib/photo-layouts";
 import { photoOf, type SceneProps } from "./common";
@@ -12,7 +12,7 @@ function FormChips({ letters, align }: { letters: readonly ("G" | "B" | "M")[]; 
   return (
     <div style={{ display: "flex", gap: 6, justifyContent: align }}>
       {letters.map((letter, index) => (
-        <div key={index} style={{ width: 34, height: 44, borderRadius: 8, background: FORM_COLOR[letter], display: "flex", alignItems: "center", justifyContent: "center", ...monoValue(28), lineHeight: 1 }}>{letter}</div>
+        <div key={index} style={{ width: 34, height: 44, borderRadius: 8, background: FORM_COLOR[letter], display: "flex", alignItems: "center", justifyContent: "center", ...sentence(28, 900), lineHeight: 1 }}>{letter}</div>
       ))}
     </div>
   );
@@ -35,7 +35,7 @@ export function CompareScene({ script, scene }: SceneProps<"S04_COMPARE">) {
   const homeWins = data.rows.filter((row) => row.better === "home").length;
   const awayWins = data.rows.filter((row) => row.better === "away").length;
   const rowStyle = (index: number) => ({ flex: 1, display: "grid", gridTemplateColumns: COLUMNS, alignItems: "center", borderTop: `1px solid ${COLORS.border}`, opacity: interpolate(frame, [18 + index * 9, 28 + index * 9], [0, 1], clamp) });
-  const centre = { ...monoLabel(), textAlign: "center" as const, color: COLORS.ink2 };
+  const centre = { ...wordLabel(), textAlign: "center" as const, color: COLORS.ink2 };
   return (
     <AbsoluteFill>
       <Title line1={scene.headline?.line1 ?? ""} line2={scene.headline?.line2 ?? ""} accent={script.brand.accent} />
@@ -97,7 +97,7 @@ export function HeadToHeadScene({ script, scene }: SceneProps<"S05_H2H">) {
             const edge = a === b ? COLORS.draw : a > b ? colorOf(match.home) : colorOf(match.away);
             return (
               <Card key={index} name={`maç ${index + 1}`} edge={edge} style={{ flex: 1, padding: "12px 4px", alignItems: "center", justifyContent: "space-between", opacity: interpolate(frame, [12 + index * 7, 20 + index * 7], [0, 1], clamp) }}>
-                <div style={{ ...monoLabel(TYPE.note), color: COLORS.ink2 }}>{match.date}</div>
+                <div style={{ ...monoValue(TYPE.note), color: COLORS.ink2 }}>{match.date}</div>
                 <div style={{ display: "flex", gap: 8 }}><Crest src={crestOf(match.home)} size={54} /><Crest src={crestOf(match.away)} size={54} /></div>
                 <div style={{ ...monoValue(), lineHeight: 1 }}>{match.score}</div>
               </Card>
@@ -153,7 +153,7 @@ export function KeyGapScene({ script, scene }: SceneProps<"S07_KEY_GAP">) {
       {photo ? <Cutout photo={photo} color={lead.colors.primary} slot={slot} drift={-10} /> : null}
       <Title line1={scene.headline?.line1 ?? ""} line2={scene.headline?.line2 ?? ""} accent={script.brand.accent} />
       <Main height={370} style={{ width: 580, justifyContent: "center" }}>
-        <div style={{ ...monoLabel(), color: COLORS.ink2 }}>{data.metric}</div>
+        <div style={{ ...wordLabel(), color: COLORS.ink2 }}>{data.metric}</div>
         <div style={heroNumber(TYPE.hero + 50)}>{data.leaderValue}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16, ...teamName(46) }}><Crest src={lead.logo} size={56} />{lead.shortName}</div>
       </Main>

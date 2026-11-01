@@ -109,7 +109,7 @@ export function evaluatePool(data: MatchData, brand: { handle: string }, options
             avgGoals: h2h.avg_goals, played: h2h.played ?? 0, homeWins: h2h.home_wins, draws: h2h.draws, awayWins: h2h.away_wins,
           },
         }),
-    on({ type: "S06_WINNER", ...base("S06_WINNER", ["Bu maçta", "kim kazanır?"], BOTH), data: { ...outcome, leader, dots: { home: dotsHome, draw: dotsDraw, away: dotsAway } } }),
+    on({ type: "S06_WINNER", ...base("S06_WINNER", ["Bu maçta", "kim kazanır?"], BOTH), data: { ...outcome, leader, dots: { home: dotsHome, draw: dotsDraw, away: dotsAway }, simulationsPerDot: sim === null ? null : Math.round(sim / (dotsHome + dotsDraw + dotsAway)) } }),
     keyGap === null
       ? off("S07_KEY_GAP", "İki takım arasında belirgin fark yok")
       : (() => {

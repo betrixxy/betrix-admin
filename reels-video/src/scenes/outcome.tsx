@@ -1,8 +1,8 @@
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { DotGrid, Gauge, PitchRace } from "../components/Charts";
 import { Bar, Card, clamp, COLORS, Crest, Cutout, Main, Strip, Swatch, Title } from "../components/Primitives";
-import { heroNumber, monoLabel, monoValue, sentence, teamName } from "../components/typography";
-import { CONTENT_WIDTH, countUp, formatDecimal, ofTen, TYPE } from "../lib/motion";
+import { heroNumber, wordLabel, monoValue, sentence, teamName } from "../components/typography";
+import { CONTENT_WIDTH, countUp, formatDecimal, formatInt, ofTen, TYPE } from "../lib/motion";
 import { LAYOUTS } from "../lib/photo-layouts";
 import type { ReelScript } from "../schema";
 import { photoOf, type SceneProps } from "./common";
@@ -46,6 +46,11 @@ export function WinnerScene({ script, scene }: SceneProps<"S06_WINNER">) {
       <Title line1={scene.headline?.line1 ?? ""} line2={scene.headline?.line2 ?? ""} accent={script.brand.accent} />
       <Main top={780} height={90} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Crest src={home.logo} size={84} />
+        {data.simulationsPerDot !== null ? (
+          <div data-block="ölçek" style={{ ...wordLabel(30), color: COLORS.ink, padding: "6px 18px", background: COLORS.surface, border: `2px solid ${COLORS.border}`, borderRadius: 14, whiteSpace: "nowrap" }}>
+            <span style={monoValue(30)}>1</span> nokta = <span style={monoValue(30)}>{formatInt(data.simulationsPerDot)}</span> simülasyon
+          </div>
+        ) : null}
         <Crest src={away.logo} size={84} />
       </Main>
       <Main top={880} height={350}>
@@ -71,7 +76,7 @@ function SupportCard({ name, value, label, crest }: { name: string; value: strin
         {crest ? <Crest src={crest} size={52} /> : null}
         <div style={monoValue()}>{value}</div>
       </div>
-      <div style={{ ...monoLabel(26), color: COLORS.ink2, whiteSpace: "nowrap" }}>{label}</div>
+      <div style={{ ...wordLabel(26), color: COLORS.ink2, whiteSpace: "nowrap" }}>{label}</div>
     </Card>
   );
 }
@@ -165,7 +170,7 @@ export function BothScoreScene({ script, scene }: SceneProps<"S09_BOTH_SCORE">) 
               <div style={{ ...monoValue(), lineHeight: 1 }}>%{countUp(frame, { to: sheet, start: 40, duration: 40 })}</div>
             </div>
             <Bar fraction={countUp(frame, { to: sheet, start: 40, duration: 40 }) / 100} color={team.colors.primary} height={12} />
-            <div style={{ ...monoLabel(26), color: COLORS.ink2 }}>Gol yememe oranı</div>
+            <div style={{ ...wordLabel(26), color: COLORS.ink2 }}>Gol yememe oranı</div>
           </Card>
         ))}
       </Strip>

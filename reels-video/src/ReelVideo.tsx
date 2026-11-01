@@ -36,8 +36,9 @@ const BAR_WIDTH = 96;
 
 /** Marka yeşili silme: yeni sahne önde giden yeşil şeridin arkasından açılır. */
 function GreenWipe({ children, presentationDirection, presentationProgress, passedProps }: TransitionPresentationComponentProps<{ color: string }>) {
-  if (presentationDirection === "exiting") return <AbsoluteFill>{children}</AbsoluteFill>;
   const edge = presentationProgress * (WIDTH + BAR_WIDTH);
+  // Sahnelerin kendi zemini yok (zemin ortak): eski sahne de kırpılır, yoksa yeni sahnenin içinden görünür.
+  if (presentationDirection === "exiting") return <AbsoluteFill style={{ clipPath: `inset(0 0 0 ${Math.max(0, edge - BAR_WIDTH)}px)` }}>{children}</AbsoluteFill>;
   return (
     <AbsoluteFill>
       <AbsoluteFill style={{ clipPath: `inset(0 ${Math.max(0, WIDTH - edge + BAR_WIDTH)}px 0 0)` }}>{children}</AbsoluteFill>
