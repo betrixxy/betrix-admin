@@ -52,6 +52,13 @@ export interface MatchData {
     /** En yeni başta. */
     matches: { date: string; home: string; away: string; home_score: number; away_score: number }[];
   };
-  /** Yalnız başlama öncesi hesaplardan; yetersizse boş. */
-  model_track_record: { from: number; to: number; matches: number; hit_rate: number }[];
+  /**
+   * Modelin karnesi. Kaynak: betrix'te ReelSnapshot + maç sonucu (sözleşmede değil). `sample` yalnız örneklerde.
+   * Eşikler `story/track-record.ts`.
+   */
+  model_track_record: {
+    source: "reel_snapshot" | "sample";
+    completed_matches: number;
+    buckets: { from: number; to: number; matches: number; hit_rate: number }[];
+  } | null;
 }

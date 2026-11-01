@@ -18,17 +18,17 @@ export const LINE2_DELAY_FRAMES = 9;
 export const ZONES = {
   /** CLAUDE.md 3.3: logo ve kritik veri üst 250 px'e girmez. */
   hudTop: 252,
-  titleTop: 304,
+  /** Büyük harf İ noktası logoya değmesin. */
+  titleTop: 312,
   mainTop: 510,
-  mainHeight: 752,
-  stripTop: 1272,
-  stripHeight: 160,
-  trustTop: 1442,
+  mainHeight: 790,
+  stripTop: 1310,
+  stripHeight: 165,
   progressTop: 1490,
 } as const;
 
 /** Tipografi ölçeği (px). */
-export const TYPE = { title: 92, hero: 160, big: 96, value: 56, label: 34, note: 26 } as const;
+export const TYPE = { title: 92, hero: 200, big: 120, value: 56, team: 40, label: 34, note: 26 } as const;
 
 const easeOutCubic = (t: number): number => 1 - (1 - t) ** 3;
 

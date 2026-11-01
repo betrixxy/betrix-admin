@@ -21,15 +21,15 @@ Yol `src/story/match-data.ts` ile aynıdır.
 | `h2h.matches[]` (tarih, ev, deplasman, skor) | 5 | `match_analysis.h2h_summary` maç listesi (`h2h` tablosu boş) | Rapor listenin var olduğunu yazıyor, biçim doğrulanacak. En yeni başta. |
 | `h2h.avg_goals` | 5, 8, 16 | `h2h_summary` | Yoksa listeden hesaplanır; `played` ile aynı maçlardan olmalı. |
 | `h2h.home_wins` / `away_wins` | 5 | `h2h_summary` | **Doğrula:** "ev" bugünkü ev sahibi takım mı, o maçın ev sahibi mi? Kart bugünkü takımlara göre yazıyor; ikincisiyse yanlış olur. |
-| `model.simulations` | 3, güvenilirlik satırı | v1'de var | Değişiklik yok. |
-| `model_track_record[]` (`from`, `to`, `matches`, `hit_rate`) | 14 | `prediction_accuracy` (market, predicted, outcome, model_ver, recorded_at) | Aşağıdaki iki koşul sağlanmadan **açılmaz.** |
+| `model.simulations` | 3 | v1'de var | Değişiklik yok. Sayı yalnız kanca sahnesinde geçer. |
 
-## Modelin karnesi: açılmadan önce çözülmesi gereken iki konu
+## Modelin karnesi: sözleşmeye girmez
 
-1. **"Yalnız başlama öncesi" koşulu şu an kanıtlı değil.** `match_analysis` tek satırdır, üzerine yazılır, geçmiş sürüm tutulmaz. `prediction_accuracy` gece denetiminde yazılıyor (`scripts/nightly_audit.py:197`); `recorded_at` hesabın değil kaydın zamanı olabilir. Yazılan `predicted` değerinin başlama anından önce hesaplandığı kanıtlanamazsa satır karneye girmez. Kanıt için hesap zamanı (`computed_at`) `matches.kickoff_utc` ile karşılaştırılmalı. Bu alan yoksa önce o eklenmeli ve karne yalnız o tarihten sonraki maçlardan çalışmalı. Bu çözülmezse sahne kapalı kalır.
-2. **Kova hesabı henüz yok.** Raporda yalnız ortalama tahmin / gerçekleşen tablosu var, "kova bazlı kalibrasyon değildir" notuyla. Sonuç marketleri (`result_home`, `result_draw`, `result_away`) ayrı ayrı kovalanacak. Kapsam 2026-04-11'den itibaren, maç başına üç satır. Beraberlik kalibrasyonu sorunu belgeli (`MODEL-KARSILASTIRMA.md`), kovalara karıştırılmadan önce bakılmalı.
+Karar: karne yalnız betrix'teki **ReelSnapshot** sonuçlarından hesaplanır, `prediction_accuracy` kullanılmaz. Gerekçe: `match_analysis` üzerine yazılır, geçmiş tutmaz, `prediction_accuracy` gece denetiminde yazılır; hesabın başlamadan önce yapıldığı orada kanıtlanamaz. ReelSnapshot dondurulmuş ve değiştirilemezdir.
 
-Eşik: kovada en az 30 maç (`pool.ts`). Bu örnekteki sayılar **kurgusaldır**, gerçek isabeti göstermez.
+- **Kural (`src/story/track-record.ts`):** en az 30 tamamlanmış maç, seçilen olasılık aralığında da en az 30 maç. Aksi hâlde sahne kapalı.
+- **Örnek:** `source: "sample"` yalnız `allowSampleTrackRecord` ile açılır; bunu yalnız `src/samples` verir. Bu sayılar **kurgusaldır**, gerçek isabeti göstermez.
+- **Henüz yok:** snapshot'ı maç sonucuyla eşleştirip kova hesaplayan kod. Sayılan snapshot'ın `computedAt`'i başlamadan önce olmalı; proje başına hangi sürümün sayılacağı (yayınlanan onaylı sürüm) o işte kararlaştırılacak.
 
 ## Sözleşme disiplini
 

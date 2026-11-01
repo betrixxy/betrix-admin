@@ -51,8 +51,8 @@ const greenWipe = (color: string): TransitionPresentation<{ color: string }> => 
 /** Zemin ve HUD geçişlerin dışındadır: boş kare olmaz, logo ve çubuk yerinde kalır. */
 export function ReelVideo({ script, audit = false }: { script: ReelScript; audit?: boolean }) {
   return (
-    <AbsoluteFill data-reel-root="">
-      <Backdrop accent={script.brand.accent} />
+    <AbsoluteFill data-reel-root="" lang="tr">
+      <Backdrop script={script} />
       <TransitionSeries>
         {script.scenes.map((scene, index) => (
           <Fragment key={scene.type}>

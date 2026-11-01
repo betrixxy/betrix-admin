@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { FONT_FILES, GLYPH_TEST, LICENSE_FILES } from "../src/components/typography";
 import { cropFor, focusOrigin, placeCrop } from "../src/lib/crop";
+import { glyphId, missingGlyphs } from "../src/lib/font-check";
 import { faceOverlaps, facesOnCanvas, insideSafeArea, rectsOverlap, type Rect } from "../src/lib/layout-check";
 import { buildTimeline, countUp, countUpTenths, HEIGHT, ofTen, SAFE, splitDots, TRANSITION_FRAMES, TYPE, WIDTH, withLocative, ZONES } from "../src/lib/motion";
 import { LAYOUTS } from "../src/lib/photo-layouts";
@@ -10,6 +13,7 @@ import type { MatchData } from "../src/story/match-data";
 import { betterSide, compareMetrics, formLetters, gapScore, pickKeyGap } from "../src/story/metrics";
 import { BRAND, evaluatePool, MAX_STORY_SCENES, MIN_STORY_SCENES, PHOTOS, pickStory } from "../src/story/pool";
 import { rollingScore } from "../src/story/rolling";
+import { decideTrackRecord, MIN_COMPLETED_MATCHES } from "../src/story/track-record";
 
 const scripts = SAMPLE_KEYS.map(sampleScripts);
 const clone = (data: MatchData): MatchData => structuredClone(data);
@@ -67,6 +71,45 @@ describe("ReelScript", () => {
   });
 });
 
+describe("güvenilirlik satırı ve simülasyon sayısı", () => {
+  it("simülasyon sözü yalnız kanca sahnesinde", () => {
+    for (const { pool } of scripts) {
+      for (const scene of pool.scenes) {
+        const found = texts([scene.headline, scene.caption, scene.data]).filter((text) => /simülasyon|500 bin|500\.000/iu.test(text));
+        if (scene.type !== "S03_HOOK") assert.deepEqual(found, [], scene.type);
+      }
+      assert.ok(texts(pool.scenes.find((scene) => scene.type === "S03_HOOK")?.headline).some((text) => /500 bin/.test(text)));
+      assert.ok(!pool.scenes.some((scene) => "trust" in scene));
+    }
+  });
+  it("kaynakta güvenilirlik satırı ve sahne içi simülasyon metni kalmadı", () => {
+    for (const file of ["compare", "context", "outcome", "summary"]) {
+      const source = readFileSync(`src/scenes/${file}.tsx`, "utf8");
+      assert.ok(!source.includes("TrustLine"), file);
+      assert.ok(!/simülasyon/iu.test(source.replace(/\/\*\*[\s\S]*?\*\//g, "")), file);
+    }
+  });
+});
+
+describe("tipografi", () => {
+  it("her kesimde test dizesinin glifi var; denetim eksik glifi yakalar", () => {
+    for (const font of FONT_FILES) {
+      const buffer = readFileSync(`public/fonts/${font.file}`);
+      assert.deepEqual(missingGlyphs(buffer, GLYPH_TEST), [], font.file);
+      assert.deepEqual(missingGlyphs(buffer, "A\uE000"), ["\uE000"], font.file);
+      assert.equal(glyphId(buffer, 0xe000), 0);
+    }
+  });
+  it("en fazla 3 aile, hepsinin OFL lisansı dosyada", () => {
+    assert.ok(new Set(FONT_FILES.map((font) => font.family)).size <= 3);
+    assert.equal(LICENSE_FILES.length, new Set(FONT_FILES.map((font) => font.family)).size);
+    for (const license of LICENSE_FILES) {
+      assert.ok(existsSync(`public/fonts/${license}`), license);
+      assert.match(readFileSync(`public/fonts/${license}`, "utf8"), /SIL OPEN FONT LICENSE/);
+    }
+  });
+});
+
 describe("sahne havuzu: eksik veri devre dışı + neden", () => {
   it("skor sahnesi yalnız score_scene_allowed", () => {
     const data = clone(DERBY);
@@ -96,12 +139,23 @@ describe("sahne havuzu: eksik veri devre dışı + neden", () => {
     assert.ok(scene?.type === "S11_FATIGUE");
     assert.deepEqual(scene.data.days, { home: 3, away: null });
   });
-  it("karne: aralıkta az maç varsa kapanır; kova 30 maçtan önce yazılmaz", () => {
-    const data = clone(DERBY);
-    data.model_track_record = data.model_track_record.map((bucket) => ({ ...bucket, matches: 29 }));
-    assert.match(reasonOf(data, "S14_TRACK_RECORD") ?? "", /yeterli/);
-    data.model_track_record = [];
-    assert.match(reasonOf(data, "S14_TRACK_RECORD") ?? "", /yeterli/);
+  it("karne: gerçek akışta örnek kaynak kapalı, ReelSnapshot'la 30 tamamlanmış maçtan önce kapalı", () => {
+    assert.match(reasonOf(DERBY, "S14_TRACK_RECORD") ?? "", /Örnek karne/);
+    const bucket = { from: 30, to: 40, matches: 40, hit_rate: 0.36 };
+    assert.match(decideTrackRecord(null, 38).reason ?? "", /ReelSnapshot/);
+    assert.match(decideTrackRecord({ source: "reel_snapshot", completed_matches: MIN_COMPLETED_MATCHES - 1, buckets: [bucket] }, 38).reason ?? "", /en az 30/);
+    assert.equal(decideTrackRecord({ source: "reel_snapshot", completed_matches: MIN_COMPLETED_MATCHES, buckets: [bucket] }, 38).bucket, bucket);
+    assert.match(decideTrackRecord({ source: "reel_snapshot", completed_matches: 500, buckets: [{ ...bucket, matches: 29 }] }, 38).reason ?? "", /aralığında/);
+    // Örnek izni olsa bile eşik geçerli; izin yalnız örnek kaynağı için.
+    assert.notEqual(decideTrackRecord({ source: "sample", completed_matches: 2, buckets: [bucket] }, 38, { allowSample: true }).reason, null);
+  });
+  it("karne kapalıyken iki hikâye de yedekten 12+ sahneyle kurulur", () => {
+    for (const [data, angle] of [[DERBY, "derby"], [FAVOURITE, "favourite"]] as const) {
+      const story = pickStory(evaluatePool(data, BRAND), angle);
+      assert.ok(!story.some((scene) => scene.type === "S14_TRACK_RECORD"));
+      assert.ok(story.length >= MIN_STORY_SCENES);
+      assert.equal(story.at(-1)?.type, "S16_SUMMARY");
+    }
   });
   it("eksik form, ilk gol ve simülasyon sıfır yazılmaz, sahne kapanır", () => {
     const data = clone(DERBY);
@@ -233,6 +287,8 @@ describe("sayaç, zaman, biçim", () => {
     assert.ok(insideSafeArea({ x: SAFE.left, y: ZONES.mainTop, width: 876, height: ZONES.mainHeight }));
     assert.ok(ZONES.progressTop + 6 <= HEIGHT - SAFE.bottom);
     assert.ok(TYPE.title >= 88 && TYPE.title <= 96 && TYPE.hero >= 160 && TYPE.label >= 34 && TYPE.note >= 26);
+    assert.ok(ZONES.stripTop + ZONES.stripHeight <= ZONES.progressTop);
+    assert.ok(ZONES.titleTop - (ZONES.hudTop + 44) >= 16, "İ noktası logoya değmez");
   });
 });
 

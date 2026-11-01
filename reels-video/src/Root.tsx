@@ -1,16 +1,18 @@
 import { loadFont } from "@remotion/fonts";
 import { Composition, staticFile } from "remotion";
-import { FONT_FAMILY } from "./components/Primitives";
+import { FONT_FILES } from "./components/typography";
 import { buildTimeline, FPS, HEIGHT, WIDTH } from "./lib/motion";
 import { ReelVideo } from "./ReelVideo";
 import { SAMPLE_KEYS, sampleScripts } from "./samples";
+import { TypographyTest } from "./TypographyTest";
 
-for (const [file, weight] of [["Geist-Regular.ttf", "500"], ["Geist-Bold.ttf", "700"], ["Geist-Black.ttf", "900"]] as const) {
-  void loadFont({ family: FONT_FAMILY, url: staticFile(`fonts/${file}`), weight });
+for (const font of FONT_FILES) {
+  void loadFont({ family: font.family, url: staticFile(`fonts/${font.file}`), weight: font.weight });
 }
 
-/** `reel-*`: seçilen hikâye (MP4). `havuz-*`: 16 sahnenin tamamı (tek kareler). */
+/** `reel-*`: seçilen hikâye (MP4). `havuz-*`: 16 sahnenin tamamı (tek kareler). `tipografi`: font test karesi. */
 export function Root() {
+  const first = SAMPLE_KEYS[0];
   return (
     <>
       {SAMPLE_KEYS.flatMap((key) => {
@@ -31,6 +33,7 @@ export function Root() {
           defaultProps={{ script, audit: false }}
         />
       ))}
+      {first ? <Composition id="tipografi" component={TypographyTest} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={1} defaultProps={{ script: sampleScripts(first).pool }} /> : null}
     </>
   );
 }

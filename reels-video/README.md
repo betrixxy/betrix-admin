@@ -12,7 +12,7 @@ checkmatch reels video prototipi (Remotion). Next uygulamasından ayrı pakettir
 npm install
 npm run studio       # tarayıcıda önizleme
 npm test
-npm run stills       # 16 sahne, 4×4 kontak sayfası, yerleşim denetimi
+npm run stills       # 16 sahne, 4×4 kontak sayfası, tipografi testi, yerleşim denetimi
 npm run render       # hikâye MP4'leri; ağır iş, maç penceresinde çalıştırılmaz
 ```
 
@@ -24,5 +24,5 @@ Bu denetim tek karede çalışır. Tasarım kararı ve hareket için kareler ve 
 
 ## Lisanslar
 
-- **Font:** Geist, SIL Open Font License 1.1 (`public/fonts/OFL-Geist.txt`). Ticari kullanıma açık.
+- **Fontlar (SIL Open Font License 1.1, ticari kullanıma açık, lisanslar `public/fonts/OFL-*.txt`):** Barlow Condensed (başlık, büyük rakam, takım adı), JetBrains Mono (skor, tarih, istatistik), Geist (cümleler).
 - **Remotion:** bireyler ve en fazla 3 çalışanlı şirketler için ücretsiz; daha büyük şirket lisans alır. Ayrıntı `node_modules/remotion/LICENSE.md`. Remotion 5.0 ile lisans değişecek, yükseltmeden önce okunmalı.

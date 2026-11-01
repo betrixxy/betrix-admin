@@ -4,14 +4,14 @@ import { reelScriptSchema, type ReelScript } from "../schema";
 
 /** İki KURGUSAL örnek: takımlar, kişiler ve sayılar uydurmadır. Biri derbi havası, biri ezici favori. */
 
-const TRACK_RECORD = [
+const TRACK_RECORD = { source: "sample" as const, completed_matches: 2228, buckets: [
   { from: 20, to: 30, matches: 318, hit_rate: 0.26 },
   { from: 30, to: 40, matches: 642, hit_rate: 0.36 },
   { from: 40, to: 50, matches: 571, hit_rate: 0.44 },
   { from: 50, to: 60, matches: 389, hit_rate: 0.53 },
   { from: 60, to: 70, matches: 212, hit_rate: 0.64 },
   { from: 70, to: 80, matches: 96, hit_rate: 0.73 },
-];
+] };
 
 export const DERBY: MatchData = {
   contract_version: "1.1",
@@ -101,7 +101,7 @@ export const SAMPLE_KEYS = Object.keys(SAMPLE_INPUTS) as SampleKey[];
 /** Seçilen hikâye (video) ve bütün havuz (tek kareler) aynı veriden. */
 export function sampleScripts(key: SampleKey): { story: ReelScript; pool: ReelScript } {
   const { data, angle } = SAMPLE_INPUTS[key];
-  const entries = evaluatePool(data, BRAND);
+  const entries = evaluatePool(data, BRAND, { allowSampleTrackRecord: true });
   const disabled = entries.flatMap((entry) => (entry.reason ? [{ type: entry.type, reason: entry.reason }] : []));
   const ready = entries.flatMap((entry) => (entry.scene ? [entry.scene] : []));
   return {

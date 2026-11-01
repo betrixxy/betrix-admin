@@ -1,6 +1,7 @@
 import { formatInt, ofTen, splitDots, spokenThousands } from "../lib/motion";
 import type { ReelPhoto, ReelScene, ReelSceneType, ReelScript } from "../schema";
 import type { MatchData } from "./match-data";
+import { decideTrackRecord } from "./track-record";
 import { compareMetrics, compareRows, effectiveFatigue, formLetters, outcomeLeader, pickKeyGap } from "./metrics";
 
 /**
@@ -43,15 +44,14 @@ const DURATIONS: Record<ReelSceneType, number> = {
   S09_BOTH_SCORE: 150, S10_FIRST_GOAL: 150, S11_FATIGUE: 120, S12_SCORE: 150, S13_SCORER: 150, S14_TRACK_RECORD: 180, S15_CHANCE: 150, S16_SUMMARY: 330,
 };
 
-const base = (type: ReelSceneType, headline: [string, string] | null, trust: boolean, assets = NONE) => ({
+const base = (type: ReelSceneType, headline: [string, string] | null, assets = NONE) => ({
   durationInFrames: DURATIONS[type],
   headline: headline ? { line1: headline[0], line2: headline[1] } : null,
-  trust,
   caption: null,
   assets,
 });
 
-export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEntry[] {
+export function evaluatePool(data: MatchData, brand: { handle: string }, options: { allowSampleTrackRecord?: boolean } = {}): PoolEntry[] {
   const { home, away } = data.teams;
   const outcome = { home: PERCENT(data.outcome.home_win), draw: PERCENT(data.outcome.draw), away: PERCENT(data.outcome.away_win) };
   const leader = outcomeLeader(data.outcome);
@@ -73,22 +73,22 @@ export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEn
   const leaderName = leader === "home" ? home.name : away.name;
   const statement = leader === "draw" ? "Maç beraber biter" : `${leaderName} kazanır`;
   const hits = Math.round(leaderShare / 10);
-  const bucket = data.model_track_record.find((item) => leaderShare >= item.from && leaderShare < item.to);
+  const track = decideTrackRecord(data.model_track_record, leaderShare, { allowSample: options.allowSampleTrackRecord ?? false });
   const [dotsHome = 0, dotsDraw = 0, dotsAway = 0] = splitDots([data.outcome.home_win, data.outcome.draw, data.outcome.away_win], 1000);
 
   return [
-    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], false, BOTH), data: { seriesLabel: "Maç Günü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
-    on({ type: "S02_LOGO", ...base("S02_LOGO", null, false), data: {} }),
+    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], BOTH), data: { seriesLabel: "Maç Günü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
+    on({ type: "S02_LOGO", ...base("S02_LOGO", null), data: {} }),
     sim === null
       ? off("S03_HOOK", "Simülasyon sayısı yok")
       : on({
-          type: "S03_HOOK", ...base("S03_HOOK", [`Maçı ${spokenThousands(sim)}`, "kez oynattık."], true, BOTH),
+          type: "S03_HOOK", ...base("S03_HOOK", [`Maçı ${spokenThousands(sim)}`, "kez oynattık."], BOTH),
           data: { simulations: sim, wins: { home: Math.round(sim * data.outcome.home_win), draw: Math.round(sim * data.outcome.draw), away: Math.round(sim * data.outcome.away_win) } },
         }),
     metrics.length < 3 || formHome.length < 3 || formAway.length < 3
       ? off("S04_COMPARE", "Form ya da karşılaştırma verisi eksik")
       : on({
-          type: "S04_COMPARE", ...base("S04_COMPARE", ["İki takım,", "son 5 maç."], true),
+          type: "S04_COMPARE", ...base("S04_COMPARE", ["İki takım,", "son 5 maç."]),
           data: {
             form: { home: formHome, away: formAway },
             rows: compareRows(metrics),
@@ -103,13 +103,13 @@ export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEn
     (h2h.played ?? 0) < 3 || h2h.matches.length < 3 || h2h.avg_goals === null || h2h.home_wins === null || h2h.draws === null || h2h.away_wins === null
       ? off("S05_H2H", "Kafa kafaya en az 3 maç gerekli")
       : on({
-          type: "S05_H2H", ...base("S05_H2H", ["Kafa kafaya", `son ${h2h.played} maç.`], true),
+          type: "S05_H2H", ...base("S05_H2H", ["Kafa kafaya", `son ${h2h.played} maç.`]),
           data: {
             matches: h2h.matches.slice(0, 5).map((match) => ({ date: dayStamp(match.date), home: match.home, away: match.away, score: `${match.home_score}–${match.away_score}` })),
             avgGoals: h2h.avg_goals, played: h2h.played ?? 0, homeWins: h2h.home_wins, draws: h2h.draws, awayWins: h2h.away_wins,
           },
         }),
-    on({ type: "S06_WINNER", ...base("S06_WINNER", ["Bu maçta", "kim kazanır?"], true, BOTH), data: { ...outcome, leader, dots: { home: dotsHome, draw: dotsDraw, away: dotsAway } } }),
+    on({ type: "S06_WINNER", ...base("S06_WINNER", ["Bu maçta", "kim kazanır?"], BOTH), data: { ...outcome, leader, dots: { home: dotsHome, draw: dotsDraw, away: dotsAway } } }),
     keyGap === null
       ? off("S07_KEY_GAP", "İki takım arasında belirgin fark yok")
       : (() => {
@@ -118,17 +118,17 @@ export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEn
           const leadTeam = data.teams[leadSide];
           const otherTeam = data.teams[leadSide === "home" ? "away" : "home"];
           return on({
-            type: "S07_KEY_GAP", ...base("S07_KEY_GAP", ["Kilit fark:", keyGap.headline], true, { photoIds: [`${leadSide}-1`] }),
+            type: "S07_KEY_GAP", ...base("S07_KEY_GAP", ["Kilit fark:", keyGap.headline], { photoIds: [`${leadSide}-1`] }),
             data: { metric: keyGap.label, leader: leadSide, leaderValue: keyGap.format(a), otherValue: keyGap.format(b), sentence: keyGap.sentence(leadTeam.short_name, keyGap.format(a), otherTeam.short_name, keyGap.format(b)) },
           });
         })(),
     data.goals.three_plus === null || !xgReady
       ? off("S08_GOALS", "3+ gol ya da xG verisi yok")
-      : on({ type: "S08_GOALS", ...base("S08_GOALS", ["Gollü", "maç mı?"], true), data: { percent: PERCENT(data.goals.three_plus), xg, h2hAvg: h2h.avg_goals } }),
+      : on({ type: "S08_GOALS", ...base("S08_GOALS", ["Gollü", "maç mı?"]), data: { percent: PERCENT(data.goals.three_plus), xg, h2hAvg: h2h.avg_goals } }),
     data.both_score === null || data.form.home.clean_sheet_rate === null || data.form.away.clean_sheet_rate === null
       ? off("S09_BOTH_SCORE", "İki takım da gol verisi eksik")
       : on({
-          type: "S09_BOTH_SCORE", ...base("S09_BOTH_SCORE", ["İki takım da", "gol bulur mu?"], true),
+          type: "S09_BOTH_SCORE", ...base("S09_BOTH_SCORE", ["İki takım da", "gol bulur mu?"]),
           data: {
             percent: PERCENT(data.both_score),
             teamChance: data.team_goal_chance ? { home: PERCENT(data.team_goal_chance.home), away: PERCENT(data.team_goal_chance.away) } : null,
@@ -137,11 +137,11 @@ export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEn
         }),
     firstGoal.home === null || firstGoal.away === null || firstGoal.none === null
       ? off("S10_FIRST_GOAL", "İlk gol verisi eksik")
-      : on({ type: "S10_FIRST_GOAL", ...base("S10_FIRST_GOAL", ["İlk gol", "kimden?"], true), data: { home: PERCENT(firstGoal.home), away: PERCENT(firstGoal.away), none: PERCENT(firstGoal.none) } }),
+      : on({ type: "S10_FIRST_GOAL", ...base("S10_FIRST_GOAL", ["İlk gol", "kimden?"]), data: { home: PERCENT(firstGoal.home), away: PERCENT(firstGoal.away), none: PERCENT(firstGoal.none) } }),
     fatigue.home === null && fatigue.away === null
       ? off("S11_FATIGUE", "İki takım da Avrupa'da oynamadı")
       : on({
-          type: "S11_FATIGUE", ...base("S11_FATIGUE", ["Takvim ve", "yorgunluk"], true),
+          type: "S11_FATIGUE", ...base("S11_FATIGUE", ["Takvim ve", "yorgunluk"]),
           data: {
             days: fatigue,
             sentence: fatigue.home !== null && fatigue.away !== null
@@ -151,36 +151,36 @@ export function evaluatePool(data: MatchData, brand: { handle: string }): PoolEn
         }),
     !data.score_scene_allowed || data.score_distribution.length === 0
       ? off("S12_SCORE", "Skor dağılımı diğer sahnelerle çelişiyor")
-      : on({ type: "S12_SCORE", ...base("S12_SCORE", ["En olası", "skor"], true), data: { scores: data.score_distribution.slice(0, 5).map((cell) => ({ label: `${cell.home_goals}–${cell.away_goals}`, percent: PERCENT(cell.p) })) } }),
+      : on({ type: "S12_SCORE", ...base("S12_SCORE", ["En olası", "skor"]), data: { scores: data.score_distribution.slice(0, 5).map((cell) => ({ label: `${cell.home_goals}–${cell.away_goals}`, percent: PERCENT(cell.p) })) } }),
     !scorer
       ? off("S13_SCORER", "Bu takımlar için sezon xG verisi yok")
       : !data.season_xg_fresh
         ? off("S13_SCORER", "Sezon xG verisi güncel değil")
         : on({
-            type: "S13_SCORER", ...base("S13_SCORER", ["Golcü adayı", "kim?"], true, { photoIds: [`${scorerSide}-1`] }),
+            type: "S13_SCORER", ...base("S13_SCORER", ["Golcü adayı", "kim?"], { photoIds: [`${scorerSide}-1`] }),
             data: {
               leader: scorerSide, name: scorer.name, goals: scorer.season_goals, xg: scorer.season_xg, games: scorer.season_games,
               other: otherScorer ? { name: otherScorer.name, goals: otherScorer.season_goals, xg: otherScorer.season_xg, games: otherScorer.season_games } : null,
               updated: dayStamp(leaders.data_updated_at[scorerSide] ?? data.model.computed_at),
             },
           }),
-    !bucket || bucket.matches < 30
-      ? off("S14_TRACK_RECORD", "Bu aralıkta yeterli geçmiş maç yok")
+    track.bucket === null
+      ? off("S14_TRACK_RECORD", track.reason)
       : on({
-          type: "S14_TRACK_RECORD", ...base("S14_TRACK_RECORD", ["Modelin", "karnesi"], true),
+          type: "S14_TRACK_RECORD", ...base("S14_TRACK_RECORD", ["Modelin", "karnesi"]),
           data: {
-            focus: { range: `%${bucket.from}–${bucket.to}`, hitRate: PERCENT(bucket.hit_rate), matches: bucket.matches },
-            buckets: data.model_track_record.map((item) => ({ range: `%${item.from}–${item.to}`, mid: Math.round((item.from + item.to) / 2), hitRate: PERCENT(item.hit_rate), matches: item.matches, active: item === bucket })),
+            focus: { range: `%${track.bucket.from}–${track.bucket.to}`, hitRate: PERCENT(track.bucket.hit_rate), matches: track.bucket.matches },
+            buckets: (data.model_track_record?.buckets ?? []).map((item) => ({ range: `%${item.from}–${item.to}`, mid: Math.round((item.from + item.to) / 2), hitRate: PERCENT(item.hit_rate), matches: item.matches, active: item === track.bucket })),
           },
         }),
     on({
-      type: "S15_CHANCE", ...base("S15_CHANCE", ["İhtimal,", "kesinlik değil."], true),
+      type: "S15_CHANCE", ...base("S15_CHANCE", ["İhtimal,", "kesinlik değil."]),
       data: { percent: leaderShare, hitsOfTen: hits, statement: `${statement}: %${leaderShare} = 10 maçın yaklaşık ${ofTen(hits)}. Kalan ${formatInt(10 - hits)} maçta başka sonuç.` },
     }),
     data.goals.three_plus === null || data.both_score === null || firstGoal.home === null || firstGoal.away === null || !xgReady
       ? off("S16_SUMMARY", "Özet için ana rakamlar eksik")
       : on({
-          type: "S16_SUMMARY", ...base("S16_SUMMARY", ["Bir bakışta", "bu maç"], true, BOTH),
+          type: "S16_SUMMARY", ...base("S16_SUMMARY", ["Bir bakışta", "bu maç"], BOTH),
           data: {
             outcome, threePlus: PERCENT(data.goals.three_plus), bothScore: PERCENT(data.both_score),
             firstGoal: { home: PERCENT(firstGoal.home), away: PERCENT(firstGoal.away) }, xg, h2hAvg: h2h.avg_goals,

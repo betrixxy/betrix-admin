@@ -30,8 +30,6 @@ const team = z.strictObject({
 const sceneBase = {
   durationInFrames: z.number().int().positive(),
   headline: z.strictObject({ line1: z.string().min(1), line2: z.string().min(1) }).nullable(),
-  /** Veri sahnesinin altındaki güvenilirlik satırı görünür mü. */
-  trust: z.boolean(),
   caption: z.string().nullable(),
   assets: z.strictObject({ photoIds: z.array(z.string()) }),
 };

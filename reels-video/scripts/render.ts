@@ -1,11 +1,14 @@
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
 import { openBrowser, renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import sharp from "sharp";
 import { AUDIT_PREFIX } from "../src/lib/dom-audit";
 import { auditProblems, type LayoutAudit } from "../src/lib/layout-check";
+import { FONT_FILES, GLYPH_TEST, LICENSE_FILES } from "../src/components/typography";
+import { missingGlyphs } from "../src/lib/font-check";
 import { buildTimeline } from "../src/lib/motion";
+import { TYPOGRAPHY_PREFIX } from "../src/TypographyTest";
 import { SAMPLE_KEYS, sampleScripts } from "../src/samples";
 import type { ReelScene, ReelScript } from "../src/schema";
 
@@ -59,6 +62,31 @@ if (video) {
 } else {
   const report: Record<string, unknown> = {};
   const problems: string[] = [];
+
+  // Tipografi: dosyada glif, tarayıcıda yüklü font, sabit rakam genişliği, Türkçe büyütme.
+  for (const font of FONT_FILES) {
+    const buffer = readFileSync(path.resolve("public/fonts", font.file));
+    const missing = missingGlyphs(buffer, GLYPH_TEST);
+    if (missing.length) problems.push(`tofu ${font.file}: ${missing.join(" ")}`);
+    if (missingGlyphs(buffer, "\uE000").length !== 1) problems.push(`glif denetimi kontrolü başarısız: ${font.file}`);
+  }
+  for (const license of LICENSE_FILES) if (!existsSync(path.resolve("public/fonts", license))) problems.push(`lisans yok: ${license}`);
+  const typeScript = sampleScripts(SAMPLE_KEYS[0] ?? "derbi").pool;
+  const typeComposition = await selectComposition({ serveUrl, id: "tipografi", inputProps: { script: typeScript }, puppeteerInstance: browser });
+  let typography: { loaded: { family: string; weight: number; loaded: boolean }[]; tabularHero: number[]; tabularMono: number[]; uppercase: string } | null = null;
+  await renderStill({
+    composition: typeComposition, serveUrl, frame: 0, output: path.join(OUT, "tipografi-testi.png"), inputProps: { script: typeScript }, puppeteerInstance: browser,
+    onBrowserLog: ({ text }) => { if (text.includes(TYPOGRAPHY_PREFIX)) typography = JSON.parse(text.slice(text.indexOf(TYPOGRAPHY_PREFIX) + TYPOGRAPHY_PREFIX.length)); },
+  });
+  if (!typography) problems.push("tipografi ölçümü gelmedi");
+  else {
+    const measured = typography as { loaded: { family: string; weight: number; loaded: boolean }[]; tabularHero: number[]; tabularMono: number[]; uppercase: string };
+    for (const item of measured.loaded) if (!item.loaded) problems.push(`font yüklenmedi: ${item.family} ${item.weight}`);
+    if (new Set(measured.tabularHero).size !== 1) problems.push(`büyük rakam tabular değil: ${measured.tabularHero.join(",")}`);
+    if (new Set(measured.tabularMono).size !== 1) problems.push(`mono rakam eşit değil: ${measured.tabularMono.join(",")}`);
+    if (measured.uppercase !== "KİM KAZANIR, IŞIĞI, İĞDE") problems.push(`Türkçe büyük harf yanlış: ${measured.uppercase}`);
+    console.log(`tipografi: ${FONT_FILES.length} kesim, glif tam; rakam genişliği ${measured.tabularHero[0]} / ${measured.tabularMono[0]}; büyütme "${measured.uppercase}"`);
+  }
   const thumb = { width: 360, height: 640 };
   const gap = 12;
   for (const key of SAMPLE_KEYS) {
