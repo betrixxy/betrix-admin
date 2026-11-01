@@ -676,6 +676,9 @@ https://checkmatch.net/{hedef-yol}?utm_source={x|instagram}&utm_medium=social&ut
 
 ### 5.5 Genel Disiplin
 
+- **Deploy kilidi:** deploy'dan önce `backups/DEPLOY.lock` dosyasına bakılır; varsa başka oturum deploy ediyor, beklenir. Deploy başlarken dosya oluşturulur (oturum adı + saat), bitince silinir. Deploy'dan önce prod'da çalışan commit kontrol edilir (imaj etiketi `org.opencontainers.image.revision`); dal onu içermiyorsa önce birleştirilir.
+- **Bellek:** canlı site bu makinede. Aynı anda en fazla BİR ağır iş (tam görsel test, doğrulama konteynerleri, build). Başlamadan önce boş RAM'e bakılır; 4 GB'ın altındaysa başlanmaz. Arka plan işleri durdurulunca açılan konteynerler de mutlaka kapatılır.
+- **Maç saatleri:** maçtan 1 saat önce → maç sonu paylaşımı bitene kadar ağır iş ve deploy yok.
 - **Canlı veritabanı:** veri değişikliği uygulamanın kendi eylemleriyle yapılır (oturumlu istek ya da konteyner içinde motor fonksiyonu); doğrudan SQL UPDATE/INSERT/DELETE yalnızca kullanıcının açık onayıyla ve önce yedek alınarak.
 - Yeni bir dış bağımlılık (npm paketi, üçüncü parti API) eklemeden önce mevcut yığında (Bölüm 1.1) karşılığı olup olmadığı kontrol edilir; gerekçesiz yeni bağımlılık eklenmez.
 - Gizli anahtar veya kimlik bilgisi asla kod içine, commit mesajına veya loglara yazılmaz; sızıntı şüphesi varsa iş durdurulup kullanıcı bilgilendirilir.
