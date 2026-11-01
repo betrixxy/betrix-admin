@@ -96,6 +96,18 @@ export function Eyebrow({ children, size, color = "rgba(255,255,255,0.86)", maxW
   );
 }
 
+/** Lig logosu beyaz plakada (renkli/siyah logo koyu zeminde de okunur); yoksa hiçbir şey çizilmez — lig adı tipografik kalır. */
+export function LeagueMark({ card, size }: { card: Pick<MatchDayCard, "leagueLogo">; size: number }) {
+  if (!card.leagueLogo) return null;
+  const inner = Math.round(size * 0.8);
+  return (
+    <div tw="flex items-center justify-center" style={{ width: size, height: size, borderRadius: Math.round(size * 0.2), backgroundColor: "rgba(255,255,255,0.94)" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- Satori yalnızca düz <img> okur. */}
+      <img src={card.leagueLogo} alt="" width={inner} height={inner} style={{ objectFit: "contain" }} />
+    </div>
+  );
+}
+
 export function competitionLine(card: MatchDayCard): string {
   return [card.weekLabel, card.leagueLabel].filter(Boolean).join("  ·  ");
 }

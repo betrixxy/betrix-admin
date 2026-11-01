@@ -23,7 +23,7 @@ const playerLine = (facts: PlayerStatsFacts, line: PlayerMatchLine, names: Playe
   return parts.join(" · ");
 };
 
-const footer = (facts: PlayerStatsFacts) => [`${matchResultTitle(facts.match)} · ${facts.match.competition.name} · ${facts.match.roundLabel}`, "Puan: API-Football"];
+const footer = (facts: PlayerStatsFacts) => [`${matchResultTitle(facts.match)} · ${facts.match.competition.name} · ${facts.match.roundLabel}`];
 const ending = (tags: string) => ["", PLAYER_STATS_QUESTION, "", tags];
 
 export function buildSpotlightCaption(facts: PlayerStatsFacts, line: PlayerMatchLine, names?: PlayerNames, fact?: string | null): string {

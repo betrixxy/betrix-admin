@@ -12,6 +12,7 @@ import {
   TEXT_SHADOW,
   TeamLogo,
   clip,
+  LeagueMark,
   competitionLine,
   fitFontSize,
   px,
@@ -93,7 +94,8 @@ function Vertical({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; 
   return (
     <Canvas>
       <div tw="absolute flex flex-col items-center" style={{ left: 0, right: 0, top: g.top }}>
-        <div tw="flex" style={{ marginTop: px(14, k), ...shown(only, "header-label") }}>
+        <div tw="flex items-center" style={{ marginTop: px(14, k), gap: px(18, k), ...shown(only, "header-label") }}>
+          <LeagueMark card={card} size={px(64, k)} />
           <Eyebrow size={px(17, k)}>{competitionLine(card)}</Eyebrow>
         </div>
       </div>
@@ -131,7 +133,8 @@ function Landscape({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry;
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: 520 }}>
-        <div tw="flex items-center" style={shown(only, "header-label")}>
+        <div tw="flex items-center" style={{ gap: 14, ...shown(only, "header-label") }}>
+          <LeagueMark card={card} size={48} />
           <Eyebrow size={14}>{competitionLine(card)}</Eyebrow>
         </div>
         <div tw="flex flex-col" style={{ marginTop: 34, ...shown(only, "headline") }}>

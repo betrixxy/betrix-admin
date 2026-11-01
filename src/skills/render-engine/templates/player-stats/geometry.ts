@@ -148,7 +148,8 @@ export function topPlayersGeometry(frame: MatchDayFrame, card: Pick<TopPlayersCa
   const s = PLAYER_SIZES;
   const title = { top: panel.top, height: px(s.title, k) };
   const top = title.top + title.height + px(s.titleGap, k);
-  const bottom = base.footnote.top - px(s.gap, k);
+  // Kaynak dipnotu kalktı (2026-11-01): dikeyde liste dipnot bandını da kullanır, künyenin üstünde boş bant kalmaz.
+  const bottom = (landscape ? base.footnote.top : base.footer.top) - px(s.gap, k);
   // Dikeyde (4:5 / 9:16) satır en fazla 290 (eskiden 220): üç satırlık listede başlık ile liste arasında ~180 px boşluk
   // kalıyordu (canlı test 2026-10-31) — satırlar alanı doldurur, kalan pay liste üstü/altına eşit.
   // ≤ 3 satır (B3) dikeyde satırlar alanı tamamen doldurur (üst sınır 360) ve öğeleri %25 büyür — dikey denge

@@ -13,8 +13,8 @@ interface MarketAnalysisDraftViewProps {
 }
 
 /**
- * AI Market Tahmin & Analiz taslağının incelemesi: iki takımın Derinlemesine Analiz kartı yan yana,
- * market tahmini, gönderi metni ve onay/ret. Kartlar programatiktir — düzenleme stüdyoda yapılır
+ * Maç Önü Tahmin taslağının incelemesi: iki takımın Derinlemesine Analiz kartı yan yana,
+ * tahmin, gönderi metni ve onay/ret. Kartlar programatiktir — düzenleme stüdyoda yapılır
  * (yeniden kaydetmek yeni taslak üretir).
  */
 export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDraftViewProps) {
@@ -52,7 +52,7 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="size-4 text-amber-400" />
-              Olası Market Tahmini
+              Olası Tahmin
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -62,7 +62,7 @@ export function MarketAnalysisDraftView({ draft, postOptions }: MarketAnalysisDr
                 {draft.marketRationale ? <span className="block text-sm text-muted-foreground">{draft.marketRationale}</span> : null}
               </p>
             ) : (
-              <p className="text-sm text-muted-foreground">Market tahmini girilmedi.</p>
+              <p className="text-sm text-muted-foreground">Tahmin girilmedi.</p>
             )}
           </CardContent>
         </Card>

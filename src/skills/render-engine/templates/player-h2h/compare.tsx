@@ -125,6 +125,7 @@ function Chart({ card, g, only }: { card: H2HCard; g: H2HCompareGeometry; only: 
 }
 
 function Footnote({ card, g, only }: { card: H2HCard; g: H2HCompareGeometry; only: BlockFilter }) {
+  if (card.footnotes.length === 0) return null;
   const width = g.box.right - g.box.left;
   const longest = card.footnotes.reduce((max, line) => Math.max(max, line.length), 0);
   const size = Math.min(px(17, g.k), fitFontSize("x".repeat(longest), width, px(17, g.k), 0.5, px(11, g.k)));

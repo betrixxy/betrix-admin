@@ -4,22 +4,22 @@ import { loadStudioFonts } from "@/lib/dashboard/studio-fonts";
 import type { BlockFilter } from "@/skills/render-engine/templates/checkmatch-set/blocks";
 import { LEAGUE_CARD_BLOCKS } from "@/skills/render-engine/templates/weekly-fixtures/league-card-chrome";
 import type { Result } from "@/types/result";
-import { loadBrandLogo } from "@/lib/dashboard/match-day-assets";
+import { embedLeagueLogo, loadBrandLogo } from "@/lib/dashboard/match-day-assets";
 import { embedLogo } from "@/lib/dashboard/weekly-fixtures-render";
 import { StandingsCard } from "@/skills/render-engine/templates/standings/standings-card";
 import type { StandingsCardInput } from "@/types/standings";
 import { SOCIAL_FORMATS } from "@/types/studio-formats";
 
 const TEAM_LOGO_SIDE = 128;
+const LEAGUE_LOGO_SIDE = 400;
 
-/** Kartı (ya da yerleşim kapısı için tek bloğunu) çizer. Logolar yalnızca API-Football medya sunucusundan gömülür. */
+/** Kartı (ya da yerleşim kapısı için tek bloğunu) çizer. Takım logoları yalnızca API-Football medya sunucusundan; lig logosu `embedLeagueLogo`. */
 export async function drawStandingsCard(input: StandingsCardInput, only?: BlockFilter): Promise<Buffer> {
   const rows = input.sections.flatMap((section) => section.rows);
   const [fonts, brandLogo, leagueLogoUrl, teamLogoEntries] = await Promise.all([
     loadStudioFonts(),
     loadBrandLogo(),
-    // Lig logosu kartta kullanılmaz — lig adı üst satırda tipografik.
-    Promise.resolve(""),
+    embedLeagueLogo(input.leagueLogoUrl, LEAGUE_LOGO_SIDE).then((logo) => logo ?? ""),
     Promise.all(rows.map(async (row) => [row.teamId, await embedLogo(row.logoUrl, TEAM_LOGO_SIDE)] as const)),
   ]);
   const { width, height } = SOCIAL_FORMATS[input.format];

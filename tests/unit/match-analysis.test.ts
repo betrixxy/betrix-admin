@@ -243,7 +243,7 @@ describe("kart, yoğunluk, gönderi metni", () => {
     const card = buildHalvesCard(kg, kg.halves.stats, { homeLogo: null, awayLogo: null, brandLogo: "" });
     assert.deepEqual(card.rows[0]?.first, { home: "%47", away: "%53", homeShare: 0.47 });
     assert.equal(card.rows.find((row) => row.key === "xg")?.second.away, "1,67");
-    assert.equal(card.footnote, "Devre verisi: API-Football · Olaylar: API-Football");
+    assert.equal(card.footnote, "");
     assert.equal(card.title, "MAÇ ANALİZİ");
   });
 

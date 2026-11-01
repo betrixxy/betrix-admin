@@ -5,7 +5,6 @@ import { upperCompetition, upperName, upperTeamName, type TeamOrigin } from "@/l
 import { teamHexes } from "@/lib/dashboard/player-stats-card";
 import { teamNameFor } from "@/lib/names/team-name-forms";
 import { formatNumber } from "@/lib/format/number";
-import { halfSourceLabel } from "@/lib/match-analysis/halves";
 import { planTimeline } from "@/lib/match-analysis/timeline";
 import { GENERIC_VAR_LABEL } from "@/lib/services/api-football/analysis-events-mappers";
 import type { MatchDayFrame } from "@/lib/dashboard/match-day-formats";
@@ -116,7 +115,7 @@ export function timelineDividers(rows: readonly TimelineRowCard[], facts: MatchA
 }
 
 function timelineFootnote(omitted: { substitutions: number; yellows: number }): string {
-  const parts = ["Olaylar: API-Football"];
+  const parts: string[] = [];
   if (omitted.substitutions > 0) parts.push(`${omitted.substitutions} oyuncu değişikliği sığmadığı için yazılmadı`);
   if (omitted.yellows > 0) parts.push(`${omitted.yellows} sarı kart sığmadığı için yazılmadı`);
   return parts.join(" · ");
@@ -154,7 +153,7 @@ const side = (key: HalfStatKey, pair: HalfRow["first"]) => ({ home: halfValue(ke
 /** 02 kartı — yalnızca devre verisi seçildiyse (`facts.halves.available`). */
 export function buildHalvesCard(facts: MatchAnalysisFacts, stats: HalfStats, images: AnalysisImages, pageLabel: string | null = HALVES_PAGE_LABEL): HalvesCard {
   return {
-    ...base(facts, images, pageLabel, `Devre verisi: ${halfSourceLabel(stats.source)} · Olaylar: API-Football`),
+    ...base(facts, images, pageLabel, ""),
     rows: stats.rows.map((row) => ({ key: row.key, label: HALF_LABELS[row.key], first: side(row.key, row.first), second: side(row.key, row.second) })),
     facts: facts.facts.map((fact) => fact.text),
     firstLabel: "İLK YARI",

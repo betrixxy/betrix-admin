@@ -4,14 +4,15 @@ import { loadStudioFonts } from "@/lib/dashboard/studio-fonts";
 import type { BlockFilter } from "@/skills/render-engine/templates/checkmatch-set/blocks";
 import { LEAGUE_CARD_BLOCKS } from "@/skills/render-engine/templates/weekly-fixtures/league-card-chrome";
 import type { Result } from "@/types/result";
-import { loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
+import { embedLeagueLogo, loadBrandLogo, resolveImage } from "@/lib/dashboard/match-day-assets";
 import { WeeklyFixturesCard } from "@/skills/render-engine/templates/weekly-fixtures/weekly-fixtures";
 import { SOCIAL_FORMATS } from "@/types/studio-formats";
 import type { WeeklyFixturesCardInput } from "@/types/weekly-fixtures";
 
-/** Logolar yalnızca API-Football medya sunucusundan gömülür — başka adres çizilmez (SSRF). */
+/** Takım logoları yalnızca API-Football medya sunucusundan gömülür — başka adres çizilmez (SSRF); lig logosu: `embedLeagueLogo`. */
 const ALLOWED_IMAGE_ORIGIN = "https://media.api-sports.io/";
 const TEAM_LOGO_SIDE = 160;
+const LEAGUE_LOGO_SIDE = 400;
 const MAX_CACHE = 400;
 
 /** Takım/lig logoları değişmez — süreç içinde bir kez indirilir (kartta 20'ye kadar logo var). */
@@ -38,8 +39,7 @@ export async function drawWeeklyFixturesCard(input: WeeklyFixturesCardInput, onl
   const [fonts, brandLogo, leagueLogoUrl, teamLogoEntries] = await Promise.all([
     loadStudioFonts(),
     loadBrandLogo(),
-    // Lig logosu kartta kullanılmaz — lig adı üst satırda tipografik.
-    Promise.resolve(""),
+    embedLeagueLogo(input.leagueLogoUrl, LEAGUE_LOGO_SIDE).then((logo) => logo ?? ""),
     Promise.all(
       input.matches.map(async (match) => {
         const [home, away] = await Promise.all([embedLogo(match.home.logoUrl, TEAM_LOGO_SIDE), embedLogo(match.away.logoUrl, TEAM_LOGO_SIDE)]);

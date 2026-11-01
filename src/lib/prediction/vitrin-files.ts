@@ -1,13 +1,12 @@
-import { parseStoredFileUrl, readStoredFile } from "@/lib/dashboard/storage";
 import { prisma } from "@/lib/prisma";
-import { likeLiteral, SERVABLE_STATUSES, vitrinFileBlocked, type VitrinFileOwner } from "@/lib/prediction/vitrin-file-rule";
+import { likeLiteral, vitrinFileBlocked, type VitrinFileOwner } from "@/lib/prediction/vitrin-file-rule";
 
 /**
- * Onaysız VITRIN görselleri dosya adresinden verilmez (kurucu kararı, 2026-10-20): `/api/files` ve
- * Instagram'ın indirdiği imzalı adres (`/api/public-media`) taslak (DRAFT) ya da reddedilmiş vitrinin
- * görselini 403 ile reddeder; onaydan (APPROVED) ve yayından (PUBLISHED) sonra normal servis edilir.
- * İnceleme ekranı görseli sunucuda gömülü önizleme olarak gösterir (`vitrinReviewSrc`, bkz.
- * `draft-data.ts`). Kural yalnızca `renders` kovasındaki kart görsellerine uygulanır.
+ * Onaysız VITRIN görselleri DIŞARI verilmez (kurucu kararı 2026-10-20; 2026-11-01'de netleşti): imzalı, oturumsuz
+ * `/api/public-media` (Instagram'ın indirdiği adres) taslak (DRAFT) ya da reddedilmiş vitrinin görselini 403 ile
+ * reddeder; onaydan (APPROVED) ve yayından (PUBLISHED) sonra servis edilir. Oturum açmış admin ise görseli her yerde
+ * görür (onay kuyruğu, taslak, indirme): `/api/files` yalnızca oturum sorar, oturumsuz 403
+ * (`storage-file-handler.ts`). Kural yalnızca `renders` kovasındaki kart görsellerine uygulanır.
  */
 
 /**
@@ -26,17 +25,4 @@ async function vitrinOwners(fileUrl: string): Promise<VitrinFileOwner[]> {
 export async function isUnapprovedVitrinFile(bucket: string, fileName: string): Promise<boolean> {
   if (bucket !== "renders") return false;
   return vitrinFileBlocked(await vitrinOwners(`/api/files/${bucket}/${fileName}`));
-}
-
-export const VITRIN_FILE_FORBIDDEN = "Onaysız vitrin görseli dosya adresinden verilmez — önce taslağı onaylayın.";
-
-/**
- * İnceleme ekranının vitrin görseli: onaysız taslakta dosya adresi 403 verdiği için görsel sunucuda okunup
- * gömülü (`data:`) gösterilir; onaylı/yayınlanmış vitrin normal adresinden. Okunamazsa adres kalır.
- */
-export async function vitrinReviewSrc(url: string, status: string): Promise<string> {
-  if (SERVABLE_STATUSES.has(status)) return url;
-  const stored = parseStoredFileUrl(url);
-  const data = stored ? await readStoredFile(stored.bucket, stored.fileName) : null;
-  return data ? `data:image/png;base64,${data.toString("base64")}` : url;
 }

@@ -52,7 +52,7 @@ export default async function DraftPage({ params }: { params: Promise<{ id: stri
       <>
         <PageHeader
           title={`${draft.home.teamName} – ${draft.away.teamName}`}
-          description="AI Market Tahmin & Analiz · iki takımın Derinlemesine Analiz kartı — onayınız olmadan yayına hazır sayılmaz."
+          description="Maç Önü Tahmin · iki takımın Derinlemesine Analiz kartı — onayınız olmadan yayına hazır sayılmaz."
           actions={backLink}
         />
         {notice}

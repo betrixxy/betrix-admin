@@ -1,3 +1,4 @@
+import { preferredLeagueLogo } from "@/lib/dashboard/league-logo";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
@@ -37,7 +38,7 @@ export async function resolveWeeklyCard(draft: WeeklyFixturesDraft): Promise<Res
   if (weeklyPlan(matches, grouping, weeklyLayout(draft.format)) === null) {
     return { ok: false, error: { code: "INVALID_INPUT", message: `Maçlar ${SOCIAL_FORMATS[draft.format].label} formatına sığmıyor — birkaç maçı çıkarıp ikinci kart üretin.` } };
   }
-  return { ok: true, data: { leagueId: draft.leagueId, leagueName: league.name, leagueLogoUrl: round.data.leagueLogoUrl, title: draft.title, grouping, matches, format: draft.format } };
+  return { ok: true, data: { leagueId: draft.leagueId, leagueName: league.name, leagueLogoUrl: await preferredLeagueLogo(league.apiFootballId, round.data.leagueLogoUrl), title: draft.title, grouping, matches, format: draft.format } };
 }
 
 function toJsonValue(value: object): Prisma.InputJsonObject {

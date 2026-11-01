@@ -130,10 +130,10 @@ export async function matchPhotoTag(assetId: string, fixtureId: string): Promise
 /** Turnuva logosunun kütüphane etiketi (`MediaAsset.teamId`) — "league-203". */
 export const leagueLogoTag = (leagueId: number) => `league-${leagueId}`;
 
-/** Kütüphanedeki en yeni şeffaf turnuva logosu (set rozeti) — yoksa null. */
+/** Kütüphanede bu lig için yüklenen en yeni logo — yoksa null (`league-logo-source.ts`). */
 export async function findLeagueLogoUrl(leagueId: number): Promise<string | null> {
   const row = await prisma.mediaAsset.findFirst({
-    where: { category: "LOGO", teamId: leagueLogoTag(leagueId), hasAlpha: true },
+    where: { category: "LOGO", teamId: leagueLogoTag(leagueId) },
     orderBy: { createdAt: "desc" },
     select: { fileUrl: true },
   });

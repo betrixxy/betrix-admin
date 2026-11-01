@@ -35,7 +35,7 @@ export const CONTENT_TYPES: readonly ContentTypeDef[] = [
   },
   {
     id: "AI_MARKET_PREDICTION",
-    label: "AI Market Tahmin & Analiz",
+    label: "Maç Önü Tahmin",
     description: "Maç önü vitrin kartı: kazanma olasılıkları ve senaryolar, denetimli gerekçeler, kilitli kutular (bahis dili yok).",
     phase: "pre_match",
     status: "active",

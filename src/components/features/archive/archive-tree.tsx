@@ -44,7 +44,9 @@ export function ArchiveTree({ leagues, folder, selectedPerson, inboxCount, inbox
       {leagues.length === 0 ? <p className="px-2 text-xs text-muted-foreground">Arşiv boş — kadroları senkronlayın.</p> : null}
       {leagues.map((league) => (
         <div key={league.id} className="flex flex-col">
-          <span className={cn("px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide", league.isNational ? "text-amber-300/80" : "text-white/70")}>{league.name}</span>
+          <Link href={`/dashboard/library?league=${league.id}`} title="Lig sayfası: logo" className={cn("px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide hover:text-white", league.isNational ? "text-amber-300/80" : "text-white/70")}>
+            {league.name}
+          </Link>
           {league.teams.map((team) => {
             const open = folder?.id === team.id;
             return (

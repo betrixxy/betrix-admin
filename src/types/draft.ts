@@ -69,7 +69,7 @@ export interface DraftActionState {
   job?: StudioJobStart;
 }
 
-/** AI Market Tahmin & Analiz taslağı — iki takımın kartı + market tahmini (bkz. market-analysis-engine.ts). */
+/** Maç Önü Tahmin taslağı — iki takımın kartı + tahmin (bkz. market-analysis-engine.ts). */
 export interface MarketAnalysisDraftView extends PublishableDraft {
   id: string;
   fixtureId: string;

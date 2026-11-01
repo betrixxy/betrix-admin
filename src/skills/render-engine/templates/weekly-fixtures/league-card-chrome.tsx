@@ -15,6 +15,11 @@ const BRAND_LOGO_HEIGHT = 46;
 /** Lig kartlarının blokları (yerleşim kapısı) — logo dahil her öğe birine aittir; zemin, ışıma ve bant zemini ölçülmez. */
 export const LEAGUE_CARD_BLOCKS = ["card-header", "card-body", "footer-text", "footer-logo"] as const satisfies readonly LayoutBlockId[];
 
+/** Üst satır (lig · tur) tek satıra sığacak boyutta — logo yazı alanını daraltınca uzun satır küçülür (≈ 0.66 em + 4 px harf aralığı). */
+function kickerSize(kicker: string, available: number): number {
+  return Math.max(12, Math.min(19, Math.floor((available / Math.max(1, kicker.length) - 4) / 0.66)));
+}
+
 export const shown = (only: BlockFilter, id: LayoutBlockId) => ({ opacity: blockOpacity(only, id) });
 
 /** Büyük başlık tek satıra sığacak boyutta (Archivo Black büyük harf ≈ 0.78 em/karakter). */
@@ -63,6 +68,7 @@ export function LeagueCardHeader({
   const badge = theme.leagueBadge ? LEAGUE_BADGE_PAD : 0;
   const textWidth = contentWidth - (leagueLogoUrl ? logo + badge + 36 : 0);
   const size = titleSize(title, textWidth, layout.titleMax);
+  const kickerFont = kickerSize(kicker, textWidth);
   return (
     <div tw="flex items-center" style={{ position: "absolute", left: layout.pad, top: layout.headerTop, width: contentWidth, gap: 36, ...shown(only, "card-header") }}>
       {leagueLogoUrl ? (
@@ -81,7 +87,7 @@ export function LeagueCardHeader({
         </div>
       ) : null}
       <div tw="flex flex-col" style={{ gap: 14, flex: 1 }}>
-        <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: 19, letterSpacing: 4, color: theme.muted, lineHeight: 1 }}>{kicker}</span>
+        <span style={{ fontFamily: EYEBROW, fontWeight: 700, fontSize: kickerFont, letterSpacing: 4, color: theme.muted, lineHeight: 1 }}>{kicker}</span>
         <span style={{ fontFamily: SCORE, fontSize: size, lineHeight: 1, letterSpacing: Math.min(-2, -size * 0.035), color: theme.text, whiteSpace: "nowrap" }}>{title}</span>
         <div tw="flex items-center" style={{ gap: 12 }}>
           <div style={{ width: 34, height: 4, backgroundColor: theme.accent }} />

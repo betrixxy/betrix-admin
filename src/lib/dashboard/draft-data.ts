@@ -7,7 +7,6 @@ import { drawRecordOptionsSchema } from "@/lib/dashboard/draw-records";
 import { isSetDraftKind, SET_DRAFT_KIND_IDS, SET_DRAFT_KINDS } from "@/lib/dashboard/draft-kinds";
 import { PLATFORM_LABELS } from "@/lib/dashboard/social-meta";
 import { prisma } from "@/lib/prisma";
-import { vitrinReviewSrc } from "@/lib/prediction/vitrin-files";
 import { APPROVED_STATUSES, STUDIO_FORMATS, type StudioFormat, type StudioPostOption } from "@/types/ai-content";
 import { parsePublishSettings, publishMediaOf } from "@/lib/dashboard/publish-caption";
 import type { DraftLookup, DraftSummary, DraftView, PublishableDraft } from "@/types/draft";
@@ -167,9 +166,8 @@ export async function getDraft(id: string): Promise<DraftLookup | null> {
     const vitrin = vitrinViewSchema.safeParse(record.renderOptions);
     if (vitrin.success) {
       const { title, subtitle, format, carousel } = vitrin.data;
-      // Onaysız vitrin görseli dosya adresinden verilmez (`vitrin-files.ts`): inceleme gömülü önizlemeyle.
-      const imageUrl = await vitrinReviewSrc(vitrin.data.imageUrl, record.status);
-      const slides = carousel && carousel.length > 0 ? await Promise.all(carousel.map(async (slide) => ({ ...slide, url: await vitrinReviewSrc(slide.url, record.status) }))) : [{ url: imageUrl, label: "Maç Önü Analiz" }];
+      const imageUrl = vitrin.data.imageUrl;
+      const slides = carousel && carousel.length > 0 ? carousel : [{ url: imageUrl, label: "Maç Önü Analiz" }];
       return {
         kind: "match-result",
         draft: {

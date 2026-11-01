@@ -161,17 +161,15 @@ describe("künye ve uyarılar: güncellik", () => {
     assert.deepEqual(missingWarning(comparisonWarnings(a, sm)), []);
   });
 
-  it("Sportmonks'a geçen oyuncu uyarıda; dipnot oyuncu başına tek kaynak; künyede tarih", async () => {
+  it("Sportmonks'a geçen oyuncu stüdyo uyarısında; kartta kaynak yazısı yok; künyede tarih", async () => {
     const left = withAsOf("2026-10-26T16:00:00Z");
     const right: PlayerSeasonStats = { ...H2H_RIGHT, freshness: { source: "sportmonks", asOfUtc: "2026-10-26T18:00:00Z", missingMatches: null, addedMatches: 0, note: "maç verisi eksik" } };
     assert.ok(comparisonWarnings(left, right).some((w) => w.startsWith("Pléa: bütün satırlar Sportmonks'tan")));
     const built = buildH2HCard({ left, right, mode: "TOTAL", match: null, images: { leftLogo: null, rightLogo: null, leftFace: null, rightFace: null, brandLogo: "" }, frame: MATCH_DAY_FRAMES.IG_PORTRAIT });
     assert.ok(built.ok);
     assert.equal(built.data.card.scopeLabel, "2026/27 · SÜPER LİG / BUNDESLIGA · 26.10 İTİBARIYLA");
-    // Sol oyuncunun xG/xA/büyük fırsatı koşullu Sportmonks (fixture: aynı örneklem) — dipnotta adıyla.
-    const source = built.data.card.footnotes.at(-1) ?? "";
-    assert.ok(source.startsWith("Veri: Aktürkoğlu API-Football · Pléa Sportmonks · "), source);
-    assert.ok(source.includes("xG") && source.includes(": Sportmonks."), source);
+    // Kaynak yazıları karttan kalktı (2026-11-01): kaynak bilgisi yalnızca stüdyo uyarısında.
+    assert.doesNotMatch(built.data.card.footnotes.join(" "), /API-Football|Sportmonks|Veri:/u);
   });
 });
 

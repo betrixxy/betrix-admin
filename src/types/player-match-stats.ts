@@ -152,7 +152,6 @@ interface PlayerCardBase {
   /** "SERIE A · 9. HAFTA · 28.10.2026" */
   metaLine: string;
   /** "Puan: API-Football · xG: Sportmonks" */
-  footnote: string;
   brandLogo: string;
 }
 

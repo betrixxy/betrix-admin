@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { nameFor } from "@/lib/names/card-name-forms";
 import type { LineupCardInput, LineupSlot } from "@/types/lineup";
 import type { StandingRow, StandingsCardInput, StandingsGroup } from "@/types/standings";
@@ -142,7 +144,12 @@ const CUP_GROUPS: WeeklyMatch[] = [
   match(14, "2026-11-05", "23:00", "Dinamo Kiev", "Kızılyıldız", { group: "B" }),
 ];
 
+/** Sentetik lig logosu (gerçek lig logosu commit edilmez) — logolu lig kartı senaryoları. */
+const LEAGUE_LOGO = `data:image/png;base64,${readFileSync(path.join(process.cwd(), "public", "brand", "checkmatch-mark.png")).toString("base64")}`;
+
 export const WEEKLY_CASES: Record<string, Omit<WeeklyFixturesCardInput, "format">> = {
+  "super-lig-hafta-logo": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: LEAGUE_LOGO, title: "10. HAFTA", grouping: "date", matches: SUPER_LIG_WEEK },
+  "kupa-grup-logo": { leagueId: "uecl", leagueName: "UEFA Konferans Ligi", leagueLogoUrl: LEAGUE_LOGO, title: "GRUP AŞAMASI · 4. MAÇ GÜNÜ · İKİNCİ YARI", grouping: "group", matches: CUP_GROUPS },
   "super-lig-hafta": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: "", title: "10. HAFTA", grouping: "date", matches: SUPER_LIG_WEEK },
   "kupa-grup-uzun-baslik": {
     leagueId: "uecl",
@@ -204,6 +211,8 @@ const UECL_GROUPS: StandingsGroup[] = [
 ];
 
 export const STANDINGS_CASES: Record<string, Omit<StandingsCardInput, "format">> = {
+  "super-lig-tablo-logo": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: LEAGUE_LOGO, season: 2026, title: "PUAN DURUMU", kindLabel: "10. HAFTA SONU", sections: [SUPER_LIG_TABLE] },
+  "kupa-gruplar-logo": { leagueId: "uecl", leagueName: "UEFA Konferans Ligi", leagueLogoUrl: LEAGUE_LOGO, season: 2026, title: "GRUPLARDA SON DURUM", kindLabel: "GRUP AŞAMASI", sections: UECL_GROUPS },
   "super-lig-tablo": { leagueId: "super-lig", leagueName: "Trendyol Süper Lig", leagueLogoUrl: "", season: 2026, title: "PUAN DURUMU", kindLabel: "10. HAFTA SONU", sections: [SUPER_LIG_TABLE] },
   "kupa-gruplar": { leagueId: "uecl", leagueName: "UEFA Konferans Ligi", leagueLogoUrl: "", season: 2026, title: "GRUPLARDA SON DURUM", kindLabel: "GRUP AŞAMASI", sections: UECL_GROUPS },
 };

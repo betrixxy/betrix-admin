@@ -6,12 +6,14 @@ import { PersonFolderView, SearchResultsView, TeamFolderView } from "@/component
 import { ArchiveInbox } from "@/components/features/archive/archive-inbox";
 import { ArchiveSyncForm, ArchiveTransferSuggestions } from "@/components/features/archive/archive-person-tools";
 import { ArchiveTree } from "@/components/features/archive/archive-tree";
+import { LeagueLogoList, LeagueLogoPage } from "@/components/features/archive/league-logo-view";
 import { LegacyMediaView } from "@/components/features/archive/legacy-media-view";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getArchiveTree, getInbox, getPeopleOptions, getPendingTransfers, getTeamFolder, getTeamOptions, searchArchive } from "@/lib/archive/queries";
 import { ARCHIVE_GROUPS, type ArchiveGroup } from "@/lib/archive/structure";
+import { listLeagueLogos } from "@/lib/dashboard/league-logo";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -28,7 +30,7 @@ type Param = string | string[] | undefined;
 const one = (value: Param) => (typeof value === "string" ? value : undefined);
 
 interface LibraryPageProps {
-  searchParams: Promise<{ view?: Param; team?: Param; person?: Param; group?: Param; q?: Param; inbox?: Param; hidden?: Param }>;
+  searchParams: Promise<{ view?: Param; team?: Param; person?: Param; group?: Param; q?: Param; inbox?: Param; hidden?: Param; league?: Param }>;
 }
 
 export default async function LibraryPage({ searchParams }: LibraryPageProps) {
@@ -57,9 +59,26 @@ export default async function LibraryPage({ searchParams }: LibraryPageProps) {
           </Link>
         ))}
       </nav>
-      {view === "logos" ? <LegacyMediaView category="LOGO" /> : view === "references" ? <LegacyMediaView category="REFERENCE" /> : <ArchiveView params={params} />}
+      {one(params.league) ? <LeagueView leagueId={Number(one(params.league))} /> : view === "logos" ? <LogosView /> : view === "references" ? <LegacyMediaView category="REFERENCE" /> : <ArchiveView params={params} />}
     </>
   );
+}
+
+/** Logolar sekmesi: lig logoları (lig sayfasına gider) + düz logo klasörü. */
+async function LogosView() {
+  return (
+    <div className="flex flex-col gap-6">
+      <LeagueLogoList rows={await listLeagueLogos()} />
+      <LegacyMediaView category="LOGO" />
+    </div>
+  );
+}
+
+/** Lig sayfası: kullanılan logo ve "logo yükle". */
+async function LeagueView({ leagueId }: { leagueId: number }) {
+  const row = (await listLeagueLogos()).find((league) => league.id === leagueId);
+  if (!row) return <p className="py-10 text-center text-sm text-muted-foreground">Bu lig bulunamadı.</p>;
+  return <LeagueLogoPage row={row} />;
 }
 
 async function ArchiveView({ params }: { params: Awaited<LibraryPageProps["searchParams"]> }) {

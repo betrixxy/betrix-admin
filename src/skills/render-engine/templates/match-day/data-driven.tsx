@@ -3,7 +3,7 @@ import type { MatchDayCard, MatchDayStats } from "@/types/match-day";
 import type { TemplateGeometry } from "./geometry";
 import { MATCH_DAY_NAME_LAYERS, blockOpacity, layerOpacity, unlayered, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
 import { wrapLines } from "../../satori-text";
-import { BODY, BrandLogo, Canvas, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM, Eyebrow, GOLD, TeamLogo, clip, competitionLine, known, px } from "./shared";
+import { BODY, BrandLogo, Canvas, DISPLAY, DISPLAY_ACCENT_EM, DISPLAY_DESCENT_EM, Eyebrow, GOLD, LeagueMark, TeamLogo, clip, competitionLine, known, px } from "./shared";
 
 /**
  * DATA DRIVEN — spor veri ajansı (AA/Opta) infografiği: koyu düz zemin, tek vurgu rengi,
@@ -19,7 +19,7 @@ const FORM_STYLE = {
 } as const;
 
 /** Kartın blokları (yerleşim kapısı, bkz. `match-day-overlay.tsx::matchDayLayoutGate`) — logo dahil her öğe birine aittir. */
-export const DATA_DRIVEN_BLOCKS = ["header-label", "headline", ...MATCH_DAY_NAME_LAYERS, "md-date", "form", "md-boxes", "footer-logo"] as const satisfies readonly LayoutBlockId[];
+export const DATA_DRIVEN_BLOCKS = ["header-label", "header-date", "headline", ...MATCH_DAY_NAME_LAYERS, "md-date", "form", "md-boxes", "footer-logo"] as const satisfies readonly LayoutBlockId[];
 
 const shown = (only: BlockFilter, id: LayoutBlockId, layers: readonly LayoutBlockId[] = []) => ({ opacity: blockOpacity(only, id, layers) });
 
@@ -242,6 +242,10 @@ function Vertical({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry; 
   const boxWidth = Math.floor((g.right - g.left - px(12, k) * boxes.length) / Math.max(1, boxes.length)) - px(8, k);
   return (
     <Canvas>
+      {/* Lig logosu sağ üstte, künye kolonunun bıraktığı px(90) boşlukta; yerleşim kapısında ayrı blok ("header-date"). */}
+      <div tw="absolute flex" style={{ right: g.frame.width - g.right, top: g.top, ...shown(only, "header-date") }}>
+        <LeagueMark card={card} size={px(72, k)} />
+      </div>
       {/* Kolon, sağ kenara kadar uzanır: uzun künye satırı ("…ULUSLAR LİGİ") kırılmaz. */}
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: g.right - g.left - px(90, k) }}>
         <div tw="flex" style={shown(only, "header-label")}>
@@ -285,8 +289,9 @@ function Landscape({ card, g, only }: { card: MatchDayCard; g: TemplateGeometry;
   return (
     <Canvas>
       <div tw="absolute flex flex-col" style={{ left: g.left, top: g.top, width: 420 }}>
-        <div tw="flex" style={shown(only, "header-label")}>
-          <Eyebrow size={12} color={accent} maxWidth={420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
+        <div tw="flex items-center" style={{ gap: 12, ...shown(only, "header-label") }}>
+          <LeagueMark card={card} size={46} />
+          <Eyebrow size={12} color={accent} maxWidth={card.leagueLogo ? 362 : 420}>{`MAÇ GÜNÜ  ·  ${competitionLine(card)}`}</Eyebrow>
         </div>
         <div tw="flex" style={{ marginTop: 12, ...shown(only, "headline", MATCH_DAY_NAME_LAYERS) }}>
           <Headline card={card} width={420} k={0.72} only={only} />

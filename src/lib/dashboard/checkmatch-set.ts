@@ -53,8 +53,8 @@ export function buildSetCard(facts: SetFacts, images: SetImages, pageLabel: stri
 }
 
 /**
- * Lig/turnuva logosu hiçbir kartta kullanılmaz (kurucu kararı, Kura ile tutarlı — 2026-10-29): turnuva adı
- * tipografik yazılır (künye satırı), rozet yerine vurgu çizgisi çizilir. `leagueLogo` her zaman null.
+ * Set kartlarında lig/turnuva logosu yok (kurucu kararı 2026-10-29; yalnızca Haftanın Maçları, Puan Durumu ve Maç Günü
+ * logolu — 2026-11-01, `league-logo-source.ts`): turnuva adı tipografik yazılır (künye satırı), rozet yerine vurgu çizgisi çizilir. `leagueLogo` her zaman null.
  */
 export async function resolveSetImages(facts: SetFacts): Promise<SetImages> {
   const [homeLogo, awayLogo, brandLogo] = await Promise.all([resolveImage(facts.home.logoUrl, 300), resolveImage(facts.away.logoUrl, 300), loadBrandLogo()]);

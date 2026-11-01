@@ -1,4 +1,5 @@
 import { POST_ATTRIBUTION_PARAM } from "@/lib/dashboard/tracker-snippet";
+import { canonicalCampaign } from "@/lib/dashboard/utm-attribution";
 import type { SocialPlatformType } from "@/types/social";
 
 /**
@@ -19,10 +20,10 @@ export const UTM_SOURCE: Record<SocialPlatformType, string> = {
   X: "x",
 };
 
-/** `utm_campaign`: içerik türü kimliği, küçük harf (ör. MATCH_DAY → match_day); bilinmiyorsa `post`. */
+/** `utm_campaign`: içerik türü kimliği, küçük harf (ör. MATCH_DAY → match_day), görünen ad farklıysa o (`canonicalCampaign`); bilinmiyorsa `post`. */
 export function campaignOf(contentType: string | null): string {
   const value = (contentType ?? "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "_");
-  return value || "post";
+  return value ? canonicalCampaign(value) : "post";
 }
 
 export interface TrackingLinkInput {

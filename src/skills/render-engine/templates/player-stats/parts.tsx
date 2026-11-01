@@ -3,16 +3,16 @@ import { BRAND_LOGO_ALT, brandLogoWidth } from "../brand";
 import { blockOpacity, layerOpacity, stackLayer, STACK_LAYERS, type BlockFilter } from "../checkmatch-set/blocks";
 import { SetHeader } from "../checkmatch-set/set-parts";
 import { BODY, fitFontSize, px } from "../match-day/shared";
-import { MUTED, TEXT_SHADOW } from "../vitrin/parts";
+import { TEXT_SHADOW } from "../vitrin/parts";
 import { PLAYER_SIZES, type PlayerFrame } from "./geometry";
 
 /**
  * Oyuncu İstatistikleri ortak parçaları (Satori): sayfa etiketi (set ile aynı bileşen; tarih künyede),
- * iki satırlık künye ("MILAN 2–4 BOLOGNA" / "SERIE A · 9. HAFTA · 28.10.2026") + CheckMatch logosu sağ altta,
- * veri kaynağı dipnotu. Alt alta satırlar mürekkep katmanıdır (`stack-a` / `stack-b`).
+ * iki satırlık künye ("MILAN 2–4 BOLOGNA" / "SERIE A · 9. HAFTA · 28.10.2026") + CheckMatch logosu sağ altta.
+ * Alt alta satırlar mürekkep katmanıdır (`stack-a` / `stack-b`).
  */
 
-type CardBase = Pick<SpotlightCard | TopPlayersCard, "accentHex" | "pageLabel" | "matchLine" | "metaLine" | "footnote" | "brandLogo">;
+type CardBase = Pick<SpotlightCard | TopPlayersCard, "accentHex" | "pageLabel" | "matchLine" | "metaLine" | "brandLogo">;
 
 export function PlayerHeader({ card, g, only }: { card: CardBase; g: PlayerFrame; only: BlockFilter }) {
   if (!card.pageLabel) return null;
@@ -45,11 +45,3 @@ export function PlayerFooter({ card, g, only }: { card: CardBase; g: PlayerFrame
   );
 }
 
-export function PlayerFootnote({ card, g, only }: { card: CardBase; g: PlayerFrame; only: BlockFilter }) {
-  const size = px(PLAYER_SIZES.footnote, g.k);
-  return (
-    <div tw="absolute flex items-center" style={{ left: g.panel.left, top: g.footnote.top, width: g.panel.right - g.panel.left, height: g.footnote.height, opacity: blockOpacity(only, "footnote") }}>
-      <span style={{ fontFamily: BODY, fontWeight: 600, fontSize: size, lineHeight: 1, letterSpacing: size * 0.04, color: MUTED }}>{card.footnote}</span>
-    </div>
-  );
-}

@@ -27,11 +27,19 @@ const clean = (value: string | null | undefined, max = 200): string | null => {
   return trimmed ? trimmed.slice(0, max) : null;
 };
 
+/**
+ * Görünen kampanya adı içerik türü kimliğinden farklıysa (2026-11-01: paylaşılan linkte "market" görünmesin).
+ * Solda kimlikten ya da eski linklerden gelen ad, sağda tek kampanya adı: eski linkten gelen ziyaret yeni adla kaydedilir.
+ */
+const CAMPAIGN_ALIASES: Readonly<Record<string, string>> = { ai_market_prediction: "mac_onu_tahmin" };
+
+export const canonicalCampaign = (campaign: string): string => CAMPAIGN_ALIASES[campaign.toLowerCase()] ?? campaign;
+
 export function normalizeUtm(input: Partial<Record<keyof UtmParams, string | null | undefined>> | null | undefined): UtmParams {
   return {
     source: clean(input?.source)?.toLowerCase() ?? null,
     medium: clean(input?.medium)?.toLowerCase() ?? null,
-    campaign: clean(input?.campaign),
+    campaign: ((campaign) => (campaign ? canonicalCampaign(campaign) : null))(clean(input?.campaign)),
     content: clean(input?.content),
     term: clean(input?.term),
   };

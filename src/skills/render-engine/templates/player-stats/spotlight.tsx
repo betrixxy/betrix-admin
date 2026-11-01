@@ -5,7 +5,7 @@ import { Shade } from "../match-result/shared";
 import { StatValue } from "../player-h2h/parts";
 import { MUTED, TEXT_SHADOW } from "../vitrin/parts";
 import { PLAYER_SIZES, spotlightRowLines, type SpotlightGeometry } from "./geometry";
-import { PlayerFooter, PlayerFootnote, PlayerHeader } from "./parts";
+import { PlayerFooter, PlayerHeader } from "./parts";
 
 /**
  * A · MAÇIN OYUNCUSU — tam kadraj arşiv fotoğrafı (sanat katmanı motorda: kırpma + tonlama) ya da fotoğraf
@@ -150,7 +150,6 @@ export function SpotlightTemplate({ card, g, shadeStrength, only }: { card: Spot
       <Fact card={card} g={g} only={only} />
       <Hero card={card} g={g} only={only} />
       <Rows card={card} g={g} only={only} />
-      <PlayerFootnote card={card} g={g} only={only} />
       <PlayerFooter card={card} g={g} only={only} />
     </div>
   );

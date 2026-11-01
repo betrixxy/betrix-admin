@@ -57,6 +57,7 @@ export function TeamsRow({ card, g, only }: { card: AnalysisCardBase; g: Analysi
 }
 
 export function AnalysisFootnote({ card, g, only }: { card: AnalysisCardBase; g: AnalysisGeometry; only: BlockFilter }) {
+  if (!card.footnote) return null;
   const width = footnoteWidth(g);
   const size = fitFontSize(card.footnote, width, g.footnote.height, 0.55, 9);
   return (

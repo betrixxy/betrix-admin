@@ -10,7 +10,7 @@ import { posterName, shortForm, surnameOf } from "@/lib/names/person-name";
 import { spotlightFact } from "@/lib/player-stats/facts";
 import { highlightText, spotlightRows } from "@/lib/player-stats/rows";
 import type { MatchResultFacts, MatchSide } from "@/types/match-result";
-import type { PlayerCardEntry, PlayerMatchLine, PlayerStatRow, PlayerStatsFacts, SpotlightCard, TopPlayersCard } from "@/types/player-match-stats";
+import type { PlayerCardEntry, PlayerMatchLine, PlayerStatsFacts, SpotlightCard, TopPlayersCard } from "@/types/player-match-stats";
 
 /**
  * Oyuncu İstatistikleri kart alanları (saf): maç künyesi, takım renkleri, büyük harfli adlar, satırlar.
@@ -47,10 +47,6 @@ export function matchLine(match: MatchPart): string {
 /** "SERIE A · 9. HAFTA · 28.10.2026" */
 export function metaLine(match: MatchPart): string {
   return [upperCompetition(match.competition.name), upperTr(match.roundLabel), setDateLabel(match.kickoffUtc)].filter(Boolean).join(" · ");
-}
-
-export function footnote(rows: PlayerStatRow[]): string {
-  return rows.some((row) => row.source === "SPORTMONKS") ? "Puan: API-Football · xG: Sportmonks" : "Puan: API-Football";
 }
 
 /** `slot` kartın ad biçimi (`card-name-forms.ts`): A uzun, B kısa. */
@@ -92,7 +88,6 @@ export function buildSpotlightCard(input: { facts: PlayerStatsFacts; line: Playe
   const meta = [player.teamName, player.positionLabel, line.minutes !== null ? `${line.minutes} DK` : null].filter(Boolean).join(" · ");
   return {
     ...base(facts, input.images, input.pageLabel),
-    footnote: footnote([...hero, ...rows]),
     player,
     metaRow: meta,
     hero,
@@ -108,6 +103,5 @@ export const TOP_PLAYERS_TITLE = "MAÇIN EN İYİLERİ";
 
 export function buildTopPlayersCard(input: { facts: PlayerStatsFacts; lines: PlayerMatchLine[]; images: PlayerCardImages; names?: PlayerNames | undefined; pageLabel: string | null }): TopPlayersCard {
   const rows = input.lines.map((line, index) => ({ ...entry(line, input.facts.match, input.images, input.names, "PLAYER_STATS_TOP"), rank: index + 1, highlight: highlightText(line) }));
-  const usedXg = input.lines.some((line) => line.xg !== null && highlightText(line).includes("xG"));
-  return { ...base(input.facts, input.images, input.pageLabel), footnote: usedXg ? "Puan: API-Football · xG: Sportmonks" : "Puan: API-Football", title: TOP_PLAYERS_TITLE, rows };
+  return { ...base(input.facts, input.images, input.pageLabel), title: TOP_PLAYERS_TITLE, rows };
 }

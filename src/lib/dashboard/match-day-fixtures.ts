@@ -33,8 +33,8 @@ function toOption(fixture: Fixture, venues: ReadonlyMap<string, string>): MatchD
     awayTeamId: Number(fixture.awayTeam.id),
     homeLogoUrl: fixture.homeTeam.logoUrl,
     awayLogoUrl: fixture.awayTeam.logoUrl,
-    // Lig logosu kartlarda kullanılmaz (lig adı tipografik) — formdan da gönderilmez.
-    leagueLogoUrl: "",
+    // Kartta öncelik kütüphanedeki logoda (`preferredLeagueLogo`); bu, API-Football adresi.
+    leagueLogoUrl: fixture.competition.logoUrl ?? "",
     league: fixture.competition.name,
     // Tur etiketi Türkçe ("3. Hafta", UEFA lig aşaması "3. Maç", "Çeyrek Final") — `matchDayRoundLabel`.
     week: matchDayRoundLabel(details?.round),

@@ -8,7 +8,7 @@ import { AnalysisFooter, AnalysisFootnote, AnalysisHeader, AnalysisTitle, TeamsR
 /**
  * 02 · DEVRE DEVRE: İLK YARI | İKİNCİ YARI yan yana; her satırda ev sahibi değeri · etiket · deplasman değeri,
  * altında takım renklerinde paylaşım çubuğu. Altta 2–3 kural tabanlı olgu (vurgu kareli). Satırlar ve olgular
- * sırayla iki mürekkep katmanında. Kaynak dipnotta ("Devre verisi: API-Football").
+ * sırayla iki mürekkep katmanında.
  */
 
 const TRACK = "rgba(255,255,255,0.1)";

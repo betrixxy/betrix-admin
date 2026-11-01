@@ -119,6 +119,31 @@ export async function resolveImage(ref: string | undefined, maxSide: number): Pr
   }
 }
 
+/** Lig logosu yalnızca bu kaynaklardan gömülür: API-Football medya sunucusu, kütüphane dosyası (SSRF). */
+const LEAGUE_LOGO_SOURCE = /^(https:\/\/media\.api-sports\.io\/football\/leagues\/|\/api\/files\/library\/)/u;
+const MAX_LEAGUE_LOGOS = 64;
+const leagueLogoCache = new Map<string, Promise<string | null>>();
+
+/**
+ * Lig logosunu `data:` olarak gömer (`preferredLeagueLogo` adresi; yerleşim kapısı kartı blok blok çizer — süreç içinde
+ * önbellekli, geçici ağ hatasında bir kez daha denenir). Okunamazsa null: kartta yalnızca lig adı kalır.
+ */
+export function embedLeagueLogo(ref: string | undefined, side: number): Promise<string | null> {
+  if (!ref) return Promise.resolve(null);
+  if (ref.startsWith("data:image/")) return Promise.resolve(ref);
+  if (!LEAGUE_LOGO_SOURCE.test(ref)) return Promise.resolve(null);
+  const key = `${side}:${ref}`;
+  const cached = leagueLogoCache.get(key);
+  if (cached) return cached;
+  const pending = (async () => (await resolveImage(ref, side)) ?? (await resolveImage(ref, side)))();
+  if (leagueLogoCache.size >= MAX_LEAGUE_LOGOS) leagueLogoCache.clear();
+  leagueLogoCache.set(key, pending);
+  void pending.then((value) => {
+    if (!value) leagueLogoCache.delete(key);
+  });
+  return pending;
+}
+
 /** Türkçe tur etiketi (`matchDayRoundLabel`: "3. Hafta", "3. Maç", "Çeyrek Final", "Son 16 Turu") Türkçe büyür. */
 const TURKISH_ROUND = /(^|\s)(hafta|maç|maçı|turu|final|eleme|grup|aşaması|play-off|üçüncülük)(?=$|\s)/iu;
 
@@ -146,6 +171,7 @@ function formatDate(date: string | undefined): string {
   return date;
 }
 
+const LEAGUE_LOGO_SIDE = 300;
 const DEFAULT_COLORS = { homeColorHex: "#e11d48", awayColorHex: "#1d4ed8" };
 
 export async function resolveMatchDayCard(
@@ -159,8 +185,7 @@ export async function resolveMatchDayCard(
     resolveImage(params.awayPlayerImg, 1350),
     resolveImage(params.homeLogo, 300),
     resolveImage(params.awayLogo, 300),
-    // Lig logosu kartta kullanılmaz — lig adı tipografik (competitionLine).
-    Promise.resolve(null),
+    embedLeagueLogo(params.leagueLogo, LEAGUE_LOGO_SIDE),
     loadBrandLogo(),
   ]);
 

@@ -22,7 +22,7 @@ function active(id: string): ActiveContentType {
 describe("içerik türü menüsü", () => {
   it("maç öncesi menüde 'Yakında' seçenek yok", () => {
     const labels = contentTypesForPhase("pre_match").map(contentTypeOptionLabel);
-    assert.deepEqual(labels, ["Maç Günü Kartı", "Haftanın Maçları", "Muhtemel 11", "AI Market Tahmin & Analiz", "Oyuncu Karşılaştırması", "Kura Sonucu"]);
+    assert.deepEqual(labels, ["Maç Günü Kartı", "Haftanın Maçları", "Muhtemel 11", "Maç Önü Tahmin", "Oyuncu Karşılaştırması", "Kura Sonucu"]);
   });
 
   it("katalogda 'Yakında' tür yok; maç sonrası menü sırası", () => {

@@ -11,7 +11,7 @@ function formatBytes(bytes: number): string {
 
 /**
  * Logolar ve Referanslar — eski düz kütüphane görünümü (fotoğraflar artık arşivde). LOGO'da turnuva
- * logosu `league-<id>` etiketiyle set rozetine gider.
+ * logosu `league-<id>` etiketiyle lig kartlarına gider (lig sayfası: `league-logo-view.tsx`).
  */
 export async function LegacyMediaView({ category }: { category: "LOGO" | "REFERENCE" }) {
   const assets = await listMediaAssets(category);

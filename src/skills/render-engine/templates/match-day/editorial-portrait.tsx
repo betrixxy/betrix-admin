@@ -1,7 +1,7 @@
 import type { MatchDayCard } from "@/types/match-day";
 import { blockOpacity, type BlockFilter, type LayoutBlockId } from "../checkmatch-set/blocks";
 import type { TemplateGeometry } from "./geometry";
-import { BrandLogo, Canvas, Eyebrow, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px, upperReferee, upperStadium } from "./shared";
+import { BrandLogo, Canvas, Eyebrow, LeagueMark, SERIF, TEXT_SHADOW, TeamLogo, clip, fitFontSize, known, px, upperReferee, upperStadium } from "./shared";
 
 /**
  * EDITORIAL PORTRAIT — spor dergisi kapağı: dramatik stüdyo ışığında oyuncu portreleri,
@@ -28,7 +28,10 @@ function Masthead({ card, k, width }: { card: MatchDayCard; k: number; width: nu
         </div>
         <Rule width={px(70, k)} />
       </div>
-      <Eyebrow size={px(12, k)} color="rgba(255,255,255,0.7)">{card.weekLabel ?? ""}</Eyebrow>
+      <div tw="flex items-center" style={{ gap: px(14, k) }}>
+        <Eyebrow size={px(12, k)} color="rgba(255,255,255,0.7)">{card.weekLabel ?? ""}</Eyebrow>
+        <LeagueMark card={card} size={px(60, k)} />
+      </div>
     </div>
   );
 }

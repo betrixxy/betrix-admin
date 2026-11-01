@@ -46,9 +46,26 @@ describe("yönlendirme hedefi — UTM", () => {
 
   it("içerik türü yoksa campaign=post; dış adrese yönlendirme yapılamaz", () => {
     assert.equal(campaignOf(null), "post");
-    assert.equal(campaignOf("AI Market Prediction"), "ai_market_prediction");
     assert.equal(new URL(buildTrackingLink({ socialPostId: "p", platform: "X", contentType: null, path: "//evil.example/x" })).host, "checkmatch.net");
     assert.equal(new URL(buildTrackingLink({ socialPostId: "p", platform: "X", contentType: null, path: "https://evil.example" })).host, "checkmatch.net");
+  });
+});
+
+describe("Maç Önü Tahmin kampanya adı", () => {
+  it("yeni linkte mac_onu_tahmin; market görünmez", () => {
+    assert.equal(campaignOf("AI_MARKET_PREDICTION"), "mac_onu_tahmin");
+    const link = buildTrackingLink({ socialPostId: "p", platform: "X", contentType: "AI_MARKET_PREDICTION" });
+    assert.equal(new URL(link).searchParams.get("utm_campaign"), "mac_onu_tahmin");
+    assert.doesNotMatch(link, /market/iu);
+  });
+
+  it("eski linkten gelen ziyaret aynı kampanya sayılır; diğer kampanyalar değişmez", () => {
+    assert.equal(normalizeUtm({ campaign: "ai_market_prediction" }).campaign, "mac_onu_tahmin");
+    assert.equal(normalizeUtm({ campaign: "AI_MARKET_PREDICTION" }).campaign, "mac_onu_tahmin");
+    assert.equal(normalizeUtm({ campaign: "mac_onu_tahmin" }).campaign, "mac_onu_tahmin");
+    assert.equal(normalizeUtm({ campaign: "match_day" }).campaign, "match_day");
+    assert.equal(normalizeUtm({ campaign: "  " }).campaign, null);
+    assert.equal(campaignOf("MATCH_DAY"), "match_day");
   });
 });
 

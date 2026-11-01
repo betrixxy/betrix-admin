@@ -3,7 +3,7 @@ import { blockOpacity, layerOpacity, stackLayer, STACK_LAYERS, unlayered, type B
 import { BODY, DISPLAY, DISPLAY_DESCENT_EM, TeamLogo, fitFontSize, px } from "../match-day/shared";
 import { MUTED, TEXT_SHADOW } from "../vitrin/parts";
 import { PLAYER_SIZES, type TopPlayersGeometry } from "./geometry";
-import { PlayerFooter, PlayerFootnote, PlayerHeader } from "./parts";
+import { PlayerFooter, PlayerHeader } from "./parts";
 
 /**
  * B · MAÇIN EN İYİLERİ — iki takımdan en yüksek puanlı 3 ya da 5 oyuncu (≥ 30 dk). Satır: sıra (vurgu) ·
@@ -75,7 +75,6 @@ export function TopPlayersTemplate({ card, g, only }: { card: TopPlayersCard; g:
           <Row key={row.playerId} row={row} card={card} g={g} index={index} only={only} />
         ))}
       </div>
-      <PlayerFootnote card={card} g={g} only={only} />
       <PlayerFooter card={card} g={g} only={only} />
     </div>
   );

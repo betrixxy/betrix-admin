@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
+import { LEAGUE_LOGO_MIN_SIDE } from "@/lib/dashboard/league-logo-source";
 import { MEDIA_CATEGORY_META, addMediaAsset, deleteMediaAsset } from "@/lib/dashboard/media-library";
 import { inspectImageUpload } from "@/lib/dashboard/studio-images";
 import type { Result } from "@/types/result";
@@ -12,7 +13,7 @@ const uploadSchema = z.object({
   category: z.enum(MEDIA_CATEGORIES, "Bir klasör seçin."),
   label: z.string().trim().min(1, "Bir ad girin.").max(120, "Ad en fazla 120 karakter olabilir."),
   teamName: z.string().trim().max(120),
-  // Takım: "645"; turnuva logosu: "league-203" — set rozeti şeffaf logoyu bununla bulur (`findLeagueLogoUrl`).
+  // Takım: "645"; turnuva logosu: "league-203" — lig kartları logoyu bununla bulur (`findLeagueLogoUrl`).
   teamId: z.string().trim().regex(/^(\d*|league-\d+)$/, "Kimlik rakam (takım) ya da league-<id> (turnuva) olmalı — API-Football."),
   // Maç fotoğrafı (MATCH_PHOTO): maç "1584435" ya da "api-football-1584435", isteğe bağlı oyuncu kimliği.
   fixtureId: z.string().trim().regex(/^((api-football-)?\d+)?$/, "Maç kimliği rakam olmalı (API-Football fixture id)."),
@@ -38,7 +39,8 @@ export async function uploadMediaAction(_prev: MediaActionState, formData: FormD
 
   const { category, label, teamName, teamId, fixtureId, playerId } = parsed.data;
   if (category === "MATCH_PHOTO" && !fixtureId) return { error: "Maç fotoğrafı için maç kimliğini girin (Maç Merkezi'ndeki API-Football fixture id)." };
-  const minShortSide = MEDIA_CATEGORY_META[category].minShortSide;
+  // Lig logosu kartta büyük çizilir (`league-logo-source.ts`): düşük çözünürlük API-Football logosundan iyi olmaz.
+  const minShortSide = teamId.startsWith("league-") ? LEAGUE_LOGO_MIN_SIDE : MEDIA_CATEGORY_META[category].minShortSide;
   const image = await inspectImageUpload(file, "Görsel", minShortSide ? { minShortSide } : {});
   if (!image.ok) return { error: image.error.message };
 

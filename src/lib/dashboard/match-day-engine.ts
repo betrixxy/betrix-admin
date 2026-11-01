@@ -1,6 +1,8 @@
 import { fixtureOrigins } from "@/lib/dashboard/team-origin";
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
+import { preferredLeagueLogo } from "@/lib/dashboard/league-logo";
+import { leagueIdFromLogoUrl } from "@/lib/dashboard/league-logo-source";
 import { resolveMatchDayCard } from "@/lib/dashboard/match-day-assets";
 import { composeMatchDayArt, finalizeMatchDayImage, restorePlayers } from "@/lib/dashboard/match-day-compose";
 import { EmblemPlacementError } from "@/lib/dashboard/match-day-emblem";
@@ -110,7 +112,7 @@ export async function createMatchDayCard(input: CreateMatchDayInput): Promise<Re
     resolveSideCutout(input.homePlayer, "Ev sahibi oyuncu fotoğrafı"),
     resolveSideCutout(input.awayPlayer, "Deplasman oyuncu fotoğrafı"),
     resolveBackground(input, frame, promptInput),
-    fixtureOrigins(input.fixtureId).then((origins) => resolveMatchDayCard(input.info, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }, origins)),
+    Promise.all([fixtureOrigins(input.fixtureId), preferredLeagueLogo(leagueIdFromLogoUrl(input.info.leagueLogo), input.info.leagueLogo)]).then(([origins, leagueLogo]) => resolveMatchDayCard({ ...input.info, leagueLogo }, { homeColorHex: input.homeColorHex, awayColorHex: input.awayColorHex }, origins)),
     input.template === "DATA_DRIVEN" ? loadMatchDayStats(input.fixtureId) : Promise.resolve(null),
     refereeFields(input.info.referee),
   ]);

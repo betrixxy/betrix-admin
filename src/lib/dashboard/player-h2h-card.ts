@@ -8,11 +8,11 @@ import { comparisonPosition, comparisonWarnings, freshnessLabel, scopeLabel } fr
 import { factLine } from "@/lib/player-h2h/facts";
 import { posterName } from "@/lib/names/person-name";
 import { buildHero, buildRows, groupRows } from "@/lib/player-h2h/rows";
-import { formatStat, MAX_ROWS, POSITION_LABELS, STAT_META } from "@/lib/player-h2h/stats";
+import { formatStat, MAX_ROWS, POSITION_LABELS } from "@/lib/player-h2h/stats";
 import { numberPossessive } from "@/lib/player-h2h/turkish";
 import { bannedWordsGate } from "@/lib/prediction/banned-words";
 import { chartRowHeight, h2hCompareGeometry } from "@/skills/render-engine/templates/player-h2h/geometry";
-import type { H2HCard, H2HDropped, H2HMode, H2HPlayerCard, H2HPosition, H2HRow, H2HStatKey, PlayerSeasonStats } from "@/types/player-h2h";
+import type { H2HCard, H2HDropped, H2HMode, H2HPlayerCard, H2HPosition, H2HRow, PlayerSeasonStats } from "@/types/player-h2h";
 import type { Result } from "@/types/result";
 
 /**
@@ -92,24 +92,6 @@ function goalLine(player: PlayerSeasonStats): string | null {
   return player.penaltyGoals > 0 ? `${player.shortName} ${goals}, ${numberPossessive(player.penaltyGoals)} penaltı` : `${player.shortName} ${goals}, penaltı golü yok`;
 }
 
-const SOURCE_NAMES = { "api-football": "API-Football", sportmonks: "Sportmonks" } as const;
-
-/** Oyuncunun API-Football yolunda Sportmonks'tan gelen (gösterilen) satırları — koşullu xG/büyük fırsat. */
-function sportmonksKeys(player: PlayerSeasonStats, shown: Set<H2HStatKey>): H2HStatKey[] {
-  return player.freshness.source === "api-football" ? [...shown].filter((key) => player.sources[key] === "sportmonks") : [];
-}
-
-/**
- * Kaynak satırı: oyuncunun ana kaynağı (aynıysa bir kez) + koşullu Sportmonks satırları ("xG, Büyük fırsat
- * yaratma: Sportmonks" — yalnızca iki kaynağın maç ve dakikası birebir tuttuğunda gelir).
- */
-function sourceLine(left: PlayerSeasonStats, right: PlayerSeasonStats, shown: Set<H2HStatKey>): string {
-  const [a, b] = [left.freshness.source, right.freshness.source];
-  const main = a === b ? `Veri: ${SOURCE_NAMES[a]}` : `Veri: ${left.shortName} ${SOURCE_NAMES[a]} · ${right.shortName} ${SOURCE_NAMES[b]}`;
-  const filled = [...new Set([...sportmonksKeys(left, shown), ...sportmonksKeys(right, shown)])].map((key) => STAT_META[key].label);
-  return filled.length ? `${main} · ${filled.join(", ")}: Sportmonks.` : `${main}.`;
-}
-
 function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
   const keys = new Set(shown.map((row) => row.key));
   const notes: string[] = [];
@@ -117,7 +99,7 @@ function footnotes(input: H2HCardInput, shown: H2HRow[]): string[] {
   if (explain) notes.push(explain);
   const goals = [goalLine(input.left), goalLine(input.right)];
   if (goals.every(Boolean)) notes.push(`Gol (sezon toplamı): ${goals.join(" · ")}.`);
-  notes.push(`${sourceLine(input.left, input.right, keys)}${input.mode === "PER90" ? " Değerler 90 dakika başına." : ""}`);
+  if (input.mode === "PER90") notes.push("Değerler 90 dakika başına.");
   return notes;
 }
 

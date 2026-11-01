@@ -1,3 +1,4 @@
+import { preferredLeagueLogo } from "@/lib/dashboard/league-logo";
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@/generated/prisma/client";
 import { createScheduledContent } from "@/lib/calendar/content-schedule";
@@ -44,7 +45,7 @@ export async function resolveStandingsCard(draft: StandingsDraft): Promise<Resul
     data: {
       leagueId: draft.leagueId,
       leagueName: league.name,
-      leagueLogoUrl: table.data.leagueLogoUrl,
+      leagueLogoUrl: await preferredLeagueLogo(league.apiFootballId, table.data.leagueLogoUrl),
       season: draft.season,
       title: draft.title,
       kindLabel: standingsKindLabel(draft.leagueId, groups, statuses),
