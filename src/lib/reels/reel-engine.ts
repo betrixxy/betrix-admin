@@ -3,7 +3,10 @@ import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
 import { prisma } from "@/lib/prisma";
 import { publishWindow } from "@/lib/reels/publish-window";
 import { reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
+import { analystNoteProblem } from "@/lib/reels/commentary";
+import { loadReelContext } from "@/lib/reels/context-data";
 import { refreshProjectSquads } from "@/lib/reels/squad-data";
+import { contentLanguageGate } from "@/lib/prediction/content-language";
 import { canCancelReel, canFreezeReel, isReelSelectable, REEL_STATUS_LABELS, REELS_MAX_DAYS_AHEAD } from "@/lib/reels/selection";
 import { getReelsMatch, getReelsMatches } from "@/lib/services/reels-client";
 import type { ReelsMatchListItem } from "@/lib/services/reels-schema";
@@ -70,11 +73,27 @@ export async function cancelReelProject(projectId: string): Promise<Result<true,
   return changed.count === 1 ? { ok: true, data: true } : { ok: false, error: { message: "Proje durumu değişti, sayfayı yenileyin." } };
 }
 
+/** Analist notu: kullanıcının kendi yazdığı metin. Dil kapısından geçer; video onaydan sonra değişmesin diye onayda kilitlenir. */
+export async function saveReelAnalystNote(projectId: string, note: string): Promise<Result<true, ReelActionError>> {
+  const project = await prisma.reelProject.findUnique({ where: { id: projectId }, select: { status: true } });
+  if (!project) return { ok: false, error: { message: "Proje bulunamadı." } };
+  if (!canFreezeReel(project.status)) return { ok: false, error: { message: `Bu aşamada not değiştirilemez (${REEL_STATUS_LABELS[project.status]}).` } };
+  const trimmed = note.trim();
+  const problem = analystNoteProblem(trimmed) ?? contentLanguageGate({ card: { analistNotu: trimmed } });
+  if (problem) return { ok: false, error: { message: problem } };
+  await prisma.reelProject.update({ where: { id: projectId }, data: { analystNote: trimmed || null } });
+  return { ok: true, data: true };
+}
+
 export interface FrozenSnapshot {
   version: number;
   qualityOk: boolean;
   /** Kadro yenilenemeyen takımlar: dondurma durmaz, panelde gösterilir. */
   squadWarnings: string[];
+  /** Futbol okumasında okunamayan bölümler: dondurma durmaz, ilgili sahne kapanır. */
+  contextWarnings: string[];
+  /** Uç başına API-Football isteği (önbellekten dönenler dahil). */
+  contextRequests: Record<string, number>;
 }
 
 export async function freezeReelSnapshot(projectId: string): Promise<Result<FrozenSnapshot, ReelActionError>> {
@@ -89,6 +108,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
   if (detail.data.match.id !== project.matchId) return { ok: false, error: { message: "Servis başka bir maçın verisini döndürdü." } };
 
   const squads = await refreshProjectSquads(project);
+  const reading = await loadReelContext(project);
   const qualityOk = reelQualityOk(detail.data);
   const kickoffUtc = new Date(detail.data.match.kickoff_utc);
   try {
@@ -105,6 +125,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
           qualityOk,
           sceneAvailability: reelSceneAvailability(detail.data) as unknown as Prisma.InputJsonValue,
           squadCheckedAt: squads.checkedAt,
+          ...(reading.context ? { context: reading.context as unknown as Prisma.InputJsonValue, contextFetchedAt: new Date(reading.context.fetched_at) } : {}),
         },
         select: { version: true },
       });
@@ -112,7 +133,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
       await tx.reelProject.update({ where: { id: projectId }, data: { status: "SNAPSHOT_READY", kickoffUtc, ...publishWindow(kickoffUtc) } });
       return created;
     });
-    return { ok: true, data: { version: snapshot.version, qualityOk, squadWarnings: squads.warnings } };
+    return { ok: true, data: { version: snapshot.version, qualityOk, squadWarnings: squads.warnings, contextWarnings: reading.warnings, contextRequests: reading.requests } };
   } catch (cause) {
     if (isUniqueViolation(cause)) return { ok: false, error: { message: "Aynı anda başka bir dondurma yapıldı, sayfayı yenileyin." } };
     throw cause;

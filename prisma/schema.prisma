@@ -886,6 +886,8 @@ model ReelProject {
   publishFrom DateTime
   publishTo   DateTime
   status      ReelProjectStatus @default(SELECTED)
+  /// Kullanıcının kendi futbol okuması (1–3 cümle). Boşsa kartlarda veri tabanlı yorum kullanılır.
+  analystNote String?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   snapshots   ReelSnapshot[]
@@ -913,6 +915,9 @@ model ReelSnapshot {
   sceneAvailability Json
   /// İki takımın kadrosu en son ne zaman doğrulandı; null: doğrulanamadı, oyuncu sahneleri kapalı.
   squadCheckedAt    DateTime?
+  /// Futbol okuması (API-Football, `lib/reels/context-rule.ts`); okunamadıysa null, okuma sahneleri kapalı.
+  context           Json?
+  contextFetchedAt  DateTime?
 
   @@unique([projectId, version])
 }

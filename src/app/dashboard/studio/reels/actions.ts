@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { getCurrentSession } from "@/lib/auth/require-session";
 import { refreshDashboard, UNAUTHORIZED_MESSAGE } from "@/lib/dashboard/action-utils";
-import { cancelReelProject, freezeReelSnapshot, selectReelMatch } from "@/lib/reels/reel-engine";
+import { cancelReelProject, freezeReelSnapshot, saveReelAnalystNote, selectReelMatch } from "@/lib/reels/reel-engine";
 
 /** Reels Stüdyo eylemleri: yalnızca admin tıklamasıyla; zamanlayıcıdan çağrılmaz (CLAUDE.md 1.10). */
 
@@ -42,5 +42,15 @@ export async function freezeReelSnapshotAction(_previous: ReelActionState, formD
   const result = await freezeReelSnapshot(parsed.data);
   if (!result.ok) return { error: result.error.message };
   refreshDashboard();
-  return { message: [`Sürüm ${result.data.version} donduruldu.`, ...result.data.squadWarnings].join(" ") };
+  return { message: [`Sürüm ${result.data.version} donduruldu.`, ...result.data.squadWarnings, ...result.data.contextWarnings].join(" ") };
+}
+
+export async function saveReelAnalystNoteAction(_previous: ReelActionState, formData: FormData): Promise<ReelActionState> {
+  if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
+  const parsed = z.object({ projectId, note: z.string().max(1000) }).safeParse({ projectId: formData.get("projectId"), note: formData.get("note") ?? "" });
+  if (!parsed.success) return { error: "Geçersiz not." };
+  const result = await saveReelAnalystNote(parsed.data.projectId, parsed.data.note);
+  if (!result.ok) return { error: result.error.message };
+  refreshDashboard();
+  return { message: "Not kaydedildi." };
 }

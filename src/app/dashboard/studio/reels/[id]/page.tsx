@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, Check, Minus, X } from "lucide-react";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { CancelProjectButton, FreezeButton } from "@/components/features/dashboard/reels-action-buttons";
+import { ReelsAnalystNote } from "@/components/features/dashboard/reels-analyst-note";
 import { ReelsSnapshotCard } from "@/components/features/dashboard/reels-snapshot-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -103,6 +104,16 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
         </div>
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Analist notu</CardTitle>
+          <CardDescription>Kendi futbol okumanız: &quot;Maçın anahtarı&quot; ve &quot;checkmatch senaryosu&quot; kartlarına girer. Yazmazsanız veri tabanlı yorum kullanılır.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReelsAnalystNote projectId={project.id} note={project.analystNote} disabledReason={canFreezeReel(project.status) ? null : "Bu aşamada not değiştirilemez."} />
+        </CardContent>
+      </Card>
+
       {!latest || !availability ? (
         <Card>
           <CardHeader>
@@ -117,7 +128,7 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
             <CardHeader>
               <CardTitle>Sürüm {latest.version}</CardTitle>
               <CardDescription>
-                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {detail?.model.simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}{squad?.ok ? ` · ${squad.text}` : ""}
+                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {detail?.model.simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}{squad?.ok ? ` · ${squad.text}` : ""} · {latest.contextFetchedAt ? `futbol okuması ${formatIstanbulDateTime(latest.contextFetchedAt)}` : "futbol okuması yok"}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
