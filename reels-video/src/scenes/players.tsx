@@ -119,6 +119,29 @@ export function StageCover({ script, scene }: { script: ReelScript; scene: { hea
       </AbsoluteFill>
     );
   }
+  if (theme.id === "D" || theme.id === "E") {
+    // Poster: dev yeşil daire, kesimler önde, başlık üstte. Tahta: beyaz kenarlı mıknatıs kesimler, ortada çizgi.
+    const poster = theme.id === "D";
+    return (
+      <AbsoluteFill>
+        {poster ? <div style={{ position: "absolute", left: 120, top: 560, width: 840, height: 840, borderRadius: 420, background: theme.accent, opacity: 0.92 }} /> : <div style={{ position: "absolute", left: 90, top: 640, width: 400, height: 400, borderRadius: 200, border: `14px solid ${home.colors.primary}` }} />}
+        {!poster ? <div style={{ position: "absolute", left: 560, top: 800, width: 340, height: 340, borderRadius: 170, border: `14px solid ${away.colors.primary}` }} /> : null}
+        {awayPhoto ? <PlayerCut theme={theme} photo={awayPhoto} color={away.colors.primary} left={poster ? 400 : 430} top={poster ? 700 : 760} height={poster ? 700 : 560} /> : null}
+        {homePhoto ? <PlayerCut theme={theme} photo={homePhoto} color={home.colors.primary} left={poster ? -110 : -60} top={poster ? 600 : 620} height={poster ? 860 : 680} /> : null}
+        <QuestionTitle theme={theme} line1={line1} line2={line2} still />
+        <div style={{ position: "absolute", left: X, width: W, top: BOTTOM - 214 }}>
+          <Panel theme={theme} name="künye" style={{ display: "flex", flexDirection: "column", gap: 6, padding: "14px 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <span style={{ ...labelStyle(theme, 40), color: theme.ink, whiteSpace: "nowrap", textTransform: poster ? "uppercase" : "none" }}>{data.seriesLabel}</span>
+              <span style={{ display: "flex", gap: 8 }}><Img src={staticFile(home.logo)} style={{ width: 54, height: 54 }} /><Img src={staticFile(away.logo)} style={{ width: 54, height: 54 }} /></span>
+            </div>
+            <div style={{ ...labelStyle(theme, 34), color: theme.ink, whiteSpace: "nowrap" }}>{meta}</div>
+            <div style={{ ...labelStyle(theme, 30), whiteSpace: "nowrap" }}>{data.dateLabel}{data.venue ? ` · ${data.venue}` : ""}</div>
+          </Panel>
+        </div>
+      </AbsoluteFill>
+    );
+  }
   return (
     <AbsoluteFill>
       {homePhoto ? <PlayerCut theme={theme} photo={homePhoto} color={home.colors.primary} left={-130} top={theme.id === "C" ? 620 : 590} height={theme.id === "C" ? 800 : 1020} /> : null}

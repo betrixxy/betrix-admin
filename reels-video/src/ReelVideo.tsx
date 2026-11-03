@@ -10,7 +10,11 @@ import { CompareScene, HeadToHeadScene, KeyGapScene } from "./scenes/compare";
 import { ChanceScene, FatigueScene, TrackRecordScene } from "./scenes/context";
 import { HookScene, LogoScene } from "./scenes/opening";
 import { DuelScene, StageCover, VsOpponentScene } from "./scenes/players";
-import { MethodScene, QuestionScene } from "./scenes/question";
+import { QuestionScene } from "./scenes/question";
+import { AbsencesScene, FormScene, StoryScene } from "./scenes/reading";
+import { MinutesScene, TeamScene } from "./scenes/team";
+import { CloseScene, KeyScene, ScenarioScene, UpsetScene } from "./scenes/verdict";
+import { MonteCarloScene } from "./scenes/montecarlo";
 import { SummaryScene } from "./scenes/summary";
 
 function SceneBody({ scene, script }: { scene: ReelScene; script: ReelScript }) {
@@ -18,7 +22,16 @@ function SceneBody({ scene, script }: { scene: ReelScene; script: ReelScript }) 
     case "S01_COVER": return <StageCover script={script} scene={scene} />;
     case "S02_LOGO": return <LogoScene script={script} scene={scene} />;
     case "S03_HOOK": return <HookScene script={script} scene={scene} />;
-    case "M01_METHOD": return <MethodScene script={script} scene={scene} />;
+    case "M02_MONTE_CARLO": return <MonteCarloScene script={script} scene={scene} />;
+    case "C01_STORY": return <StoryScene script={script} scene={scene} />;
+    case "C02_FORM": return <FormScene script={script} scene={scene} />;
+    case "C03_ABSENCES": return <AbsencesScene script={script} scene={scene} />;
+    case "C04_TEAM_HOME": case "C05_TEAM_AWAY": return <TeamScene script={script} scene={scene} />;
+    case "C06_MINUTES": return <MinutesScene script={script} scene={scene} />;
+    case "C07_KEY": return <KeyScene script={script} scene={scene} />;
+    case "C08_UPSET": return <UpsetScene script={script} scene={scene} />;
+    case "C09_SCENARIO": return <ScenarioScene script={script} scene={scene} />;
+    case "S17_CLOSE": return <CloseScene script={script} scene={scene} />;
     case "S04_COMPARE": return <CompareScene script={script} scene={scene} />;
     case "S05_H2H": return <HeadToHeadScene script={script} scene={scene} />;
     case "S07_KEY_GAP": return <KeyGapScene script={script} scene={scene} />;

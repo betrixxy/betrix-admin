@@ -1,17 +1,19 @@
 import { formatDecimal, formatInt, ofTen, spokenThousands } from "../lib/motion";
 import type { DesignDirection, QuestionSceneType, ReelPhoto, ReelScene, ReelSceneType, ReelScript } from "../schema";
+
+export { MAX_STORY_SCENES, MAX_STORY_SECONDS, MIN_STORY_SCENES, MIN_STORY_SECONDS, pickStory, storyProblems, type StoryAngle, type StoryOptions } from "./story";
 import { checkBothScore, checkFirstGoal, checkGoals } from "./market-checks";
 import type { MatchData, Side } from "./match-data";
 import { compareMetrics, compareRows, effectiveFatigue, formLetters, outcomeLeader, pickKeyGap } from "./metrics";
-import { unknownNames } from "./name-guard";
 import { DUEL_SCOPE, duelRows, MIN_DUEL_ROWS, pickStar, VS_SCOPE, vsOpponentStory } from "./players";
+import { evaluateAnalysis } from "./analysis";
 import { evaluateQuestions } from "./questions";
 import { inSquad, squadFreshness } from "./squad";
 import { decideTrackRecord } from "./track-record";
 
 /**
  * Sahne havuzu: her sahne veriyi kendi denetler. Eksikse devre dışı kalır ve nedenini döner; asla boş ya da sıfırlı
- * kare çizilmez. Hikâye açısı havuzdan 12–16 sahne seçer (60–90 sn).
+ * kare çizilmez. Hikâye `story.ts`: 17 adımlık akış, 75–100 sn.
  */
 
 export type PoolEntry = { type: ReelSceneType; scene: ReelScene; reason: null } | { type: ReelSceneType; scene: null; reason: string };
@@ -49,15 +51,16 @@ const dateLabel = (iso: string): string => {
 };
 
 const QUESTION_FRAMES: Record<QuestionSceneType, number> = {
-  Q01_WINNER: 180, Q02_POINTS: 180, Q03_COMFORT: 180, Q04_GOALS: 210, Q05_BOTH_SCORE: 180, Q06_TEAM_GOALS: 180, Q07_CLEAN_WIN: 180, Q08_HT_LEAD: 180,
-  Q09_HT_GOAL: 180, Q10_HOT_HALF: 180, Q11_COMEBACK: 180, Q12_FIRST_GOAL: 180, Q13_PRESSURE: 180, Q14_CARDS: 180, Q15_PENALTY: 180, Q16_SCORE: 180, Q17_SCORER: 180,
+  Q01_WINNER: 180, Q02_POINTS: 150, Q03_COMFORT: 150, Q04_GOALS: 180, Q05_BOTH_SCORE: 165, Q06_TEAM_GOALS: 150, Q07_CLEAN_WIN: 150, Q08_HT_LEAD: 150,
+  Q09_HT_GOAL: 150, Q10_HOT_HALF: 150, Q11_COMEBACK: 150, Q12_FIRST_GOAL: 165, Q13_PRESSURE: 150, Q14_CARDS: 150, Q15_PENALTY: 150, Q16_SCORE: 150, Q17_SCORER: 150,
 };
 
 const DURATIONS: Record<ReelSceneType, number> = {
   ...QUESTION_FRAMES,
-  // S02: 8 kare geçişe gider, ekranda net 0,8 sn kalır. M01: 5 sn, kancadan hemen sonra.
-  S01_COVER: 45, S02_LOGO: 32, S03_HOOK: 150, M01_METHOD: 150, S04_COMPARE: 210, S05_H2H: 180, S07_KEY_GAP: 150, S11_FATIGUE: 120, S14_TRACK_RECORD: 180, S15_CHANCE: 150, S16_SUMMARY: 270,
-  P01_DUEL: 240, P02_VS_OPPONENT: 240,
+  S01_COVER: 60, C01_STORY: 195, M02_MONTE_CARLO: 210, C02_FORM: 180, C03_ABSENCES: 180, C04_TEAM_HOME: 180, C05_TEAM_AWAY: 180, C06_MINUTES: 180, C07_KEY: 165, C08_UPSET: 165, C09_SCENARIO: 195,
+  P01_DUEL: 180, P02_VS_OPPONENT: 180, S17_CLOSE: 105,
+  // Yedek havuzun eski sahneleri: akışa girmez, tasarım seçilince taşınır ya da silinir.
+  S02_LOGO: 32, S03_HOOK: 150, S04_COMPARE: 210, S05_H2H: 180, S07_KEY_GAP: 150, S11_FATIGUE: 120, S14_TRACK_RECORD: 180, S15_CHANCE: 150, S16_SUMMARY: 270,
 };
 
 const base = (type: ReelSceneType, headline: [string, string] | null, assets = NONE) => ({
@@ -69,8 +72,6 @@ const base = (type: ReelSceneType, headline: [string, string] | null, assets = N
 
 export interface PoolOptions {
   allowSampleTrackRecord?: boolean;
-  /** Örnek veri grubu listesi: gerçek liste gelene kadar yalnız örneklerde. */
-  allowSampleInputs?: boolean;
   /** Golcü şablonu: golcü modeli düzeltilene kadar gerçek akışta kapalı. */
   allowScorerScene?: boolean;
   /** Kadro yaşının ölçüldüğü an; varsayılan hesabın yapıldığı an (saf ve tekrarlanabilir). */
@@ -140,30 +141,15 @@ export function evaluatePool(data: MatchData, brand: { handle: string }, options
   const hits = Math.round(leaderShare / 10);
   const track = decideTrackRecord(data.model_track_record, leaderShare, { allowSample: options.allowSampleTrackRecord ?? false });
   const questions = evaluateQuestions(data, { durations: QUESTION_FRAMES, allowScorerScene: options.allowScorerScene ?? false, now });
-  const inputs = data.model_inputs;
-  const inputsReason = sim === null ? "Simülasyon sayısı yok" : !inputs || inputs.groups.length < 3 ? "Modele giren veri listesi yok" : inputs.source === "sample" && !options.allowSampleInputs ? "Gerçek veri grubu listesi henüz yok, örnek liste yayına girmez" : null;
 
   return [
-    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], BOTH), data: { seriesLabel: "Maç Günü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
+    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], BOTH), data: { seriesLabel: "Maç Önü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
     on({ type: "S02_LOGO", ...base("S02_LOGO", null), data: {} }),
     sim === null
       ? off("S03_HOOK", "Simülasyon sayısı yok")
       : on({
           type: "S03_HOOK", ...base("S03_HOOK", [`Maçı ${spokenThousands(sim)}`, "kez oynattık."], BOTH),
           data: { simulations: sim, wins: { home: Math.round(sim * data.outcome.home_win), draw: Math.round(sim * data.outcome.draw), away: Math.round(sim * data.outcome.away_win) } },
-        }),
-    inputsReason
-      ? off("M01_METHOD", inputsReason)
-      : on({
-          type: "M01_METHOD", ...base("M01_METHOD", ["Nasıl", "hesapladık?"]),
-          data: {
-            groups: inputs?.groups ?? [],
-            piles: [
-              { label: home.short_name, share: data.outcome.home_win, side: "home" },
-              { label: "Beraberlik", share: data.outcome.draw, side: "draw" },
-              { label: away.short_name, share: data.outcome.away_win, side: "away" },
-            ],
-          },
         }),
     metrics.length < 3 || formHome.length < 3 || formAway.length < 3
       ? off("S04_COMPARE", "Form ya da karşılaştırma verisi eksik")
@@ -239,82 +225,8 @@ export function evaluatePool(data: MatchData, brand: { handle: string }, options
     ...questions,
     evaluateDuel(data, now),
     evaluateVsOpponent(data, now),
+    ...evaluateAnalysis(data, DURATIONS, brand.handle),
   ];
-}
-
-export type StoryAngle = "derby" | "favourite";
-
-/** Hikâye açısına göre sıra; önce ana liste, sahne kapalıysa yedekten tamamlanır. Kanca → "Nasıl hesapladık?" → veri. */
-const STORIES: Record<StoryAngle, { main: ReelSceneType[]; reserve: ReelSceneType[] }> = {
-  derby: {
-    main: ["S01_COVER", "S02_LOGO", "S03_HOOK", "M01_METHOD", "Q01_WINNER", "S04_COMPARE", "P01_DUEL", "Q04_GOALS", "Q05_BOTH_SCORE", "Q12_FIRST_GOAL", "Q08_HT_LEAD", "Q13_PRESSURE", "Q14_CARDS", "Q16_SCORE", "P02_VS_OPPONENT", "S16_SUMMARY"],
-    reserve: ["Q02_POINTS", "Q10_HOT_HALF", "Q15_PENALTY", "S05_H2H", "Q09_HT_GOAL", "S15_CHANCE", "S11_FATIGUE"],
-  },
-  favourite: {
-    main: ["S01_COVER", "S02_LOGO", "S03_HOOK", "M01_METHOD", "Q01_WINNER", "Q03_COMFORT", "Q07_CLEAN_WIN", "P01_DUEL", "Q06_TEAM_GOALS", "Q04_GOALS", "Q10_HOT_HALF", "Q11_COMEBACK", "Q12_FIRST_GOAL", "S07_KEY_GAP", "P02_VS_OPPONENT", "S16_SUMMARY"],
-    reserve: ["Q02_POINTS", "Q05_BOTH_SCORE", "Q09_HT_GOAL", "Q15_PENALTY", "S11_FATIGUE", "S15_CHANCE", "S05_H2H"],
-  },
-};
-
-export const MIN_STORY_SCENES = 12;
-export const MAX_STORY_SCENES = 16;
-export const MIN_STORY_SECONDS = 60;
-export const MAX_STORY_SECONDS = 90;
-
-export interface StoryOptions {
-  /** Aynı hafta içindeki önceki videoların dizilimleri: aynısı tekrarlanmaz. */
-  avoid?: readonly (readonly ReelSceneType[])[];
-}
-
-const sameSequence = (a: readonly ReelSceneType[], b: readonly ReelSceneType[]): boolean => a.length === b.length && a.every((type, index) => type === b[index]);
-
-export function pickStory(pool: readonly PoolEntry[], angle: StoryAngle, options: StoryOptions = {}): ReelScene[] {
-  const { main, reserve } = STORIES[angle];
-  const ready = new Map(pool.flatMap((entry) => (entry.scene ? [[entry.type, entry.scene] as const] : [])));
-  const chosen = main.filter((type) => ready.has(type));
-  for (const type of reserve) {
-    if (chosen.length >= MIN_STORY_SCENES) break;
-    if (!ready.has(type)) continue;
-    // Yedek, kapanıştan önceki veri sahnelerinin arasına girer.
-    const closing = chosen.at(-1) === "S16_SUMMARY" ? 1 : 0;
-    chosen.splice(chosen.length - closing, 0, type);
-  }
-  let sequence = chosen.slice(0, MAX_STORY_SCENES);
-  // Aynı dizilim bu hafta kullanıldıysa veri sahneleri komşu takasla değişir. Açılış ve kapanış yerinde kalır.
-  const avoid = options.avoid ?? [];
-  if (avoid.some((used) => sameSequence(used, sequence))) {
-    const start = sequence.indexOf("M01_METHOD") + 1;
-    const end = sequence.at(-1) === "S16_SUMMARY" ? sequence.length - 1 : sequence.length;
-    for (let index = start; index < end - 1; index += 1) {
-      const swapped = [...sequence];
-      [swapped[index], swapped[index + 1]] = [sequence[index + 1] as ReelSceneType, sequence[index] as ReelSceneType];
-      if (!avoid.some((used) => sameSequence(used, swapped))) {
-        sequence = swapped;
-        break;
-      }
-    }
-  }
-  return sequence.flatMap((type) => {
-    const scene = ready.get(type);
-    return scene ? [scene] : [];
-  });
-}
-
-/**
- * Yayın öncesi engeller; panelde gösterilir. Boş dizi = video üretilebilir. "Nasıl hesapladık?" ve Düello her videoda
- * zorunludur; ad bekçisi veride olmayan özel adı burada yakalar.
- */
-export function storyProblems(story: readonly ReelScene[], data: MatchData, seconds: number): string[] {
-  const types = story.map((scene) => scene.type);
-  const problems: string[] = [];
-  if (!types.includes("M01_METHOD")) problems.push('"Nasıl hesapladık?" sahnesi yok');
-  else if (types.indexOf("M01_METHOD") !== types.indexOf("S03_HOOK") + 1) problems.push('"Nasıl hesapladık?" kancadan hemen sonra gelmeli');
-  if (!types.includes("P01_DUEL")) problems.push("Düello sahnesi yok");
-  if (story.length < MIN_STORY_SCENES || story.length > MAX_STORY_SCENES) problems.push(`Sahne sayısı ${story.length}: ${MIN_STORY_SCENES}–${MAX_STORY_SCENES} olmalı`);
-  if (seconds < MIN_STORY_SECONDS || seconds > MAX_STORY_SECONDS) problems.push(`Süre ${seconds.toFixed(1)} sn: ${MIN_STORY_SECONDS}–${MAX_STORY_SECONDS} olmalı`);
-  const names = unknownNames(story, data);
-  if (names.length) problems.push(`Veride olmayan özel ad: ${names.join(", ")}`);
-  return problems;
 }
 
 export const BRAND = { accent: "#2EA537", logo: "brand/checkmatch-logo.png", mark: "brand/checkmatch-mark.png", handle: "@checkmatch_tr" };

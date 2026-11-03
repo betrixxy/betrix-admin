@@ -31,7 +31,6 @@ Sözleşmede **market adı yoktur**: sol sütun yanıtta geçen nötr ad, sağ s
 | | `cards.red_card` | `red_card` | |
 | Penaltı çıkma ihtimali | `penalty` | `penalty` | |
 | En olası skor | `score_distribution` + `score_scene_allowed` | `correct_scores` (ilk 10) | v1'de var, karar servisin. |
-| Nasıl hesapladık? | `model_inputs.source` + `groups[{label, value}]` | Modele giren özellik grupları | **Gerçek liste sizden gelecek.** `source: "service"`. Gelene kadar örnek liste yalnız örneklerde; gerçek akışta sahne ve dolayısıyla video engelli. |
 | Rozet | `model.simulations` | v1'de var | Rozet: `MONTE CARLO · {N} SİMÜLASYON`. |
 
 **Kullanılmayanlar:** `goals_odd`, `goals_even` (analiz değeri yok), `player_goalscorers` (`atgs` matematiksel olarak imkânsız değer veriyor, golcü sahnesi model düzelene kadar kapalı), `season_xg_leaders`, `scorers` (oyuncu verisi artık API-Football'dan; v1.2'de çıkarılabilir), `market_explanations`, `ai_comments`.
@@ -48,9 +47,9 @@ Video bunları yakalar ve sahneyi kapatır (`src/story/market-checks.ts`), ama k
 6. **Takım kimlikleri.** Kadro doğrulaması `teams.*.id` ile API-Football `/players/squads` çağırır. Kimliklerin API-Football kimliği olduğu **doğrulanmalı**; değilse yanlış takımın kadrosu okunur. Rapordaki `team_id 22722` gibi kayıtlar kontrol edilmeli.
 7. **Form güvenilirliği.** `checkmatch-faz1` sonrası form alanları düzeldi mi doğrulanmalı (Galatasaray–Stuttgart'ta `WWWLW` ile gerçek `WWWWL`).
 
-## Oyuncu ve kadro: sözleşmeye girmez
+## Oyuncu, kadro ve futbol okuması: sözleşmeye girmez
 
-Düello, Rakibine karşı ve kadro doğrulaması betrix'te API-Football'dan okunur, `ReelSnapshot`'a yazılır. checkmatch'in oyuncu/kadro verisi Eylül'de dondu, kullanılmaz.
+Düello, Rakibine karşı, kadro doğrulaması ve futbol okuması (puan durumu, form, seriler, eksikler, dakika dağılımı) betrix'te API-Football'dan okunur, `ReelSnapshot.context`e yazılır. checkmatch'in oyuncu, kadro ve puan durumu verisi kullanılmaz. Sözleşmeden yalnız olasılıklar gelir. **"Nasıl hesapladık?" sahnesi kaldırıldı (2026-11-03): `model_inputs` artık gerekmiyor.**
 
 ## Sözleşme disiplini
 

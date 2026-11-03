@@ -62,9 +62,27 @@ const vizSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("split"), parts: z.array(z.strictObject({ label: z.string(), percent, side: side.or(z.literal("draw")).nullable() })).min(2) }),
   z.strictObject({ kind: z.literal("ladder"), steps: z.array(z.strictObject({ label: z.string(), percent })).length(4), bars: z.array(z.strictObject({ label: z.string(), percent })).min(5) }),
 ]);
-const questionData = z.strictObject({ hero: heroSchema, supports: z.array(supportSchema).min(2).max(4), viz: vizSchema, focus: side.nullable() });
+/** Yorum cümlesi: rakamlar kodla eklenir, her cümle veri anahtarlarına bağlıdır (`story/claims.ts`). */
+export const reasonSchema = z.strictObject({ id: z.string(), template: z.string(), text: z.string().min(1), sources: z.array(z.string()).min(1), figures: z.array(z.string()) });
+const reasons = z.array(reasonSchema);
+const questionData = z.strictObject({ hero: heroSchema, supports: z.array(supportSchema).min(2).max(4), viz: vizSchema, focus: side.nullable(), reasons: reasons.max(2) });
 
 export const QUESTION_SCENE_TYPES = ["Q01_WINNER", "Q02_POINTS", "Q03_COMFORT", "Q04_GOALS", "Q05_BOTH_SCORE", "Q06_TEAM_GOALS", "Q07_CLEAN_WIN", "Q08_HT_LEAD", "Q09_HT_GOAL", "Q10_HOT_HALF", "Q11_COMEBACK", "Q12_FIRST_GOAL", "Q13_PRESSURE", "Q14_CARDS", "Q15_PENALTY", "Q16_SCORE", "Q17_SCORER"] as const;
+
+const standingLine = z.strictObject({ rank: z.number().int(), points: z.number().int(), played: z.number().int(), goalsDiff: z.number().int() });
+const formBlock = z.strictObject({
+  last5: z.array(z.enum(["G", "B", "M"])).min(3),
+  venueLabel: z.string(),
+  venue: z.strictObject({ win: z.number().int(), draw: z.number().int(), lose: z.number().int(), goalsFor: z.number().int(), goalsAgainst: z.number().int() }),
+  streaks: z.strictObject({ wins: z.number().int(), draws: z.number().int(), loses: z.number().int() }),
+});
+const absence = z.strictObject({ name: z.string(), status: z.enum(["injured", "suspended", "doubtful"]), minutes: z.string().nullable(), goals: z.number().int().nullable(), assists: z.number().int().nullable(), share: z.string().nullable() });
+const teamAnalysis = z.strictObject({
+  side,
+  stats: z.array(z.strictObject({ key: z.string(), value: z.string(), label: z.string() })).min(2).max(5),
+  formation: z.strictObject({ name: z.string(), played: z.number().int() }),
+  points: z.array(z.strictObject({ label: z.string(), reason: reasonSchema })).length(2),
+});
 
 const duelPlayer = z.strictObject({ name: z.string().min(1), team: z.string().min(1), logo: z.string().min(1) });
 
@@ -73,11 +91,22 @@ export const reelSceneSchema = z.discriminatedUnion("type", [
   scene("Q05_BOTH_SCORE", questionData), scene("Q06_TEAM_GOALS", questionData), scene("Q07_CLEAN_WIN", questionData), scene("Q08_HT_LEAD", questionData),
   scene("Q09_HT_GOAL", questionData), scene("Q10_HOT_HALF", questionData), scene("Q11_COMEBACK", questionData), scene("Q12_FIRST_GOAL", questionData),
   scene("Q13_PRESSURE", questionData), scene("Q14_CARDS", questionData), scene("Q15_PENALTY", questionData), scene("Q16_SCORE", questionData), scene("Q17_SCORER", questionData),
-  scene("M01_METHOD", z.strictObject({
-    groups: z.array(z.strictObject({ label: z.string(), value: z.string() })).min(3).max(6),
-    /** Noktaların yığılacağı üç sonuç. */
-    piles: z.array(z.strictObject({ label: z.string(), share: z.number().min(0).max(1), side: side.or(z.literal("draw")) })).length(3),
+  scene("M02_MONTE_CARLO", z.strictObject({
+    simulations: z.number().int().positive(),
+    shares: z.strictObject({ home: z.number(), draw: z.number(), away: z.number() }),
+    final: z.strictObject({ home: percent, draw: percent, away: percent }),
+    /** Skorborddan akan örnek maçlar: sonuç payları simülasyonla aynı dağılımdan. */
+    samples: z.array(z.strictObject({ home: z.number().int(), away: z.number().int() })).min(8),
   })),
+  scene("C01_STORY", z.strictObject({ home: standingLine, away: standingLine, reasons: reasons.min(1).max(2) })),
+  scene("C02_FORM", z.strictObject({ home: formBlock, away: formBlock, reasons: reasons.max(1) })),
+  scene("C03_ABSENCES", z.strictObject({ home: z.array(absence).max(3), away: z.array(absence).max(3), reasons: reasons.max(1) })),
+  scene("C04_TEAM_HOME", teamAnalysis), scene("C05_TEAM_AWAY", teamAnalysis),
+  scene("C06_MINUTES", z.strictObject({ slots: z.array(z.string()).length(6), rows: z.array(z.strictObject({ side, label: z.string(), cells: z.array(z.number().int()).length(6) })).length(4), reasons: reasons.max(2) })),
+  scene("C07_KEY", z.strictObject({ metric: z.string(), leader: side, leaderValue: z.string(), otherValue: z.string(), reasons: reasons.max(1), analystNote: z.string().nullable() })),
+  scene("C08_UPSET", z.strictObject({ side, team: z.string(), hero: z.strictObject({ value: z.string(), percent }), reasons: reasons.min(1).max(3) })),
+  scene("C09_SCENARIO", z.strictObject({ items: reasons.length(3), analystNote: z.string().nullable() })),
+  scene("S17_CLOSE", z.strictObject({ options: z.array(z.string()).length(3), prompt: z.string(), save: z.string(), handle: z.string() })),
   scene("P01_DUEL", z.strictObject({ home: duelPlayer, away: duelPlayer, rows: z.array(compareRowSchema).min(5), scope: z.string() })),
   scene("P02_VS_OPPONENT", z.strictObject({
     side,
@@ -112,10 +141,10 @@ export const reelSceneSchema = z.discriminatedUnion("type", [
   })),
 ]);
 
-export const DESIGN_DIRECTIONS = ["A", "B", "C"] as const;
+export const DESIGN_DIRECTIONS = ["A", "B", "C", "D", "E"] as const;
 
 export const reelScriptSchema = z.strictObject({
-  /** Tasarım yönü: A Yayın, B Dergi, C Veri laboratuvarı. */
+  /** Tasarım yönü: A Yayın, B Dergi, C Veri laboratuvarı, D Maç günü posteri, E Taktik tahtası. */
   design: z.enum(DESIGN_DIRECTIONS),
   meta: z.strictObject({
     match: z.strictObject({ id: z.number().int(), kickoffUtc: z.iso.datetime({ offset: true }), kickoffLabel: z.string(), round: z.string().nullable(), venue: z.string().nullable() }),
@@ -138,5 +167,6 @@ export type ReelTeam = z.infer<typeof team>;
 export type ReelCropBox = z.infer<typeof box>;
 export type CompareRow = z.infer<typeof compareRowSchema>;
 export type QuestionData = z.infer<typeof questionData>;
+export type ReasonData = z.infer<typeof reasonSchema>;
 export type QuestionSceneType = (typeof QUESTION_SCENE_TYPES)[number];
 export type DesignDirection = (typeof DESIGN_DIRECTIONS)[number];

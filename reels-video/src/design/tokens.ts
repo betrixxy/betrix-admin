@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { DesignDirection } from "../schema";
 
 /**
- * Üç tasarım yönünün ölçüleri. Yönler renk değişimi değil, ayrı görsel dildir; sahne şablonu ortak, kimlik buradan gelir.
+ * Beş tasarım yönünün ölçüleri. Ana vurgu her yönde checkmatch yeşili; takım renkleri yalnız destek. Yönler renk değişimi değil, ayrı görsel dildir; sahne şablonu ortak, kimlik buradan gelir.
  *
  * Güvenli alan: Instagram, TikTok ve Shorts'un kesişimi. Platformların resmî piksel değeri yok, kaynaklar ayrışıyor;
  * yayınlanan rehberlerdeki sağ eylem sütunu (Shorts ~%18,6 ≈ 200 px), alt yazı bandı (~420 px) ve üst (CLAUDE.md 3.3: 250 px)
@@ -41,6 +41,8 @@ export interface Theme {
   labelSize: number;
   accent: string;
   accentInk: string;
+  /** Koyu zeminde yazı olarak yeşil: marka yeşili yazıda 4,5 kontrastın altında kalır, dolgularda marka yeşili. */
+  accentText: string;
   ink: string;
   ink2: string;
   panel: string;
@@ -50,13 +52,18 @@ export interface Theme {
   monoWordsAllowed: boolean;
 }
 
+/** checkmatch yeşili. Üstündeki yazı koyu olur: beyazla kontrast 3,2'de kalır. */
+export const BRAND_GREEN = "#2EA537";
+const GREEN_INK = "#04140A";
+const GREEN_TEXT = "#4CC456";
+
 export const THEMES: Record<DesignDirection, Theme> = {
   A: {
     id: "A", name: "Yayın",
     display: "Anton", displayItalic: false, number: "Anton", numberWeight: 400, digitEm: 0.5, label: "Saira Extra Condensed", labelWeight: 700,
     titleWeight: 400, titleMax: 112, titleWidth: 0.47, titleUpper: true,
     heroSize: 270, supportSize: 72, labelSize: 36,
-    accent: "#C9FF2F", accentInk: "#0A0D04", ink: "#FFFFFF", ink2: "#E4E8EC", panel: "rgba(6,8,12,0.88)", panelEdge: "rgba(255,255,255,0.16)", stage: "backgrounds/stadium-night.jpg",
+    accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#FFFFFF", ink2: "#E4E8EC", panel: "rgba(6,8,12,0.88)", panelEdge: "rgba(255,255,255,0.16)", stage: "backgrounds/stadium-night.jpg",
     monoWordsAllowed: false,
   },
   B: {
@@ -64,7 +71,7 @@ export const THEMES: Record<DesignDirection, Theme> = {
     display: "DM Serif Display", displayItalic: true, number: "DM Serif Display", numberWeight: 400, digitEm: 0.545, label: "Geist", labelWeight: 500,
     titleWeight: 400, titleMax: 118, titleWidth: 0.5, titleUpper: false,
     heroSize: 280, supportSize: 72, labelSize: 30,
-    accent: "#FFC857", accentInk: "#191307", ink: "#FBF6EA", ink2: "#E6DFCF", panel: "rgba(14,12,9,0.9)", panelEdge: "rgba(251,246,234,0.28)", stage: "backgrounds/crowd-bokeh.jpg",
+    accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#FBF6EA", ink2: "#E6DFCF", panel: "rgba(14,12,9,0.9)", panelEdge: "rgba(251,246,234,0.28)", stage: "backgrounds/crowd-bokeh.jpg",
     monoWordsAllowed: false,
   },
   C: {
@@ -72,8 +79,24 @@ export const THEMES: Record<DesignDirection, Theme> = {
     display: "Unbounded", displayItalic: false, number: "JetBrains Mono", numberWeight: 800, digitEm: null, label: "JetBrains Mono", labelWeight: 500,
     titleWeight: 800, titleMax: 76, titleWidth: 0.84, titleUpper: true,
     heroSize: 236, supportSize: 62, labelSize: 27,
-    accent: "#3DFFB5", accentInk: "#04140E", ink: "#F2FFFA", ink2: "#CFE5DC", panel: "rgba(4,12,14,0.86)", panelEdge: "rgba(61,255,181,0.34)", stage: "backgrounds/stadium-night.jpg",
+    accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F2FFFA", ink2: "#CFE5DC", panel: "rgba(4,12,14,0.86)", panelEdge: "rgba(46,165,55,0.5)", stage: "backgrounds/stadium-night.jpg",
     monoWordsAllowed: true,
+  },
+  D: {
+    id: "D", name: "Maç günü posteri",
+    display: "Archivo Black", displayItalic: false, number: "Archivo Black", numberWeight: 400, digitEm: 0.68, label: "Barlow Condensed", labelWeight: 800,
+    titleWeight: 400, titleMax: 84, titleWidth: 0.88, titleUpper: true,
+    heroSize: 250, supportSize: 62, labelSize: 34,
+    accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F7F5EE", ink2: "#E2DFD4", panel: "rgba(8,9,8,0.92)", panelEdge: "rgba(247,245,238,0.3)", stage: "backgrounds/crowd-bokeh.jpg",
+    monoWordsAllowed: false,
+  },
+  E: {
+    id: "E", name: "Taktik tahtası",
+    display: "Caveat Brush", displayItalic: false, number: "Caveat Brush", numberWeight: 400, digitEm: 0.5, label: "Kalam", labelWeight: 700,
+    titleWeight: 400, titleMax: 128, titleWidth: 0.4, titleUpper: false,
+    heroSize: 300, supportSize: 84, labelSize: 32,
+    accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F4F6EF", ink2: "#DDE3D8", panel: "rgba(10,18,14,0.9)", panelEdge: "rgba(244,246,239,0.42)", stage: "backgrounds/stadium-night.jpg",
+    monoWordsAllowed: false,
   },
 };
 

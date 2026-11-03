@@ -2,6 +2,8 @@ import { formatDecimal, splitDots } from "../lib/motion";
 import type { QuestionData, QuestionSceneType, ReelScene } from "../schema";
 import { barsFromLadder, checkBothScore, checkCards, checkCleanWin, checkComeback, checkComfort, checkCorners, checkDouble, checkFirstGoal, checkFirstHalfGoal, checkFirstHalfResult, checkGoals, checkHalves, checkOutcome, checkPenalty, checkTeamTwoPlus, ladderOf, winOf } from "./market-checks";
 import type { MatchData, Side } from "./match-data";
+import type { Reason } from "./claims";
+import { bothScoreReasons, firstGoalReasons, goalsReasons } from "./reasons";
 import { inSquad, squadFreshness } from "./squad";
 
 /**
@@ -38,8 +40,8 @@ export function evaluateQuestions(data: MatchData, options: { durations: Record<
   const underdog = other(favourite);
   const sideLabel: Record<Outcome3, string> = { home: home.short_name, draw: "Beraberlik", away: away.short_name };
 
-  const on = (type: QuestionSceneType, line1: string, line2: string, question: QuestionData, assets = sideAssets(question.focus)): QuestionEntry =>
-    ({ type, reason: null, scene: { type, durationInFrames: options.durations[type], headline: { line1, line2 }, caption: null, assets, data: question } as QuestionEntry extends { scene: infer S } ? Exclude<S, null> : never });
+  const on = (type: QuestionSceneType, line1: string, line2: string, question: Omit<QuestionData, "reasons"> & { reasons?: Reason[] }, assets = sideAssets(question.focus)): QuestionEntry =>
+    ({ type, reason: null, scene: { type, durationInFrames: options.durations[type], headline: { line1, line2 }, caption: null, assets, data: { reasons: [], ...question } } as QuestionEntry extends { scene: infer S } ? Exclude<S, null> : never });
   const off = (type: QuestionSceneType, reason: string): QuestionEntry => ({ type, scene: null, reason });
   const guarded = (type: QuestionSceneType, reason: string | null, build: () => QuestionEntry): QuestionEntry => (reason ? off(type, reason) : build());
   const none = { kind: "none" as const };
@@ -97,17 +99,19 @@ export function evaluateQuestions(data: MatchData, options: { durations: Record<
           bars: barValues.map((value, index) => ({ label: barLabels[index] ?? "", percent: pct(value) })),
         },
         focus: favourite,
+        reasons: goalsReasons(data).slice(0, 2),
       });
     }),
     q("Q05_BOTH_SCORE", checkBothScore(data), () => {
       const value = data.both_score ?? 0;
       const chance = data.team_goal_chance;
       return on("Q05_BOTH_SCORE", "İki takım da", "gol bulur mu?", {
-        hero: { value: show(value), percent: pct(value), label: "İki takım da gol buluyor", side: null },
+        hero: { value: show(value), percent: pct(value), label: "İki takımın da gol bulma olasılığı", side: null },
         supports: chance
           ? [{ key: "home", value: show(chance.home), label: `${home.short_name} gol buluyor`, side: "home" }, { key: "away", value: show(chance.away), label: `${away.short_name} gol buluyor`, side: "away" }]
           : [...xgSupport("home"), ...xgSupport("away")],
         viz: none, focus: null,
+        reasons: bothScoreReasons(data).slice(0, 2),
       });
     }),
     q("Q06_TEAM_GOALS", checkTeamTwoPlus(data, favourite), () => {
@@ -174,6 +178,7 @@ export function evaluateQuestions(data: MatchData, options: { durations: Record<
         hero: { value: show(leadValue), percent: pct(leadValue), label: name(lead), side: lead },
         supports: [{ key: "other", value: show(Math.min(homeFirst, awayFirst)), label: name(other(lead)), side: other(lead) }, { key: "none", value: show(noGoal), label: "Hiç gol yok", side: null }],
         viz: { kind: "split", parts: [{ label: home.short_name, percent: pct(homeFirst), side: "home" }, { label: "Gol yok", percent: pct(noGoal), side: null }, { label: away.short_name, percent: pct(awayFirst), side: "away" }] }, focus: lead,
+        reasons: firstGoalReasons(data).slice(0, 2),
       });
     }),
     q("Q13_PRESSURE", checkCorners(data.corners), () => {

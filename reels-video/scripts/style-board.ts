@@ -14,15 +14,20 @@ import { DESIGN_DIRECTIONS, type DesignDirection, type ReelScene, type ReelScrip
 import { TYPOGRAPHY_PREFIX } from "../src/TypographyTest";
 
 /**
- * Tasarım yönü panosu: her yönde aynı 5 sahne, kurgusal veriyle. Tek kareler + 3 sütunlu karşılaştırma + denetim.
+ * Tasarım yönü panosu: 5 yön × 6 kart (Monte Carlo 3 evre, toplam 8 kare), kurgusal veriyle. Tek kareler + karşılaştırma + denetim.
  * Çıktı repoya yazılmaz. Gerçek oyuncu kesimleri (telifli) yalnız `--cutouts=<klasör>` verilince `public/_local`'e kopyalanır;
  * o klasör git'e girmez. Verilmezse kurgusal siluet kullanılır.
  *
  * Maç penceresinde çalıştırılmaz (CLAUDE.md 5.5). Eşzamanlılık 1: tek tarayıcı, sırayla kare.
  */
 
-const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video/style-board");
-const SETTLE: Partial<Record<ReelScene["type"], number>> = { S01_COVER: 30, M01_METHOD: 112 };
+const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video/style-board-v2");
+/** Sahne başına kare(ler). Monte Carlo: maçlar yeni başlıyor, sayaçlar yükseliyor, yüzdeler oturdu. */
+const SHOTS: Partial<Record<ReelScene["type"], readonly { offset: number; suffix: string }[]>> = {
+  S01_COVER: [{ offset: 30, suffix: "" }],
+  M02_MONTE_CARLO: [{ offset: 40, suffix: "-evre1" }, { offset: 100, suffix: "-evre2" }, { offset: 196, suffix: "-evre3" }],
+};
+const SLUG: Record<DesignDirection, string> = { A: "yayin", B: "dergi", C: "veri-laboratuvari", D: "mac-gunu-posteri", E: "taktik-tahtasi" };
 const argument = (name: string) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
 const only = argument("only");
 const cutouts = argument("cutouts");
@@ -114,20 +119,20 @@ async function contrastProblems(masked: string, samples: readonly TextSample[]):
 }
 
 const report: Record<string, unknown> = {};
-const sheets: Record<DesignDirection, string[]> = { A: [], B: [], C: [] };
+const sheets: Record<DesignDirection, string[]> = { A: [], B: [], C: [], D: [], E: [] };
 
 for (const direction of directions) {
   const script = withLocalPhotos(boardScript(direction));
   const id = `pano-${direction}`;
   const { entries } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
-  const folder = path.join(OUT, `yon-${direction}-${THEMES[direction].name.toLocaleLowerCase("tr-TR").replaceAll(" ", "-").replaceAll("ı", "i")}`);
+  const folder = path.join(OUT, `yon-${direction}-${SLUG[direction]}`);
   mkdirSync(folder, { recursive: true });
   for (const [index, scene] of script.scenes.entries()) {
     const entry = entries[index];
     if (!entry) continue;
-    const offset = SETTLE[scene.type] ?? scene.durationInFrames - 14;
-    const frame = entry.from + offset;
-    const file = path.join(folder, `${String(index + 1).padStart(2, "0")}-${scene.type}.png`);
+    for (const shot of SHOTS[scene.type] ?? [{ offset: scene.durationInFrames - 14, suffix: "" }]) {
+    const frame = entry.from + shot.offset;
+    const file = path.join(folder, `${String(index + 1).padStart(2, "0")}-${scene.type}${shot.suffix}.png`);
     const props = { script, audit: true, strictSafe: true };
     const composition = await selectComposition({ serveUrl, id, inputProps: props, puppeteerInstance: browser });
     let audit: LayoutAudit | null = null;
@@ -141,36 +146,37 @@ for (const direction of directions) {
     });
     if (!audit) throw new Error(`Denetim sonucu gelmedi: ${id} kare ${frame}`);
     const measured = audit as LayoutAudit;
-    const maskedFile = path.join(folder, `.mask-${index}.png`);
+    const maskedFile = path.join(folder, `.mask-${index}${shot.suffix}.png`);
     // Denetim açık kalır: kare fontları bekler. Font geç gelirse vurgu kutuları dar çizilir, ölçüm kutunun dışını okur.
     const maskedProps = { ...props, maskText: true };
     const maskedComposition = await selectComposition({ serveUrl, id, inputProps: maskedProps, puppeteerInstance: browser });
     await renderStill({ composition: maskedComposition, serveUrl, frame, output: maskedFile, imageFormat: "png", inputProps: maskedProps, puppeteerInstance: browser });
     const contrast = await contrastProblems(maskedFile, measured.samples);
-    const label = `${direction}/${scene.type}`;
+    const label = `${direction}/${scene.type}${shot.suffix}`;
     const found = [...auditProblems(measured), ...contrast.problems];
     report[label] = { problems: found, lowestContrast: Number(contrast.lowest.toFixed(2)), faces: measured.faces, texts: measured.samples.length };
     problems.push(...found.map((item) => `${label}: ${item}`));
     console.log(`${label}: en düşük kontrast ${contrast.lowest.toFixed(2)}, ${found.length} sorun`);
     sheets[direction].push(file);
     rmSync(maskedFile, { force: true });
+    }
   }
 }
 
 await browser.close({ silent: true });
 
-// 3 sütunlu karşılaştırma: sütun = yön, satır = sahne.
-if (directions.length === 3) {
-  const thumb = { width: 432, height: 768 };
+// Karşılaştırma: sütun = yön, satır = kare.
+if (directions.length === DESIGN_DIRECTIONS.length) {
+  const thumb = { width: 360, height: 640 };
   const gap = 16;
   const head = 90;
   const rows = sheets.A.length;
-  const width = 3 * (thumb.width + gap) + gap;
+  const width = directions.length * (thumb.width + gap) + gap;
   const height = head + rows * (thumb.height + gap) + gap;
   const composites: { input: Buffer; left: number; top: number }[] = [];
   for (const [column, direction] of directions.entries()) {
     const title = `Yön ${direction} · ${THEMES[direction].name}`;
-    composites.push({ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${thumb.width}" height="${head}"><text x="4" y="62" font-family="Arial" font-weight="700" font-size="32" fill="#FFFFFF">${title}</text></svg>`), left: gap + column * (thumb.width + gap), top: 0 });
+    composites.push({ input: Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${thumb.width}" height="${head}"><text x="4" y="62" font-family="Arial" font-weight="700" font-size="28" fill="#FFFFFF">${title}</text></svg>`), left: gap + column * (thumb.width + gap), top: 0 });
     for (const [row, file] of sheets[direction].entries()) composites.push({ input: await sharp(file).resize(thumb).toBuffer(), left: gap + column * (thumb.width + gap), top: head + row * (thumb.height + gap) });
   }
   await sharp({ create: { width, height, channels: 3, background: "#17191C" } }).composite(composites).png().toFile(path.join(OUT, "karsilastirma.png"));

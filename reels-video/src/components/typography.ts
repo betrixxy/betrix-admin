@@ -3,7 +3,7 @@ import { TYPE } from "../lib/motion";
 
 /**
  * Hepsi SIL OFL, lisans dosyaları `public/fonts`. Barlow Condensed, JetBrains Mono, Geist: eski sahneler. Tasarım yönleri
- * (`design/tokens.ts`): A Anton + Saira Extra Condensed, B DM Serif Display + Geist, C Unbounded + JetBrains Mono.
+ * (`design/tokens.ts`): A Anton + Saira Extra Condensed, B DM Serif Display + Geist, C Unbounded + JetBrains Mono, D Archivo Black + Barlow Condensed, E Caveat Brush + Kalam.
  */
 export const FONTS = { display: "Barlow Condensed", mono: "JetBrains Mono", body: "Geist" } as const;
 
@@ -22,9 +22,12 @@ export const FONT_FILES = [
   { family: "DM Serif Display", file: "DMSerifDisplay-Regular.ttf", weight: "400", sample: 400 },
   { family: "DM Serif Display", file: "DMSerifDisplay-Italic.ttf", weight: "400", style: "italic", sample: 400 },
   { family: "Unbounded", file: "Unbounded-Variable.ttf", weight: "200 900", sample: 800 },
+  { family: "Archivo Black", file: "ArchivoBlack-Regular.ttf", weight: "400", sample: 400 },
+  { family: "Caveat Brush", file: "CaveatBrush-Regular.ttf", weight: "400", sample: 400 },
+  { family: "Kalam", file: "Kalam-Bold.ttf", weight: "700", sample: 700 },
 ] as const;
 
-export const LICENSE_FILES = ["OFL-BarlowCondensed.txt", "OFL-JetBrainsMono.txt", "OFL-Geist.txt", "OFL-Anton.txt", "OFL-SairaExtraCondensed.txt", "OFL-DMSerifDisplay.txt", "OFL-Unbounded.txt"] as const;
+export const LICENSE_FILES = ["OFL-BarlowCondensed.txt", "OFL-JetBrainsMono.txt", "OFL-Geist.txt", "OFL-Anton.txt", "OFL-SairaExtraCondensed.txt", "OFL-DMSerifDisplay.txt", "OFL-Unbounded.txt", "OFL-ArchivoBlack.txt", "OFL-CaveatBrush.txt", "OFL-Kalam.txt"] as const;
 
 /**
  * Rakam tabular denetiminin aileleri. `cellEm`: fontta tabular rakam yoksa her rakam bu genişlikte hücreye girer
@@ -35,6 +38,8 @@ export const NUMBER_FACES = [
   { family: "JetBrains Mono", weight: 800, cellEm: null },
   { family: "Anton", weight: 400, cellEm: 0.5 },
   { family: "DM Serif Display", weight: 400, cellEm: 0.545 },
+  { family: "Archivo Black", weight: 400, cellEm: 0.68 },
+  { family: "Caveat Brush", weight: 400, cellEm: 0.5 },
 ] as const;
 
 /** Glif denetiminin dizesi. */

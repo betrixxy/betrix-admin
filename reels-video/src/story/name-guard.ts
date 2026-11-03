@@ -1,4 +1,4 @@
-import type { ReelScene } from "../schema";
+﻿import type { ReelScene } from "../schema";
 import type { MatchData } from "./match-data";
 
 /**
@@ -14,10 +14,13 @@ export const TEMPLATE_WORDS = new Set([
   "Monte", "Carlo", "Puan", "Skor", "Mağlubiyet", "Yedek", "Rakibe", "Hiç", "Gole", "Oynadığı", "Beklenen", "Sarı", "Kalan", "Golsüz", "İkinci", "Maçta",
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
   "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar",
+  "Dikkat", "Güçlü", "Zayıf", "Hücum", "Savunma", "Aradaki", "Puanlar", "Kazanan", "Form", "Kimler", "Sürpriz", "Sence", "Cevabını", "Kaydet", "Dengeli", "Birinci",
+  "Az", "Aynı", "Maçların", "Pay", "Takımın", "Kalesini", "Maçın", "Deplasman", "İç", "Önü", "Dengeli", "Attığı", "Yediği",
 ]);
 
 /** Metin taşımayan alanlar: yol, kimlik, kod. */
-const SKIPPED_KEYS = new Set(["type", "key", "logo", "clubLogo", "photoId", "photoIds", "assets", "side", "better", "leader", "focus", "reason", "kind", "date", "form"]);
+/** `analystNote`: kullanıcının kendi yazdığı metin; dil kapısından geçer, ad bekçisine girmez. */
+const SKIPPED_KEYS = new Set(["type", "key", "logo", "clubLogo", "photoId", "photoIds", "assets", "side", "better", "leader", "focus", "kind", "date", "form", "last5", "id", "template", "sources", "figures", "status", "analystNote"]);
 
 export function sceneTexts(value: unknown): string[] {
   if (typeof value === "string") return [value];
@@ -41,7 +44,7 @@ export function knownNames(data: MatchData): Set<string> {
     ...players.squads.home.map((player) => player.name), ...players.squads.away.map((player) => player.name),
     ...players.vs_opponent.flatMap((history) => history.matches.flatMap((match) => [match.club_name, match.opponent_name])),
     ...data.scorer_chances.map((item) => item.name),
-    ...(data.model_inputs?.groups.map((group) => group.label) ?? []),
+    ...(data.context?.absences ? [...data.context.absences.home, ...data.context.absences.away].map((item) => item.name) : []),
   ];
   return new Set(values.flatMap((value) => (value ? tokens(value) : [])));
 }

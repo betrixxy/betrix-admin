@@ -3,6 +3,8 @@
  * oyuncu/kadro bloğu. Alan adları nötrdür, market adı taşımaz. Eksik veri `null`: ilgili sahne kendini kapatır.
  */
 
+import type { MatchContext } from "./match-context";
+
 export interface TeamForm {
   /** En yeni başta; W/D/L. */
   last5: string | null;
@@ -98,11 +100,13 @@ export interface MatchData {
   corners: { more: { home: number; away: number; equal: number } | null; nine_plus: number | null; ten_plus: number | null; eleven_plus: number | null };
   cards: { four_plus: number | null; five_plus: number | null; six_plus: number | null; red_card: number | null };
   penalty: number | null;
-  /** Modele giren veri grupları. `sample`: yalnız örneklerde; gerçek liste gelene kadar gerçek akışta sahne kapalı. */
-  model_inputs: { source: "service" | "sample"; groups: { label: string; value: string }[] } | null;
   /** Golcü şablonu için; golcü modeli düzeltilene kadar gerçek akışta kapalı. */
   scorer_chances: { player_id: number; side: Side; name: string; p: number }[];
   players: MatchPlayers;
+  /** Futbol okuması (API-Football, dondurulmuş). Yoksa okuma sahneleri kapanır. */
+  context: MatchContext | null;
+  /** Panelden kullanıcının kendi futbol okuması; "Maçın anahtarı" ve "checkmatch senaryosu" kartlarına girer. */
+  analyst_note: string | null;
   form: SidePair<TeamForm>;
   h2h: {
     played: number | null;

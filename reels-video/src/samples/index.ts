@@ -1,3 +1,4 @@
+import { DERBY_CONTEXT, FAVOURITE_CONTEXT } from "./context";
 import { buildTimeline } from "../lib/motion";
 import type { MatchData, MatchPlayers, PlayerSeason } from "../story/match-data";
 import { buildScript, evaluatePool, BRAND, pickStory, type StoryAngle } from "../story/pool";
@@ -12,15 +13,6 @@ const TRACK_RECORD = { source: "sample" as const, completed_matches: 2228, bucke
   { from: 50, to: 60, matches: 389, hit_rate: 0.53 },
   { from: 60, to: 70, matches: 212, hit_rate: 0.64 },
   { from: 70, to: 80, matches: 96, hit_rate: 0.73 },
-] };
-
-/** Örnek liste: gerçek liste gelene kadar yalnız örneklerde (`allowSampleInputs`). */
-const SAMPLE_INPUTS = { source: "sample" as const, groups: [
-  { label: "Son maç", value: "10" },
-  { label: "xG ölçümü", value: "20" },
-  { label: "Form göstergesi", value: "12" },
-  { label: "Ev / deplasman", value: "8" },
-  { label: "Kadro", value: "22" },
 ] };
 
 const season = (id: number, name: string, teamId: number, appearances: number, minutes: number, goals: number, assists: number, shots: number, onTarget: number, keyPasses: number): PlayerSeason =>
@@ -96,13 +88,14 @@ export const DERBY: MatchData = {
   corners: { more: { home: 0.46, away: 0.41, equal: 0.13 }, nine_plus: 0.62, ten_plus: 0.47, eleven_plus: 0.33 },
   cards: { four_plus: 0.71, five_plus: 0.52, six_plus: 0.33, red_card: 0.19 },
   penalty: 0.27,
-  model_inputs: SAMPLE_INPUTS,
   scorer_chances: [
     { player_id: 90011, side: "home", name: "Kurgu Forvet", p: 0.34 },
     { player_id: 90021, side: "away", name: "Örnek Golcü", p: 0.29 },
     { player_id: 90012, side: "home", name: "Yedek Kanat", p: 0.14 },
   ],
   players: DERBY_PLAYERS,
+  context: DERBY_CONTEXT,
+  analyst_note: null,
   form: {
     home: { last5: "WDWLW", goals_for: 1.8, goals_against: 1.1, xg_for: 1.72, xg_against: 1.08, clean_sheet_rate: 0.3, btts_rate: 0.6, euro_fatigue_days: 3.4 },
     away: { last5: "DWWDL", goals_for: 1.6, goals_against: 1.2, xg_for: 1.55, xg_against: 1.21, clean_sheet_rate: 0.2, btts_rate: 0.7, euro_fatigue_days: 99 },
@@ -148,9 +141,10 @@ export const FAVOURITE: MatchData = {
   corners: { more: { home: 0.66, away: 0.22, equal: 0.12 }, nine_plus: 0.66, ten_plus: 0.52, eleven_plus: 0.38 },
   cards: { four_plus: 0.58, five_plus: 0.39, six_plus: 0.22, red_card: 0.12 },
   penalty: 0.31,
-  model_inputs: SAMPLE_INPUTS,
   scorer_chances: [{ player_id: 90031, side: "home", name: "Örnek Kanat", p: 0.48 }, { player_id: 90041, side: "away", name: "Kurgu Santrfor", p: 0.17 }],
   players: FAVOURITE_PLAYERS,
+  context: FAVOURITE_CONTEXT,
+  analyst_note: null,
   form: {
     home: { last5: "WWWDW", goals_for: 2.6, goals_against: 0.7, xg_for: 2.41, xg_against: 0.82, clean_sheet_rate: 0.5, btts_rate: 0.4, euro_fatigue_days: 4.1 },
     away: { last5: "LLDLW", goals_for: 0.9, goals_against: 1.9, xg_for: 0.94, xg_against: 1.87, clean_sheet_rate: 0.1, btts_rate: 0.5, euro_fatigue_days: 99 },
@@ -170,7 +164,7 @@ export const FAVOURITE: MatchData = {
 const SAMPLE_MATCHES = { derbi: { data: DERBY, angle: "derby" }, favori: { data: FAVOURITE, angle: "favourite" } } as const satisfies Record<string, { data: MatchData; angle: StoryAngle }>;
 export type SampleKey = keyof typeof SAMPLE_MATCHES;
 export const SAMPLE_KEYS = Object.keys(SAMPLE_MATCHES) as SampleKey[];
-export const SAMPLE_OPTIONS = { allowSampleTrackRecord: true, allowSampleInputs: true, allowScorerScene: true } as const;
+export const SAMPLE_OPTIONS = { allowSampleTrackRecord: true, allowScorerScene: true } as const;
 
 /** Seçilen hikâye (video) ve bütün havuz (tek kareler) aynı veriden. */
 export function sampleScripts(key: SampleKey, design: DesignDirection = "A"): { story: ReelScript; pool: ReelScript } {
@@ -184,13 +178,18 @@ export function sampleScripts(key: SampleKey, design: DesignDirection = "A"): { 
   };
 }
 
-/** Karşılaştırma panosunun beş sahnesi: Kapak, Nasıl hesapladık?, Kim kazanır?, Düello, Gollü maç mı? */
-export const BOARD_SCENES = ["S01_COVER", "M01_METHOD", "Q01_WINNER", "P01_DUEL", "Q04_GOALS"] as const;
+/** Pano: Kapak, Monte Carlo (3 evre), Eksikler, Takım analizi, İki takım da gol bulur mu?, checkmatch senaryosu. */
+export const BOARD_SCENES = ["S01_COVER", "M02_MONTE_CARLO", "C03_ABSENCES", "C04_TEAM_HOME", "Q05_BOTH_SCORE", "C09_SCENARIO"] as const;
+
+/** Panoda analist notlu kart da görünsün. Kurgusal. */
+const BOARD_NOTE = "Kurgusal not: Maçı ilk golü bulan taraf yönetir.";
 
 export function boardScript(design: DesignDirection): ReelScript {
-  const { pool } = sampleScripts("derbi", design);
-  const scenes = BOARD_SCENES.flatMap((type) => pool.scenes.filter((scene) => scene.type === type));
-  return reelScriptSchema.parse({ ...pool, scenes });
+  const data = { ...DERBY, analyst_note: BOARD_NOTE };
+  const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
+  const ready = entries.flatMap((entry) => (entry.scene ? [entry.scene] : []));
+  const scenes = BOARD_SCENES.flatMap((type) => ready.filter((scene) => scene.type === type));
+  return reelScriptSchema.parse(buildScript(data, scenes, [], design));
 }
 
 export const storySeconds = (script: ReelScript): number => buildTimeline(script.scenes.map((scene) => scene.durationInFrames)).total / 30;
