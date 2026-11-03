@@ -13,6 +13,7 @@ import { formatIstanbulDateTime, formatPublishWindow, publishWindowState } from 
 import { groupReelChecks, reelCheckLabel, REEL_SCENE_IDS, REEL_SCENE_LABELS, type ReelSceneAvailability } from "@/lib/reels/scenes";
 import { canCancelReel, canFreezeReel, REEL_STATUS_LABELS } from "@/lib/reels/selection";
 import { reelSnapshotView } from "@/lib/reels/snapshot-view";
+import { reelSquadStatus } from "@/lib/reels/squad-rule";
 import { reelsMatchDetailSchema, type ReelsCheck } from "@/lib/services/reels-schema";
 
 export const metadata: Metadata = { title: "Reels projesi — betrix.pro" };
@@ -59,6 +60,7 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
   const stored = latest ? reelsMatchDetailSchema.safeParse(latest.payload) : null;
   const detail = stored?.success ? stored.data : null;
   const groups = detail ? groupReelChecks(detail) : null;
+  const squad = latest ? reelSquadStatus(latest.squadCheckedAt, now, formatIstanbulDateTime) : null;
   const freezeBlocked = canFreezeReel(project.status)
     ? null
     : project.status === "CANCELLED"
@@ -94,6 +96,13 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
         </div>
       ))}
 
+      {squad && !squad.ok ? (
+        <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>{squad.text}</span>
+        </div>
+      ) : null}
+
       {!latest || !availability ? (
         <Card>
           <CardHeader>
@@ -108,7 +117,7 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
             <CardHeader>
               <CardTitle>Sürüm {latest.version}</CardTitle>
               <CardDescription>
-                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {detail?.model.simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}
+                Model {latest.modelVersion} · hesap {formatIstanbulDateTime(latest.computedAt)} · simülasyon {detail?.model.simulations?.toLocaleString("tr-TR") ?? "yok"} · donduruldu {formatIstanbulDateTime(latest.fetchedAt)}{squad?.ok ? ` · ${squad.text}` : ""}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">

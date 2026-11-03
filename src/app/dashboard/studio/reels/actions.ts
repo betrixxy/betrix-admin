@@ -42,5 +42,5 @@ export async function freezeReelSnapshotAction(_previous: ReelActionState, formD
   const result = await freezeReelSnapshot(parsed.data);
   if (!result.ok) return { error: result.error.message };
   refreshDashboard();
-  return { message: `Sürüm ${result.data.version} donduruldu.` };
+  return { message: [`Sürüm ${result.data.version} donduruldu.`, ...result.data.squadWarnings].join(" ") };
 }

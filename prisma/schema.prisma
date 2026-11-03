@@ -911,6 +911,16 @@ model ReelSnapshot {
   qualityOk         Boolean
   /// `ReelSceneAvailability`: dondurma anındaki sahne uygunluğu.
   sceneAvailability Json
+  /// İki takımın kadrosu en son ne zaman doğrulandı; null: doğrulanamadı, oyuncu sahneleri kapalı.
+  squadCheckedAt    DateTime?
 
   @@unique([projectId, version])
+}
+
+/// API-Football güncel kadro önbelleği (en fazla 7 gün). Proje seçiminde ve veri dondurmada yenilenir.
+model ReelSquadCheck {
+  teamId    Int      @id
+  /// `{ id, name }[]`
+  players   Json
+  checkedAt DateTime
 }

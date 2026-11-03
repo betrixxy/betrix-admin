@@ -3,6 +3,7 @@ import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
 import { prisma } from "@/lib/prisma";
 import { publishWindow } from "@/lib/reels/publish-window";
 import { reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
+import { refreshProjectSquads } from "@/lib/reels/squad-data";
 import { canCancelReel, canFreezeReel, isReelSelectable, REEL_STATUS_LABELS, REELS_MAX_DAYS_AHEAD } from "@/lib/reels/selection";
 import { getReelsMatch, getReelsMatches } from "@/lib/services/reels-client";
 import type { ReelsMatchListItem } from "@/lib/services/reels-schema";
@@ -44,6 +45,8 @@ export async function selectReelMatch(matchId: number, now: Date = new Date()): 
   if (!isReelSelectable(new Date(match.kickoff_utc), now)) return { ok: false, error: { message: "Maç başladı, seçilemez." } };
 
   const fields = projectFields(match);
+  // Kadro seçimde yenilenir; kaynak hatası seçimi durdurmaz, dondurmada yeniden denenir.
+  await refreshProjectSquads({ homeTeamId: match.home.id, homeName: match.home.name, awayTeamId: match.away.id, awayName: match.away.name }, now);
   await prisma.reelProject.updateMany({ where: { matchId, status: "CANCELLED" }, data: { ...fields, status: "SELECTED" } });
   try {
     const project = await prisma.reelProject.upsert({ where: { matchId }, update: {}, create: { matchId, ...fields }, select: { id: true } });
@@ -70,6 +73,8 @@ export async function cancelReelProject(projectId: string): Promise<Result<true,
 export interface FrozenSnapshot {
   version: number;
   qualityOk: boolean;
+  /** Kadro yenilenemeyen takımlar: dondurma durmaz, panelde gösterilir. */
+  squadWarnings: string[];
 }
 
 export async function freezeReelSnapshot(projectId: string): Promise<Result<FrozenSnapshot, ReelActionError>> {
@@ -83,6 +88,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
   if (!detail.ok) return { ok: false, error: { message: detail.error.message } };
   if (detail.data.match.id !== project.matchId) return { ok: false, error: { message: "Servis başka bir maçın verisini döndürdü." } };
 
+  const squads = await refreshProjectSquads(project);
   const qualityOk = reelQualityOk(detail.data);
   const kickoffUtc = new Date(detail.data.match.kickoff_utc);
   try {
@@ -98,6 +104,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
           modelVersion: detail.data.model.version,
           qualityOk,
           sceneAvailability: reelSceneAvailability(detail.data) as unknown as Prisma.InputJsonValue,
+          squadCheckedAt: squads.checkedAt,
         },
         select: { version: true },
       });
@@ -105,7 +112,7 @@ export async function freezeReelSnapshot(projectId: string): Promise<Result<Froz
       await tx.reelProject.update({ where: { id: projectId }, data: { status: "SNAPSHOT_READY", kickoffUtc, ...publishWindow(kickoffUtc) } });
       return created;
     });
-    return { ok: true, data: { version: snapshot.version, qualityOk } };
+    return { ok: true, data: { version: snapshot.version, qualityOk, squadWarnings: squads.warnings } };
   } catch (cause) {
     if (isUniqueViolation(cause)) return { ok: false, error: { message: "Aynı anda başka bir dondurma yapıldı, sayfayı yenileyin." } };
     throw cause;
