@@ -14,15 +14,23 @@ export interface Rect {
 }
 
 export const MIN_FONT_PX = 26;
+export const MIN_CONTRAST = 4.5;
+
+export interface SafeBox {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
 
 export const rectsOverlap = (a: Rect, b: Rect): boolean =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-export const insideSafeArea = (rect: Rect, tolerance = 1): boolean =>
-  rect.x >= SAFE.left - tolerance &&
-  rect.y >= SAFE.top - tolerance &&
-  rect.x + rect.width <= WIDTH - SAFE.right + tolerance &&
-  rect.y + rect.height <= HEIGHT - SAFE.bottom + tolerance;
+export const insideSafeArea = (rect: Rect, tolerance = 1, safe: SafeBox = SAFE): boolean =>
+  rect.x >= safe.left - tolerance &&
+  rect.y >= safe.top - tolerance &&
+  rect.x + rect.width <= WIDTH - safe.right + tolerance &&
+  rect.y + rect.height <= HEIGHT - safe.bottom + tolerance;
 
 export interface PhotoGeometry {
   aspect: number;
@@ -52,6 +60,12 @@ export interface NamedRect extends Rect {
 export const faceOverlaps = (faces: readonly Rect[], blocks: readonly NamedRect[]): string[] =>
   blocks.filter((block) => faces.some((face) => rectsOverlap(face, block))).map((block) => block.name);
 
+export interface TextSample extends Rect {
+  name: string;
+  /** rgb(a) metin rengi. */
+  color: string;
+}
+
 export interface LayoutAudit {
   faceOverlaps: string[];
   outsideSafe: string[];
@@ -60,15 +74,46 @@ export interface LayoutAudit {
   textCollisions: string[];
   /** Mono fontta harf içeren metin. */
   monoWords: string[];
+  /** Şablon alt sınırının altındaki ana rakam / destek değeri. */
+  sizeRule: string[];
+  /** Kontrast ölçümü için metin kutuları. */
+  samples: TextSample[];
   faces: number;
   blocks: number;
 }
 
-export const auditProblems = (audit: LayoutAudit): string[] => [
+export const auditProblems = (audit: Omit<LayoutAudit, "sizeRule" | "samples"> & Partial<Pick<LayoutAudit, "sizeRule">>): string[] => [
   ...audit.faceOverlaps.map((name) => `yüze biniyor: ${name}`),
   ...audit.outsideSafe.map((name) => `güvenli alan dışında: ${name}`),
   ...audit.textOverflow.map((name) => `metin taşıyor: ${name}`),
   ...audit.tooSmall.map((name) => `yazı küçük: ${name}`),
   ...audit.textCollisions.map((name) => `metin çakışıyor: ${name}`),
   ...audit.monoWords.map((name) => `mono fontta kelime: ${name}`),
+  ...(audit.sizeRule ?? []).map((name) => `şablon boyutu altında: ${name}`),
 ];
+
+/** WCAG göreli parlaklık. */
+export function relativeLuminance(red: number, green: number, blue: number): number {
+  const channel = (value: number) => {
+    const scaled = value / 255;
+    return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue);
+}
+
+export const contrastRatio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+export const parseRgb = (color: string): [number, number, number] | null => {
+  const match = color.match(/rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/u);
+  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : null;
+};
+
+/**
+ * Metin arkasındaki piksellerde en kötü durum: metin rengine en yakın %2'lik dilimin kontrastı. Tek bir parlak pikselin
+ * (nokta ışık, gren) sonucu bozmaması için en uç değer değil yüzdelik alınır. `luminances` metin gizlenmiş kareden okunur.
+ */
+export function worstContrast(textLuminance: number, luminances: readonly number[], percentile = 0.02): number {
+  if (luminances.length === 0) return Number.POSITIVE_INFINITY;
+  const ratios = luminances.map((value) => contrastRatio(textLuminance, value)).sort((a, b) => a - b);
+  return ratios[Math.min(ratios.length - 1, Math.floor(ratios.length * percentile))] ?? Number.POSITIVE_INFINITY;
+}

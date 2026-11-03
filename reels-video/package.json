@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "stills": "tsx scripts/render.ts --stills",
+    "board": "tsx scripts/style-board.ts",
     "render": "tsx scripts/render.ts --video"
   },
   "dependencies": {

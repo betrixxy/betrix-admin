@@ -5,7 +5,7 @@ import { AUDIT_PREFIX, measureDom } from "../lib/dom-audit";
 import { buildTimeline, CONTENT_WIDTH, HEIGHT, LINE2_DELAY_FRAMES, SAFE, TYPE, WIDTH, ZONES } from "../lib/motion";
 import type { PhotoSlot } from "../lib/photo-layouts";
 import type { ReelPhoto, ReelScript } from "../schema";
-import { FONTS, teamName } from "./typography";
+import { FONT_FILES, FONTS, teamName } from "./typography";
 
 export const COLORS = { ground: "#0A0F0C", surface: "#131A16", border: "rgba(255,255,255,0.13)", ink: "#FFFFFF", ink2: "#C4CEC8", ink3: "#93A099", draw: "#8E9A94", track: "rgba(255,255,255,0.12)" } as const;
 export const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -164,12 +164,25 @@ const PAIR_MASK = "linear-gradient(#000 72%, transparent 100%)";
 /** Üst üste binen iki oyuncu birlikte erir: alttaki, üsttekinin saydam bölgesinden görünüp leke yapmaz. */
 export const PhotoPair = ({ children }: { children: ReactNode }) => <AbsoluteFill style={{ WebkitMaskImage: PAIR_MASK, maskImage: PAIR_MASK }}>{children}</AbsoluteFill>;
 
+/**
+ * Bütün font dosyaları yüklenene kadar bekler. `fonts.ready` ve `fonts.load` yetmez: `loadFont` yüzü sayfaya sonradan ekler,
+ * eklenmemiş fontu beklemezler; ölçüm yedek fontla yapılır, kutular kayar.
+ */
+async function allFontsLoaded(): Promise<void> {
+  const deadline = Date.now() + 20_000;
+  while ([...document.fonts].filter((face) => face.status === "loaded").length < FONT_FILES.length) {
+    if (Date.now() > deadline) throw new Error("Fontlar yüklenemedi, denetim yapılamaz.");
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  await document.fonts.ready;
+}
+
 /** Render denetimi: kare çizildikten sonra gerçek kutuları konsola yazar. Yalnız tek kare denetiminde açılır. */
 export function AuditProbe() {
   const frame = useCurrentFrame();
   useEffect(() => {
     const handle = delayRender("yerleşim denetimi");
-    void document.fonts.ready.then(() => {
+    void allFontsLoaded().then(() => {
       const root = document.querySelector("[data-reel-root]");
       if (root) console.log(AUDIT_PREFIX + JSON.stringify({ frame, audit: measureDom(root) }));
       continueRender(handle);

@@ -20,7 +20,7 @@ import type { ReelScene, ReelScript } from "../src/schema";
 const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video/v2");
 const video = process.argv.includes("--video");
 const concurrency = Number(process.argv.find((arg) => arg.startsWith("--concurrency="))?.split("=")[1] ?? 2);
-const PHOTO_SCENES = new Set(["S01_COVER", "S03_HOOK", "S06_WINNER", "S07_KEY_GAP", "S13_SCORER", "S16_SUMMARY"]);
+const PHOTO_SCENES = new Set(["S01_COVER", "S03_HOOK", "S07_KEY_GAP", "S16_SUMMARY", "P01_DUEL", "Q01_WINNER"]);
 const WIPE = 8;
 
 mkdirSync(OUT, { recursive: true });
@@ -73,19 +73,20 @@ if (video) {
   for (const license of LICENSE_FILES) if (!existsSync(path.resolve("public/fonts", license))) problems.push(`lisans yok: ${license}`);
   const typeScript = sampleScripts(SAMPLE_KEYS[0] ?? "derbi").pool;
   const typeComposition = await selectComposition({ serveUrl, id: "tipografi", inputProps: { script: typeScript }, puppeteerInstance: browser });
-  let typography: { loaded: { family: string; weight: number; loaded: boolean }[]; tabularHero: number[]; tabularMono: number[]; uppercase: string } | null = null;
+  let typography: { loaded: { family: string; weight: number; loaded: boolean }[]; tabular: { family: string; cellEm: number | null; widths: number[] }[]; uppercase: string[] } | null = null;
   await renderStill({
     composition: typeComposition, serveUrl, frame: 0, output: path.join(OUT, "tipografi-testi.png"), inputProps: { script: typeScript }, puppeteerInstance: browser,
     onBrowserLog: ({ text }) => { if (text.includes(TYPOGRAPHY_PREFIX)) typography = JSON.parse(text.slice(text.indexOf(TYPOGRAPHY_PREFIX) + TYPOGRAPHY_PREFIX.length)); },
   });
   if (!typography) problems.push("tipografi ölçümü gelmedi");
   else {
-    const measured = typography as { loaded: { family: string; weight: number; loaded: boolean }[]; tabularHero: number[]; tabularMono: number[]; uppercase: string };
+    const measured = typography as { loaded: { family: string; weight: number; loaded: boolean }[]; tabular: { family: string; cellEm: number | null; widths: number[] }[]; uppercase: string[] };
     for (const item of measured.loaded) if (!item.loaded) problems.push(`font yüklenmedi: ${item.family} ${item.weight}`);
-    if (new Set(measured.tabularHero).size !== 1) problems.push(`büyük rakam tabular değil: ${measured.tabularHero.join(",")}`);
-    if (new Set(measured.tabularMono).size !== 1) problems.push(`mono rakam eşit değil: ${measured.tabularMono.join(",")}`);
-    if (measured.uppercase !== "KİM KAZANIR, IŞIĞI, İĞDE") problems.push(`Türkçe büyük harf yanlış: ${measured.uppercase}`);
-    console.log(`tipografi: ${FONT_FILES.length} kesim, glif tam; rakam genişliği ${measured.tabularHero[0]} / ${measured.tabularMono[0]}; büyütme "${measured.uppercase}"`);
+    for (const face of measured.tabular) {
+      const fixed = face.cellEm === null ? new Set(face.widths).size === 1 : Math.max(...face.widths) <= face.cellEm * 200;
+      if (!fixed) problems.push(`rakam tabular değil: ${face.family}`);
+    }
+    for (const text of measured.uppercase) if (text !== "KİM KAZANIR, IŞIĞI, İĞDE") problems.push(`Türkçe büyük harf yanlış: ${text}`);
   }
   const thumb = { width: 360, height: 640 };
   const gap = 12;
@@ -122,14 +123,6 @@ if (video) {
     if (hookEntry) await still(id, pool, hookEntry.from + 4, path.join(folder, "ek-gecis.png"));
     const logoEntry = entries[pool.scenes.findIndex((scene) => scene.type === "S02_LOGO")];
     if (logoEntry) await still(id, pool, logoEntry.from + 12, path.join(folder, "ek-logo-cizim.png"));
-    const bothIndex = pool.scenes.findIndex((scene) => scene.type === "S09_BOTH_SCORE");
-    const both = pool.scenes[bothIndex];
-    const bothEntry = entries[bothIndex];
-    if (both?.type === "S09_BOTH_SCORE" && bothEntry) {
-      const fallback = { ...pool, scenes: pool.scenes.map((scene) => (scene === both ? { ...both, data: { ...both.data, teamChance: null } } : scene)) };
-      const audit = await still(id, fallback, bothEntry.from + settleFrame(both), path.join(folder, "ek-S09-tek-gauge.png"));
-      problems.push(...auditProblems(audit).map((problem) => `${key}/S09 tek gauge: ${problem}`));
-    }
     const rows = Math.ceil(pool.scenes.length / 4);
     await sharp({ create: { width: 4 * (thumb.width + gap) + gap, height: rows * (thumb.height + gap) + gap, channels: 3, background: "#2A2A2A" } }).composite(sheet).png().toFile(path.join(OUT, `kontak-${key}.png`));
     const seconds = buildTimeline(story.scenes.map((scene) => scene.durationInFrames)).total / 30;

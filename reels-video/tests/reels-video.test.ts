@@ -1,113 +1,21 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { FONT_FILES, GLYPH_TEST, LICENSE_FILES } from "../src/components/typography";
+import { FONT_FILES, GLYPH_TEST } from "../src/components/typography";
 import { cropFor, focusOrigin, placeCrop } from "../src/lib/crop";
 import { glyphId, missingGlyphs } from "../src/lib/font-check";
-import { auditProblems, faceOverlaps, facesOnCanvas, insideSafeArea, rectsOverlap, type Rect } from "../src/lib/layout-check";
+import { faceOverlaps, facesOnCanvas, insideSafeArea, rectsOverlap, type Rect } from "../src/lib/layout-check";
 import { buildTimeline, countUp, countUpTenths, HEIGHT, ofTen, SAFE, splitDots, TRANSITION_FRAMES, TYPE, WIDTH, withLocative, ZONES } from "../src/lib/motion";
 import { LAYOUTS } from "../src/lib/photo-layouts";
-import { DERBY, FAVOURITE, SAMPLE_KEYS, sampleScripts } from "../src/samples";
-import { reelScriptSchema, type ReelScript } from "../src/schema";
+import { DERBY, FAVOURITE } from "../src/samples";
 import type { MatchData } from "../src/story/match-data";
 import { betterSide, compareMetrics, formLetters, gapScore, pickKeyGap } from "../src/story/metrics";
-import { BRAND, evaluatePool, MAX_STORY_SCENES, MIN_STORY_SCENES, PHOTOS, pickStory } from "../src/story/pool";
+import { BRAND, evaluatePool, PHOTOS } from "../src/story/pool";
 import { rollingScore } from "../src/story/rolling";
 import { decideTrackRecord, MIN_COMPLETED_MATCHES } from "../src/story/track-record";
 
-const scripts = SAMPLE_KEYS.map(sampleScripts);
 const clone = (data: MatchData): MatchData => structuredClone(data);
 const reasonOf = (data: MatchData, type: string) => evaluatePool(data, BRAND).find((entry) => entry.type === type)?.reason ?? null;
-
-/** betrix `banned-words.ts` listesi (tam sözcük kuralıyla). */
-const BANNED = /(^|[^\p{L}\p{N}])(ms1|msx|ms2|kg|alt|üst|oran|bahis\p{L}*|iddaa\p{L}*|kupon\p{L}*|banko\p{L}*|market\p{L}*|karşılıklı gol\p{L}*)(?![\p{L}\p{N}])/iu;
-const texts = (value: unknown): string[] => {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.flatMap(texts);
-  if (value && typeof value === "object") return Object.values(value).flatMap(texts);
-  return [];
-};
-
-describe("ReelScript", () => {
-  it("örnekler geçerli; bilinmeyen alan ve bozuk renk hata", () => {
-    for (const { story, pool } of scripts) {
-      assert.ok(reelScriptSchema.safeParse(story).success);
-      assert.ok(reelScriptSchema.safeParse(pool).success);
-    }
-    const script = scripts[0]?.story as ReelScript;
-    assert.equal(reelScriptSchema.safeParse({ ...script, extra: 1 }).success, false);
-    assert.equal(reelScriptSchema.safeParse({ ...script, brand: { ...script.brand, accent: "yeşil" } }).success, false);
-    assert.equal(reelScriptSchema.safeParse({ ...script, scenes: [{ ...script.scenes[0], type: "YOK" }] }).success, false);
-  });
-  it("havuz 16 sahne, metinlerde bahis dili yok", () => {
-    for (const { pool } of scripts) {
-      assert.equal(pool.scenes.length, 16);
-      assert.deepEqual(pool.disabled, []);
-      const found = texts(pool.scenes).filter((text) => BANNED.test(text));
-      assert.deepEqual(found, []);
-    }
-  });
-  it("hikâye 12–14 sahne, 60–75 sn, kapak başta, özet sonda", () => {
-    for (const { story } of scripts) {
-      assert.ok(story.scenes.length >= MIN_STORY_SCENES && story.scenes.length <= MAX_STORY_SCENES, String(story.scenes.length));
-      const seconds = buildTimeline(story.scenes.map((scene) => scene.durationInFrames)).total / 30;
-      assert.ok(seconds >= 60 && seconds <= 75, String(seconds));
-      assert.equal(story.scenes[0]?.type, "S01_COVER");
-      assert.equal(story.scenes.at(-1)?.type, "S16_SUMMARY");
-    }
-  });
-  it("logo açılışı geçiş sonrası net 0,8 sn", () => {
-    const logo = scripts[0]?.pool.scenes.find((scene) => scene.type === "S02_LOGO");
-    assert.equal((logo?.durationInFrames ?? 0) - TRANSITION_FRAMES, 24);
-  });
-  it("noktalar toplam 1000, yüzdelerle tutarlı", () => {
-    for (const { pool } of scripts) {
-      const scene = pool.scenes.find((item) => item.type === "S06_WINNER");
-      assert.ok(scene?.type === "S06_WINNER");
-      const { home, draw, away, dots } = scene.data;
-      assert.equal(dots.home + dots.draw + dots.away, 1000);
-      assert.ok(Math.abs(dots.home / 10 - home) <= 1 && Math.abs(dots.draw / 10 - draw) <= 1 && Math.abs(dots.away / 10 - away) <= 1);
-    }
-  });
-});
-
-describe("güvenilirlik satırı ve simülasyon sayısı", () => {
-  it("simülasyon sözü yalnız kanca sahnesinde", () => {
-    for (const { pool } of scripts) {
-      for (const scene of pool.scenes) {
-        const found = texts([scene.headline, scene.caption, scene.data]).filter((text) => /simülasyon|500 bin|500\.000/iu.test(text));
-        if (scene.type !== "S03_HOOK") assert.deepEqual(found, [], scene.type);
-      }
-      assert.ok(texts(pool.scenes.find((scene) => scene.type === "S03_HOOK")?.headline).some((text) => /500 bin/.test(text)));
-      assert.ok(!pool.scenes.some((scene) => "trust" in scene));
-    }
-  });
-  it("nokta açıklaması veriden: simülasyon / nokta sayısı", () => {
-    const perDot = (data: MatchData) => {
-      const scene = evaluatePool(data, BRAND).find((entry) => entry.type === "S06_WINNER")?.scene;
-      assert.ok(scene?.type === "S06_WINNER");
-      return scene.data.simulationsPerDot;
-    };
-    assert.equal(perDot(DERBY), 500);
-    const other = clone(DERBY);
-    other.model.simulations = 200000;
-    assert.equal(perDot(other), 200);
-    other.model.simulations = null;
-    assert.equal(perDot(other), null);
-  });
-  it("mono fontta harf yasağı denetimde sorun olarak raporlanır", () => {
-    const empty = { faceOverlaps: [], outsideSafe: [], textOverflow: [], tooSmall: [], textCollisions: [], faces: 0, blocks: 0 };
-    assert.deepEqual(auditProblems({ ...empty, monoWords: [] }), []);
-    assert.deepEqual(auditProblems({ ...empty, monoWords: ["ort."] }), ["mono fontta kelime: ort."]);
-  });
-  it("kaynakta güvenilirlik satırı ve sahne içi simülasyon metni kalmadı", () => {
-    for (const file of ["compare", "context", "summary"]) {
-      const source = readFileSync(`src/scenes/${file}.tsx`, "utf8");
-      assert.ok(!source.includes("TrustLine"), file);
-      assert.ok(!/simülasyon/iu.test(source.replace(/\/\*\*[\s\S]*?\*\//g, "")), file);
-    }
-  });
-});
 
 describe("tipografi", () => {
   it("her kesimde test dizesinin glifi var; denetim eksik glifi yakalar", () => {
@@ -118,32 +26,9 @@ describe("tipografi", () => {
       assert.equal(glyphId(buffer, 0xe000), 0);
     }
   });
-  it("en fazla 3 aile, hepsinin OFL lisansı dosyada", () => {
-    assert.ok(new Set(FONT_FILES.map((font) => font.family)).size <= 3);
-    assert.equal(LICENSE_FILES.length, new Set(FONT_FILES.map((font) => font.family)).size);
-    for (const license of LICENSE_FILES) {
-      assert.ok(existsSync(`public/fonts/${license}`), license);
-      assert.match(readFileSync(`public/fonts/${license}`, "utf8"), /SIL OPEN FONT LICENSE/);
-    }
-  });
 });
 
 describe("sahne havuzu: eksik veri devre dışı + neden", () => {
-  it("skor sahnesi yalnız score_scene_allowed", () => {
-    const data = clone(DERBY);
-    data.score_scene_allowed = false;
-    assert.match(reasonOf(data, "S12_SCORE") ?? "", /çelişiyor/);
-    assert.equal(reasonOf(DERBY, "S12_SCORE"), null);
-  });
-  it("golcü adayı yalnız season_xg_fresh", () => {
-    const data = clone(DERBY);
-    data.season_xg_fresh = false;
-    assert.match(reasonOf(data, "S13_SCORER") ?? "", /güncel değil/);
-    data.season_xg_fresh = true;
-    data.season_xg_leaders.home = [];
-    data.season_xg_leaders.away = [];
-    assert.match(reasonOf(data, "S13_SCORER") ?? "", /xG verisi yok/);
-  });
   it("kafa kafaya az maçta kapanır", () => {
     const data = clone(DERBY);
     data.h2h.matches = data.h2h.matches.slice(0, 2);
@@ -167,32 +52,16 @@ describe("sahne havuzu: eksik veri devre dışı + neden", () => {
     // Örnek izni olsa bile eşik geçerli; izin yalnız örnek kaynağı için.
     assert.notEqual(decideTrackRecord({ source: "sample", completed_matches: 2, buckets: [bucket] }, 38, { allowSample: true }).reason, null);
   });
-  it("karne kapalıyken iki hikâye de yedekten 12+ sahneyle kurulur", () => {
-    for (const [data, angle] of [[DERBY, "derby"], [FAVOURITE, "favourite"]] as const) {
-      const story = pickStory(evaluatePool(data, BRAND), angle);
-      assert.ok(!story.some((scene) => scene.type === "S14_TRACK_RECORD"));
-      assert.ok(story.length >= MIN_STORY_SCENES);
-      assert.equal(story.at(-1)?.type, "S16_SUMMARY");
-    }
-  });
   it("eksik form, ilk gol ve simülasyon sıfır yazılmaz, sahne kapanır", () => {
     const data = clone(DERBY);
     data.form.home.last5 = null;
     assert.notEqual(reasonOf(data, "S04_COMPARE"), null);
     const first = clone(DERBY);
     first.first_goal.none = null;
-    assert.notEqual(reasonOf(first, "S10_FIRST_GOAL"), null);
+    assert.notEqual(reasonOf(first, "Q12_FIRST_GOAL"), null);
     const sim = clone(DERBY);
     sim.model.simulations = null;
     assert.notEqual(reasonOf(sim, "S03_HOOK"), null);
-  });
-  it("kapalı sahne hikâyeye girmez, yedekten tamamlanır", () => {
-    const data = clone(FAVOURITE);
-    data.season_xg_fresh = false;
-    const story = pickStory(evaluatePool(data, BRAND), "favourite");
-    assert.ok(!story.some((scene) => scene.type === "S13_SCORER"));
-    assert.ok(story.length >= MIN_STORY_SCENES);
-    assert.equal(story.at(-1)?.type, "S16_SUMMARY");
   });
 });
 

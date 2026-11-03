@@ -1,6 +1,7 @@
-import type { MatchData } from "../story/match-data";
+import { buildTimeline } from "../lib/motion";
+import type { MatchData, MatchPlayers, PlayerSeason } from "../story/match-data";
 import { buildScript, evaluatePool, BRAND, pickStory, type StoryAngle } from "../story/pool";
-import { reelScriptSchema, type ReelScript } from "../schema";
+import { reelScriptSchema, type DesignDirection, type ReelScript } from "../schema";
 
 /** İki KURGUSAL örnek: takımlar, kişiler ve sayılar uydurmadır. Biri derbi havası, biri ezici favori. */
 
@@ -13,8 +14,62 @@ const TRACK_RECORD = { source: "sample" as const, completed_matches: 2228, bucke
   { from: 70, to: 80, matches: 96, hit_rate: 0.73 },
 ] };
 
+/** Örnek liste: gerçek liste gelene kadar yalnız örneklerde (`allowSampleInputs`). */
+const SAMPLE_INPUTS = { source: "sample" as const, groups: [
+  { label: "Son maç", value: "10" },
+  { label: "xG ölçümü", value: "20" },
+  { label: "Form göstergesi", value: "12" },
+  { label: "Ev / deplasman", value: "8" },
+  { label: "Kadro", value: "22" },
+] };
+
+const season = (id: number, name: string, teamId: number, appearances: number, minutes: number, goals: number, assists: number, shots: number, onTarget: number, keyPasses: number): PlayerSeason =>
+  ({ id, name, team_id: teamId, appearances, minutes, goals, assists, shots, shots_on_target: onTarget, key_passes: keyPasses });
+
+const DERBY_PLAYERS: MatchPlayers = {
+  squad_checked_at: "2026-11-08T07:30:00Z",
+  squads: {
+    home: [{ id: 90011, name: "Kurgu Forvet" }, { id: 90012, name: "Yedek Kanat" }],
+    away: [{ id: 90021, name: "Örnek Golcü" }, { id: 90022, name: "Yedek Orta" }],
+  },
+  candidates: {
+    home: [season(90011, "Kurgu Forvet", 9001, 13, 1084, 9, 4, 41, 21, 18), season(90012, "Yedek Kanat", 9001, 11, 612, 2, 3, 14, 6, 15)],
+    away: [season(90021, "Örnek Golcü", 9002, 14, 1192, 8, 2, 37, 16, 11), season(90022, "Yedek Orta", 9002, 12, 880, 1, 5, 12, 4, 24)],
+  },
+  vs_opponent: [{
+    player_id: 90011,
+    matches: [
+      { date: "2024-04-21", club_id: 9004, club_name: "Liman Spor", club_logo: "placeholders/crest-liman.svg", opponent_name: "Anadolu Gücü", score: "2–2", minutes: 90, goals: 1, assists: 0 },
+      { date: "2024-11-03", club_id: 9001, club_name: "Boğaziçi SK", club_logo: "placeholders/crest-bogazici.svg", opponent_name: "Anadolu Gücü", score: "1–0", minutes: 84, goals: 1, assists: 0 },
+      { date: "2025-04-06", club_id: 9001, club_name: "Boğaziçi SK", club_logo: "placeholders/crest-bogazici.svg", opponent_name: "Anadolu Gücü", score: "2–3", minutes: 90, goals: 1, assists: 1 },
+      { date: "2025-10-19", club_id: 9001, club_name: "Boğaziçi SK", club_logo: "placeholders/crest-bogazici.svg", opponent_name: "Anadolu Gücü", score: "2–1", minutes: 78, goals: 0, assists: 1 },
+      { date: "2026-03-14", club_id: 9001, club_name: "Boğaziçi SK", club_logo: "placeholders/crest-bogazici.svg", opponent_name: "Anadolu Gücü", score: "1–1", minutes: 90, goals: 1, assists: 0 },
+    ],
+  }],
+};
+
+const FAVOURITE_PLAYERS: MatchPlayers = {
+  squad_checked_at: "2026-11-09T07:30:00Z",
+  squads: {
+    home: [{ id: 90031, name: "Örnek Kanat" }],
+    away: [{ id: 90041, name: "Kurgu Santrfor" }],
+  },
+  candidates: {
+    home: [season(90031, "Örnek Kanat", 9003, 15, 1260, 12, 7, 52, 28, 31)],
+    away: [season(90041, "Kurgu Santrfor", 9004, 13, 1010, 4, 1, 22, 8, 7)],
+  },
+  // İki maç: hikâye eşiğinin altında, "Rakibine karşı" kapalı kalır.
+  vs_opponent: [{
+    player_id: 90031,
+    matches: [
+      { date: "2025-09-28", club_id: 9003, club_name: "Kuzey Yıldızı", club_logo: "placeholders/crest-kuzey.svg", opponent_name: "Liman Spor", score: "3–1", minutes: 90, goals: 1, assists: 1 },
+      { date: "2026-02-22", club_id: 9003, club_name: "Kuzey Yıldızı", club_logo: "placeholders/crest-kuzey.svg", opponent_name: "Liman Spor", score: "2–0", minutes: 88, goals: 1, assists: 0 },
+    ],
+  }],
+};
+
 export const DERBY: MatchData = {
-  contract_version: "1.1",
+  contract_version: "1.2",
   match: { id: 900001, kickoff_utc: "2026-11-08T17:00:00Z", league: { id: 203, name: "Kurgu Ligi", round: "11. Hafta" }, referee: "Kurgu Hakem", venue: "Boğaz Arena" },
   teams: {
     home: { id: 9001, name: "Boğaziçi SK", short_name: "Boğaziçi", logo: "placeholders/crest-bogazici.svg", colors: { primary: "#E2263F", secondary: "#FFD6DB" } },
@@ -22,21 +77,32 @@ export const DERBY: MatchData = {
   },
   model: { version: "2.1.0", computed_at: "2026-11-08T08:00:00Z", simulations: 500000 },
   outcome: { home_win: 0.38, draw: 0.3, away_win: 0.32 },
+  outcome_double: { home_or_draw: 0.68, draw_or_away: 0.62 },
+  comfortable_win: { home: 0.16, away: 0.13 },
   score_distribution: [
     { home_goals: 1, away_goals: 1, p: 0.14 }, { home_goals: 2, away_goals: 1, p: 0.11 }, { home_goals: 1, away_goals: 0, p: 0.1 },
     { home_goals: 1, away_goals: 2, p: 0.09 }, { home_goals: 0, away_goals: 1, p: 0.08 },
   ],
   score_scene_allowed: true,
-  goals: { three_plus: 0.57 },
+  goals: { two_plus: 0.78, three_plus: 0.57, four_plus: 0.33, five_plus: 0.16, distribution: null },
   both_score: 0.62,
   team_goal_chance: { home: 0.78, away: 0.72 },
+  team_two_plus: { home: 0.4, away: 0.34 },
+  clean_win: { home: 0.11, away: 0.08 },
+  first_half: { home: 0.3, draw: 0.44, away: 0.26, any_goal: 0.72, two_plus: 0.36 },
+  half_most_goals: { first: 0.31, second: 0.45, equal: 0.24 },
+  comeback: { home: 0.05, away: 0.04 },
   first_goal: { home: 0.46, away: 0.44, none: 0.1 },
-  season_xg_leaders: {
-    home: [{ name: "Kurgu Forvet", season_goals: 7, season_xg: 6.42, season_games: 10 }],
-    away: [{ name: "Örnek Golcü", season_goals: 6, season_xg: 5.81, season_games: 11 }],
-    data_updated_at: { home: "2026-11-05T05:00:00Z", away: "2026-11-05T05:00:00Z" },
-  },
-  season_xg_fresh: true,
+  corners: { more: { home: 0.46, away: 0.41, equal: 0.13 }, nine_plus: 0.62, ten_plus: 0.47, eleven_plus: 0.33 },
+  cards: { four_plus: 0.71, five_plus: 0.52, six_plus: 0.33, red_card: 0.19 },
+  penalty: 0.27,
+  model_inputs: SAMPLE_INPUTS,
+  scorer_chances: [
+    { player_id: 90011, side: "home", name: "Kurgu Forvet", p: 0.34 },
+    { player_id: 90021, side: "away", name: "Örnek Golcü", p: 0.29 },
+    { player_id: 90012, side: "home", name: "Yedek Kanat", p: 0.14 },
+  ],
+  players: DERBY_PLAYERS,
   form: {
     home: { last5: "WDWLW", goals_for: 1.8, goals_against: 1.1, xg_for: 1.72, xg_against: 1.08, clean_sheet_rate: 0.3, btts_rate: 0.6, euro_fatigue_days: 3.4 },
     away: { last5: "DWWDL", goals_for: 1.6, goals_against: 1.2, xg_for: 1.55, xg_against: 1.21, clean_sheet_rate: 0.2, btts_rate: 0.7, euro_fatigue_days: 99 },
@@ -55,7 +121,7 @@ export const DERBY: MatchData = {
 };
 
 export const FAVOURITE: MatchData = {
-  contract_version: "1.1",
+  contract_version: "1.2",
   match: { id: 900002, kickoff_utc: "2026-11-09T17:00:00Z", league: { id: 203, name: "Kurgu Ligi", round: "11. Hafta" }, referee: "Kurgu Hakem", venue: "Kuzey Stadyumu" },
   teams: {
     home: { id: 9003, name: "Kuzey Yıldızı", short_name: "Kuzey", logo: "placeholders/crest-kuzey.svg", colors: { primary: "#F5B700", secondary: "#FFF0C2" } },
@@ -63,21 +129,28 @@ export const FAVOURITE: MatchData = {
   },
   model: { version: "2.1.0", computed_at: "2026-11-09T08:00:00Z", simulations: 500000 },
   outcome: { home_win: 0.74, draw: 0.17, away_win: 0.09 },
+  outcome_double: { home_or_draw: 0.91, draw_or_away: 0.26 },
+  comfortable_win: { home: 0.5, away: 0.02 },
   score_distribution: [
     { home_goals: 2, away_goals: 0, p: 0.15 }, { home_goals: 3, away_goals: 0, p: 0.12 }, { home_goals: 2, away_goals: 1, p: 0.11 },
     { home_goals: 1, away_goals: 0, p: 0.1 }, { home_goals: 3, away_goals: 1, p: 0.08 },
   ],
   score_scene_allowed: true,
-  goals: { three_plus: 0.71 },
+  goals: { two_plus: 0.9, three_plus: 0.71, four_plus: 0.46, five_plus: 0.26, distribution: null },
   both_score: 0.41,
   team_goal_chance: { home: 0.91, away: 0.46 },
+  team_two_plus: { home: 0.72, away: 0.12 },
+  clean_win: { home: 0.5, away: 0.03 },
+  first_half: { home: 0.55, draw: 0.34, away: 0.11, any_goal: 0.8, two_plus: 0.48 },
+  half_most_goals: { first: 0.33, second: 0.46, equal: 0.21 },
+  comeback: { home: 0.07, away: 0.01 },
   first_goal: { home: 0.68, away: 0.23, none: 0.09 },
-  season_xg_leaders: {
-    home: [{ name: "Örnek Kanat", season_goals: 11, season_xg: 9.37, season_games: 11 }],
-    away: [{ name: "Kurgu Santrfor", season_goals: 3, season_xg: 3.12, season_games: 10 }],
-    data_updated_at: { home: "2026-11-05T05:00:00Z", away: "2026-11-05T05:00:00Z" },
-  },
-  season_xg_fresh: true,
+  corners: { more: { home: 0.66, away: 0.22, equal: 0.12 }, nine_plus: 0.66, ten_plus: 0.52, eleven_plus: 0.38 },
+  cards: { four_plus: 0.58, five_plus: 0.39, six_plus: 0.22, red_card: 0.12 },
+  penalty: 0.31,
+  model_inputs: SAMPLE_INPUTS,
+  scorer_chances: [{ player_id: 90031, side: "home", name: "Örnek Kanat", p: 0.48 }, { player_id: 90041, side: "away", name: "Kurgu Santrfor", p: 0.17 }],
+  players: FAVOURITE_PLAYERS,
   form: {
     home: { last5: "WWWDW", goals_for: 2.6, goals_against: 0.7, xg_for: 2.41, xg_against: 0.82, clean_sheet_rate: 0.5, btts_rate: 0.4, euro_fatigue_days: 4.1 },
     away: { last5: "LLDLW", goals_for: 0.9, goals_against: 1.9, xg_for: 0.94, xg_against: 1.87, clean_sheet_rate: 0.1, btts_rate: 0.5, euro_fatigue_days: 99 },
@@ -94,18 +167,30 @@ export const FAVOURITE: MatchData = {
   model_track_record: TRACK_RECORD,
 };
 
-const SAMPLE_INPUTS = { derbi: { data: DERBY, angle: "derby" }, favori: { data: FAVOURITE, angle: "favourite" } } as const satisfies Record<string, { data: MatchData; angle: StoryAngle }>;
-export type SampleKey = keyof typeof SAMPLE_INPUTS;
-export const SAMPLE_KEYS = Object.keys(SAMPLE_INPUTS) as SampleKey[];
+const SAMPLE_MATCHES = { derbi: { data: DERBY, angle: "derby" }, favori: { data: FAVOURITE, angle: "favourite" } } as const satisfies Record<string, { data: MatchData; angle: StoryAngle }>;
+export type SampleKey = keyof typeof SAMPLE_MATCHES;
+export const SAMPLE_KEYS = Object.keys(SAMPLE_MATCHES) as SampleKey[];
+export const SAMPLE_OPTIONS = { allowSampleTrackRecord: true, allowSampleInputs: true, allowScorerScene: true } as const;
 
 /** Seçilen hikâye (video) ve bütün havuz (tek kareler) aynı veriden. */
-export function sampleScripts(key: SampleKey): { story: ReelScript; pool: ReelScript } {
-  const { data, angle } = SAMPLE_INPUTS[key];
-  const entries = evaluatePool(data, BRAND, { allowSampleTrackRecord: true });
+export function sampleScripts(key: SampleKey, design: DesignDirection = "A"): { story: ReelScript; pool: ReelScript } {
+  const { data, angle } = SAMPLE_MATCHES[key];
+  const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
   const disabled = entries.flatMap((entry) => (entry.reason ? [{ type: entry.type, reason: entry.reason }] : []));
   const ready = entries.flatMap((entry) => (entry.scene ? [entry.scene] : []));
   return {
-    story: reelScriptSchema.parse(buildScript(data, pickStory(entries, angle), disabled)),
-    pool: reelScriptSchema.parse(buildScript(data, ready, disabled)),
+    story: reelScriptSchema.parse(buildScript(data, pickStory(entries, angle), disabled, design)),
+    pool: reelScriptSchema.parse(buildScript(data, ready, disabled, design)),
   };
 }
+
+/** Karşılaştırma panosunun beş sahnesi: Kapak, Nasıl hesapladık?, Kim kazanır?, Düello, Gollü maç mı? */
+export const BOARD_SCENES = ["S01_COVER", "M01_METHOD", "Q01_WINNER", "P01_DUEL", "Q04_GOALS"] as const;
+
+export function boardScript(design: DesignDirection): ReelScript {
+  const { pool } = sampleScripts("derbi", design);
+  const scenes = BOARD_SCENES.flatMap((type) => pool.scenes.filter((scene) => scene.type === type));
+  return reelScriptSchema.parse({ ...pool, scenes });
+}
+
+export const storySeconds = (script: ReelScript): number => buildTimeline(script.scenes.map((scene) => scene.durationInFrames)).total / 30;

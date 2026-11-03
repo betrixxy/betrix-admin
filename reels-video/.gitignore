@@ -1,3 +1,5 @@
 node_modules
 out
 .remotion
+# Telifli gerçek kesimler: yalnız yerel pano için, asla repoya girmez.
+public/_local

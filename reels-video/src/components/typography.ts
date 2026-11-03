@@ -2,8 +2,8 @@ import type { CSSProperties } from "react";
 import { TYPE } from "../lib/motion";
 
 /**
- * Role göre üç aile (hepsi SIL OFL, lisans dosyaları `public/fonts`).
- * Barlow Condensed: başlık, büyük rakam, takım adı. JetBrains Mono: yalnız rakamlar. Geist: cümleler ve kelime etiketleri.
+ * Hepsi SIL OFL, lisans dosyaları `public/fonts`. Barlow Condensed, JetBrains Mono, Geist: eski sahneler. Tasarım yönleri
+ * (`design/tokens.ts`): A Anton + Saira Extra Condensed, B DM Serif Display + Geist, C Unbounded + JetBrains Mono.
  */
 export const FONTS = { display: "Barlow Condensed", mono: "JetBrains Mono", body: "Geist" } as const;
 
@@ -16,9 +16,26 @@ export const FONT_FILES = [
   { family: FONTS.body, file: "Geist-Regular.ttf", weight: "500", sample: 500 },
   { family: FONTS.body, file: "Geist-Bold.ttf", weight: "700", sample: 700 },
   { family: FONTS.body, file: "Geist-Black.ttf", weight: "900", sample: 900 },
+  { family: "Anton", file: "Anton-Regular.ttf", weight: "400", sample: 400 },
+  { family: "Saira Extra Condensed", file: "SairaExtraCondensed-Bold.ttf", weight: "700", sample: 700 },
+  { family: "Saira Extra Condensed", file: "SairaExtraCondensed-Black.ttf", weight: "900", sample: 900 },
+  { family: "DM Serif Display", file: "DMSerifDisplay-Regular.ttf", weight: "400", sample: 400 },
+  { family: "DM Serif Display", file: "DMSerifDisplay-Italic.ttf", weight: "400", style: "italic", sample: 400 },
+  { family: "Unbounded", file: "Unbounded-Variable.ttf", weight: "200 900", sample: 800 },
 ] as const;
 
-export const LICENSE_FILES = ["OFL-BarlowCondensed.txt", "OFL-JetBrainsMono.txt", "OFL-Geist.txt"] as const;
+export const LICENSE_FILES = ["OFL-BarlowCondensed.txt", "OFL-JetBrainsMono.txt", "OFL-Geist.txt", "OFL-Anton.txt", "OFL-SairaExtraCondensed.txt", "OFL-DMSerifDisplay.txt", "OFL-Unbounded.txt"] as const;
+
+/**
+ * Rakam tabular denetiminin aileleri. `cellEm`: fontta tabular rakam yoksa her rakam bu genişlikte hücreye girer
+ * (`design/kit.tsx::Figures`); denetim en geniş rakamın hücreye sığdığını ölçer.
+ */
+export const NUMBER_FACES = [
+  { family: "Barlow Condensed", weight: 900, cellEm: null },
+  { family: "JetBrains Mono", weight: 800, cellEm: null },
+  { family: "Anton", weight: 400, cellEm: 0.5 },
+  { family: "DM Serif Display", weight: 400, cellEm: 0.545 },
+] as const;
 
 /** Glif denetiminin dizesi. */
 export const GLYPH_TEST = "İĞÜŞÖÇ ığüşöç KİM KAZANIR? %74 2–1";
