@@ -15,6 +15,7 @@ export const TEMPLATE_WORDS = new Set([
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
   "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar",
   "Dikkat", "Güçlü", "Zayıf", "Hücum", "Savunma", "Aradaki", "Puanlar", "Kazanan", "Form", "Kimler", "Sürpriz", "Sence", "Cevabını", "Kaydet", "Dengeli", "Birinci",
+  "Yolu", "Denge", "Dizilişi", "Sence", "İkisinin", "Hiçbiri", "Önce", "Çünkü", "Sürpriz", "Geriden",
   "Az", "Aynı", "Maçların", "Pay", "Takımın", "Kalesini", "Maçın", "Deplasman", "İç", "Önü", "Dengeli", "Attığı", "Yediği",
 ]);
 
@@ -50,8 +51,8 @@ export function knownNames(data: MatchData): Set<string> {
 }
 
 /** Veride ve sözlükte olmayan özel adlar. Boş dizi = temiz. */
-export function unknownNames(scenes: readonly Pick<ReelScene, "headline" | "caption" | "data">[], data: MatchData): string[] {
+export function unknownNames(scenes: readonly (Pick<ReelScene, "headline" | "caption" | "data"> & { voiceover?: ReelScene["voiceover"] })[], data: MatchData): string[] {
   const known = knownNames(data);
-  const found = scenes.flatMap((scene) => sceneTexts([scene.headline, scene.caption, scene.data])).flatMap(tokens).filter((token) => isCapital(token) && !known.has(token) && !TEMPLATE_WORDS.has(token));
+  const found = scenes.flatMap((scene) => sceneTexts([scene.headline, scene.caption, scene.data, scene.voiceover?.lines.filter((line) => !line.sources.includes("analyst_note")).map((line) => line.text) ?? []])).flatMap(tokens).filter((token) => isCapital(token) && !known.has(token) && !TEMPLATE_WORDS.has(token));
   return [...new Set(found)];
 }

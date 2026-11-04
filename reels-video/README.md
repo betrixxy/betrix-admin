@@ -19,6 +19,7 @@ npm install
 npm run studio       # tarayıcıda önizleme
 npm test
 npm run board        # tasarım panosu: 5 yön × 6 kart (Monte Carlo 3 evre), karşılaştırma, denetim
+npm run flow         # aktif temada tam akış: tek kareler, kontak sayfası, okunurluk denetimi; --mc: Monte Carlo MP4 (ağır iş)
 npm run stills       # bütün sahneler, kontak sayfası, tipografi testi, yerleşim denetimi
 npm run render       # hikâye MP4'leri; ağır iş, maç penceresinde çalıştırılmaz
 ```

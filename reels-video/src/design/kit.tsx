@@ -14,7 +14,7 @@ export const usesSimulation = (type: ReelSceneType): boolean => type.startsWith(
 /** Rakamlar sabit genişlikte: sayaç dönerken genişlik oynamaz, alt alta rakamlar hizalanır. */
 export function Figures({ theme, text }: { theme: Theme; text: string }) {
   if (theme.digitEm === null) return <>{text}</>;
-  return <>{[...text].map((char, index) => (/d/u.test(char) ? <span key={index} style={{ display: "inline-block", width: `${theme.digitEm}em`, textAlign: "center" }}>{char}</span> : char))}</>;
+  return <>{[...text].map((char, index) => (/\d/u.test(char) ? <span key={index} style={{ display: "inline-block", width: `${theme.digitEm}em`, textAlign: "center" }}>{char}</span> : char))}</>;
 }
 
 export function useEnter(start: number, distance = 24): CSSProperties {
@@ -134,7 +134,7 @@ export function StageHud({ script }: { script: ReelScript }) {
   const badgeStyle: CSSProperties = theme.id === "A"
     ? { fontFamily: theme.label, fontWeight: 900, fontSize: 34, lineHeight: 1, color: theme.accentInk, background: theme.accent, padding: "9px 18px 8px", transform: "skewX(-10deg)" }
     : theme.id === "D"
-      ? { fontFamily: theme.label, fontWeight: 800, fontSize: 32, lineHeight: 1, color: theme.accentInk, background: theme.accent, padding: "8px 14px" }
+      ? { fontFamily: theme.label, fontWeight: 800, fontSize: 34, lineHeight: 1, color: theme.accentInk, background: theme.accent, padding: "7px 14px" }
     : theme.id === "E"
       ? { fontFamily: theme.label, fontWeight: 700, fontSize: 28, lineHeight: 1, color: theme.ink, border: `2.5px solid ${theme.accent}`, borderRadius: 26, padding: "8px 16px 4px" }
     : theme.id === "B"
@@ -142,9 +142,9 @@ export function StageHud({ script }: { script: ReelScript }) {
       : { fontFamily: theme.label, fontWeight: 700, fontSize: 26, letterSpacing: -0.4, lineHeight: 1, color: theme.accent, textShadow: `0 0 18px ${theme.accent}99` };
   return (
     <>
-      <div style={{ position: "absolute", left: X, width: W, top: HUD_TOP, height: 50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div data-fill="" style={{ position: "absolute", left: X, width: W, top: HUD_TOP, height: 50, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <Img src={staticFile(script.brand.logo)} style={{ height: 40, width: "auto" }} />
-        {showBadge ? <div data-hud-badge="" style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap", marginRight: theme.id === "A" ? 8 : 0 }}>
+        {showBadge ? <div data-hud-badge="" data-label="" style={{ display: "flex", alignItems: "center", gap: 10, whiteSpace: "nowrap", marginRight: theme.id === "A" ? 8 : 0 }}>
           {theme.id === "C" ? <span style={{ width: 12, height: 12, borderRadius: 6, background: theme.accent, boxShadow: `0 0 16px ${theme.accent}` }} /> : null}
           <span style={badgeStyle}><span style={theme.id === "A" ? { display: "inline-block", transform: "skewX(10deg)" } : undefined}>{badge}</span></span>
         </div> : null}
@@ -205,7 +205,7 @@ export function PlayerCut({ theme, photo, color, left, top, height, flip = false
   const mask = "linear-gradient(#000 70%, transparent 100%)";
   const enter = interpolate(frame, [startFrame, startFrame + 12], [30, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
   return (
-    <div style={{ position: "absolute", left: left + enter * (flip ? 1 : -1), top, width, height, transform: `scale(${scale}) ${flip ? "scaleX(-1)" : ""}`, transformOrigin: "50% 40%", ...(fade ? { WebkitMaskImage: mask, maskImage: mask } : {}) }}>
+    <div data-fill="" style={{ position: "absolute", left: left + enter * (flip ? 1 : -1), top, width, height, transform: `scale(${scale}) ${flip ? "scaleX(-1)" : ""}`, transformOrigin: "50% 40%", ...(fade ? { WebkitMaskImage: mask, maskImage: mask } : {}) }}>
       <Img src={staticFile(photo.src)} style={{ width: "100%", height: "100%", objectFit: "contain", filter: `${edge}${lab ? "grayscale(1) contrast(1.15) brightness(0.95) " : ""}drop-shadow(0 0 28px ${color}${lab ? "" : "AA"}) drop-shadow(0 18px 30px rgba(0,0,0,0.55))` }} />
       {photo.faces.map((face, index) => (
         <div key={index} data-face="" style={{ position: "absolute", left: `${face.x * 100}%`, top: `${face.y * 100}%`, width: `${face.width * 100}%`, height: `${face.height * 100}%` }}>
@@ -230,7 +230,7 @@ export function HeroFigure({ theme, value, percent, label, color, start = 18, si
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 8 }}>
         <span style={{ width: 28, height: 28, background: color, flexShrink: 0, borderRadius: theme.id === "A" ? 0 : theme.id === "C" ? 4 : 14, transform: theme.id === "A" ? "skewX(-14deg)" : undefined }} />
-        <span style={{ ...labelStyle(theme, Math.max(34, theme.labelSize + 6)), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.id === "A" ? "uppercase" : "none" }}>{label}</span>
+        <span style={{ ...labelStyle(theme, Math.max(40, theme.labelSize + 6)), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.id === "A" ? "uppercase" : "none" }}>{label}</span>
       </div>
     </div>
   );
@@ -248,7 +248,7 @@ function SupportCell({ theme, value, label, color, index }: { theme: Theme; valu
       ? { borderTop: `3px solid ${color}`, padding: "12px 0 0", background: "transparent" }
       : { background: theme.panel, border: `1.5px solid ${theme.panelEdge}`, borderRadius: 6, padding: "12px 14px", boxShadow: `inset 0 0 26px ${theme.accent}14` };
   return (
-    <div data-block={`destek ${label}`} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6, ...box, ...enter }}>
+    <div data-block={`destek ${label}`} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, ...box, ...enter }}>
       <div data-support="" style={{ ...numberStyle(theme, theme.supportSize), color: theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={value} /></div>
       <div style={{ ...labelStyle(theme), textTransform: theme.id === "A" ? "uppercase" : "none" }}>{label}</div>
     </div>
@@ -256,13 +256,13 @@ function SupportCell({ theme, value, label, color, index }: { theme: Theme; valu
 }
 
 /** 2–4 destek istatistiği (≥ 48 px). 4 değer iki satıra iner. */
-export function SupportStrip({ theme, items, colors }: { theme: Theme; items: readonly { key: string; value: string; label: string; side: "home" | "away" | "draw" | null }[]; colors: { home: string; away: string } }) {
+export function SupportStrip({ theme, items, colors, grow = false }: { grow?: boolean; theme: Theme; items: readonly { key: string; value: string; label: string; side: "home" | "away" | "draw" | null }[]; colors: { home: string; away: string } }) {
   const rowItems = items.length === 4 ? [items.slice(0, 2), items.slice(2)] : [items];
   const paint = (side: "home" | "away" | "draw" | null) => (side === "home" ? colors.home : side === "away" ? colors.away : side === "draw" ? "#A8B2AE" : theme.accent);
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12, width: W }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 12, width: W, flex: grow ? 1 : undefined }}>
       {rowItems.map((row, rowIndex) => (
-        <div key={rowIndex} style={{ display: "flex", gap: theme.id === "B" ? 26 : 12 }}>
+        <div key={rowIndex} style={{ display: "flex", gap: theme.id === "B" ? 26 : 12, flex: grow ? 1 : undefined }}>
           {row.map((item, index) => <SupportCell key={item.key} theme={theme} value={item.value} label={item.label} color={paint(item.side)} index={rowIndex * 2 + index} />)}
         </div>
       ))}

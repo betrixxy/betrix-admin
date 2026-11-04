@@ -76,6 +76,10 @@ export interface LayoutAudit {
   monoWords: string[];
   /** Şablon alt sınırının altındaki ana rakam / destek değeri. */
   sizeRule: string[];
+  /** Video okunurluk kuralları: yazı boyutu, madde, not satırı, el yazısı, doluluk. Yalnız `data-video-rules` açıkken dolar. */
+  videoRules?: string[];
+  /** Güvenli alan içi doluluk oranı: bütün alan ve alt yarı. */
+  fill?: { total: number; lower: number };
   /** Kontrast ölçümü için metin kutuları. */
   samples: TextSample[];
   faces: number;
@@ -90,7 +94,21 @@ export const auditProblems = (audit: Omit<LayoutAudit, "sizeRule" | "samples"> &
   ...audit.textCollisions.map((name) => `metin çakışıyor: ${name}`),
   ...audit.monoWords.map((name) => `mono fontta kelime: ${name}`),
   ...(audit.sizeRule ?? []).map((name) => `şablon boyutu altında: ${name}`),
+  ...(audit.videoRules ?? []),
 ];
+
+/** Dikdörtgenlerin birleşiminin `area` içinde kapladığı oran: `step` px'lik ızgarada. */
+export function coverage(rects: readonly Rect[], area: Rect, step = 10): number {
+  let covered = 0;
+  let total = 0;
+  for (let y = area.y + step / 2; y < area.y + area.height; y += step) {
+    for (let x = area.x + step / 2; x < area.x + area.width; x += step) {
+      total += 1;
+      if (rects.some((rect) => x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height)) covered += 1;
+    }
+  }
+  return total ? covered / total : 0;
+}
 
 /** WCAG göreli parlaklık. */
 export function relativeLuminance(red: number, green: number, blue: number): number {

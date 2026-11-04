@@ -38,7 +38,7 @@ export interface TeamContext {
   clean_sheet_pct: number | null;
   failed_to_score_pct: number | null;
   formation: { name: string; played: number } | null;
-  /** En uzun seriler. */
+  /** En uzun seriler: form dizisinden sayılır. */
   streaks: { wins: number; draws: number; loses: number };
   /** `GOAL_SLOTS` sırasıyla 6 dilim; 91–105 son dilime eklenir. */
   minutes: { for: (number | null)[]; against: (number | null)[] };

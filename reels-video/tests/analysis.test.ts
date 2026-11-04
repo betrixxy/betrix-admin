@@ -78,15 +78,15 @@ describe("her iddia bir veri anahtarına bağlı", () => {
 describe("LLM doğallaştırması", () => {
   const data = clone(DERBY);
   assert.ok(data.context);
-  const template = "{home} maç başına {forAvg} gol atıyor, {away} {againstAvg} gol yiyor.";
+  const template = "{home}: maç başına {forAvg} gol atıyor";
   it("yuvalar aynıysa ve rakam yoksa kullanılır", () => {
-    data.context!.polished = { "goals.home": "Maç başına {forAvg} gol atan {home}, {againstAvg} gol yiyen {away} ile karşılaşıyor." };
+    data.context!.polished = { "goals.home": "Maç başına {forAvg} gol atan {home}" };
     assert.match(allReasons(data).find((item) => item.id === "goals.home")?.text ?? "", /Maç başına 1,8 gol atan Boğaziçi/);
   });
   it("rakam ekleyen ya da yuva düşüren metin yok sayılır", () => {
-    assert.equal(polishUsable("{home} son 3 maçta {forAvg} {away} {againstAvg}", template), false);
-    assert.equal(polishUsable("{home} {forAvg} gol atıyor.", template), false);
-    assert.deepEqual(slotsOf(template), ["againstAvg", "away", "forAvg", "home"]);
+    assert.equal(polishUsable("{home} son 3 maçta {forAvg}", template), false);
+    assert.equal(polishUsable("{home} gol atıyor.", template), false);
+    assert.deepEqual(slotsOf(template), ["forAvg", "home"]);
     data.context!.polished = { "goals.home": "{home} 9 gol atıyor." };
     assert.match(allReasons(data).find((item) => item.id === "goals.home")?.text ?? "", /1,8 gol/);
   });

@@ -1,4 +1,5 @@
 import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { BoardPanel, ChalkArrow, HandLabel, Magnet, boardLabel } from "../design/board";
 import { ReasonList } from "./reason-list";
 import { Figures, HeroFigure, Panel, PlayerCut, QuestionTitle, SupportStrip, themeOf, titleBottom } from "../design/kit";
 import { BOTTOM, labelStyle, numberStyle, type Theme, W, X } from "../design/tokens";
@@ -76,21 +77,21 @@ function LadderViz({ theme, viz }: { theme: Theme; viz: Extract<QuestionData["vi
           return (
             <div key={step.label} data-block={`basamak ${step.label}`} style={{ flex: 1, height, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "10px 12px", background: active ? theme.accent : theme.panel, border: active || theme.id === "A" ? "none" : `1.5px solid ${theme.panelEdge}`, borderRadius: theme.id === "C" ? 6 : 0, opacity: interpolate(frame, [stepStart(index) - 6, stepStart(index) + 2], [0, 1], clamp) }}>
               <div data-support="" style={{ ...numberStyle(theme, stepNumber), color: active ? theme.accentInk : theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={`%${countUp(frame, { to: step.percent, start: stepStart(index), duration: 24 })}`} /></div>
-              <div style={{ ...labelStyle(theme, 30), color: active ? theme.accentInk : theme.ink2, whiteSpace: "nowrap" }}>{step.label} gol</div>
+              <div style={{ ...labelStyle(theme, 34), color: active ? theme.accentInk : theme.ink2, whiteSpace: "nowrap" }}>{step.label} gol</div>
             </div>
           );
         })}
       </div>
       <Panel theme={theme} name="toplam gol dağılımı" style={{ padding: "12px 20px 10px" }}>
-        <div style={{ ...labelStyle(theme, 28), marginBottom: 6 }}>Toplam gol</div>
+        <div style={{ ...labelStyle(theme, 34), marginBottom: 6 }}>Toplam gol</div>
         <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
           {viz.bars.map((bar, index) => {
             const grow = interpolate(frame, [50 + index * 5, 76 + index * 5], [0, 1], clamp);
             return (
               <div key={bar.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                <div style={{ ...numberStyle(theme, 34), color: theme.ink, opacity: grow }}><Figures theme={theme} text={`%${bar.percent}`} /></div>
+                <div style={{ ...numberStyle(theme, 36), color: theme.ink, opacity: grow }}><Figures theme={theme} text={`%${bar.percent}`} /></div>
                 <div style={{ width: "100%", height: Math.max(6, (bar.percent / highest) * barArea * grow), background: bar.percent === highest ? theme.accent : "rgba(255,255,255,0.42)", borderRadius: theme.id === "A" ? 0 : 4 }} />
-                <div style={{ ...labelStyle(theme, 28), whiteSpace: "nowrap" }}>{bar.label}</div>
+                <div style={{ ...labelStyle(theme, 34), whiteSpace: "nowrap" }}>{bar.label}</div>
               </div>
             );
           })}
@@ -108,8 +109,8 @@ function LadderSteps({ theme, viz }: { theme: Theme; viz: Extract<QuestionData["
         const active = step.label === "3+";
         return (
           <div key={step.label} data-block={`basamak ${step.label}`} style={{ flex: 1, padding: "10px 12px", background: active ? theme.accent : theme.panel, display: "flex", flexDirection: "column", gap: 4 }}>
-            <div data-support="" style={{ ...numberStyle(theme, Math.min(theme.supportSize, 56)), color: active ? theme.accentInk : theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={`%${step.percent}`} /></div>
-            <div style={{ ...labelStyle(theme, 28), color: active ? theme.accentInk : theme.ink2, whiteSpace: "nowrap" }}>{step.label} gol</div>
+            <div data-support="" style={{ ...numberStyle(theme, Math.min(theme.supportSize, 52)), color: active ? theme.accentInk : theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={`%${step.percent}`} /></div>
+            <div style={{ ...labelStyle(theme, 34), color: active ? theme.accentInk : theme.ink2, whiteSpace: "nowrap" }}>{step.label} gol</div>
           </div>
         );
       })}
@@ -117,8 +118,33 @@ function LadderSteps({ theme, viz }: { theme: Theme; viz: Extract<QuestionData["
   );
 }
 
+/** İlk gol kimden: tahtada iki mıknatıs, öndeki takımdan kaleye tebeşir ok. Rakamlar Archivo, el yazısı yalnız kısa vurgu. */
+function FirstGoalBoard({ script, theme, supports, hero }: { script: ReelScript; theme: Theme; supports: QuestionData["supports"]; hero: QuestionData["hero"] }) {
+  const { home, away } = script.meta.teams;
+  const height = 300;
+  const lead = hero.side === "away" ? "away" : "home";
+  const from = lead === "home" ? [180, 150] as const : [W - 180, 150] as const;
+  const to = lead === "home" ? [W - 60, 118] as const : [60, 118] as const;
+  const other = supports.find((item) => item.key === "other");
+  const none = supports.find((item) => item.key === "none");
+  const values = { home: lead === "home" ? hero.value : other?.value ?? "", away: lead === "away" ? hero.value : other?.value ?? "" };
+  return (
+    <BoardPanel name="ilk gol tahtası" width={W} height={height}>
+      <svg data-fill="" width={W} height={height} viewBox={`0 0 ${W} ${height}`} style={{ position: "absolute", left: 0, top: 0 }}>
+        <Magnet x={180} y={150} r={68} color={home.colors.primary} logo={home.logo} />
+        <Magnet x={W - 180} y={150} r={68} color={away.colors.primary} logo={away.logo} />
+      </svg>
+      <ChalkArrow width={W} height={height} from={from} to={to} bend={-120} color={theme.accentText} name="ilk-gol" />
+      <HandLabel theme={theme} text="İlk vuruş" size={60} style={{ left: W / 2 - 112, top: 12 }} />
+      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: 180 - 90, width: 180, top: 228, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.home} /></div>
+      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: W - 180 - 90, width: 180, top: 228, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.away} /></div>
+      {none ? <div style={{ ...boardLabel(theme, 34), position: "absolute", left: W / 2 - 90, width: 180, top: 232, textAlign: "center" }}>Gol yok <Figures theme={theme} text={none.value} /></div> : null}
+    </BoardPanel>
+  );
+}
+
 /** Bütün veri sahnelerinin tek şablonu. Tek tek rakamlar için "simülasyonların %X'inde" cümlesi kurulmaz: rakam + HUD rozeti yeter. */
-export function QuestionScene({ script, scene }: { script: ReelScript; scene: { headline: { line1: string; line2: string } | null; data: QuestionData } }) {
+export function QuestionScene({ script, scene }: { script: ReelScript; scene: { type: string; headline: { line1: string; line2: string } | null; data: QuestionData } }) {
   const theme = themeOf(script);
   const { data } = scene;
   const colors = { home: script.meta.teams.home.colors.primary, away: script.meta.teams.away.colors.primary };
@@ -127,15 +153,16 @@ export function QuestionScene({ script, scene }: { script: ReelScript; scene: { 
   const top = titleBottom(theme, line1, line2) + 10;
   const heroColor = data.hero.side === "home" ? colors.home : data.hero.side === "away" ? colors.away : data.hero.side === "draw" ? "#A8B2AE" : theme.accent;
   const photo = data.focus ? script.photos[`${data.focus}-1`] : undefined;
+  const board = theme.id === "D" && scene.type === "Q12_FIRST_GOAL";
   return (
     <AbsoluteFill>
       {data.focus && photo ? <FocusPlayer script={script} focus={data.focus} photo={photo} /> : null}
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
-      <div style={{ position: "absolute", left: X, width: W, top, bottom: 1920 - BOTTOM + 22, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-        <HeroFigure theme={theme} value={data.hero.value} percent={data.hero.percent} label={data.hero.label} color={heroColor} size={data.viz.kind === "ladder" ? Math.round(theme.heroSize * 0.8) : theme.heroSize} />
+      <div style={{ position: "absolute", left: X, width: W, top, bottom: 1920 - BOTTOM + 22, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14 }}>
+        <HeroFigure theme={theme} value={data.hero.value} percent={data.hero.percent} label={data.hero.label} color={heroColor} size={data.viz.kind === "ladder" || board ? 190 : theme.heroSize} />
         {data.reasons.length ? null : data.viz.kind === "dots" ? <DotsViz theme={theme} viz={data.viz} colors={colors} /> : null}
-        {data.viz.kind === "split" ? <SplitViz theme={theme} viz={data.viz} colors={colors} /> : null}
-        {data.viz.kind === "ladder" ? (data.reasons.length ? <LadderSteps theme={theme} viz={data.viz} /> : <LadderViz theme={theme} viz={data.viz} />) : <SupportStrip theme={theme} items={data.supports} colors={colors} />}
+        {data.viz.kind === "split" && !board ? <SplitViz theme={theme} viz={data.viz} colors={colors} /> : null}
+        {board ? <FirstGoalBoard script={script} theme={theme} supports={data.supports} hero={data.hero} /> : data.viz.kind === "ladder" ? (data.reasons.length ? <LadderSteps theme={theme} viz={data.viz} /> : <LadderViz theme={theme} viz={data.viz} />) : <SupportStrip theme={theme} items={data.supports} colors={colors} grow={!data.reasons.length} />}
         {data.reasons.length ? <ReasonList theme={theme} heading="Neden?" items={data.reasons} start={52} /> : null}
       </div>
     </AbsoluteFill>

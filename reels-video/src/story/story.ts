@@ -2,6 +2,7 @@ import { buildTimeline } from "../lib/motion";
 import type { ReelScene, ReelSceneType } from "../schema";
 import type { MatchData } from "./match-data";
 import { unknownNames } from "./name-guard";
+import { sceneReadabilityProblems } from "./readability";
 import type { PoolEntry } from "./pool";
 
 /**
@@ -85,5 +86,7 @@ export function storyProblems(story: readonly ReelScene[], data: MatchData, seco
   if (seconds < MIN_STORY_SECONDS || seconds > MAX_STORY_SECONDS) problems.push(`Süre ${seconds.toFixed(1)} sn: ${MIN_STORY_SECONDS}–${MAX_STORY_SECONDS} olmalı`);
   const names = unknownNames(story, data);
   if (names.length) problems.push(`Veride olmayan özel ad: ${names.join(", ")}`);
+  const teamNames = [data.teams.home.name, data.teams.home.short_name, data.teams.away.name, data.teams.away.short_name];
+  problems.push(...story.flatMap((scene) => sceneReadabilityProblems(scene, teamNames).map((problem) => `${scene.type}: ${problem}`)));
   return problems;
 }

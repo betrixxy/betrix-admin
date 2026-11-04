@@ -18,6 +18,12 @@ export const PROGRESS_TOP = BOTTOM - 8;
 /** Şablon alt sınırları. */
 export const MIN_HERO_PX = 160;
 export const MIN_SUPPORT_PX = 48;
+/** Video okunurluğu: gövde, etiket. Ana rakam `MIN_HERO_PX`. */
+export const MIN_BODY_PX = 40;
+export const MIN_LABEL_PX = 34;
+/** Güvenli alan içi doluluk; alt yarı ayrıca ölçülür. */
+export const MIN_FILL = 0.75;
+export const MIN_LOWER_FILL = 0.6;
 
 export interface Theme {
   id: DesignDirection;
@@ -48,6 +54,8 @@ export interface Theme {
   panel: string;
   panelEdge: string;
   stage: string;
+  /** Kısa el yazısı vurgu (≤ 3 sözcük): yalnız aktif temada. Cümle ve rakam bu fonta girmez. */
+  hand: string | null;
   /** Mono yazı yalnız C yönünde tasarımın parçası. */
   monoWordsAllowed: boolean;
 }
@@ -62,7 +70,7 @@ export const THEMES: Record<DesignDirection, Theme> = {
     id: "A", name: "Yayın",
     display: "Anton", displayItalic: false, number: "Anton", numberWeight: 400, digitEm: 0.5, label: "Saira Extra Condensed", labelWeight: 700,
     titleWeight: 400, titleMax: 112, titleWidth: 0.47, titleUpper: true,
-    heroSize: 270, supportSize: 72, labelSize: 36,
+    heroSize: 270, supportSize: 72, labelSize: 36, hand: null,
     accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#FFFFFF", ink2: "#E4E8EC", panel: "rgba(6,8,12,0.88)", panelEdge: "rgba(255,255,255,0.16)", stage: "backgrounds/stadium-night.jpg",
     monoWordsAllowed: false,
   },
@@ -70,7 +78,7 @@ export const THEMES: Record<DesignDirection, Theme> = {
     id: "B", name: "Dergi",
     display: "DM Serif Display", displayItalic: true, number: "DM Serif Display", numberWeight: 400, digitEm: 0.545, label: "Geist", labelWeight: 500,
     titleWeight: 400, titleMax: 118, titleWidth: 0.5, titleUpper: false,
-    heroSize: 280, supportSize: 72, labelSize: 30,
+    heroSize: 280, supportSize: 72, labelSize: 30, hand: null,
     accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#FBF6EA", ink2: "#E6DFCF", panel: "rgba(14,12,9,0.9)", panelEdge: "rgba(251,246,234,0.28)", stage: "backgrounds/crowd-bokeh.jpg",
     monoWordsAllowed: false,
   },
@@ -78,15 +86,15 @@ export const THEMES: Record<DesignDirection, Theme> = {
     id: "C", name: "Veri laboratuvarı",
     display: "Unbounded", displayItalic: false, number: "JetBrains Mono", numberWeight: 800, digitEm: null, label: "JetBrains Mono", labelWeight: 500,
     titleWeight: 800, titleMax: 76, titleWidth: 0.84, titleUpper: true,
-    heroSize: 236, supportSize: 62, labelSize: 27,
+    heroSize: 236, supportSize: 62, labelSize: 27, hand: null,
     accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F2FFFA", ink2: "#CFE5DC", panel: "rgba(4,12,14,0.86)", panelEdge: "rgba(46,165,55,0.5)", stage: "backgrounds/stadium-night.jpg",
     monoWordsAllowed: true,
   },
   D: {
-    id: "D", name: "Maç günü posteri",
+    id: "D", name: "Maç günü posteri + tahta",
     display: "Archivo Black", displayItalic: false, number: "Archivo Black", numberWeight: 400, digitEm: 0.68, label: "Barlow Condensed", labelWeight: 800,
     titleWeight: 400, titleMax: 84, titleWidth: 0.88, titleUpper: true,
-    heroSize: 250, supportSize: 62, labelSize: 34,
+    heroSize: 240, supportSize: 62, labelSize: 34, hand: "Caveat Brush",
     accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F7F5EE", ink2: "#E2DFD4", panel: "rgba(8,9,8,0.92)", panelEdge: "rgba(247,245,238,0.3)", stage: "backgrounds/crowd-bokeh.jpg",
     monoWordsAllowed: false,
   },
@@ -94,7 +102,7 @@ export const THEMES: Record<DesignDirection, Theme> = {
     id: "E", name: "Taktik tahtası",
     display: "Caveat Brush", displayItalic: false, number: "Caveat Brush", numberWeight: 400, digitEm: 0.5, label: "Kalam", labelWeight: 700,
     titleWeight: 400, titleMax: 128, titleWidth: 0.4, titleUpper: false,
-    heroSize: 300, supportSize: 84, labelSize: 32,
+    heroSize: 300, supportSize: 84, labelSize: 32, hand: "Caveat Brush",
     accent: BRAND_GREEN, accentInk: GREEN_INK, accentText: GREEN_TEXT, ink: "#F4F6EF", ink2: "#DDE3D8", panel: "rgba(10,18,14,0.9)", panelEdge: "rgba(244,246,239,0.42)", stage: "backgrounds/stadium-night.jpg",
     monoWordsAllowed: false,
   },

@@ -66,10 +66,10 @@ const greenWipe = (color: string): TransitionPresentation<{ color: string }> => 
 const MASK_CSS = "[data-reel-root] * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }";
 
 /** Zemin ve HUD geçişlerin dışındadır: boş kare olmaz, logo ve çubuk yerinde kalır. */
-export function ReelVideo({ script, audit = false, strictSafe = false, maskText = false }: { script: ReelScript; audit?: boolean; strictSafe?: boolean; maskText?: boolean }) {
+export function ReelVideo({ script, audit = false, strictSafe = false, maskText = false, videoRules = false }: { script: ReelScript; audit?: boolean; strictSafe?: boolean; maskText?: boolean; videoRules?: boolean }) {
   const accent = themeOf(script).accent;
   return (
-    <AbsoluteFill data-reel-root="" data-safe={strictSafe ? "strict" : "legacy"} data-mono-words={themeOf(script).monoWordsAllowed ? "ok" : "no"} lang="tr">
+    <AbsoluteFill data-reel-root="" data-safe={strictSafe ? "strict" : "legacy"} data-mono-words={themeOf(script).monoWordsAllowed ? "ok" : "no"} data-video-rules={videoRules ? "on" : "off"} lang="tr">
       {maskText ? <style>{MASK_CSS}</style> : null}
       <StageBackdrop script={script} />
       <TransitionSeries>

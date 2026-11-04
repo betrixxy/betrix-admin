@@ -1,4 +1,5 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
+import { BoardPanel, ChalkArrow, HandLabel, Magnet } from "../design/board";
 import { Figures, HeroFigure, Panel, PlayerCut, QuestionTitle, themeOf, titleBottom, useEnter } from "../design/kit";
 import { BOTTOM, labelStyle, numberStyle, type Theme, W, X } from "../design/tokens";
 import { countUp } from "../lib/motion";
@@ -16,8 +17,8 @@ function AnalystNote({ theme, text }: { theme: Theme; text: string }) {
   const enter = useEnter(56, 14);
   return (
     <Panel theme={theme} name="analist notu" style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 18px", ...enter }}>
-      <div style={{ ...labelStyle(theme, 30), color: theme.accentText, fontWeight: 800 }}>Analist notu</div>
-      <div style={{ ...labelStyle(theme, 40), color: theme.ink, lineHeight: 1.18 }}>{text}</div>
+      <div style={{ ...labelStyle(theme, 36), color: theme.accentText, fontWeight: 800 }}>Analist notu</div>
+      <div data-note="" style={{ ...labelStyle(theme, 40), color: theme.ink, lineHeight: 1.14 }}>{text}</div>
     </Panel>
   );
 }
@@ -30,13 +31,14 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
   const line2 = scene.headline?.line2 ?? "";
   const lead = script.meta.teams[data.leader];
   const trail = script.meta.teams[data.leader === "home" ? "away" : "home"];
-  const heroSize = Math.min(theme.heroSize, 200);
+  const heroSize = 170;
+  const boardHeight = 230;
   const shown = frame < 20 ? "" : data.leaderValue;
   return (
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
-        <div style={{ ...labelStyle(theme, 42), color: theme.ink, whiteSpace: "nowrap" }}>{data.metric}</div>
+        <div style={{ ...labelStyle(theme, 44), color: theme.ink, whiteSpace: "nowrap" }}>{data.metric}</div>
         <div style={{ display: "flex", gap: 12 }}>
           <div data-block={`lider ${lead.shortName}`} style={{ flex: 3, minWidth: 0, background: theme.accent, padding: "12px 18px", borderRadius: theme.id === "E" ? 20 : 0 }}>
             <div style={{ ...labelStyle(theme, 34), color: theme.accentInk, whiteSpace: "nowrap" }}>{lead.shortName}</div>
@@ -47,7 +49,15 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
             <div data-support="" style={{ ...numberStyle(theme, 110), color: theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={data.otherValue} /></div>
           </div>
         </div>
-        {data.analystNote ? <AnalystNote theme={theme} text={data.analystNote} /> : <ReasonList theme={theme} items={data.reasons} start={48} size={40} />}
+        <BoardPanel name="anahtar tahtası" width={W} height={boardHeight}>
+          <svg data-fill="" width={W} height={boardHeight} viewBox={`0 0 ${W} ${boardHeight}`} style={{ position: "absolute", left: 0, top: 0 }}>
+            <Magnet x={130} y={boardHeight / 2} r={72} color={lead.colors.primary} logo={lead.logo} />
+            <Magnet x={W - 130} y={boardHeight / 2} r={72} color={trail.colors.primary} logo={trail.logo} />
+          </svg>
+          <ChalkArrow width={W} height={boardHeight} from={[220, boardHeight / 2 + 20]} to={[W - 220, boardHeight / 2 + 20]} bend={50} color={theme.accentText} start={30} name="anahtar" />
+          <HandLabel theme={theme} text="En açık fark" size={60} style={{ left: W / 2 - 150, top: 18 }} />
+        </BoardPanel>
+        {data.analystNote ? <AnalystNote theme={theme} text={data.analystNote} /> : <ReasonList theme={theme} items={data.reasons} start={48} size={44} />}
       </Area>
     </AbsoluteFill>
   );
@@ -66,7 +76,13 @@ export function UpsetScene({ script, scene }: SceneProps<"C08_UPSET">) {
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
         <HeroFigure theme={theme} value={data.hero.value} percent={data.hero.percent} label={`${data.team} kazanırsa`} color={team.colors.primary} size={Math.min(theme.heroSize, 220)} />
-        <ReasonList theme={theme} heading="Yolu ne?" items={data.reasons} start={44} size={36} />
+        <BoardPanel name="sürpriz yolu" width={W} height={500} grow style={{ display: "flex", flexDirection: "column" }}>
+          <HandLabel theme={theme} text="Sürpriz yolu" size={62} style={{ left: 24, top: 16 }} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-evenly", padding: "92px 24px 18px 100px", gap: 14 }}>
+            {data.reasons.map((reason) => <div key={reason.id} data-bullet="" style={{ ...labelStyle(theme, 46), color: theme.ink, lineHeight: 1.1 }}>{reason.text}</div>)}
+          </div>
+          <ChalkArrow width={90} height={500} from={[50, 110]} to={[50, 470]} bend={0} color={theme.accentText} start={36} name="surpriz" />
+        </BoardPanel>
       </Area>
     </AbsoluteFill>
   );
@@ -75,9 +91,9 @@ export function UpsetScene({ script, scene }: SceneProps<"C08_UPSET">) {
 function ScenarioItem({ theme, text, index }: { theme: Theme; text: string; index: number }) {
   const enter = useEnter(18 + index * 18, 16);
   return (
-    <div data-block={`madde ${index + 1}`} style={{ display: "flex", alignItems: "center", gap: 16, background: theme.panel, padding: "14px 18px", borderRadius: theme.id === "E" ? 20 : 0, ...enter }}>
+    <div data-block={`madde ${index + 1}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 16, background: theme.panel, padding: "14px 18px", borderRadius: theme.id === "E" ? 20 : 0, ...enter }}>
       <span data-support="" style={{ ...numberStyle(theme, 72), color: theme.accentInk, background: theme.accent, width: 96, height: 96, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: theme.id === "E" ? 48 : 0 }}>{index + 1}</span>
-      <span style={{ ...labelStyle(theme, 44), color: theme.ink, lineHeight: 1.14 }}>{text}</span>
+      <span data-bullet="" style={{ ...labelStyle(theme, 46), color: theme.ink, lineHeight: 1.12 }}>{text}</span>
     </div>
   );
 }
@@ -91,7 +107,7 @@ export function ScenarioScene({ script, scene }: SceneProps<"C09_SCENARIO">) {
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {data.items.map((item, index) => <ScenarioItem key={item.id} theme={theme} text={item.text} index={index} />)}
         </div>
         {data.analystNote ? <AnalystNote theme={theme} text={data.analystNote} /> : null}
@@ -113,11 +129,11 @@ export function CloseScene({ script, scene }: SceneProps<"S17_CLOSE">) {
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
           {data.options.map((option, index) => {
             const logo = logos[index];
             return (
-              <div key={option} data-block={`seçenek ${option}`} style={{ display: "flex", alignItems: "center", gap: 14, height: 112, padding: "0 20px", background: theme.panel, border: `3px solid ${index < lit ? theme.accent : theme.panelEdge}`, borderRadius: theme.id === "E" ? 56 : 0 }}>
+              <div key={option} data-block={`seçenek ${option}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, padding: "0 20px", background: theme.panel, border: `3px solid ${index < lit ? theme.accent : theme.panelEdge}`, borderRadius: theme.id === "E" ? 56 : 0 }}>
                 {logo ? <Img src={staticFile(logo)} style={{ width: 68, height: 68 }} /> : null}
                 <span style={{ ...labelStyle(theme, 46), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.titleUpper ? "uppercase" : "none" }}>{option}</span>
               </div>
@@ -126,7 +142,7 @@ export function CloseScene({ script, scene }: SceneProps<"S17_CLOSE">) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ ...labelStyle(theme, 42), color: theme.ink }}>{data.prompt}</div>
-          <div style={{ ...labelStyle(theme, 36) }}>{data.save}</div>
+          <div style={{ ...labelStyle(theme, 40) }}>{data.save}</div>
           <div style={{ ...labelStyle(theme, 40), color: theme.accentText, fontWeight: 800 }}>{data.handle}</div>
         </div>
       </Area>

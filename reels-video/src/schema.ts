@@ -27,8 +27,14 @@ const team = z.strictObject({
   colors: z.strictObject({ primary: hex, secondary: hex }),
 });
 
+/** Seslendirme: ekrandaki maddelerden uzun, rakamlar yazıyla, her cümle veri anahtarlarına bağlı (`story/claims.ts::say`). */
+export const voiceLineSchema = z.strictObject({ id: z.string(), template: z.string(), text: z.string().min(1), sources: z.array(z.string()).min(1) });
+export const voiceoverSchema = z.strictObject({ text: z.string().min(1), lines: z.array(voiceLineSchema).min(1) });
+
 const sceneBase = {
   durationInFrames: z.number().int().positive(),
+  /** Akıştaki her sahnede dolu; null yalnız akış dışı eski sahnelerde. Boşsa render durur (`story/readability.ts`). */
+  voiceover: voiceoverSchema.nullable(),
   headline: z.strictObject({ line1: z.string().min(1), line2: z.string().min(1) }).nullable(),
   caption: z.string().nullable(),
   assets: z.strictObject({ photoIds: z.array(z.string()) }),
@@ -142,9 +148,11 @@ export const reelSceneSchema = z.discriminatedUnion("type", [
 ]);
 
 export const DESIGN_DIRECTIONS = ["A", "B", "C", "D", "E"] as const;
+/** Seçilen tema (11-03): D poster kimliği + analiz kartlarında tahta öğeleri. Diğer şablonlar duruyor, video okunurluk denetiminden geçirilmedi. */
+export const ACTIVE_DESIGN = "D" as const;
 
 export const reelScriptSchema = z.strictObject({
-  /** Tasarım yönü: A Yayın, B Dergi, C Veri laboratuvarı, D Maç günü posteri, E Taktik tahtası. */
+  /** Tasarım yönü: A Yayın, B Dergi, C Veri laboratuvarı, D Maç günü posteri + tahta (aktif), E Taktik tahtası. */
   design: z.enum(DESIGN_DIRECTIONS),
   meta: z.strictObject({
     match: z.strictObject({ id: z.number().int(), kickoffUtc: z.iso.datetime({ offset: true }), kickoffLabel: z.string(), round: z.string().nullable(), venue: z.string().nullable() }),
@@ -155,6 +163,8 @@ export const reelScriptSchema = z.strictObject({
   brand: z.strictObject({ accent: hex, logo: z.string().min(1), mark: z.string().min(1), handle: z.string().min(1) }),
   photos: z.record(z.string(), reelPhotoSchema),
   scenes: z.array(reelSceneSchema).min(1),
+  /** Video açıklama metni: analist notunun tam hali burada. */
+  description: z.string().min(1),
   /** Havuzda olup kullanılmayan sahneler ve nedeni: stüdyoda gösterilir. */
   disabled: z.array(z.strictObject({ type: z.string(), reason: z.string() })),
 });

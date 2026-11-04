@@ -10,7 +10,8 @@
     "test": "tsx --test tests/*.test.ts",
     "stills": "tsx scripts/render.ts --stills",
     "board": "tsx scripts/style-board.ts",
-    "render": "tsx scripts/render.ts --video"
+    "render": "tsx scripts/render.ts --video",
+    "flow": "tsx scripts/flow-stills.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",

@@ -1,5 +1,5 @@
 import { formatDecimal, formatInt, ofTen, spokenThousands } from "../lib/motion";
-import type { DesignDirection, QuestionSceneType, ReelPhoto, ReelScene, ReelSceneType, ReelScript } from "../schema";
+import { ACTIVE_DESIGN, type DesignDirection, QuestionSceneType, ReelPhoto, ReelScene, ReelSceneType, ReelScript } from "../schema";
 
 export { MAX_STORY_SCENES, MAX_STORY_SECONDS, MIN_STORY_SCENES, MIN_STORY_SECONDS, pickStory, storyProblems, type StoryAngle, type StoryOptions } from "./story";
 import { checkBothScore, checkFirstGoal, checkGoals } from "./market-checks";
@@ -7,6 +7,7 @@ import type { MatchData, Side } from "./match-data";
 import { compareMetrics, compareRows, effectiveFatigue, formLetters, outcomeLeader, pickKeyGap } from "./metrics";
 import { DUEL_SCOPE, duelRows, MIN_DUEL_ROWS, pickStar, VS_SCOPE, vsOpponentStory } from "./players";
 import { evaluateAnalysis } from "./analysis";
+import { say, TEAM, voiceOf, type Voiceover } from "./claims";
 import { evaluateQuestions } from "./questions";
 import { inSquad, squadFreshness } from "./squad";
 import { decideTrackRecord } from "./track-record";
@@ -51,20 +52,21 @@ const dateLabel = (iso: string): string => {
 };
 
 const QUESTION_FRAMES: Record<QuestionSceneType, number> = {
-  Q01_WINNER: 180, Q02_POINTS: 150, Q03_COMFORT: 150, Q04_GOALS: 180, Q05_BOTH_SCORE: 165, Q06_TEAM_GOALS: 150, Q07_CLEAN_WIN: 150, Q08_HT_LEAD: 150,
-  Q09_HT_GOAL: 150, Q10_HOT_HALF: 150, Q11_COMEBACK: 150, Q12_FIRST_GOAL: 165, Q13_PRESSURE: 150, Q14_CARDS: 150, Q15_PENALTY: 150, Q16_SCORE: 150, Q17_SCORER: 150,
+  Q01_WINNER: 180, Q02_POINTS: 150, Q03_COMFORT: 150, Q04_GOALS: 180, Q05_BOTH_SCORE: 180, Q06_TEAM_GOALS: 150, Q07_CLEAN_WIN: 150, Q08_HT_LEAD: 150,
+  Q09_HT_GOAL: 150, Q10_HOT_HALF: 150, Q11_COMEBACK: 150, Q12_FIRST_GOAL: 180, Q13_PRESSURE: 150, Q14_CARDS: 150, Q15_PENALTY: 150, Q16_SCORE: 150, Q17_SCORER: 150,
 };
 
 const DURATIONS: Record<ReelSceneType, number> = {
   ...QUESTION_FRAMES,
-  S01_COVER: 60, C01_STORY: 195, M02_MONTE_CARLO: 210, C02_FORM: 180, C03_ABSENCES: 180, C04_TEAM_HOME: 180, C05_TEAM_AWAY: 180, C06_MINUTES: 180, C07_KEY: 165, C08_UPSET: 165, C09_SCENARIO: 195,
-  P01_DUEL: 180, P02_VS_OPPONENT: 180, S17_CLOSE: 105,
+  S01_COVER: 120, C01_STORY: 180, M02_MONTE_CARLO: 180, C02_FORM: 180, C03_ABSENCES: 180, C04_TEAM_HOME: 180, C05_TEAM_AWAY: 180, C06_MINUTES: 180, C07_KEY: 180, C08_UPSET: 180, C09_SCENARIO: 180,
+  P01_DUEL: 180, P02_VS_OPPONENT: 180, S17_CLOSE: 120,
   // Yedek havuzun eski sahneleri: akışa girmez, tasarım seçilince taşınır ya da silinir.
   S02_LOGO: 32, S03_HOOK: 150, S04_COMPARE: 210, S05_H2H: 180, S07_KEY_GAP: 150, S11_FATIGUE: 120, S14_TRACK_RECORD: 180, S15_CHANCE: 150, S16_SUMMARY: 270,
 };
 
-const base = (type: ReelSceneType, headline: [string, string] | null, assets = NONE) => ({
+const base = (type: ReelSceneType, headline: [string, string] | null, assets = NONE, voiceover: Voiceover | null = null) => ({
   durationInFrames: DURATIONS[type],
+  voiceover,
   headline: headline ? { line1: headline[0], line2: headline[1] } : null,
   caption: null,
   assets,
@@ -89,7 +91,10 @@ function evaluateDuel(data: MatchData, now: Date): PoolEntry {
   const rows = duelRows(home, away);
   if (rows.length < MIN_DUEL_ROWS) return off("P01_DUEL", "Oyuncu istatistiği yetersiz");
   return on({
-    type: "P01_DUEL", ...base("P01_DUEL", ["Yıldızların", "düellosu"], BOTH),
+    type: "P01_DUEL", ...base("P01_DUEL", ["Yıldızların", "düellosu"], BOTH, voiceOf([
+      say(data, "duel.home", "{name} bu sezon {g} gol, {a} asist.", { name: { label: home.name }, g: { computed: home.goals ?? 0, from: [`players.candidates.home`], format: "int" }, a: { computed: home.assists ?? 0, from: [`players.candidates.home`], format: "int" } }),
+      say(data, "duel.away", "{name} {g} gol, {a} asist.", { name: { label: away.name }, g: { computed: away.goals ?? 0, from: [`players.candidates.away`], format: "int" }, a: { computed: away.assists ?? 0, from: [`players.candidates.away`], format: "int" } }),
+    ])),
     data: { home: { name: home.name, team: teams.home.short_name, logo: teams.home.logo }, away: { name: away.name, team: teams.away.short_name, logo: teams.away.logo }, rows, scope: DUEL_SCOPE },
   });
 }
@@ -109,7 +114,9 @@ function evaluateVsOpponent(data: MatchData, now: Date): PoolEntry {
   const opponent = teams[best.side === "home" ? "away" : "home"];
   const teamId = teams[best.side].id;
   return on({
-    type: "P02_VS_OPPONENT", ...base("P02_VS_OPPONENT", ["Rakibine karşı", best.player.name], { photoIds: [`${best.side}-1`] }),
+    type: "P02_VS_OPPONENT", ...base("P02_VS_OPPONENT", ["Rakibine karşı", best.player.name], { photoIds: [`${best.side}-1`] }, voiceOf([
+      say(data, "vs.total", "{name}, {team} karşısında {m} maçta {g} gol, {a} asist yaptı.", { name: { label: best.player.name }, team: TEAM[best.side === "home" ? "away" : "home"], m: { computed: best.history.matches.length, from: ["players.vs_opponent"], format: "int" }, g: { computed: best.story.goals, from: ["players.vs_opponent"], format: "int" }, a: { computed: best.story.assists, from: ["players.vs_opponent"], format: "int" } }),
+    ])),
     data: {
       side: best.side, player: best.player.name, opponent: opponent.short_name,
       timeline: [...best.history.matches].sort((a, b) => a.date.localeCompare(b.date)).slice(-5).map((match) => ({ date: fullDay(match.date), club: match.club_name, clubLogo: match.club_logo, otherClub: match.club_id !== teamId, score: match.score, goals: match.goals, assists: match.assists })),
@@ -143,7 +150,7 @@ export function evaluatePool(data: MatchData, brand: { handle: string }, options
   const questions = evaluateQuestions(data, { durations: QUESTION_FRAMES, allowScorerScene: options.allowScorerScene ?? false, now });
 
   return [
-    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], BOTH), data: { seriesLabel: "Maç Önü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
+    on({ type: "S01_COVER", ...base("S01_COVER", [home.name, away.name], BOTH, voiceOf([say(data, "cover", "{home} ile {away} karşılaşıyor. Bu maçı birlikte okuyalım.", { home: TEAM.home, away: TEAM.away })])), data: { seriesLabel: "Maç Önü", league: data.match.league.name, round: data.match.league.round, dateLabel: dateLabel(data.match.kickoff_utc), venue: data.match.venue } }),
     on({ type: "S02_LOGO", ...base("S02_LOGO", null), data: {} }),
     sim === null
       ? off("S03_HOOK", "Simülasyon sayısı yok")
@@ -242,7 +249,14 @@ const placeholderPhoto = (side: "home" | "away"): ReelPhoto => ({
 });
 export const PHOTOS: Record<string, ReelPhoto> = { "home-1": placeholderPhoto("home"), "away-1": placeholderPhoto("away") };
 
-export function buildScript(data: MatchData, scenes: ReelScene[], disabled: { type: string; reason: string }[], design: DesignDirection = "A"): ReelScript {
+/** Video açıklaması: analist notunun tam hali + senaryo maddeleri. */
+export function videoDescription(data: MatchData, scenes: readonly ReelScene[]): string {
+  const scenario = scenes.find((scene) => scene.type === "C09_SCENARIO");
+  const items = scenario?.type === "C09_SCENARIO" ? scenario.data.items.map((item) => item.text) : [];
+  return [`${data.teams.home.name} – ${data.teams.away.name}: maç önü analiz.`, data.analyst_note?.trim() ?? "", ...items, BRAND.handle].filter(Boolean).join("\n");
+}
+
+export function buildScript(data: MatchData, scenes: ReelScene[], disabled: { type: string; reason: string }[], design: DesignDirection = ACTIVE_DESIGN): ReelScript {
   const team = (side: "home" | "away") => {
     const item = data.teams[side];
     return { id: item.id, name: item.name, shortName: item.short_name, logo: item.logo, colors: item.colors };
@@ -258,6 +272,7 @@ export function buildScript(data: MatchData, scenes: ReelScene[], disabled: { ty
     brand: BRAND,
     photos: PHOTOS,
     scenes,
+    description: videoDescription(data, scenes),
     disabled,
   };
 }

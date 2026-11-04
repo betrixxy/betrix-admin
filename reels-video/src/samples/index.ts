@@ -2,7 +2,7 @@ import { DERBY_CONTEXT, FAVOURITE_CONTEXT } from "./context";
 import { buildTimeline } from "../lib/motion";
 import type { MatchData, MatchPlayers, PlayerSeason } from "../story/match-data";
 import { buildScript, evaluatePool, BRAND, pickStory, type StoryAngle } from "../story/pool";
-import { reelScriptSchema, type DesignDirection, type ReelScript } from "../schema";
+import { ACTIVE_DESIGN, reelScriptSchema, type DesignDirection, type ReelScript, type ReelScene } from "../schema";
 
 /** İki KURGUSAL örnek: takımlar, kişiler ve sayılar uydurmadır. Biri derbi havası, biri ezici favori. */
 
@@ -167,7 +167,7 @@ export const SAMPLE_KEYS = Object.keys(SAMPLE_MATCHES) as SampleKey[];
 export const SAMPLE_OPTIONS = { allowSampleTrackRecord: true, allowScorerScene: true } as const;
 
 /** Seçilen hikâye (video) ve bütün havuz (tek kareler) aynı veriden. */
-export function sampleScripts(key: SampleKey, design: DesignDirection = "A"): { story: ReelScript; pool: ReelScript } {
+export function sampleScripts(key: SampleKey, design: DesignDirection = ACTIVE_DESIGN): { story: ReelScript; pool: ReelScript } {
   const { data, angle } = SAMPLE_MATCHES[key];
   const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
   const disabled = entries.flatMap((entry) => (entry.reason ? [{ type: entry.type, reason: entry.reason }] : []));
@@ -182,7 +182,7 @@ export function sampleScripts(key: SampleKey, design: DesignDirection = "A"): { 
 export const BOARD_SCENES = ["S01_COVER", "M02_MONTE_CARLO", "C03_ABSENCES", "C04_TEAM_HOME", "Q05_BOTH_SCORE", "C09_SCENARIO"] as const;
 
 /** Panoda analist notlu kart da görünsün. Kurgusal. */
-const BOARD_NOTE = "Kurgusal not: Maçı ilk golü bulan taraf yönetir.";
+const BOARD_NOTE = "Kurgusal not: Maçı ilk golü bulan taraf yönetir. İki takım da savunma arkasına koşularla oynuyor, bu yüzden ilk yarım saat belirleyici.";
 
 export function boardScript(design: DesignDirection): ReelScript {
   const data = { ...DERBY, analyst_note: BOARD_NOTE };
@@ -190,6 +190,20 @@ export function boardScript(design: DesignDirection): ReelScript {
   const ready = entries.flatMap((entry) => (entry.scene ? [entry.scene] : []));
   const scenes = BOARD_SCENES.flatMap((type) => ready.filter((scene) => scene.type === type));
   return reelScriptSchema.parse(buildScript(data, scenes, [], design));
+}
+
+/** Tek sahnelik senaryo: Monte Carlo kısa MP4'ü. */
+export function singleSceneScript(type: ReelScene["type"]): ReelScript {
+  const script = boardScript(ACTIVE_DESIGN);
+  const scenes = evaluatePool({ ...DERBY, analyst_note: BOARD_NOTE }, BRAND, SAMPLE_OPTIONS).flatMap((entry) => (entry.scene?.type === type ? [entry.scene] : []));
+  return reelScriptSchema.parse({ ...script, scenes });
+}
+
+/** Tam akış: derbi hikâyesi, analist notlu. 17 adımın hepsi + açının eklediği sahne. */
+export function flowScript(): ReelScript {
+  const data = { ...DERBY, analyst_note: BOARD_NOTE };
+  const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
+  return reelScriptSchema.parse(buildScript(data, pickStory(entries, "derby"), [], ACTIVE_DESIGN));
 }
 
 export const storySeconds = (script: ReelScript): number => buildTimeline(script.scenes.map((scene) => scene.durationInFrames)).total / 30;
