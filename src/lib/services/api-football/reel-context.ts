@@ -4,8 +4,8 @@ import type { ApiFootballError } from "@/lib/services/api-football/types";
 import type { Result } from "@/types/result";
 
 /**
- * Reels futbol okumasının ham uçları. Alan adları resmî OpenAPI belgesinden (API-Football 3.9.3, 2026-11-03) doğrulandı;
- * canlı yanıtla henüz sınanmadı. `average` belgede sayı gibi görünür, sağlayıcı dizgi de verebildiği için ikisi kabul edilir.
+ * Reels futbol okumasının ham uçları. Alan adları resmî OpenAPI belgesinden (API-Football 3.9.3) alındı, 2026-11-03'te canlı
+ * yanıtla sınandı (Gaziantep FK–Kasımpaşa; eksikler Şampiyonlar Ligi maçlarından). `average` belgede sayı gibi görünür, sağlayıcı dizgi de verebildiği için ikisi kabul edilir.
  * Tazelik belgeden: istatistik günde iki, eksik 4 saatte bir güncellenir.
  */
 

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { before, describe, it } from "node:test";
 import { acceptPolishedClaims, analystNoteProblem, auditPolishedClaim } from "@/lib/reels/commentary";
 import type { ReelContextDeps } from "@/lib/reels/context-data";
-import { leagueGoalsAvg, reelAbsenceStatus, reelGoalMinutes, sidelinedOn, reelTeamContext } from "@/lib/reels/context-rule";
+import { leagueGoalsAvg, longestRun, reelAbsenceStatus, reelGoalMinutes, sidelinedOn, reelTeamContext } from "@/lib/reels/context-rule";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
 import type { TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
 import type { MatchContext } from "../../reels-video/src/story/match-context";
@@ -66,6 +66,16 @@ describe("belge örneği", () => {
   it("dakika: 91–105 son dilime eklenir, golsüz dilim null değil 0", () => {
     assert.deepEqual(reelGoalMinutes(STATS.goals?.for), [4, 17, 11, 13, 10, 11]);
   });
+  it("canlı yanıt: dilim toplamı sezon golünden biraz farklı olabilir, boş dilim 0", () => {
+    const side = { total: { total: 9 }, minute: { "0-15": { total: 2 }, "16-30": { total: null }, "31-45": { total: 2 }, "46-60": { total: 1 }, "61-75": { total: 2 }, "76-90": { total: null }, "91-105": { total: null }, "106-120": { total: null } } };
+    assert.deepEqual(reelGoalMinutes(side), [2, 0, 2, 1, 2, 0]);
+  });
+  it("canlı yanıt: seri form dizisinden, sağlayıcının biggest.streak alanından değil", () => {
+    assert.equal(longestRun("DWLWDLLLLL", "L"), 5);
+    const team = reelTeamContext({ ...STATS, form: "DWLWDLLLLL", biggest: { streak: { wins: 1, draws: 1, loses: 1 } } }, undefined, "home", null);
+    assert.deepEqual(team.streaks, { wins: 1, draws: 1, loses: 5 });
+    assert.equal(longestRun(null, "W"), 0);
+  });
   it("dilim toplamı sezon golünü tutmuyorsa hepsi null: sıfır uydurulmaz", () => {
     const side = { total: { total: 70 }, minute: { "0-15": { total: 4 } } };
     assert.deepEqual(reelGoalMinutes(side), [null, null, null, null, null, null]);
@@ -80,6 +90,7 @@ describe("eksikler", () => {
     assert.equal(reelAbsenceStatus("Missing Fixture", "Suspended"), "suspended");
     assert.equal(reelAbsenceStatus("Missing Fixture", "Red Card"), "suspended");
     assert.equal(reelAbsenceStatus("Bilinmeyen", "x"), null);
+    assert.equal(reelAbsenceStatus("Missing Fixture", "Off the roster"), null);
   });
   it("sidelined: yalnız maç gününü kapsayan, bitişi bilinen kayıt", () => {
     assert.equal(sidelinedOn([{ type: "Suspended", start: "2026-11-01", end: "2026-11-10" }], "2026-11-08"), "suspended");

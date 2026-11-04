@@ -9,6 +9,8 @@ import type { InjuryRaw, ReelStandingRowRaw, SidelinedRaw, TeamStatisticsRaw } f
 
 export const REEL_GOAL_SLOT_COUNT = 6;
 const MINUTE_KEYS = ["0-15", "16-30", "31-45", "46-60", "61-75", "76-90"] as const;
+/** Dilim toplamı ile sezon golü arasında kabul edilen fark. */
+export const MINUTE_TOLERANCE_PCT = 30;
 const STOPPAGE_KEY = "91-105";
 const EXTRA_KEY = "106-120";
 
@@ -49,8 +51,9 @@ const toNumber = (value: unknown): number | null => {
 const share = (part: number | null | undefined, total: number): number | null => (part === null || part === undefined || total <= 0 ? null : Math.round((part / total) * 1000) / 10);
 
 /**
- * Dakika dilimleri: sağlayıcı golsüz dilimde `total: null` verir. Dilimlerin toplamı sezon golüne eşitse null = 0'dır;
- * eşit değilse veri eksiktir ve hepsi null kalır, sahne kapanır. 91–105 son dilime eklenir; 106–120 uzatmadır, sayılmaz.
+ * Dakika dilimleri: sağlayıcı golsüz dilimde `total: null` verir, null = 0. Canlı yanıtta dilim toplamı sezon golüne eşit
+ * değil (11-03, Gaziantep: 7 ↔ 9 ve 19 ↔ 17). Fark sezon golünün %30'unu aşarsa ya da hiç dilim yoksa veri eksik sayılır,
+ * hepsi null kalır, sahne kapanır. 91–105 son dilime eklenir; 106–120 uzatmadır, sayılmaz.
  */
 export function reelGoalMinutes(side: NonNullable<NonNullable<TeamStatisticsRaw["goals"]>["for"]> | undefined): (number | null)[] {
   const empty = MINUTE_KEYS.map(() => null);
@@ -59,7 +62,8 @@ export function reelGoalMinutes(side: NonNullable<NonNullable<TeamStatisticsRaw[
   if (!minute || total === null || total === undefined) return empty;
   const at = (key: string) => minute[key]?.total ?? 0;
   const counted = [...MINUTE_KEYS, STOPPAGE_KEY, EXTRA_KEY].reduce((sum, key) => sum + at(key), 0);
-  if (counted !== total) return empty;
+  if (total > 0 && counted === 0) return empty;
+  if ((Math.abs(counted - total) / Math.max(total, 1)) * 100 > MINUTE_TOLERANCE_PCT) return empty;
   return MINUTE_KEYS.map((key, index) => at(key) + (index === MINUTE_KEYS.length - 1 ? at(STOPPAGE_KEY) : 0));
 }
 
@@ -79,12 +83,20 @@ export function leagueGoalsAvg(rows: readonly ReelStandingRowRaw[]): number | nu
   return played > 0 ? Math.round((goals / played) * 100) / 100 : null;
 }
 
+/**
+ * En uzun seri form dizisinden sayılır. Sağlayıcının `biggest.streak` alanı kullanılmaz: canlı yanıtta form "…LLLLL" iken
+ * `loses: 1` geldi (11-03, Gaziantep).
+ */
+export function longestRun(form: string | null, letter: "W" | "D" | "L"): number {
+  return (form ?? "").split("").reduce((run, item) => (item === letter ? { now: run.now + 1, best: Math.max(run.best, run.now + 1) } : { now: 0, best: run.best }), { now: 0, best: 0 }).best;
+}
+
 export function reelTeamContext(stats: TeamStatisticsRaw | null, row: ReelStandingRowRaw | undefined, side: "home" | "away", xgForAvg: number | null): ReelTeamContext {
   const played = stats?.fixtures?.played?.total ?? 0;
   const lineup = (stats?.lineups ?? []).flatMap((item) => (item.formation && item.played ? [{ name: item.formation, played: item.played }] : [])).sort((a, b) => b.played - a.played)[0] ?? null;
-  const streak = stats?.biggest?.streak;
+  const form = stats?.form ?? null;
   return {
-    form: stats?.form ?? null,
+    form,
     played,
     wins: stats?.fixtures?.wins?.total ?? 0,
     loses: stats?.fixtures?.loses?.total ?? 0,
@@ -95,15 +107,18 @@ export function reelTeamContext(stats: TeamStatisticsRaw | null, row: ReelStandi
     clean_sheet_pct: share(stats?.clean_sheet?.total, played),
     failed_to_score_pct: share(stats?.failed_to_score?.total, played),
     formation: lineup,
-    streaks: { wins: streak?.wins ?? 0, draws: streak?.draws ?? 0, loses: streak?.loses ?? 0 },
+    streaks: { wins: longestRun(form, "W"), draws: longestRun(form, "D"), loses: longestRun(form, "L") },
     minutes: { for: reelGoalMinutes(stats?.goals?.for), against: reelGoalMinutes(stats?.goals?.against) },
   };
 }
 
-/** Belge: `Missing Fixture` oynamayacak, `Questionable` şüpheli. Ceza `reason` içinde gelir ("Suspended", "Red Card"). Sebep metni ekrana yazılmaz. */
+/**
+ * Belge: `Missing Fixture` oynamayacak, `Questionable` şüpheli. Ceza `reason` içinde gelir ("Red Card" canlıda görüldü). "Off the roster"
+ * sakatlık değil kadro dışıdır (canlıda en sık sebeplerden): eksik listesine girmez. Sebep metni ekrana yazılmaz.
+ */
 export function reelAbsenceStatus(type: string | null | undefined, reason: string | null | undefined): ReelAbsenceStatus | null {
   if (type === "Questionable") return "doubtful";
-  if (type !== "Missing Fixture") return null;
+  if (type !== "Missing Fixture" || /off the roster/iu.test(reason ?? "")) return null;
   return /suspend|red card|yellow card/iu.test(reason ?? "") ? "suspended" : "injured";
 }
 
