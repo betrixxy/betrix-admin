@@ -110,7 +110,7 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
           <CardDescription>Kendi futbol okumanız: &quot;Maçın anahtarı&quot; ve &quot;checkmatch senaryosu&quot; kartlarına girer. Yazmazsanız veri tabanlı yorum kullanılır.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReelsAnalystNote projectId={project.id} note={project.analystNote} disabledReason={canFreezeReel(project.status) ? null : "Bu aşamada not değiştirilemez."} />
+          <ReelsAnalystNote projectId={project.id} screenNote={project.analystScreenNote} voiceNote={project.analystVoiceNote} disabledReason={canFreezeReel(project.status) ? null : "Bu aşamada not değiştirilemez."} />
         </CardContent>
       </Card>
 

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { before, describe, it } from "node:test";
-import { acceptPolishedClaims, analystNoteProblem, auditPolishedClaim } from "@/lib/reels/commentary";
+import { screenNoteProblem, splitVoiceNote, voiceNoteProblem } from "@/lib/reels/analyst-note";
+import { acceptPolishedClaims, auditPolishedClaim } from "@/lib/reels/commentary";
 import type { ReelContextDeps } from "@/lib/reels/context-data";
 import { leagueGoalsAvg, longestRun, reelAbsenceStatus, reelGoalMinutes, sidelinedOn, reelTeamContext } from "@/lib/reels/context-rule";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
@@ -188,8 +189,11 @@ describe("LLM denetimi", () => {
 
 describe("analist notu", () => {
   it("en fazla 3 cümle, 280 karakter", () => {
-    assert.equal(analystNoteProblem("Bir. İki. Üç."), null);
-    assert.match(analystNoteProblem("Bir. İki. Üç. Dört.") ?? "", /3 cümle/);
-    assert.match(analystNoteProblem("a".repeat(281)) ?? "", /280/);
+    assert.equal(voiceNoteProblem("Bir. İki. Üç."), null);
+    assert.match(voiceNoteProblem("Bir. İki. Üç. Dört.") ?? "", /3 cümle/);
+    assert.match(voiceNoteProblem("a".repeat(281)) ?? "", /280/);
+    assert.match(screenNoteProblem(Array.from({ length: 16 }, () => "a").join(" ")) ?? "", /15 sözcük/);
+    assert.equal(screenNoteProblem(""), null);
+    assert.deepEqual(splitVoiceNote("Bir. İki."), ["Bir. İki.", null]);
   });
 });

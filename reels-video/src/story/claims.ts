@@ -143,16 +143,7 @@ export const voiceOf = (items: readonly (VoiceLine | null)[]): Voiceover | null 
   return lines.length ? { text: lines.map((line) => line.text).join(" "), lines } : null;
 };
 
-/** Analist notunun ekranda kalan kısmı: ilk cümle sığıyorsa o, sığmıyorsa sözcük sınırında kesilir. Tam hali sese ve açıklamaya gider. */
-export const NOTE_SCREEN_CHARS = 84;
-export function noteForScreen(note: string): string {
-  const clean = note.trim();
-  if (clean.length <= NOTE_SCREEN_CHARS) return clean;
-  const first = clean.match(/^.+?[.!?](?=\s|$)/u)?.[0];
-  if (first && first.length <= NOTE_SCREEN_CHARS) return first;
-  const cut = clean.slice(0, NOTE_SCREEN_CHARS - 1);
-  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 1)).trimEnd()}…`;
-}
+/** Seslendirme notu kullanıcının metni: şablon denetimine girmez, kaynağı `analyst_note`. */
 export const noteLine = (note: string): VoiceLine => ({ id: "vo.analyst.note", template: "{note}", text: note.trim(), sources: ["analyst_note"] });
 
 export const claims = (items: readonly (Reason | null)[]): Reason[] => items.flatMap((item) => (item ? [item] : []));

@@ -3,7 +3,7 @@ import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
 import { prisma } from "@/lib/prisma";
 import { publishWindow } from "@/lib/reels/publish-window";
 import { reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
-import { analystNoteProblem } from "@/lib/reels/commentary";
+import { screenNoteProblem, voiceNoteProblem } from "@/lib/reels/analyst-note";
 import { loadReelContext } from "@/lib/reels/context-data";
 import { refreshProjectSquads } from "@/lib/reels/squad-data";
 import { contentLanguageGate } from "@/lib/prediction/content-language";
@@ -74,14 +74,15 @@ export async function cancelReelProject(projectId: string): Promise<Result<true,
 }
 
 /** Analist notu: kullanıcının kendi yazdığı metin. Dil kapısından geçer; video onaydan sonra değişmesin diye onayda kilitlenir. */
-export async function saveReelAnalystNote(projectId: string, note: string): Promise<Result<true, ReelActionError>> {
+export async function saveReelAnalystNote(projectId: string, note: { screen: string; voice: string }): Promise<Result<true, ReelActionError>> {
   const project = await prisma.reelProject.findUnique({ where: { id: projectId }, select: { status: true } });
   if (!project) return { ok: false, error: { message: "Proje bulunamadı." } };
   if (!canFreezeReel(project.status)) return { ok: false, error: { message: `Bu aşamada not değiştirilemez (${REEL_STATUS_LABELS[project.status]}).` } };
-  const trimmed = note.trim();
-  const problem = analystNoteProblem(trimmed) ?? contentLanguageGate({ card: { analistNotu: trimmed } });
+  const screen = note.screen.trim();
+  const voice = note.voice.trim();
+  const problem = screenNoteProblem(screen) ?? voiceNoteProblem(voice) ?? contentLanguageGate({ card: { ekranOzeti: screen, seslendirmeNotu: voice } });
   if (problem) return { ok: false, error: { message: problem } };
-  await prisma.reelProject.update({ where: { id: projectId }, data: { analystNote: trimmed || null } });
+  await prisma.reelProject.update({ where: { id: projectId }, data: { analystScreenNote: screen || null, analystVoiceNote: voice || null } });
   return { ok: true, data: true };
 }
 

@@ -171,7 +171,7 @@ describe("dakika, anahtar, sürpriz, senaryo", () => {
     assert.match(entry(same, "C07_KEY").reason ?? "", /belirgin/);
   });
   it("analist notu kartlara girer; yoksa veri yorumu", () => {
-    const changed = { ...clone(DERBY), analyst_note: "Kendi yorumum." };
+    const changed = { ...clone(DERBY), analyst_screen_note: "Kendi yorumum." };
     assert.equal(dataOf(changed, "C07_KEY").data.analystNote, "Kendi yorumum.");
     assert.equal(dataOf(changed, "C09_SCENARIO").data.analystNote, "Kendi yorumum.");
     assert.equal(dataOf(DERBY, "C07_KEY").data.analystNote, null);

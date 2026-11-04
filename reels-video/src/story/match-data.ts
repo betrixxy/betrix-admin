@@ -106,7 +106,10 @@ export interface MatchData {
   /** Futbol okuması (API-Football, dondurulmuş). Yoksa okuma sahneleri kapanır. */
   context: MatchContext | null;
   /** Panelden kullanıcının kendi futbol okuması; "Maçın anahtarı" ve "checkmatch senaryosu" kartlarına girer. */
-  analyst_note: string | null;
+  /** Kartta görünen özet, ≤ 15 sözcük. */
+  analyst_screen_note: string | null;
+  /** 1–3 cümle: seslendirmeye ve video açıklamasına gider. */
+  analyst_voice_note: string | null;
   form: SidePair<TeamForm>;
   h2h: {
     played: number | null;

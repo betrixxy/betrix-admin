@@ -1,10 +1,12 @@
 import { formatDecimal, formatInt, FPS, seeded, spokenThousands } from "../lib/motion";
 import type { ReelScene, ReelSceneType } from "../schema";
-import { claim, claims, noteForScreen, noteLine, say, TEAM, type VoiceLine, voiceOf, type Voiceover } from "./claims";
+import { NOTE_CARD_MAX_WORDS, splitVoiceNote } from "../../../src/lib/reels/analyst-note";
+import { claim, claims, noteLine, say, TEAM, type VoiceLine, voiceOf, type Voiceover } from "./claims";
 import { checkBothScore, checkFirstGoal, checkGoals, checkOutcome } from "./market-checks";
 import { type Absence, GOAL_SLOTS, type MatchContext } from "./match-context";
 import type { MatchData, Side } from "./match-data";
 import { slotWords, wordCount, WORDS_PER_SECOND } from "./speech";
+import { noteCardFrames } from "./readability";
 import { inSquad } from "./squad";
 
 /**
@@ -221,7 +223,7 @@ export function keyDifference(ctx: MatchContext): { path: string; label: string;
   return top && top.gap >= 0.1 ? { path: top.metric.path, label: top.metric.label, format: top.metric.format, lowerIsBetter: top.metric.lowerIsBetter, leader: top.leader } : null;
 }
 
-function matchKey(data: MatchData, ctx: MatchContext, frames: Frames): Entry {
+function matchKey(data: MatchData, ctx: MatchContext, frames: Frames, voiceNote: string | null): Entry {
   const found = keyDifference(ctx);
   if (!found) return off("C07_KEY", "İki takım arasında belirgin fark yok");
   const trail = other(found.leader);
@@ -230,13 +232,15 @@ function matchKey(data: MatchData, ctx: MatchContext, frames: Frames): Entry {
   const show = (value: number) => (found.format === "pct" ? `%${Math.round(value)}` : formatDecimal(value, 1));
   const values = { a: { key: key(found.leader, found.path), format: found.format }, b: { key: key(trail, found.path), format: found.format } } as const;
   const reason = claim(data, "key.gap", "Maçın en açık farkı: {a} ile {b}", values);
-  const voiceover = voiceOf([
-    say(data, "key.gap", "En açık fark {metric}: {lead} {a}, {trail} {b}.", { metric: { label: found.label.toLocaleLowerCase("tr-TR") }, lead: TEAM[found.leader], trail: TEAM[trail], ...values }),
-    data.analyst_note ? noteLine(data.analyst_note) : null,
-  ]);
+  const gap = say(data, "key.gap", "En açık fark {metric}: {lead} {a}, {trail} {b}.", { metric: { label: found.label.toLocaleLowerCase("tr-TR") }, lead: TEAM[found.leader], trail: TEAM[trail], ...values });
+  // Not öncelikli: veri cümlesi yalnız 8 sn'ye birlikte sığarsa okunur. Rakamlar kartta kalır.
+  const fits = gap && (!voiceNote || wordCount(`${gap.text} ${voiceNote}`) <= NOTE_CARD_MAX_WORDS);
+  const voiceover = voiceOf([fits ? gap : null, voiceNote ? noteLine(voiceNote) : null]);
+  const screenNote = data.analyst_screen_note?.trim() || null;
+  const sceneBase = base(frames, "C07_KEY", "Maçın", "anahtarı", voiceover, { photoIds: [`${found.leader}-1`] });
   return on({
-    type: "C07_KEY", ...base(frames, "C07_KEY", "Maçın", "anahtarı", voiceover, { photoIds: [`${found.leader}-1`] }),
-    data: { metric: found.label, leader: found.leader, leaderValue: show(a), otherValue: show(b), reasons: claims([reason]), analystNote: data.analyst_note ? noteForScreen(data.analyst_note) : null },
+    type: "C07_KEY", ...sceneBase, durationInFrames: noteCardFrames(sceneBase.durationInFrames, voiceover),
+    data: { metric: found.label, leader: found.leader, leaderValue: show(a), otherValue: show(b), reasons: screenNote ? [] : claims([reason]), analystNote: screenNote },
   });
 }
 
@@ -265,7 +269,7 @@ function upset(data: MatchData, frames: Frames): Entry {
   });
 }
 
-function scenario(data: MatchData, frames: Frames, readNote: boolean): Entry {
+function scenario(data: MatchData, frames: Frames, voiceNote: string | null): Entry {
   const bad = checkOutcome(data.outcome);
   if (bad) return off("C09_SCENARIO", bad);
   const { home_win: home, away_win: away } = data.outcome;
@@ -297,14 +301,15 @@ function scenario(data: MatchData, frames: Frames, readNote: boolean): Entry {
     "scenario.both.no": () => say(data, "scenario.both", "İkisinin de golü {p}.", { p: { key: "both_score", format: "prob" } }),
     "scenario.first": () => say(data, "scenario.first", "İlk golde {lead} önde: {p}.", { lead: TEAM[lead], p: { key: `first_goal.${lead}`, format: "prob" } }),
   };
-  const limit = Math.floor(((frames.C09_SCENARIO ?? 150) / FPS) * WORDS_PER_SECOND);
+  const limit = voiceNote ? NOTE_CARD_MAX_WORDS - wordCount(voiceNote) : Math.floor(((frames.C09_SCENARIO ?? 150) / FPS) * WORDS_PER_SECOND);
   const spoken: VoiceLine[] = [];
   for (const item of items) {
     const line = SPOKEN_BY_ID[item.id]?.();
     if (line && wordCount([...spoken.map((part) => part.text), line.text].join(" ")) <= limit) spoken.push(line);
   }
-  const voiceover = voiceOf([...spoken, readNote && data.analyst_note ? noteLine(data.analyst_note) : null]);
-  return on({ type: "C09_SCENARIO", ...base(frames, "C09_SCENARIO", "checkmatch", "senaryosu", voiceover, BOTH), data: { items, analystNote: data.analyst_note ? noteForScreen(data.analyst_note) : null } });
+  const voiceover = voiceOf([...spoken, voiceNote ? noteLine(voiceNote) : null]);
+  const sceneBase = base(frames, "C09_SCENARIO", "checkmatch", "senaryosu", voiceover, BOTH);
+  return on({ type: "C09_SCENARIO", ...sceneBase, durationInFrames: noteCardFrames(sceneBase.durationInFrames, voiceover), data: { items, analystNote: data.analyst_screen_note?.trim() || null } });
 }
 
 export function evaluateAnalysis(data: MatchData, frames: Frames, handle: string): Entry[] {
@@ -312,14 +317,17 @@ export function evaluateAnalysis(data: MatchData, frames: Frames, handle: string
   const close: Entry = on({ type: "S17_CLOSE", ...base(frames, "S17_CLOSE", "Sence kim", "kazanır?", closeVoice, BOTH), data: { options: [data.teams.home.short_name, "Beraberlik", data.teams.away.short_name], prompt: "Cevabını yorumlara yaz.", save: "Kaydet, maçtan sonra tekrar bak.", handle } });
   const ctx = data.context;
   const closedTypes = ["C01_STORY", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES", "C07_KEY", "C08_UPSET"] as const;
-  const key = ctx ? matchKey(data, ctx, frames) : off("C07_KEY", NO_CONTEXT);
+  const voiceNote = data.analyst_voice_note?.trim() || null;
+  // Sığan cümleler anahtar kartında, kalanı senaryoda. Sığmayan not anahtar kartında kalır, süre kuralı render'ı durdurur.
+  const [keyNote, restNote] = voiceNote ? splitVoiceNote(voiceNote) ?? [voiceNote, null] : [null, null];
+  const key = ctx ? matchKey(data, ctx, frames, keyNote) : off("C07_KEY", NO_CONTEXT);
   return [
     monteCarlo(data, frames),
     ...(ctx
       ? [story(data, ctx, frames), formAndStreaks(data, ctx, frames), absences(data, ctx, frames), teamAnalysis(data, ctx, "home", frames), teamAnalysis(data, ctx, "away", frames), goalMinutes(data, ctx, frames), key, upset(data, frames)]
       : closedTypes.map((type) => off(type, NO_CONTEXT))),
-    // Tam analist notu bir kez okunur: anahtar kartı kapalıysa senaryo kartında.
-    scenario(data, frames, key.scene === null),
+    // Not bir kez okunur: anahtar kartı kapalıysa tamamı senaryo kartında.
+    scenario(data, frames, key.scene === null ? voiceNote : restNote),
     close,
   ];
 }

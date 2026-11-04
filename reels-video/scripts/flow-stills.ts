@@ -9,13 +9,13 @@ import { auditProblems, MIN_CONTRAST, parseRgb, relativeLuminance, worstContrast
 import { buildTimeline } from "../src/lib/motion";
 import { flowScript } from "../src/samples";
 import type { ReelScript } from "../src/schema";
-import { noteOverrun, readabilityProblems } from "../src/story/readability";
+import { readabilityProblems } from "../src/story/readability";
 
 /**
  * Aktif temada tam akış: her sahneden tek kare + kontak sayfası + denetim. Metin kuralı ihlali render'ı hiç başlatmaz, karede ölçülen
  * ihlal çıkış kodunu 1 yapar. `--mc`: Monte Carlo sahnesinin kısa MP4'ü. Çıktı repoya yazılmaz.
  *
- * Ağır iş: maç penceresinde çalıştırılmaz (CLAUDE.md 5.5). Eşzamanlılık 1, boş RAM < 4 GB ise başlamaz.
+ * Ağır iş: maç penceresinde çalıştırılmaz (CLAUDE.md 5.5). Eşzamanlılık 1; boş RAM ≥ 4 GB koşulunu çalıştıran kontrol eder, komut bakmaz.
  */
 
 const OUT = path.resolve(process.cwd(), "../../test-photos/reels-video/tema-d-e");
@@ -103,7 +103,7 @@ for (const [index, scene] of script.scenes.entries()) {
   const contrast = await contrastOf(masked, measured.samples);
   rmSync(masked, { force: true });
   const found = [...auditProblems(measured), ...contrast.found];
-  report[scene.type] = { problems: found, fill: measured.fill, lowestContrast: Number(contrast.lowest.toFixed(2)), voiceover: scene.voiceover?.text, noteOverrunWords: noteOverrun(scene) };
+  report[scene.type] = { problems: found, fill: measured.fill, lowestContrast: Number(contrast.lowest.toFixed(2)), seconds: scene.durationInFrames / 30, voiceover: scene.voiceover?.text };
   problems.push(...found.map((item) => `${scene.type}: ${item}`));
   console.log(`${scene.type}: doluluk ${measured.fill?.total} / alt ${measured.fill?.lower}, kontrast ${contrast.lowest.toFixed(2)}, ${found.length} sorun`);
   files.push(file);

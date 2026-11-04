@@ -95,7 +95,8 @@ export const DERBY: MatchData = {
   ],
   players: DERBY_PLAYERS,
   context: DERBY_CONTEXT,
-  analyst_note: null,
+  analyst_screen_note: null,
+  analyst_voice_note: null,
   form: {
     home: { last5: "WDWLW", goals_for: 1.8, goals_against: 1.1, xg_for: 1.72, xg_against: 1.08, clean_sheet_rate: 0.3, btts_rate: 0.6, euro_fatigue_days: 3.4 },
     away: { last5: "DWWDL", goals_for: 1.6, goals_against: 1.2, xg_for: 1.55, xg_against: 1.21, clean_sheet_rate: 0.2, btts_rate: 0.7, euro_fatigue_days: 99 },
@@ -144,7 +145,8 @@ export const FAVOURITE: MatchData = {
   scorer_chances: [{ player_id: 90031, side: "home", name: "Örnek Kanat", p: 0.48 }, { player_id: 90041, side: "away", name: "Kurgu Santrfor", p: 0.17 }],
   players: FAVOURITE_PLAYERS,
   context: FAVOURITE_CONTEXT,
-  analyst_note: null,
+  analyst_screen_note: null,
+  analyst_voice_note: null,
   form: {
     home: { last5: "WWWDW", goals_for: 2.6, goals_against: 0.7, xg_for: 2.41, xg_against: 0.82, clean_sheet_rate: 0.5, btts_rate: 0.4, euro_fatigue_days: 4.1 },
     away: { last5: "LLDLW", goals_for: 0.9, goals_against: 1.9, xg_for: 0.94, xg_against: 1.87, clean_sheet_rate: 0.1, btts_rate: 0.5, euro_fatigue_days: 99 },
@@ -182,10 +184,13 @@ export function sampleScripts(key: SampleKey, design: DesignDirection = ACTIVE_D
 export const BOARD_SCENES = ["S01_COVER", "M02_MONTE_CARLO", "C03_ABSENCES", "C04_TEAM_HOME", "Q05_BOTH_SCORE", "C09_SCENARIO"] as const;
 
 /** Panoda analist notlu kart da görünsün. Kurgusal. */
-const BOARD_NOTE = "Kurgusal not: Maçı ilk golü bulan taraf yönetir. İki takım da savunma arkasına koşularla oynuyor, bu yüzden ilk yarım saat belirleyici.";
+const BOARD_NOTES = {
+  analyst_screen_note: "Kurgusal not: İlk golü bulan taraf maçı yönetir, ilk yarım saat belirleyici olur.",
+  analyst_voice_note: "Kurgusal not: Maçı ilk golü bulan taraf yönetir. İki takım da savunma arkasına koşularla oynuyor, bu yüzden ilk yarım saat belirleyici.",
+};
 
 export function boardScript(design: DesignDirection): ReelScript {
-  const data = { ...DERBY, analyst_note: BOARD_NOTE };
+  const data = { ...DERBY, ...BOARD_NOTES };
   const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
   const ready = entries.flatMap((entry) => (entry.scene ? [entry.scene] : []));
   const scenes = BOARD_SCENES.flatMap((type) => ready.filter((scene) => scene.type === type));
@@ -195,13 +200,13 @@ export function boardScript(design: DesignDirection): ReelScript {
 /** Tek sahnelik senaryo: Monte Carlo kısa MP4'ü. */
 export function singleSceneScript(type: ReelScene["type"]): ReelScript {
   const script = boardScript(ACTIVE_DESIGN);
-  const scenes = evaluatePool({ ...DERBY, analyst_note: BOARD_NOTE }, BRAND, SAMPLE_OPTIONS).flatMap((entry) => (entry.scene?.type === type ? [entry.scene] : []));
+  const scenes = evaluatePool({ ...DERBY, ...BOARD_NOTES }, BRAND, SAMPLE_OPTIONS).flatMap((entry) => (entry.scene?.type === type ? [entry.scene] : []));
   return reelScriptSchema.parse({ ...script, scenes });
 }
 
 /** Tam akış: derbi hikâyesi, analist notlu. 17 adımın hepsi + açının eklediği sahne. */
 export function flowScript(): ReelScript {
-  const data = { ...DERBY, analyst_note: BOARD_NOTE };
+  const data = { ...DERBY, ...BOARD_NOTES };
   const entries = evaluatePool(data, BRAND, SAMPLE_OPTIONS);
   return reelScriptSchema.parse(buildScript(data, pickStory(entries, "derby"), [], ACTIVE_DESIGN));
 }

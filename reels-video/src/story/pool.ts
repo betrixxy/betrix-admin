@@ -253,7 +253,7 @@ export const PHOTOS: Record<string, ReelPhoto> = { "home-1": placeholderPhoto("h
 export function videoDescription(data: MatchData, scenes: readonly ReelScene[]): string {
   const scenario = scenes.find((scene) => scene.type === "C09_SCENARIO");
   const items = scenario?.type === "C09_SCENARIO" ? scenario.data.items.map((item) => item.text) : [];
-  return [`${data.teams.home.name} – ${data.teams.away.name}: maç önü analiz.`, data.analyst_note?.trim() ?? "", ...items, BRAND.handle].filter(Boolean).join("\n");
+  return [`${data.teams.home.name} – ${data.teams.away.name}: maç önü analiz.`, data.analyst_voice_note?.trim() ?? "", ...items, BRAND.handle].filter(Boolean).join("\n");
 }
 
 export function buildScript(data: MatchData, scenes: ReelScene[], disabled: { type: string; reason: string }[], design: DesignDirection = ACTIVE_DESIGN): ReelScript {

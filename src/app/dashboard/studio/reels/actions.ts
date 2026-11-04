@@ -47,9 +47,9 @@ export async function freezeReelSnapshotAction(_previous: ReelActionState, formD
 
 export async function saveReelAnalystNoteAction(_previous: ReelActionState, formData: FormData): Promise<ReelActionState> {
   if (!(await getCurrentSession())) return { error: UNAUTHORIZED_MESSAGE };
-  const parsed = z.object({ projectId, note: z.string().max(1000) }).safeParse({ projectId: formData.get("projectId"), note: formData.get("note") ?? "" });
+  const parsed = z.object({ projectId, screen: z.string().max(1000), voice: z.string().max(1000) }).safeParse({ projectId: formData.get("projectId"), screen: formData.get("screen") ?? "", voice: formData.get("voice") ?? "" });
   if (!parsed.success) return { error: "Geçersiz not." };
-  const result = await saveReelAnalystNote(parsed.data.projectId, parsed.data.note);
+  const result = await saveReelAnalystNote(parsed.data.projectId, { screen: parsed.data.screen, voice: parsed.data.voice });
   if (!result.ok) return { error: result.error.message };
   refreshDashboard();
   return { message: "Not kaydedildi." };

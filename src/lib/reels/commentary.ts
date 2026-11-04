@@ -40,11 +40,3 @@ export function acceptPolishedClaims(claims: readonly ReelClaimInput[], output: 
   }
   return { polished, rejected };
 }
-
-/** Analist notu: kullanıcının kendi metni. En fazla 3 cümle, 280 karakter. Dil kapısı ayrıca `contentLanguageGate`. */
-export const ANALYST_NOTE_MAX = 280;
-export function analystNoteProblem(note: string): string | null {
-  if (note.length > ANALYST_NOTE_MAX) return `Not en fazla ${ANALYST_NOTE_MAX} karakter olabilir.`;
-  const sentences = note.split(/[.!?…]+\s*/u).filter((part) => part.trim().length > 0);
-  return sentences.length > 3 ? "Not en fazla 3 cümle olabilir." : null;
-}
