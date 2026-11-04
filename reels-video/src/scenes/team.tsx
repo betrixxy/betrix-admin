@@ -84,7 +84,6 @@ export function MinutesScene({ script, scene }: SceneProps<"C06_MINUTES">) {
   const peak = firstRow.reduce((best, value, index) => (value > (firstRow[best] ?? 0) ? index : best), 0);
   const height = BAND + SLOT_ROW + data.rows.length * (ROW_LABEL + CELL + 6) + 12;
   const peakX = 20 + peak * cell + cell / 2;
-  const peakY = BAND + SLOT_ROW + ROW_LABEL + 2;
   return (
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
@@ -120,7 +119,7 @@ export function MinutesScene({ script, scene }: SceneProps<"C06_MINUTES">) {
               );
             })}
           </div>
-          <ChalkArrow width={W} height={height} from={peak >= 3 ? [300, 40] : [W - 310, 40]} to={[peakX, peakY]} bend={-10} color={theme.accentText} start={60} name="dakika" />
+          <ChalkArrow width={W} height={height} from={peak >= 3 ? [300, 40] : [W - 310, 40]} to={[peakX, BAND - 18]} bend={-10} color={theme.accentText} start={60} name="dakika" />
         </BoardPanel>
         <ReasonList theme={theme} items={data.reasons} start={70} size={42} />
       </div>

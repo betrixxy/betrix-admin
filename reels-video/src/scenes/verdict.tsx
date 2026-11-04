@@ -1,5 +1,5 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
-import { BoardPanel, ChalkArrow, HandLabel, Magnet } from "../design/board";
+import { BOARD_GROUND, BoardPanel, ChalkArrow, HandLabel, Magnet } from "../design/board";
 import { Figures, HeroFigure, Panel, PlayerCut, QuestionTitle, themeOf, titleBottom, useEnter } from "../design/kit";
 import { BOTTOM, labelStyle, numberStyle, type Theme, W, X } from "../design/tokens";
 import { countUp } from "../lib/motion";
@@ -31,8 +31,8 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
   const line2 = scene.headline?.line2 ?? "";
   const lead = script.meta.teams[data.leader];
   const trail = script.meta.teams[data.leader === "home" ? "away" : "home"];
-  const heroSize = 170;
-  const boardHeight = 230;
+  const heroSize = 190;
+  const boardHeight = 360;
   const shown = frame < 20 ? "" : data.leaderValue;
   return (
     <AbsoluteFill>
@@ -51,11 +51,11 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
         </div>
         <BoardPanel name="anahtar tahtası" width={W} height={boardHeight}>
           <svg data-fill="" width={W} height={boardHeight} viewBox={`0 0 ${W} ${boardHeight}`} style={{ position: "absolute", left: 0, top: 0 }}>
-            <Magnet x={130} y={boardHeight / 2} r={72} color={lead.colors.primary} logo={lead.logo} />
-            <Magnet x={W - 130} y={boardHeight / 2} r={72} color={trail.colors.primary} logo={trail.logo} />
+            <Magnet x={130} y={boardHeight / 2} r={90} color={lead.colors.primary} logo={lead.logo} />
+            <Magnet x={W - 130} y={boardHeight / 2} r={90} color={trail.colors.primary} logo={trail.logo} />
           </svg>
-          <ChalkArrow width={W} height={boardHeight} from={[220, boardHeight / 2 + 20]} to={[W - 220, boardHeight / 2 + 20]} bend={50} color={theme.accentText} start={30} name="anahtar" />
-          <HandLabel theme={theme} text="En açık fark" size={60} style={{ left: W / 2 - 150, top: 18 }} />
+          <ChalkArrow width={W} height={boardHeight} from={[240, boardHeight / 2 + 30]} to={[W - 240, boardHeight / 2 + 30]} bend={60} color={theme.accentText} start={30} name="anahtar" />
+          <HandLabel theme={theme} text="En açık fark" size={60} style={{ left: W / 2 + 24, top: 18 }} />
         </BoardPanel>
         {data.analystNote ? <AnalystNote theme={theme} text={data.analystNote} /> : <ReasonList theme={theme} items={data.reasons} start={48} size={44} />}
       </Area>
@@ -72,14 +72,14 @@ export function UpsetScene({ script, scene }: SceneProps<"C08_UPSET">) {
   const photo = script.photos[`${data.side}-1`];
   return (
     <AbsoluteFill>
-      {photo ? <PlayerCut theme={theme} photo={photo} color={team.colors.primary} left={500} top={titleBottom(theme, line1, line2) - 10} height={480} /> : null}
+      {photo ? <PlayerCut theme={theme} photo={photo} color={team.colors.primary} left={540} top={titleBottom(theme, line1, line2) + 4} height={480} /> : null}
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
         <HeroFigure theme={theme} value={data.hero.value} percent={data.hero.percent} label={`${data.team} kazanırsa`} color={team.colors.primary} size={Math.min(theme.heroSize, 220)} />
         <BoardPanel name="sürpriz yolu" width={W} height={500} grow style={{ display: "flex", flexDirection: "column" }}>
           <HandLabel theme={theme} text="Sürpriz yolu" size={62} style={{ left: 24, top: 16 }} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-evenly", padding: "92px 24px 18px 100px", gap: 14 }}>
-            {data.reasons.map((reason) => <div key={reason.id} data-bullet="" style={{ ...labelStyle(theme, 46), color: theme.ink, lineHeight: 1.1 }}>{reason.text}</div>)}
+            {data.reasons.map((reason) => <div key={reason.id} data-bullet="" style={{ ...labelStyle(theme, 46), color: theme.ink, lineHeight: 1.1, background: BOARD_GROUND, padding: "6px 10px", alignSelf: "flex-start" }}>{reason.text}</div>)}
           </div>
           <ChalkArrow width={90} height={500} from={[50, 110]} to={[50, 470]} bend={0} color={theme.accentText} start={36} name="surpriz" />
         </BoardPanel>
@@ -134,8 +134,8 @@ export function CloseScene({ script, scene }: SceneProps<"S17_CLOSE">) {
             const logo = logos[index];
             return (
               <div key={option} data-block={`seçenek ${option}`} style={{ flex: 1, display: "flex", alignItems: "center", gap: 14, padding: "0 20px", background: theme.panel, border: `3px solid ${index < lit ? theme.accent : theme.panelEdge}`, borderRadius: theme.id === "E" ? 56 : 0 }}>
-                {logo ? <Img src={staticFile(logo)} style={{ width: 68, height: 68 }} /> : null}
-                <span style={{ ...labelStyle(theme, 46), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.titleUpper ? "uppercase" : "none" }}>{option}</span>
+                {logo ? <Img src={staticFile(logo)} style={{ width: 96, height: 96 }} /> : null}
+                <span style={{ ...labelStyle(theme, 64), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.titleUpper ? "uppercase" : "none" }}>{option}</span>
               </div>
             );
           })}

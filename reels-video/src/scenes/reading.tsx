@@ -52,7 +52,7 @@ export function StoryScene({ script, scene }: SceneProps<"C01_STORY">) {
   );
 }
 
-const LETTER_COLOR = { G: "#2EA537", B: "#7D8784", M: "#C8323C" } as const;
+const LETTER_COLOR = { G: "#2EA537", B: "#5F6866", M: "#C8323C" } as const;
 
 function FormBlock({ script, side, index }: { script: ReelScript; side: { key: "home" | "away"; data: SceneProps<"C02_FORM">["scene"]["data"]["home"] }; index: number }) {
   const theme = themeOf(script);
@@ -129,7 +129,7 @@ function TeamAbsences({ script, side, rows }: { script: ReelScript; side: "home"
   const theme = themeOf(script);
   const team = script.meta.teams[side];
   return (
-    <Panel theme={theme} name={`eksikler ${team.shortName}`} style={{ flex: 1, padding: "12px 18px 8px" }}>
+    <Panel theme={theme} name={`eksikler ${team.shortName}`} style={{ flex: Math.max(rows.length, 1) + 1, padding: "12px 18px 8px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 8 }}>
         <Img src={staticFile(team.logo)} style={{ width: 46, height: 46 }} />
         <span style={{ ...labelStyle(theme, 36), color: theme.ink, textTransform: theme.titleUpper ? "uppercase" : "none", whiteSpace: "nowrap" }}>{team.shortName}</span>

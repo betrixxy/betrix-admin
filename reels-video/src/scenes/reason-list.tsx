@@ -13,7 +13,7 @@ function Line({ theme, text, index, start, size }: { theme: Theme; text: string;
 }
 
 /** Ekran maddeleri: rakam + en fazla 8 sözcük. Anlatım seslendirmede. Boş kalan alanı doldurmak için büyür. */
-export function ReasonList({ theme, heading, items, start = 40, size = 46, grow = true }: { theme: Theme; heading?: string; items: readonly Pick<ReasonData, "id" | "text">[]; start?: number; size?: number; grow?: boolean }) {
+export function ReasonList({ theme, heading, items, start = 40, size = 54, grow = true }: { theme: Theme; heading?: string; items: readonly Pick<ReasonData, "id" | "text">[]; start?: number; size?: number; grow?: boolean }) {
   if (!items.length) return null;
   return (
     <Panel theme={theme} name={heading ?? "yorum"} style={{ display: "flex", flexDirection: "column", justifyContent: "space-evenly", gap: 12, padding: "16px 18px", flex: grow ? 1 : undefined }}>

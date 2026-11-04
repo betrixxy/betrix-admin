@@ -38,8 +38,8 @@ export function DuelScene({ script, scene }: { script: ReelScript; scene: { head
   const nameStyle = { ...labelStyle(theme, 38), color: theme.ink, whiteSpace: "nowrap" as const, textTransform: theme.id === "A" ? "uppercase" as const : "none" as const };
   return (
     <AbsoluteFill>
-      {homePhoto ? <PlayerCut theme={theme} photo={homePhoto} color={script.meta.teams.home.colors.primary} left={0} top={cutTop} height={400} fade /> : null}
-      {awayPhoto ? <PlayerCut theme={theme} photo={awayPhoto} color={script.meta.teams.away.colors.primary} left={520} top={cutTop + 34} height={320} fade /> : null}
+      {homePhoto ? <PlayerCut theme={theme} photo={homePhoto} color={script.meta.teams.home.colors.primary} left={0} top={cutTop} height={520} fade /> : null}
+      {awayPhoto ? <PlayerCut theme={theme} photo={awayPhoto} color={script.meta.teams.away.colors.primary} left={470} top={cutTop + 40} height={450} fade /> : null}
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <div style={{ position: "absolute", left: X, width: W, top: BOTTOM - rowsHeight - 22 }}>
         <Panel theme={theme} name="düello tablosu" style={{ padding: "8px 16px 6px" }}>
@@ -85,7 +85,7 @@ export function VsOpponentScene({ script, scene }: { script: ReelScript; scene: 
           {[{ key: "goals", value: String(data.totals.goals), label: `Gol · ${data.totals.matches} maç` }, { key: "assists", value: String(data.totals.assists), label: "Asist" }, { key: "vs", value: data.per90.opponent, label: "Rakibe gol/90" }, { key: "season", value: data.per90.season, label: "Sezon gol/90" }].map((item) => (
             <div key={item.key} data-block={`toplam ${item.key}`} style={{ minWidth: 0, background: theme.panel, padding: "10px 14px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 4 }}>
               <div data-support="" style={{ ...numberStyle(theme, 62), color: theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={item.value} /></div>
-              <div style={{ ...labelStyle(theme, 34), whiteSpace: "nowrap" }}>{item.label}</div>
+              <div style={{ ...labelStyle(theme, 40), whiteSpace: "nowrap" }}>{item.label}</div>
             </div>
           ))}
         </div>

@@ -13,7 +13,7 @@ const CUT = {
   A: { home: { left: 420, top: 470, height: 780 }, away: { left: 400, top: 560, height: 640 } },
   B: { home: { left: 300, top: 500, height: 1040 }, away: { left: 330, top: 620, height: 800 } },
   C: { home: { left: 500, top: 500, height: 620 }, away: { left: 500, top: 560, height: 500 } },
-  D: { home: { left: 400, top: 470, height: 820 }, away: { left: 380, top: 560, height: 660 } },
+  D: { home: { left: 430, top: 360, height: 760 }, away: { left: 380, top: 520, height: 660 } },
   E: { home: { left: 500, top: 520, height: 600 }, away: { left: 480, top: 580, height: 480 } },
 } as const;
 
@@ -121,24 +121,24 @@ function LadderSteps({ theme, viz }: { theme: Theme; viz: Extract<QuestionData["
 /** İlk gol kimden: tahtada iki mıknatıs, öndeki takımdan kaleye tebeşir ok. Rakamlar Archivo, el yazısı yalnız kısa vurgu. */
 function FirstGoalBoard({ script, theme, supports, hero }: { script: ReelScript; theme: Theme; supports: QuestionData["supports"]; hero: QuestionData["hero"] }) {
   const { home, away } = script.meta.teams;
-  const height = 300;
+  const height = 340;
   const lead = hero.side === "away" ? "away" : "home";
-  const from = lead === "home" ? [180, 150] as const : [W - 180, 150] as const;
-  const to = lead === "home" ? [W - 60, 118] as const : [60, 118] as const;
+  const from = lead === "home" ? [180, 190] as const : [W - 180, 190] as const;
+  const to = lead === "home" ? [W - 60, 158] as const : [60, 158] as const;
   const other = supports.find((item) => item.key === "other");
   const none = supports.find((item) => item.key === "none");
   const values = { home: lead === "home" ? hero.value : other?.value ?? "", away: lead === "away" ? hero.value : other?.value ?? "" };
   return (
     <BoardPanel name="ilk gol tahtası" width={W} height={height}>
       <svg data-fill="" width={W} height={height} viewBox={`0 0 ${W} ${height}`} style={{ position: "absolute", left: 0, top: 0 }}>
-        <Magnet x={180} y={150} r={68} color={home.colors.primary} logo={home.logo} />
-        <Magnet x={W - 180} y={150} r={68} color={away.colors.primary} logo={away.logo} />
+        <Magnet x={180} y={190} r={68} color={home.colors.primary} logo={home.logo} />
+        <Magnet x={W - 180} y={190} r={68} color={away.colors.primary} logo={away.logo} />
       </svg>
-      <ChalkArrow width={W} height={height} from={from} to={to} bend={-120} color={theme.accentText} name="ilk-gol" />
-      <HandLabel theme={theme} text="İlk vuruş" size={60} style={{ left: W / 2 - 112, top: 12 }} />
-      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: 180 - 90, width: 180, top: 228, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.home} /></div>
-      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: W - 180 - 90, width: 180, top: 228, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.away} /></div>
-      {none ? <div style={{ ...boardLabel(theme, 34), position: "absolute", left: W / 2 - 90, width: 180, top: 232, textAlign: "center" }}>Gol yok <Figures theme={theme} text={none.value} /></div> : null}
+      <ChalkArrow width={W} height={height} from={from} to={to} bend={-80} color={theme.accentText} name="ilk-gol" />
+      <HandLabel theme={theme} text="İlk vuruş" size={60} style={{ left: W / 2 + 24, top: 12 }} />
+      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: 180 - 90, width: 180, top: 268, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.home} /></div>
+      <div data-support="" style={{ ...numberStyle(theme, 56), position: "absolute", left: W - 180 - 90, width: 180, top: 268, textAlign: "center", color: theme.ink }}><Figures theme={theme} text={values.away} /></div>
+      {none ? <div style={{ ...boardLabel(theme, 34), position: "absolute", left: W / 2 - 90, width: 180, top: 272, textAlign: "center" }}>Gol yok <Figures theme={theme} text={none.value} /></div> : null}
     </BoardPanel>
   );
 }

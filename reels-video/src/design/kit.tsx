@@ -236,7 +236,7 @@ export function HeroFigure({ theme, value, percent, label, color, start = 18, si
   );
 }
 
-function SupportCell({ theme, value, label, color, index }: { theme: Theme; value: string; label: string; color: string; index: number }) {
+function SupportCell({ theme, value, label, color, index, wide = false }: { theme: Theme; value: string; label: string; color: string; index: number; wide?: boolean }) {
   const enter = useEnter(40 + index * 7);
   const box: CSSProperties = theme.id === "A"
     ? { background: theme.panel, borderLeft: `10px solid ${color}`, padding: "12px 12px 12px 16px" }
@@ -248,22 +248,24 @@ function SupportCell({ theme, value, label, color, index }: { theme: Theme; valu
       ? { borderTop: `3px solid ${color}`, padding: "12px 0 0", background: "transparent" }
       : { background: theme.panel, border: `1.5px solid ${theme.panelEdge}`, borderRadius: 6, padding: "12px 14px", boxShadow: `inset 0 0 26px ${theme.accent}14` };
   return (
-    <div data-block={`destek ${label}`} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, ...box, ...enter }}>
-      <div data-support="" style={{ ...numberStyle(theme, theme.supportSize), color: theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={value} /></div>
-      <div style={{ ...labelStyle(theme), textTransform: theme.id === "A" ? "uppercase" : "none" }}>{label}</div>
+    <div data-block={`destek ${label}`} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: wide ? "row-reverse" : "column", justifyContent: wide ? "space-between" : "center", alignItems: wide ? "center" : undefined, gap: 6, ...box, ...enter }}>
+      <div data-support="" style={{ ...numberStyle(theme, wide ? 120 : theme.supportSize), color: theme.ink, whiteSpace: "nowrap" }}><Figures theme={theme} text={value} /></div>
+      <div style={{ ...labelStyle(theme, wide ? 48 : undefined), ...(wide ? { color: theme.ink } : {}), textTransform: theme.id === "A" ? "uppercase" : "none" }}>{label}</div>
     </div>
   );
 }
 
 /** 2–4 destek istatistiği (≥ 48 px). 4 değer iki satıra iner. */
 export function SupportStrip({ theme, items, colors, grow = false }: { grow?: boolean; theme: Theme; items: readonly { key: string; value: string; label: string; side: "home" | "away" | "draw" | null }[]; colors: { home: string; away: string } }) {
-  const rowItems = items.length === 4 ? [items.slice(0, 2), items.slice(2)] : [items];
+  // Alan büyükse üç değer alt alta: dar uzun kutuda yazı küçük kalır.
+  const wide = grow && theme.id === "D" && items.length === 3;
+  const rowItems = wide ? items.map((item) => [item]) : items.length === 4 ? [items.slice(0, 2), items.slice(2)] : [items];
   const paint = (side: "home" | "away" | "draw" | null) => (side === "home" ? colors.home : side === "away" ? colors.away : side === "draw" ? "#A8B2AE" : theme.accent);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12, width: W, flex: grow ? 1 : undefined }}>
       {rowItems.map((row, rowIndex) => (
         <div key={rowIndex} style={{ display: "flex", gap: theme.id === "B" ? 26 : 12, flex: grow ? 1 : undefined }}>
-          {row.map((item, index) => <SupportCell key={item.key} theme={theme} value={item.value} label={item.label} color={paint(item.side)} index={rowIndex * 2 + index} />)}
+          {row.map((item, index) => <SupportCell key={item.key} theme={theme} value={item.value} label={item.label} color={paint(item.side)} index={rowIndex * 2 + index} wide={wide} />)}
         </div>
       ))}
     </div>

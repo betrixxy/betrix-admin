@@ -12,9 +12,11 @@ const CHALK = "#F4F6EF";
 export const BOARD_GROUND = "#0D2118";
 
 /** Tebeşir pürüzü: her SVG kendi filtresini taşır, geçiş sırasında kaybolmaz. */
-const ChalkFilter = ({ id }: { id: string }) => (
+const chalkId = (name: string): string => `chalk-${name.replace(/[^a-zA-Z0-9]/g, "-")}`;
+/** Koordinat kullanıcı biriminde: düz çizginin sınır kutusu sıfır genişlikli, yüzdeli filtre onu siler. */
+const ChalkFilter = ({ id, width, height }: { id: string; width: number; height: number }) => (
   <defs>
-    <filter id={id} x="-5%" y="-5%" width="110%" height="110%">
+    <filter id={id} filterUnits="userSpaceOnUse" x={-20} y={-20} width={width + 40} height={height + 40}>
       <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" seed="7" result="noise" />
       <feDisplacementMap in="SourceGraphic" in2="noise" scale="5" />
     </filter>
@@ -23,12 +25,12 @@ const ChalkFilter = ({ id }: { id: string }) => (
 
 /** Tahta paneli: koyu yeşil zemin + yatay saha çizgileri. İçerik mutlak konumlanır; ölçüler çağırandan. */
 export function BoardPanel({ name, width, height, grow = false, lines = true, children, style }: { name: string; width: number; height: number; grow?: boolean; lines?: boolean; children?: ReactNode; style?: CSSProperties }) {
-  const chalk = { fill: "none", stroke: CHALK, strokeOpacity: 0.3, strokeWidth: 4, filter: `url(#chalk-${name})` } as const;
+  const chalk = { fill: "none", stroke: CHALK, strokeOpacity: 0.3, strokeWidth: 4, filter: `url(#${chalkId(name)})` } as const;
   return (
     <div data-block={name} style={{ position: "relative", width, minHeight: height, flex: grow ? 1 : undefined, flexShrink: 0, background: BOARD_GROUND, border: `4px solid ${CHALK}66`, overflow: "hidden", ...style }}>
       {lines ? (
         <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: "absolute", left: 0, top: 0 }}>
-          <ChalkFilter id={`chalk-${name}`} />
+          <ChalkFilter id={chalkId(name)} width={width} height={height} />
           <line x1={width / 2} y1={8} x2={width / 2} y2={height - 8} {...chalk} />
           <circle cx={width / 2} cy={height / 2} r={Math.min(height / 4, 70)} {...chalk} />
           <rect x={-6} y={height * 0.2} width={width * 0.16} height={height * 0.6} {...chalk} />
@@ -50,9 +52,9 @@ export function ChalkArrow({ width, height, from, to, bend = 0, color = CHALK, s
   const length = Math.hypot(to[0] - from[0], to[1] - from[1]) * 1.3;
   return (
     <svg data-fill="" width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
-      <ChalkFilter id={`chalk-${name}`} />
-      <path d={`M ${from[0]} ${from[1]} Q ${mx} ${my} ${to[0]} ${to[1]}`} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" strokeDasharray={length} strokeDashoffset={length * (1 - progress)} filter={`url(#chalk-${name})`} />
-      {progress > 0.9 ? <polyline points={`${head(0.5)} ${to[0]},${to[1]} ${head(-0.5)}`} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" filter={`url(#chalk-${name})`} /> : null}
+      <ChalkFilter id={chalkId(name)} width={width} height={height} />
+      <path d={`M ${from[0]} ${from[1]} Q ${mx} ${my} ${to[0]} ${to[1]}`} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" strokeDasharray={length} strokeDashoffset={length * (1 - progress)} filter={`url(#${chalkId(name)})`} />
+      {progress > 0.9 ? <polyline points={`${head(0.5)} ${to[0]},${to[1]} ${head(-0.5)}`} fill="none" stroke={color} strokeWidth={8} strokeLinecap="round" strokeLinejoin="round" filter={`url(#${chalkId(name)})`} /> : null}
     </svg>
   );
 }

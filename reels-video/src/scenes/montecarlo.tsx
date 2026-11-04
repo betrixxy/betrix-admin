@@ -35,11 +35,11 @@ export function MonteCarloScene({ script, scene }: SceneProps<"M02_MONTE_CARLO">
   const shown = (key: "home" | "draw" | "away", index: number) => (done ? data.final[key] : Math.max(1, Math.min(99, Math.round(data.final[key] + noise(index)))));
   const count = (key: "home" | "draw" | "away") => Math.round(played * data.shares[key]);
   const leader = rows.reduce((best, row) => (data.final[row.key] > data.final[best.key] ? row : best));
-  const heroSize = Math.max(160, Math.min(theme.heroSize, 170));
+  const heroSize = Math.max(160, Math.min(theme.heroSize, 200));
   return (
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
-      <div style={{ position: "absolute", left: X, width: W, top, bottom: 1920 - BOTTOM + 22, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+      <div style={{ position: "absolute", left: X, width: W, top, bottom: 1920 - BOTTOM + 22, display: "flex", flexDirection: "column", gap: 10 }}>
         <Panel theme={theme} name="skorbord" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 20px" }}>
           <Img src={staticFile(home.logo)} style={{ width: 72, height: 72 }} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
@@ -49,12 +49,12 @@ export function MonteCarloScene({ script, scene }: SceneProps<"M02_MONTE_CARLO">
           </div>
           <Img src={staticFile(away.logo)} style={{ width: 72, height: 72 }} />
         </Panel>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
           {rows.map((row, index) => {
             const value = shown(row.key, index);
             const isLeader = done && row.key === leader.key;
             return (
-              <div key={row.key} data-block={`sonuç ${row.label}`} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", height: heroSize + 8, padding: "0 16px", background: theme.panel, overflow: "hidden", borderRadius: theme.id === "E" ? 18 : 0 }}>
+              <div key={row.key} data-block={`sonuç ${row.label}`} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", flex: 1, minHeight: heroSize + 8, padding: "0 16px", background: theme.panel, overflow: "hidden", borderRadius: theme.id === "E" ? 18 : 0 }}>
                 <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${value}%`, background: isLeader ? theme.accent : row.color, opacity: isLeader ? 0.34 : 0.22 }} />
                 <div style={{ position: "relative", display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={{ ...labelStyle(theme, 40), color: theme.ink, whiteSpace: "nowrap", textTransform: theme.titleUpper ? "uppercase" : "none" }}>{row.label}</div>
