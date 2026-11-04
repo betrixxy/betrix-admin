@@ -10,6 +10,8 @@ import { WORDS_PER_SECOND, wordCount } from "./speech";
 
 export const MIN_CARD_FRAMES = 4 * FPS;
 export const MAX_CARD_FRAMES = 6 * FPS;
+/** Etkileşim kartı: 3–4 sn. */
+const ENGAGE_FRAMES = [3 * FPS, 4 * FPS] as const;
 /** Seslendirme notu okunurken yalnız bu iki kart uzayabilir, sesin gerektirdiği kadar. */
 export const MAX_NOTE_CARD_FRAMES = 8 * FPS;
 const NOTE_CARDS: readonly string[] = ["C07_KEY", "C09_SCENARIO"];
@@ -39,7 +41,9 @@ const stripNames = (text: string, names: readonly string[]): string => names.red
 export function sceneReadabilityProblems(scene: ReelScene, names: readonly string[]): string[] {
   const problems: string[] = [];
   const voiceNote = NOTE_CARDS.includes(scene.type) && readsNote(scene.voiceover);
-  if (scene.durationInFrames < MIN_CARD_FRAMES || scene.durationInFrames > (voiceNote ? MAX_NOTE_CARD_FRAMES : MAX_CARD_FRAMES)) problems.push(`süre ${(scene.durationInFrames / FPS).toFixed(1)} sn: ${voiceNote ? "notlu kart en çok 8 sn" : "4–6 sn olmalı"}`);
+  if (scene.type === "S18_ENGAGE") {
+    if (scene.durationInFrames < ENGAGE_FRAMES[0] || scene.durationInFrames > ENGAGE_FRAMES[1]) problems.push("etkileşim kartı 3–4 sn olmalı");
+  } else if (scene.durationInFrames < MIN_CARD_FRAMES || scene.durationInFrames > (voiceNote ? MAX_NOTE_CARD_FRAMES : MAX_CARD_FRAMES)) problems.push(`süre ${(scene.durationInFrames / FPS).toFixed(1)} sn: ${voiceNote ? "notlu kart en çok 8 sn" : "4–6 sn olmalı"}`);
   if (voiceNote && scene.durationInFrames > MAX_CARD_FRAMES && scene.durationInFrames > framesToSpeak(scene.voiceover?.text ?? "")) problems.push("notlu kart sesin gerektirdiğinden uzun");
   const bullets = screenBullets(scene);
   if (bullets.length > MAX_BULLETS) problems.push(`${bullets.length} madde: en fazla ${MAX_BULLETS}`);

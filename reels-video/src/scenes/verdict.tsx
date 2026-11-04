@@ -1,5 +1,5 @@
 import { AbsoluteFill, Img, staticFile, useCurrentFrame } from "remotion";
-import { BOARD_GROUND, BoardPanel, ChalkArrow, HandLabel, Magnet } from "../design/board";
+import { BOARD_GROUND, BoardPanel, ChalkArrow, HandLabel, inkOn, Magnet } from "../design/board";
 import { Figures, HeroFigure, Panel, PlayerCut, QuestionTitle, themeOf, titleBottom, useEnter } from "../design/kit";
 import { BOTTOM, labelStyle, numberStyle, type Theme, W, X } from "../design/tokens";
 import { countUp } from "../lib/motion";
@@ -50,18 +50,23 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
           </div>
         </div>
         <BoardPanel name="anahtar tahtası" width={W} height={boardHeight}>
+          {/* Hücum farkı: lider rakip kaleye gider. Savunma farkı: rakip gelir, liderin kalesi vurgulu. */}
+          <div style={{ position: "absolute", top: boardHeight * 0.2, height: boardHeight * 0.6, width: 150, ...(data.focus === "attack" ? { right: 0 } : { left: 0 }), background: "rgba(46,165,55,0.34)" }} />
           <svg data-fill="" width={W} height={boardHeight} viewBox={`0 0 ${W} ${boardHeight}`} style={{ position: "absolute", left: 0, top: 0 }}>
             <Magnet x={130} y={boardHeight / 2} r={90} color={lead.colors.primary} logo={lead.logo} />
             <Magnet x={W - 130} y={boardHeight / 2} r={90} color={trail.colors.primary} logo={trail.logo} />
           </svg>
-          <ChalkArrow width={W} height={boardHeight} from={[240, boardHeight / 2 + 30]} to={[W - 240, boardHeight / 2 + 30]} bend={60} color={theme.accentText} start={30} name="anahtar" />
-          <HandLabel theme={theme} text="En açık fark" size={60} style={{ left: W / 2 + 24, top: 18 }} />
+          <ChalkArrow width={W} height={boardHeight} from={data.focus === "attack" ? [240, boardHeight / 2 + 30] : [W - 240, boardHeight / 2 + 30]} to={data.focus === "attack" ? [W - 240, boardHeight / 2 + 30] : [240, boardHeight / 2 + 30]} bend={60} color={theme.accentText} start={30} name="anahtar" />
+          <HandLabel theme={theme} text={data.focus === "attack" ? "Hücumda fark" : "Savunmada fark"} size={60} style={{ left: data.focus === "attack" ? 40 : W / 2 + 24, top: 18 }} />
         </BoardPanel>
         {data.analystNote ? <AnalystNote theme={theme} text={data.analystNote} /> : <ReasonList theme={theme} items={data.reasons} start={48} size={44} />}
       </Area>
     </AbsoluteFill>
   );
 }
+
+const UPSET_BOARD = 560;
+const UPSET_STEP = 152;
 
 export function UpsetScene({ script, scene }: SceneProps<"C08_UPSET">) {
   const theme = themeOf(script);
@@ -76,12 +81,18 @@ export function UpsetScene({ script, scene }: SceneProps<"C08_UPSET">) {
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
       <Area top={titleBottom(theme, line1, line2) + 12}>
         <HeroFigure theme={theme} value={data.hero.value} percent={data.hero.percent} label={`${data.team} kazanırsa`} color={team.colors.primary} size={Math.min(theme.heroSize, 220)} />
-        <BoardPanel name="sürpriz yolu" width={W} height={500} grow style={{ display: "flex", flexDirection: "column" }}>
-          <HandLabel theme={theme} text="Sürpriz yolu" size={62} style={{ left: 24, top: 16 }} />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-evenly", padding: "92px 24px 18px 100px", gap: 14 }}>
-            {data.reasons.map((reason) => <div key={reason.id} data-bullet="" style={{ ...labelStyle(theme, 46), color: theme.ink, lineHeight: 1.1, background: BOARD_GROUND, padding: "6px 10px", alignSelf: "flex-start" }}>{reason.text}</div>)}
-          </div>
-          <ChalkArrow width={90} height={500} from={[50, 110]} to={[50, 470]} bend={0} color={theme.accentText} start={36} name="surpriz" />
+        <BoardPanel name="sürpriz yolu" width={W} height={UPSET_BOARD} style={{ height: UPSET_BOARD }}>
+          <HandLabel theme={theme} text="Sürpriz yolu" size={62} style={{ left: 24, top: 14 }} />
+          {data.reasons.map((reason, index) => {
+            const y = 96 + index * UPSET_STEP;
+            return (
+              <div key={reason.id}>
+                <div style={{ ...numberStyle(theme, 40), position: "absolute", left: 22, top: y, width: 68, height: 68, borderRadius: 34, display: "flex", alignItems: "center", justifyContent: "center", background: team.colors.primary, color: inkOn(team.colors.primary), border: "4px solid #F4F6EF" }}>{index + 1}</div>
+                <div data-bullet="" style={{ ...labelStyle(theme, 44), position: "absolute", left: 108, right: 14, top: y - 4, color: theme.ink, lineHeight: 1.1, background: BOARD_GROUND, padding: "6px 10px" }}>{reason.text}</div>
+                {index < data.reasons.length - 1 ? <ChalkArrow width={W} height={UPSET_BOARD} from={[56, y + 76]} to={[56, y + UPSET_STEP - 8]} color={theme.accentText} start={30 + index * 14} name={`surpriz-${index}`} /> : null}
+              </div>
+            );
+          })}
         </BoardPanel>
       </Area>
     </AbsoluteFill>

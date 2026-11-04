@@ -59,7 +59,7 @@ const QUESTION_FRAMES: Record<QuestionSceneType, number> = {
 const DURATIONS: Record<ReelSceneType, number> = {
   ...QUESTION_FRAMES,
   S01_COVER: 120, C01_STORY: 180, M02_MONTE_CARLO: 180, C02_FORM: 180, C03_ABSENCES: 180, C04_TEAM_HOME: 180, C05_TEAM_AWAY: 180, C06_MINUTES: 180, C07_KEY: 180, C08_UPSET: 180, C09_SCENARIO: 180,
-  P01_DUEL: 180, P02_VS_OPPONENT: 180, S17_CLOSE: 120,
+  P01_DUEL: 180, P02_VS_OPPONENT: 180, S17_CLOSE: 120, S18_ENGAGE: 120,
   // Yedek havuzun eski sahneleri: akışa girmez, tasarım seçilince taşınır ya da silinir.
   S02_LOGO: 32, S03_HOOK: 150, S04_COMPARE: 210, S05_H2H: 180, S07_KEY_GAP: 150, S11_FATIGUE: 120, S14_TRACK_RECORD: 180, S15_CHANCE: 150, S16_SUMMARY: 270,
 };
@@ -236,7 +236,11 @@ export function evaluatePool(data: MatchData, brand: { handle: string }, options
   ];
 }
 
-export const BRAND = { accent: "#2EA537", logo: "brand/checkmatch-logo.png", mark: "brand/checkmatch-mark.png", handle: "@checkmatch_tr" };
+/** Hesap adı platforma göre ayarlanır; varsayılan hepsinde aynı. */
+export const HANDLES = { instagram: "@checkmatch_tr", tiktok: "@checkmatch_tr", youtube: "@checkmatch_tr", x: "@checkmatch_tr" } as const;
+export type ReelPlatform = keyof typeof HANDLES;
+export const brandFor = (platform: ReelPlatform) => ({ accent: "#2EA537", logo: "brand/checkmatch-logo.png", mark: "brand/checkmatch-mark.png", handle: HANDLES[platform] });
+export const BRAND = brandFor("instagram");
 
 /** Yer tutucu siluet: `Photo.processingMeta` biçiminde oransal yüz kutusu ve kırpma önerisi. */
 const placeholderPhoto = (side: "home" | "away"): ReelPhoto => ({

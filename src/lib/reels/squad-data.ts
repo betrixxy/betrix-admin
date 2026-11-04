@@ -9,7 +9,7 @@ const DEPS: ReelSquadDeps = {
   fetchSquad: async (teamId) => {
     const squad = await getTeamSquad(teamId);
     if (!squad.ok) return { ok: false, message: squad.error.message };
-    return { ok: true, data: squad.data.flatMap((entry) => (entry.name ? [{ id: entry.id, name: entry.name }] : [])) };
+    return { ok: true, data: squad.data.flatMap((entry) => (entry.name ? [{ id: entry.id, name: entry.name, number: entry.number }] : [])) };
   },
   readStored: async (teamId) => {
     const row = await prisma.reelSquadCheck.findUnique({ where: { teamId } });

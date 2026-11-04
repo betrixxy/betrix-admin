@@ -1,7 +1,8 @@
 import { formatDecimal, formatInt, FPS, seeded, spokenThousands } from "../lib/motion";
-import type { ReelScene, ReelSceneType } from "../schema";
 import { NOTE_CARD_MAX_WORDS, splitVoiceNote } from "../../../src/lib/reels/analyst-note";
 import { claim, claims, noteLine, say, TEAM, type VoiceLine, voiceOf, type Voiceover } from "./claims";
+import { base, BOTH, dec, type Entry, type Frames, key, NO_CONTEXT, off, on, other, pct, SIDES } from "./entry";
+import { teamAnalysis } from "./team-card";
 import { checkBothScore, checkFirstGoal, checkGoals, checkOutcome } from "./market-checks";
 import { type Absence, GOAL_SLOTS, type MatchContext } from "./match-context";
 import type { MatchData, Side } from "./match-data";
@@ -13,22 +14,6 @@ import { inSquad } from "./squad";
  * Futbol okuması sahneleri. Veri `MatchData.context`ten; yoksa sahne kapanır, boş kare çizilmez. Yorum cümleleri
  * `claim` ile kurulur: rakam kodla eklenir, veride olmayan taktik/oyuncu iddiası yazılmaz.
  */
-
-type Entry = { type: ReelSceneType; scene: ReelScene; reason: null } | { type: ReelSceneType; scene: null; reason: string };
-type Frames = Record<string, number>;
-
-const NONE = { photoIds: [] as string[] };
-const BOTH = { photoIds: ["home-1", "away-1"] };
-const SIDES = ["home", "away"] as const;
-const other = (side: Side): Side => (side === "home" ? "away" : "home");
-const NO_CONTEXT = "Futbol okuması verisi yok (API-Football)";
-const pct = (value: number) => Math.round(value * 100);
-const key = (side: Side, path: string) => `context.teams.${side}.${path}`;
-const dec = (value: number | null) => (value === null ? null : formatDecimal(value, 1));
-
-const base = (frames: Frames, type: ReelSceneType, line1: string, line2: string, voiceover: Voiceover | null, assets = NONE) => ({ durationInFrames: frames[type] ?? 150, voiceover, headline: { line1, line2 }, caption: null, assets });
-const on = (scene: ReelScene): Entry => ({ type: scene.type, scene, reason: null });
-const off = (type: ReelSceneType, reason: string): Entry => ({ type, scene: null, reason });
 
 /** Skorborddaki örnek skorlar: sonuç payları simülasyonla aynı, tek tek skor iddiası değildir. */
 const WIN_SCORES = [[1, 0], [2, 0], [2, 1], [3, 1], [3, 0], [3, 2]] as const;
@@ -137,50 +122,6 @@ function absences(data: MatchData, ctx: MatchContext, frames: Frames): Entry {
   return on({ type: "C03_ABSENCES", ...base(frames, "C03_ABSENCES", "Kimler", "eksik?", voiceover ?? fallback), data: { home: lists.home.slice(0, ABSENCES_ON_SCREEN).map(row), away: lists.away.slice(0, ABSENCES_ON_SCREEN).map(row), reasons } });
 }
 
-function teamAnalysis(data: MatchData, ctx: MatchContext, side: Side, frames: Frames): Entry {
-  const type = side === "home" ? "C04_TEAM_HOME" : "C05_TEAM_AWAY";
-  const team = ctx.teams[side];
-  const name = data.teams[side].short_name;
-  if (team.goals_for_avg === null || team.goals_against_avg === null || !team.formation) return off(type, "Takım istatistiği eksik");
-  const league = ctx.standings.league_goals_avg;
-  const leagueFact = { key: "context.standings.league_goals_avg", format: "dec1" } as const;
-  const attack = claim(data, `team.${side}.attack`, "Hücum: maçta {v} gol, lig {l}", { v: { key: key(side, "goals_for_avg"), format: "dec1" }, l: leagueFact });
-  const defence = claim(data, `team.${side}.defence`, "Savunma: maçta {v} gol yiyor, lig {l}", { v: { key: key(side, "goals_against_avg"), format: "dec1" }, l: leagueFact });
-  const fail = claim(data, `team.${side}.fail`, "Maçların {v} gol bulamadı", { v: { key: key(side, "failed_to_score_pct"), format: "pctIn" } });
-  const clean = claim(data, `team.${side}.clean`, "Maçların {v} gol yemedi", { v: { key: key(side, "clean_sheet_pct"), format: "pctIn" } });
-  if (league === null) return off(type, "Lig ortalaması yok");
-  // Lig ortalamasıyla kıyas: ortalamadan iyi olan güçlü, kötü olan zayıf. İkisi de aynı tarafta kalırsa diğer ölçü devreye girer.
-  const attackEdge = team.goals_for_avg - league;
-  const defenceEdge = league - team.goals_against_avg;
-  const [strong, weak] = attackEdge >= defenceEdge ? [attack, defence] : [defence, attack];
-  const strongEdge = Math.max(attackEdge, defenceEdge);
-  const weakEdge = Math.min(attackEdge, defenceEdge);
-  const points = [
-    ...(strong && strongEdge >= 0 ? [{ label: "Güçlü", reason: strong }] : []),
-    ...(weak && weakEdge < 0 ? [{ label: "Zayıf", reason: weak }] : []),
-  ];
-  if (points.length < 2 && clean && fail) points.push({ label: "Dikkat", reason: strongEdge < 0 ? clean : fail });
-  if (points.length < 2) return off(type, "Yorum için veri yetersiz");
-  return on({
-    type, ...base(frames, type, name, "analizi", voiceOf([
-      say(data, `team.${side}`, "{team} maçta {a} gol atıyor, {b} yiyor.", { team: TEAM[side], a: { key: key(side, "goals_for_avg"), format: "dec1" }, b: { key: key(side, "goals_against_avg"), format: "dec1" } }),
-      say(data, `team.${side}.shape`, "Dizilişi {f}.", { f: { key: key(side, "formation.name"), format: "formation" } }),
-    ]), { photoIds: [`${side}-1`] }),
-    data: {
-      side,
-      stats: [
-        { key: "for", value: dec(team.goals_for_avg) ?? "", label: "Attığı/maç" },
-        { key: "against", value: dec(team.goals_against_avg) ?? "", label: "Yediği/maç" },
-        ...(team.xg_for_avg === null ? [] : [{ key: "xg", value: dec(team.xg_for_avg) ?? "", label: "xG/maç" }]),
-        ...(team.clean_sheet_pct === null ? [] : [{ key: "clean", value: `%${Math.round(team.clean_sheet_pct)}`, label: "Gol yememe" }]),
-        ...(team.failed_to_score_pct === null ? [] : [{ key: "fail", value: `%${Math.round(team.failed_to_score_pct)}`, label: "Gol atamama" }]),
-      ],
-      formation: team.formation,
-      points: points.slice(0, 2),
-    },
-  });
-}
-
 function goalMinutes(data: MatchData, ctx: MatchContext, frames: Frames): Entry {
   const complete = (values: (number | null)[]): values is number[] => values.length === GOAL_SLOTS.length && values.every((value) => value !== null);
   const { home, away } = ctx.teams;
@@ -204,13 +145,13 @@ function goalMinutes(data: MatchData, ctx: MatchContext, frames: Frames): Entry 
 }
 
 /** En belirgin fark: lig ortalamasına göre göreli en açık başlık. */
-export function keyDifference(ctx: MatchContext): { path: string; label: string; format: "dec1" | "pct"; lowerIsBetter: boolean; leader: Side } | null {
+export function keyDifference(ctx: MatchContext): { path: string; label: string; format: "dec1" | "pct"; lowerIsBetter: boolean; leader: Side; focus: "attack" | "defence" } | null {
   const METRICS = [
-    { path: "goals_for_avg", label: "Maç başı gol", format: "dec1", lowerIsBetter: false },
-    { path: "goals_against_avg", label: "Maç başı yenilen gol", format: "dec1", lowerIsBetter: true },
-    { path: "xg_for_avg", label: "Maç başı xG", format: "dec1", lowerIsBetter: false },
-    { path: "clean_sheet_pct", label: "Gol yememe payı", format: "pct", lowerIsBetter: false },
-    { path: "failed_to_score_pct", label: "Gol atamama payı", format: "pct", lowerIsBetter: true },
+    { path: "goals_for_avg", label: "Maç başı gol", format: "dec1", lowerIsBetter: false, focus: "attack" },
+    { path: "goals_against_avg", label: "Maç başı yenilen gol", format: "dec1", lowerIsBetter: true, focus: "defence" },
+    { path: "xg_for_avg", label: "Maç başı xG", format: "dec1", lowerIsBetter: false, focus: "attack" },
+    { path: "clean_sheet_pct", label: "Gol yememe payı", format: "pct", lowerIsBetter: false, focus: "defence" },
+    { path: "failed_to_score_pct", label: "Gol atamama payı", format: "pct", lowerIsBetter: true, focus: "attack" },
   ] as const;
   const scored = METRICS.flatMap((metric) => {
     const [a, b] = [ctx.teams.home[metric.path], ctx.teams.away[metric.path]];
@@ -220,7 +161,7 @@ export function keyDifference(ctx: MatchContext): { path: string; label: string;
     return [{ metric, gap, leader, equal: a === b }];
   }).filter((item) => !item.equal).sort((x, y) => y.gap - x.gap);
   const top = scored[0];
-  return top && top.gap >= 0.1 ? { path: top.metric.path, label: top.metric.label, format: top.metric.format, lowerIsBetter: top.metric.lowerIsBetter, leader: top.leader } : null;
+  return top && top.gap >= 0.1 ? { path: top.metric.path, label: top.metric.label, format: top.metric.format, lowerIsBetter: top.metric.lowerIsBetter, leader: top.leader, focus: top.metric.focus } : null;
 }
 
 function matchKey(data: MatchData, ctx: MatchContext, frames: Frames, voiceNote: string | null): Entry {
@@ -240,7 +181,7 @@ function matchKey(data: MatchData, ctx: MatchContext, frames: Frames, voiceNote:
   const sceneBase = base(frames, "C07_KEY", "Maçın", "anahtarı", voiceover, { photoIds: [`${found.leader}-1`] });
   return on({
     type: "C07_KEY", ...sceneBase, durationInFrames: noteCardFrames(sceneBase.durationInFrames, voiceover),
-    data: { metric: found.label, leader: found.leader, leaderValue: show(a), otherValue: show(b), reasons: screenNote ? [] : claims([reason]), analystNote: screenNote },
+    data: { metric: found.label, focus: found.focus, leader: found.leader, leaderValue: show(a), otherValue: show(b), reasons: screenNote ? [] : claims([reason]), analystNote: screenNote },
   });
 }
 
@@ -315,6 +256,7 @@ function scenario(data: MatchData, frames: Frames, voiceNote: string | null): En
 export function evaluateAnalysis(data: MatchData, frames: Frames, handle: string): Entry[] {
   const closeVoice = voiceOf([say(data, "close", "Sence kim kazanır, {home} ya da {away}? Yorumlara yaz, maçtan sonra bak.", { home: TEAM.home, away: TEAM.away })]);
   const close: Entry = on({ type: "S17_CLOSE", ...base(frames, "S17_CLOSE", "Sence kim", "kazanır?", closeVoice, BOTH), data: { options: [data.teams.home.short_name, "Beraberlik", data.teams.away.short_name], prompt: "Cevabını yorumlara yaz.", save: "Kaydet, maçtan sonra tekrar bak.", handle } });
+  const engage: Entry = on({ type: "S18_ENGAGE", ...base(frames, "S18_ENGAGE", "", "", voiceOf([say(data, "engage", "Beğen, yorum yap, paylaş, kaydet. Arkadaşını etiketle.", {}, ["brand"])])), headline: null, data: { calls: ["like", "comment", "share", "save"], prompt: "Arkadaşını etiketle — kim haklı çıkacak?", more: "Daha fazla analiz: checkmatch.net", handle } });
   const ctx = data.context;
   const closedTypes = ["C01_STORY", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES", "C07_KEY", "C08_UPSET"] as const;
   const voiceNote = data.analyst_voice_note?.trim() || null;
@@ -329,5 +271,6 @@ export function evaluateAnalysis(data: MatchData, frames: Frames, handle: string
     // Not bir kez okunur: anahtar kartı kapalıysa tamamı senaryo kartında.
     scenario(data, frames, key.scene === null ? voiceNote : restNote),
     close,
+    engage,
   ];
 }

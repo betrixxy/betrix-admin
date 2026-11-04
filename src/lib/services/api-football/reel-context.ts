@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { apiFootballRequest } from "@/lib/services/api-football/client";
+import { isOfficialLeague } from "@/lib/reels/lineup-rule";
 import type { ApiFootballError } from "@/lib/services/api-football/types";
 import type { Result } from "@/types/result";
 
@@ -66,6 +67,24 @@ export async function getStandingRows(leagueId: number, season: number): Promise
   const list = await parsedList("/standings", { league: String(leagueId), season: String(season) }, z.object({ league: z.object({ standings: z.array(z.array(standingRowRawSchema)) }) }), STANDINGS_TTL_MS);
   if (!list.ok) return list;
   return { ok: true, data: list.data.flatMap((entry) => entry.league.standings.flat()) };
+}
+
+const lastFixtureRawSchema = z.object({ fixture: z.object({ id: z.number(), date: z.string() }), league: z.object({ name: z.string().nullish() }) });
+const lineupPlayerRawSchema = z.object({ player: z.object({ id: z.number(), name: z.string(), number: z.number().nullish(), grid: z.string().nullish() }) });
+const lineupRawSchema = z.object({ team: z.object({ id: z.number() }), formation: z.string().nullish(), startXI: z.array(lineupPlayerRawSchema).nullish() });
+export interface LastLineupRaw { fixtureId: number; date: string; formation: string | null; startXI: z.infer<typeof lineupPlayerRawSchema>["player"][] }
+
+/** Canlı: `status=FT-AET-PEN` çalışıyor, en yeni başta (11-04, Galatasaray). */
+/** Takımın maçtan önceki son resmî maçının ilk 11'i. Son maçın verisi yoksa null: daha eski maça düşülmez, etiket yalan olur. */
+export async function getTeamLastLineup(teamId: number, beforeUtc: string): Promise<Result<LastLineupRaw | null, ApiFootballError>> {
+  const fixtures = await parsedList("/fixtures", { team: String(teamId), last: "5", status: "FT-AET-PEN" }, lastFixtureRawSchema, INJURIES_TTL_MS);
+  if (!fixtures.ok) return fixtures;
+  const last = fixtures.data.filter((item) => isOfficialLeague(item.league.name) && item.fixture.date < beforeUtc).sort((a, b) => b.fixture.date.localeCompare(a.fixture.date))[0];
+  if (!last) return { ok: true, data: null };
+  const lineups = await parsedList("/fixtures/lineups", { fixture: String(last.fixture.id) }, lineupRawSchema, INJURIES_TTL_MS);
+  if (!lineups.ok) return lineups;
+  const own = lineups.data.find((item) => item.team.id === teamId);
+  return { ok: true, data: own ? { fixtureId: last.fixture.id, date: last.fixture.date, formation: own.formation ?? null, startXI: (own.startXI ?? []).map((item) => item.player) } : null };
 }
 
 export const getFixtureInjuries = (fixtureId: number) => parsedList("/injuries", { fixture: String(fixtureId) }, injuryRawSchema, INJURIES_TTL_MS);

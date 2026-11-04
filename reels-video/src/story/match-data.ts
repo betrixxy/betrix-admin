@@ -1,3 +1,4 @@
+import type { ReelLineupEdits } from "../../../src/lib/reels/lineup-rule";
 /**
  * Senaryo girdisi: reels-service sözleşme v1 + v1.2 ihtiyaçları (`docs/contract-v1.2-ihtiyac.md`) + betrix'in eklediği
  * oyuncu/kadro bloğu. Alan adları nötrdür, market adı taşımaz. Eksik veri `null`: ilgili sahne kendini kapatır.
@@ -110,6 +111,8 @@ export interface MatchData {
   analyst_screen_note: string | null;
   /** 1–3 cümle: seslendirmeye ve video açıklamasına gider. */
   analyst_voice_note: string | null;
+  /** Panelden "Muhtemel 11'i düzenle". Yoksa son maçın ilk 11'i. */
+  lineup_edits: ReelLineupEdits | null;
   form: SidePair<TeamForm>;
   h2h: {
     played: number | null;

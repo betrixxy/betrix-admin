@@ -1,7 +1,7 @@
-import { reelAbsences, type ReelAbsenceStatus, type ReelContext, reelStandings, reelTeamContext, sidelinedOn, topContributors } from "@/lib/reels/context-rule";
+import { reelAbsences, type ReelAbsenceStatus, type ReelContext, reelLastLineup, reelStandings, reelTeamContext, sidelinedOn, topContributors } from "@/lib/reels/context-rule";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
 import { getHeadToHead } from "@/lib/services/api-football/match-stats";
-import { getFixtureInjuries, getPlayerSidelined, getStandingRows, getTeamInjuriesOn, getTeamStatistics, type InjuryRaw, type ReelStandingRowRaw, type SidelinedRaw, type TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
+import { getFixtureInjuries, getPlayerSidelined, getStandingRows, getTeamInjuriesOn, getTeamLastLineup, getTeamStatistics, type InjuryRaw, type LastLineupRaw, type ReelStandingRowRaw, type SidelinedRaw, type TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
 import { getSeasonLeagueXg } from "@/lib/services/api-football/season-xg";
 import { getTeamLeaguePlayers } from "@/lib/services/api-football/team-player-stats";
 import { getLeagueSeasons } from "@/lib/services/api-football/weekly-fixtures";
@@ -28,9 +28,10 @@ export interface ReelContextDeps {
   players: (teamId: number, season: number, leagueId: number) => Promise<Outcome<ApiFootballPlayerSeason[]>>;
   h2h: (homeId: number, awayId: number, beforeUtc: string) => Promise<Outcome<HeadToHeadSummary>>;
   xg: (teamId: number, beforeUtc: string) => Promise<Outcome<{ xgForAvg: number | null; matchesSampled: number } | null>>;
+  lastLineup: (teamId: number, beforeUtc: string) => Promise<Outcome<LastLineupRaw | null>>;
 }
 
-const DEPS: ReelContextDeps = { season: getLeagueSeasons, standings: getStandingRows, statistics: getTeamStatistics, fixtureInjuries: getFixtureInjuries, teamInjuries: getTeamInjuriesOn, sidelined: getPlayerSidelined, players: getTeamLeaguePlayers, h2h: getHeadToHead, xg: getSeasonLeagueXg };
+const DEPS: ReelContextDeps = { season: getLeagueSeasons, standings: getStandingRows, statistics: getTeamStatistics, fixtureInjuries: getFixtureInjuries, teamInjuries: getTeamInjuriesOn, sidelined: getPlayerSidelined, players: getTeamLeaguePlayers, h2h: getHeadToHead, xg: getSeasonLeagueXg, lastLineup: getTeamLastLineup };
 
 export interface ReelContextProject { matchId: number; leagueId: number; homeTeamId: number; homeName: string; awayTeamId: number; awayName: string; kickoffUtc: Date }
 export interface ReelContextResult { context: ReelContext | null; warnings: string[]; requests: Record<string, number> }
@@ -58,9 +59,10 @@ export async function loadReelContext(project: ReelContextProject, deps: ReelCon
   count("teams/statistics", 2);
   count("fixtures/headtohead");
   count("players (sayfa başına)", 2);
-  const [standings, homeStats, awayStats, h2h, homePlayers, awayPlayers, homeXg, awayXg] = await Promise.all([
+  count("fixtures + lineups", 4);
+  const [standings, homeStats, awayStats, h2h, homePlayers, awayPlayers, homeXg, awayXg, homeLineup, awayLineup] = await Promise.all([
     deps.standings(leagueId, season), deps.statistics(homeId, leagueId, season), deps.statistics(awayId, leagueId, season), deps.h2h(homeId, awayId, beforeUtc),
-    deps.players(homeId, season, leagueId), deps.players(awayId, season, leagueId), deps.xg(homeId, beforeUtc), deps.xg(awayId, beforeUtc),
+    deps.players(homeId, season, leagueId), deps.players(awayId, season, leagueId), deps.xg(homeId, beforeUtc), deps.xg(awayId, beforeUtc), deps.lastLineup(homeId, beforeUtc), deps.lastLineup(awayId, beforeUtc),
   ]);
   const rows = take("Puan durumu", standings);
   const stats = { home: take(`${project.homeName} istatistiği`, homeStats), away: take(`${project.awayName} istatistiği`, awayStats) };
@@ -104,8 +106,8 @@ export async function loadReelContext(project: ReelContextProject, deps: ReelCon
     season,
     standings: table.lines,
     teams: {
-      home: reelTeamContext(stats.home, table.home, "home", xgOf(homeXg, project.homeName)),
-      away: reelTeamContext(stats.away, table.away, "away", xgOf(awayXg, project.awayName)),
+      home: reelTeamContext(stats.home, table.home, "home", xgOf(homeXg, project.homeName), reelLastLineup(take(`${project.homeName} son ilk 11`, homeLineup))),
+      away: reelTeamContext(stats.away, table.away, "away", xgOf(awayXg, project.awayName), reelLastLineup(take(`${project.awayName} son ilk 11`, awayLineup))),
     },
     absences,
     h2h: meetings && playedH2h > 0 ? { played: playedH2h, home_wins: meetings.homeWins, draws: meetings.draws, away_wins: meetings.awayWins, avg_goals: Math.round((meetings.matches.reduce((sum, match) => sum + match.homeGoals + match.awayGoals, 0) / playedH2h) * 10) / 10 } : null,

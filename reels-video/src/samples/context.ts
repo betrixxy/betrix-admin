@@ -1,12 +1,21 @@
+import type { ReelLastLineup } from "../../../src/lib/reels/lineup-rule";
 import type { MatchContext, TeamContext } from "../story/match-context";
 
 /** KURGUSAL futbol okuması: takımlar ve bütün sayılar uydurmadır. Şema `story/match-context.ts`. */
+
+/** Kurgusal kadro: uzun ad sütuna sığıyor mu diye bir tane uzun soyad var. */
+const xi = (fixture: number, formation: string, base: number, names: readonly [number, string, string, number][]): ReelLastLineup => ({
+  fixture_id: fixture, date: "2026-11-01T17:00:00Z", formation,
+  players: names.map(([id, name, short, number]) => ({ id: id || base, name, short_name: short, number })),
+});
+export const DERBY_HOME_XI = xi(900101, "4-2-3-1", 0, [[90100, "Kurgu Kaleci", "K. Kaleci", 1], [90101, "Örnek Bek", "Ö. Bek", 2], [90102, "Kurgu Stoper", "K. Stoper", 4], [90103, "Yıldırımoğlu", "T. Yıldırımoğlu", 5], [90104, "Örnek Sol", "Ö. Sol", 3], [90105, "Kurgu Orta", "K. Orta", 6], [90106, "Örnek Pasör", "Ö. Pasör", 8], [90012, "Yedek Kanat", "Y. Kanat", 7], [90107, "Kurgu On", "K. On", 10], [90108, "Örnek Kanat", "Ö. Kanat", 11], [90011, "Kurgu Forvet", "K. Forvet", 9]]);
+export const DERBY_AWAY_XI = xi(900102, "4-3-3", 0, [[90200, "Örnek Kaleci", "Ö. Kaleci", 12], [90201, "Kurgu Bek", "K. Bek", 22], [90202, "Örnek Stoper", "Ö. Stoper", 15], [90203, "Kurgu Libero", "K. Libero", 5], [90204, "Kurgu Sol", "K. Sol", 33], [90205, "Örnek Orta", "Ö. Orta", 6], [90022, "Yedek Orta", "Y. Orta", 8], [90206, "Kurgu Pasör", "K. Pasör", 10], [90207, "Kurgu Kanat", "K. Kanat", 7], [90021, "Örnek Golcü", "Ö. Golcü", 9], [90208, "Örnek Açık", "Ö. Açık", 77]]);
 
 const team = (over: Partial<TeamContext>): TeamContext => ({
   form: "WDWLWDW", played: 11, wins: 6, loses: 2,
   venue: { played: 6, win: 4, draw: 1, lose: 1, goals_for: 12, goals_against: 5 },
   goals_for_avg: 1.8, goals_against_avg: 1.1, xg_for_avg: 1.72, clean_sheet_pct: 27, failed_to_score_pct: 18,
-  formation: { name: "4-2-3-1", played: 8 }, streaks: { wins: 4, draws: 2, loses: 1 },
+  formation: { name: "4-2-3-1", played: 8 }, lineup: null, streaks: { wins: 4, draws: 2, loses: 1 },
   minutes: { for: [2, 3, 4, 3, 2, 6], against: [1, 2, 1, 4, 2, 2] },
   ...over,
 });
@@ -15,8 +24,9 @@ export const DERBY_CONTEXT: MatchContext = {
   fetched_at: "2026-11-08T08:05:00Z", source: "api-football", season: 2026,
   standings: { home: { rank: 3, points: 21, played: 11, goals_diff: 8 }, away: { rank: 5, points: 19, played: 11, goals_diff: 4 }, league_goals_avg: 1.4 },
   teams: {
-    home: team({}),
+    home: team({ lineup: DERBY_HOME_XI }),
     away: team({
+      lineup: DERBY_AWAY_XI,
       form: "DWLWDWL", wins: 5, loses: 2, venue: { played: 5, win: 2, draw: 2, lose: 1, goals_for: 8, goals_against: 7 },
       goals_for_avg: 1.6, goals_against_avg: 1.2, xg_for_avg: 1.55, clean_sheet_pct: 18, failed_to_score_pct: 9,
       formation: { name: "4-3-3", played: 7 }, streaks: { wins: 3, draws: 2, loses: 2 },

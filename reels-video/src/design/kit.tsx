@@ -125,7 +125,9 @@ export function StageBackdrop({ script }: { script: ReelScript }) {
 export function StageHud({ script }: { script: ReelScript }) {
   const frame = useCurrentFrame();
   const theme = themeOf(script);
-  const { entries } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
+  const { entries, total } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
+  // Video başa dönerken çubuk da boşalır: son kare ilk kareyle aynı.
+  const loopFade = script.scenes.at(-1)?.type === "S18_ENGAGE" ? interpolate(frame, [total - 12, total - 1], [1, 0], clamp) : 1;
   const badge = simulationBadge(script.meta.snapshot.simulations);
   // Rozet yalnız simülasyondan gelen rakamların olduğu sahnede: API-Football verisini "Monte Carlo" diye etiketlemez.
   const current = [...entries].reverse().find((entry) => frame >= entry.from);
@@ -153,7 +155,7 @@ export function StageHud({ script }: { script: ReelScript }) {
       <div style={{ position: "absolute", left: X, width: W, top: PROGRESS_TOP, height: 6, display: "flex", gap: 4 }}>
         {entries.map((entry, index) => (
           <div key={index} style={{ flex: 1, background: "rgba(255,255,255,0.3)", overflow: "hidden", transform: theme.id === "A" ? "skewX(-20deg)" : undefined, borderRadius: theme.id === "A" ? 0 : 3 }}>
-            <div style={{ height: "100%", background: theme.accent, width: `${interpolate(frame, [entry.from, entry.from + entry.duration - 8], [0, 100], clamp)}%` }} />
+            <div style={{ height: "100%", background: theme.accent, opacity: loopFade, width: `${interpolate(frame, [entry.from, entry.from + entry.duration - 8], [0, 100], clamp)}%` }} />
           </div>
         ))}
       </div>

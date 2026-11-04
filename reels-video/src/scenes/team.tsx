@@ -4,6 +4,7 @@ import { Figures, Panel, QuestionTitle, themeOf, titleBottom, useEnter } from ".
 import { BOTTOM, labelStyle, numberStyle, type Theme, W, X } from "../design/tokens";
 import type { ReelScene, ReelScript } from "../schema";
 import type { SceneProps } from "./common";
+import { LineupBoard } from "./lineup-board";
 import { ReasonList } from "./reason-list";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -48,8 +49,8 @@ export function TeamScene({ script, scene }: { script: ReelScript; scene: Extrac
         <div style={{ display: "flex", gap: 10 }}>
           {data.stats.slice(0, 3).map((stat, index) => <StatCell key={stat.key} theme={theme} value={stat.value} label={stat.label} color={team.colors.primary} index={index} />)}
         </div>
-        <FormationBoard theme={theme} name={data.formation.name} played={data.formation.played} color={team.colors.primary} />
-        <ReasonList theme={theme} items={data.points.map((point) => point.reason)} start={44} size={44} />
+        {data.lineup ? <LineupBoard theme={theme} lineup={data.lineup} board={data.board} color={team.colors.primary} /> : data.formation ? <FormationBoard theme={theme} name={data.formation.name} played={data.formation.played} color={team.colors.primary} /> : null}
+        <ReasonList theme={theme} items={data.points.map((point) => point.reason)} start={44} size={42} />
       </div>
     </AbsoluteFill>
   );
@@ -84,6 +85,8 @@ export function MinutesScene({ script, scene }: SceneProps<"C06_MINUTES">) {
   const peak = firstRow.reduce((best, value, index) => (value > (firstRow[best] ?? 0) ? index : best), 0);
   const height = BAND + SLOT_ROW + data.rows.length * (ROW_LABEL + CELL + 6) + 12;
   const peakX = 20 + peak * cell + cell / 2;
+  // Kritik bölge: her satırın en yüksek dilimi halkalı; yediği satırında kırmızı.
+  const peakOf = (cells: readonly number[]) => cells.reduce((best, value, index) => (value > (cells[best] ?? 0) ? index : best), 0);
   return (
     <AbsoluteFill>
       <QuestionTitle theme={theme} line1={line1} line2={line2} />
@@ -108,7 +111,7 @@ export function MinutesScene({ script, scene }: SceneProps<"C06_MINUTES">) {
                       const heat = (value / highest) * fill;
                       return (
                         <div key={index} style={{ width: cell, height: CELL, padding: 2 }}>
-                          <div style={{ width: "100%", height: "100%", background: `rgba(46,165,55,${0.08 + heat * 0.42})`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <div style={{ width: "100%", height: "100%", background: `rgba(46,165,55,${0.08 + heat * 0.42})`, boxShadow: index === peakOf(row.cells) ? `inset 0 0 0 5px ${row.label === "Yediği" ? "#FF6B72" : theme.accentText}` : undefined, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <span style={{ ...numberStyle(theme, 56), color: "#FFFFFF" }}><Figures theme={theme} text={String(value)} /></span>
                           </div>
                         </div>

@@ -142,7 +142,7 @@ describe("takım analizi", () => {
   it("attığı, yediği, xG, gol yememe, gol atamama, diziliş, 2 madde", () => {
     const { data } = dataOf(DERBY, "C04_TEAM_HOME");
     assert.deepEqual(data.stats.map((stat) => stat.key), ["for", "against", "xg", "clean", "fail"]);
-    assert.equal(data.formation.name, "4-2-3-1");
+    assert.equal(data.formation!.name, "4-2-3-1");
     assert.equal(data.points.length, 2);
     assert.ok(dataOf(DERBY, "C05_TEAM_AWAY").data.side === "away");
   });

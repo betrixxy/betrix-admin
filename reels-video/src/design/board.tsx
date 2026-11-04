@@ -70,6 +70,19 @@ export function Magnet({ x, y, r, color, logo = null, show = 1 }: { x: number; y
   );
 }
 
+const luminance = (hex: string): number => {
+  const [r, g, b] = [1, 3, 5].map((start) => {
+    const value = Number.parseInt(hex.slice(start, start + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+/** Takım rengi üstündeki yazı: kontrastı yüksek olan. */
+export const inkOn = (hex: string): string => {
+  const on = luminance(hex);
+  return (1.05 / (on + 0.05)) >= ((on + 0.05) / (0.006 + 0.05)) ? "#FFFFFF" : "#101410";
+};
+
 /** Kısa el yazısı vurgu. Denetim: en fazla 3 sözcük, rakam yok. */
 export function HandLabel({ theme, text, size = 58, rotate = -3, color, style }: { theme: Theme; text: string; size?: number; rotate?: number; color?: string; style?: CSSProperties }) {
   return <div data-hand="" style={{ position: "absolute", fontFamily: theme.hand ?? theme.label, fontSize: size, lineHeight: 1, color: color ?? theme.accentText, whiteSpace: "nowrap", transform: `rotate(${rotate}deg)`, ...style }}>{text}</div>;

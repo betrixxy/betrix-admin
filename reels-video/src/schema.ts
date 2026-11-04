@@ -86,7 +86,17 @@ const absence = z.strictObject({ name: z.string(), status: z.enum(["injured", "s
 const teamAnalysis = z.strictObject({
   side,
   stats: z.array(z.strictObject({ key: z.string(), value: z.string(), label: z.string() })).min(2).max(5),
-  formation: z.strictObject({ name: z.string(), played: z.number().int() }),
+  /** Son maç verisi yoksa yedek: en sık diziliş. */
+  formation: z.strictObject({ name: z.string(), played: z.number().int() }).nullable(),
+  lineup: z.strictObject({
+    formation: z.string(),
+    source: z.enum(["last_match", "editor"]),
+    sourceLabel: z.string().min(1),
+    /** Kaleciden forvete 11 yer. `name` null: "?" görünür. */
+    slots: z.array(z.strictObject({ line: z.number().int(), index: z.number().int(), lineSize: z.number().int(), number: z.string().nullable(), name: z.string().nullable() })).length(11),
+  }).nullable(),
+  /** Tahtadaki yön: lig ortalamasıyla kıyas. */
+  board: z.strictObject({ attack: z.enum(["strong", "weak"]).nullable(), defence: z.enum(["strong", "weak"]).nullable() }),
   points: z.array(z.strictObject({ label: z.string(), reason: reasonSchema })).length(2),
 });
 
@@ -109,10 +119,11 @@ export const reelSceneSchema = z.discriminatedUnion("type", [
   scene("C03_ABSENCES", z.strictObject({ home: z.array(absence).max(3), away: z.array(absence).max(3), reasons: reasons.max(1) })),
   scene("C04_TEAM_HOME", teamAnalysis), scene("C05_TEAM_AWAY", teamAnalysis),
   scene("C06_MINUTES", z.strictObject({ slots: z.array(z.string()).length(6), rows: z.array(z.strictObject({ side, label: z.string(), cells: z.array(z.number().int()).length(6) })).length(4), reasons: reasons.max(2) })),
-  scene("C07_KEY", z.strictObject({ metric: z.string(), leader: side, leaderValue: z.string(), otherValue: z.string(), reasons: reasons.max(1), analystNote: z.string().nullable() })),
+  scene("C07_KEY", z.strictObject({ metric: z.string(), focus: z.enum(["attack", "defence"]), leader: side, leaderValue: z.string(), otherValue: z.string(), reasons: reasons.max(1), analystNote: z.string().nullable() })),
   scene("C08_UPSET", z.strictObject({ side, team: z.string(), hero: z.strictObject({ value: z.string(), percent }), reasons: reasons.min(1).max(3) })),
   scene("C09_SCENARIO", z.strictObject({ items: reasons.length(3), analystNote: z.string().nullable() })),
   scene("S17_CLOSE", z.strictObject({ options: z.array(z.string()).length(3), prompt: z.string(), save: z.string(), handle: z.string() })),
+  scene("S18_ENGAGE", z.strictObject({ calls: z.array(z.enum(["like", "comment", "share", "save"])).length(4), prompt: z.string(), more: z.string(), handle: z.string() })),
   scene("P01_DUEL", z.strictObject({ home: duelPlayer, away: duelPlayer, rows: z.array(compareRowSchema).min(5), scope: z.string() })),
   scene("P02_VS_OPPONENT", z.strictObject({
     side,

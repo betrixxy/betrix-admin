@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { copyFileSync } from "node:fs";
 import path from "node:path";
 import { bundle } from "@remotion/bundler";
@@ -48,6 +48,8 @@ if (textProblems.length) {
 }
 
 mkdirSync(OUT, { recursive: true });
+// Önceki koşudan kalan kareler: sahne sırası değişince eski numaralı dosya yanıltır.
+for (const name of readdirSync(OUT)) if (/^\d\d-.*\.png$/u.test(name)) rmSync(path.join(OUT, name), { force: true });
 const startedAt = Date.now();
 const serveUrl = await bundle({ entryPoint: path.resolve("src/index.ts") });
 const browser = await openBrowser("chrome");
@@ -109,12 +111,32 @@ for (const [index, scene] of script.scenes.entries()) {
   files.push(file);
 }
 
+// Döngü: son kare ilk kareyle aynı olmalı, video başa akıcı döner.
+const loopFrames = [0, entries.at(-1) ? (entries.at(-1)?.from ?? 0) + (entries.at(-1)?.duration ?? 1) - 1 : 0];
+const loopFiles = loopFrames.map((_, index) => path.join(OUT, `.loop-${index}.png`));
+for (const [index, frame] of loopFrames.entries()) {
+  const loopProps = { script, audit: false, strictSafe: true, videoRules: true };
+  const composition = await selectComposition({ serveUrl, id, inputProps: loopProps, puppeteerInstance: browser });
+  await renderStill({ composition, serveUrl, frame: frame ?? 0, output: loopFiles[index] ?? "", imageFormat: "png", inputProps: loopProps, puppeteerInstance: browser });
+}
+const [firstRaw, lastRaw] = await Promise.all(loopFiles.map((file) => sharp(file).removeAlpha().raw().toBuffer()));
+let loopSum = 0;
+for (let at = 0; firstRaw && lastRaw && at < firstRaw.length; at += 1) loopSum += Math.abs((firstRaw[at] ?? 0) - (lastRaw[at] ?? 0));
+const loopDiff = firstRaw ? loopSum / firstRaw.length : 255;
+for (const file of loopFiles) rmSync(file, { force: true });
+report.loop = { meanDiff: Number(loopDiff.toFixed(2)) };
+console.log(`döngü farkı (ilk/son kare, ortalama): ${loopDiff.toFixed(2)}/255`);
+if (loopDiff > 3) problems.push(`döngü: son kare ilk kareden farklı (${loopDiff.toFixed(2)})`);
+
 const thumb = { width: 360, height: 640 };
 const gap = 12;
 const columns = 6;
 const composites = await Promise.all(files.map(async (file, index) => ({ input: await sharp(file).resize(thumb).toBuffer(), left: gap + (index % columns) * (thumb.width + gap), top: gap + Math.floor(index / columns) * (thumb.height + gap) })));
-await sharp({ create: { width: columns * (thumb.width + gap) + gap, height: Math.ceil(files.length / columns) * (thumb.height + gap) + gap, channels: 3, background: "#17191C" } }).composite(composites).png().toFile(path.join(OUT, "kontak.png"));
 writeFileSync(path.join(OUT, "denetim.json"), JSON.stringify(report, null, 1));
+for (const problem of problems) console.log(`  ${problem}`);
+// Dosya görüntüleyicide açıksa üzerine yazılamaz: yanına yazılır, render boşa gitmez.
+const sheet = async (name: string) => sharp({ create: { width: columns * (thumb.width + gap) + gap, height: Math.ceil(files.length / columns) * (thumb.height + gap) + gap, channels: 3, background: "#17191C" } }).composite(composites).png().toFile(path.join(OUT, name));
+await sheet("kontak.png").catch(async () => { await sheet("kontak-yeni.png"); console.log("kontak.png kilitli (açık olabilir): kontak-yeni.png yazıldı"); });
 
 if (withMc && problems.length === 0) {
   const composition = await selectComposition({ serveUrl, id: "monte-carlo", inputProps: {}, puppeteerInstance: browser });
@@ -125,5 +147,4 @@ if (withMc && problems.length === 0) {
 
 await browser.close({ silent: true });
 console.log(`toplam ${((Date.now() - startedAt) / 1000).toFixed(0)} sn, ${problems.length} sorun`);
-for (const problem of problems) console.log(`  ${problem}`);
 process.exit(problems.length ? 1 : 0);

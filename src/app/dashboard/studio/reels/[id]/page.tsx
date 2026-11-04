@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowLeft, Check, Minus, X } from "lucide-react";
 import { PageHeader } from "@/components/features/dashboard/page-header";
 import { CancelProjectButton, FreezeButton } from "@/components/features/dashboard/reels-action-buttons";
 import { ReelsAnalystNote } from "@/components/features/dashboard/reels-analyst-note";
+import { ReelsLineupEditor } from "@/components/features/dashboard/reels-lineup-editor";
 import { ReelsSnapshotCard } from "@/components/features/dashboard/reels-snapshot-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { formatIstanbulDateTime, formatPublishWindow, publishWindowState } from 
 import { groupReelChecks, reelCheckLabel, REEL_SCENE_IDS, REEL_SCENE_LABELS, type ReelSceneAvailability } from "@/lib/reels/scenes";
 import { canCancelReel, canFreezeReel, REEL_STATUS_LABELS } from "@/lib/reels/selection";
 import { reelSnapshotView } from "@/lib/reels/snapshot-view";
+import { reelLineupEditors } from "@/lib/reels/lineup-view";
 import { reelSquadStatus } from "@/lib/reels/squad-rule";
 import { reelsMatchDetailSchema, type ReelsCheck } from "@/lib/services/reels-schema";
 
@@ -62,6 +64,8 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
   const detail = stored?.success ? stored.data : null;
   const groups = detail ? groupReelChecks(detail) : null;
   const squad = latest ? reelSquadStatus(latest.squadCheckedAt, now, formatIstanbulDateTime) : null;
+  const squadRows = await prisma.reelSquadCheck.findMany({ where: { teamId: { in: [project.homeTeamId, project.awayTeamId] } } });
+  const editors = reelLineupEditors({ project, context: latest?.context ?? null, squads: squadRows, now });
   const freezeBlocked = canFreezeReel(project.status)
     ? null
     : project.status === "CANCELLED"
@@ -111,6 +115,16 @@ export default async function ReelProjectPage({ params }: { params: Promise<{ id
         </CardHeader>
         <CardContent>
           <ReelsAnalystNote projectId={project.id} screenNote={project.analystScreenNote} voiceNote={project.analystVoiceNote} disabledReason={canFreezeReel(project.status) ? null : "Bu aşamada not değiştirilemez."} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Muhtemel 11</CardTitle>
+          <CardDescription>Son maçın ilk 11&apos;i ve eksikler esas alınır; eksik oyuncunun yeri &quot;?&quot; görünür. Düzenlerseniz videoda kaynak &quot;checkmatch editörü&quot; yazar.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {editors.map((editor) => <ReelsLineupEditor key={editor.side} projectId={project.id} editor={editor} disabledReason={canFreezeReel(project.status) ? editor.disabledReason : "Bu aşamada değiştirilemez."} />)}
         </CardContent>
       </Card>
 

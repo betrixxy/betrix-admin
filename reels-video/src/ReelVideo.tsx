@@ -13,6 +13,7 @@ import { DuelScene, StageCover, VsOpponentScene } from "./scenes/players";
 import { QuestionScene } from "./scenes/question";
 import { AbsencesScene, FormScene, StoryScene } from "./scenes/reading";
 import { MinutesScene, TeamScene } from "./scenes/team";
+import { EngageScene } from "./scenes/engage";
 import { CloseScene, KeyScene, ScenarioScene, UpsetScene } from "./scenes/verdict";
 import { MonteCarloScene } from "./scenes/montecarlo";
 import { SummaryScene } from "./scenes/summary";
@@ -32,6 +33,7 @@ function SceneBody({ scene, script }: { scene: ReelScene; script: ReelScript }) 
     case "C08_UPSET": return <UpsetScene script={script} scene={scene} />;
     case "C09_SCENARIO": return <ScenarioScene script={script} scene={scene} />;
     case "S17_CLOSE": return <CloseScene script={script} scene={scene} />;
+    case "S18_ENGAGE": return <EngageScene script={script} scene={scene} />;
     case "S04_COMPARE": return <CompareScene script={script} scene={scene} />;
     case "S05_H2H": return <HeadToHeadScene script={script} scene={scene} />;
     case "S07_KEY_GAP": return <KeyGapScene script={script} scene={scene} />;

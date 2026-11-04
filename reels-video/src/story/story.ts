@@ -6,7 +6,7 @@ import { sceneReadabilityProblems } from "./readability";
 import type { PoolEntry } from "./pool";
 
 /**
- * Hikâye: sabit 17 adımlık akış. Sahne kapalıysa atlanır; hikâye açısı yedek havuzdan uygun olanları ekler.
+ * Hikâye: sabit 18 adımlık akış (son adım etkileşim kartı). Sahne kapalıysa atlanır; hikâye açısı yedek havuzdan uygun olanları ekler.
  * Süre hedefi 75–100 sn. Sıra futbol okumasından tahmine gider: bağlam → veri → soru → senaryo → oyuncu → kapanış.
  */
 
@@ -14,7 +14,7 @@ export type StoryAngle = "derby" | "favourite";
 
 const FLOW: readonly ReelSceneType[] = [
   "S01_COVER", "C01_STORY", "M02_MONTE_CARLO", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES",
-  "Q04_GOALS", "Q05_BOTH_SCORE", "Q12_FIRST_GOAL", "C07_KEY", "C08_UPSET", "C09_SCENARIO", "P01_DUEL", "P02_VS_OPPONENT", "S17_CLOSE",
+  "Q04_GOALS", "Q05_BOTH_SCORE", "Q12_FIRST_GOAL", "C07_KEY", "C08_UPSET", "C09_SCENARIO", "P01_DUEL", "P02_VS_OPPONENT", "S17_CLOSE", "S18_ENGAGE",
 ];
 
 /** Açıya göre eklenen market sahneleri, tercih sırasıyla. "Sert maç" derbiye, "Rahat galibiyet" favoriye. */
@@ -55,6 +55,8 @@ export function pickStory(pool: readonly PoolEntry[], angle: StoryAngle, options
     const planned = index < PLANNED_EXTRAS && seconds() + (ready.get(type)?.durationInFrames ?? 0) / 30 <= MAX_STORY_SECONDS;
     if (planned || seconds() < MIN_STORY_SECONDS) sequence.splice(insertAt(), 0, type);
   });
+  // Uzun analist notu süreyi aşırırsa isteğe bağlı "Rakibine karşı" düşer.
+  if (seconds() > MAX_STORY_SECONDS && sequence.includes("P02_VS_OPPONENT")) sequence.splice(sequence.indexOf("P02_VS_OPPONENT"), 1);
   // Aynı dizilim bu hafta kullanıldıysa izinli komşular yer değiştirir. Açılış ve kapanış yerinde kalır.
   const avoid = options.avoid ?? [];
   let chosen = [...sequence];

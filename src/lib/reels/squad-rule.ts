@@ -10,6 +10,8 @@ const DAY_MS = 86_400_000;
 export interface ReelSquadPlayer {
   id: number;
   name: string;
+  /** Forma numarası: Muhtemel 11 düzenleyicisi için. */
+  number?: number | null;
 }
 
 export interface ReelSquadEntry {

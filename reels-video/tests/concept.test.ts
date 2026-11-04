@@ -200,7 +200,7 @@ describe("simülasyon rozeti", () => {
 describe("hikâye", () => {
   const stories = [[DERBY, "derby"], [FAVOURITE, "favourite"]] as const;
   it("istenen sırayla 75–100 sn; Nasıl hesapladık? yok; kapanış sonda", () => {
-    const order = ["S01_COVER", "C01_STORY", "M02_MONTE_CARLO", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES", "Q04_GOALS", "Q05_BOTH_SCORE", "Q12_FIRST_GOAL", "C07_KEY", "C08_UPSET", "C09_SCENARIO", "P01_DUEL", "S17_CLOSE"] as const;
+    const order = ["S01_COVER", "C01_STORY", "M02_MONTE_CARLO", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES", "Q04_GOALS", "Q05_BOTH_SCORE", "Q12_FIRST_GOAL", "C07_KEY", "C08_UPSET", "C09_SCENARIO", "P01_DUEL", "S17_CLOSE", "S18_ENGAGE"] as const;
     for (const [data, angle] of stories) {
       const story = pickStory(evaluatePool(data, BRAND, SAMPLE_OPTIONS), angle);
       const types = story.map((scene) => scene.type);
@@ -208,16 +208,18 @@ describe("hikâye", () => {
       assert.deepEqual(flow, [...order]);
       assert.ok(seconds(story) >= MIN_STORY_SECONDS && seconds(story) <= MAX_STORY_SECONDS, String(seconds(story)));
       assert.ok(story.length >= MIN_STORY_SCENES && story.length <= MAX_STORY_SCENES, String(story.length));
-      assert.equal(types.at(-1), "S17_CLOSE");
+      assert.equal(types.at(-1), "S18_ENGAGE");
       assert.deepEqual(storyProblems(story, data, seconds(story)), []);
     }
   });
   it("hikâye açısı yedekten uygun sahneyi ekler", () => {
     const derby = pickStory(evaluatePool(DERBY, BRAND, SAMPLE_OPTIONS), "derby").map((scene) => scene.type);
     const favourite = pickStory(evaluatePool(FAVOURITE, BRAND, SAMPLE_OPTIONS), "favourite").map((scene) => scene.type);
-    assert.ok(derby.includes("Q14_CARDS"));
-    assert.ok(favourite.includes("Q03_COMFORT"));
-    assert.ok(!derby.includes("Q03_COMFORT"));
+    // Etkileşim kartıyla 17 adım süreyi dolduruyor: ek sahne yalnız 100 sn'ye sığarsa girer. Kısa kalan hikâyede açının sahnesi gelir.
+    assert.ok(!derby.includes("Q14_CARDS") && !derby.includes("Q03_COMFORT"));
+    assert.ok(!favourite.includes("Q14_CARDS"));
+    const pool = evaluatePool(DERBY, BRAND, SAMPLE_OPTIONS).map((entry) => (entry.type === "P02_VS_OPPONENT" || entry.type === "C02_FORM" ? { ...entry, scene: null, reason: "x" } : entry));
+    assert.ok(pickStory(pool as ReturnType<typeof evaluatePool>, "derby").some((scene) => scene.type === "Q14_CARDS"));
   });
   it("futbol okuması yoksa okuma sahneleri kapanır, video engellenir", () => {
     const data = { ...clone(DERBY), context: null };
@@ -242,7 +244,7 @@ describe("hikâye", () => {
     assert.notDeepEqual(third, second);
     for (const sequence of [second, third]) {
       assert.deepEqual(sequence.slice(0, 5), first.slice(0, 5));
-      assert.equal(sequence.at(-1), "S17_CLOSE");
+      assert.equal(sequence.at(-1), "S18_ENGAGE");
       assert.deepEqual([...sequence].sort(), [...first].sort());
     }
   });

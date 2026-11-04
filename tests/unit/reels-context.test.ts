@@ -1,10 +1,11 @@
+import { isOfficialLeague, lineupEditProblem, resolveLineup } from "@/lib/reels/lineup-rule";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { before, describe, it } from "node:test";
 import { screenNoteProblem, splitVoiceNote, voiceNoteProblem } from "@/lib/reels/analyst-note";
 import { acceptPolishedClaims, auditPolishedClaim } from "@/lib/reels/commentary";
 import type { ReelContextDeps } from "@/lib/reels/context-data";
-import { leagueGoalsAvg, longestRun, reelAbsenceStatus, reelGoalMinutes, sidelinedOn, reelTeamContext } from "@/lib/reels/context-rule";
+import { leagueGoalsAvg, longestRun, reelAbsenceStatus, reelGoalMinutes, reelLastLineup, sidelinedOn, reelTeamContext } from "@/lib/reels/context-rule";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
 import type { TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
 import type { MatchContext } from "../../reels-video/src/story/match-context";
@@ -49,6 +50,7 @@ function deps(over: Partial<ReelContextDeps> = {}): ReelContextDeps {
     players: async (teamId) => ok(teamId === 10 ? [player(1, "D. Costa", 6, 2), player(2, "M. Yıldız", 2, 0)] : []),
     h2h: async () => ok({ matches: [{ kickoffUtc: "2026-01-01T00:00:00Z", homeTeamName: "A", awayTeamName: "B", homeGoals: 2, awayGoals: 1 }, { kickoffUtc: "2025-01-01T00:00:00Z", homeTeamName: "B", awayTeamName: "A", homeGoals: 0, awayGoals: 0 }], homeWins: 1, draws: 1, awayWins: 0 }),
     xg: async () => ok({ xgForAvg: 1.72, matchesSampled: 8 }),
+    lastLineup: async () => ok(null),
     ...over,
   };
 }
@@ -139,7 +141,7 @@ describe("okuma paketi", () => {
   });
   it("istek sayısı raporlanır, takım başına sidelined sınırlı", async () => {
     const { requests } = await loadReelContext(PROJECT, deps(), NOW);
-    assert.deepEqual(requests, { leagues: 1, standings: 1, "teams/statistics": 2, "fixtures/headtohead": 1, "players (sayfa başına)": 2, injuries: 1, sidelined: 2 });
+    assert.deepEqual(requests, { leagues: 1, standings: 1, "teams/statistics": 2, "fixtures/headtohead": 1, "players (sayfa başına)": 2, "fixtures + lineups": 4, injuries: 1, sidelined: 2 });
   });
   it("hata dondurmayı durdurmaz: bölüm boş, uyarı var; iki takım istatistiği de yoksa paket yok", async () => {
     const partial = await loadReelContext(PROJECT, deps({ standings: async () => ({ ok: false, error: { message: "yok" } }) }), NOW);
@@ -195,5 +197,51 @@ describe("analist notu", () => {
     assert.match(screenNoteProblem(Array.from({ length: 16 }, () => "a").join(" ")) ?? "", /15 sözcük/);
     assert.equal(screenNoteProblem(""), null);
     assert.deepEqual(splitVoiceNote("Bir. İki."), ["Bir. İki.", null]);
+  });
+});
+
+describe("Muhtemel 11", () => {
+  const raw = {
+    fixtureId: 7, date: "2026-11-03T17:00:00Z", formation: "4-2-3-1",
+    startXI: [["U. Çakır", 1, "1:1"], ["R. Sallai", 7, "2:4"], ["D. Sánchez", 6, "2:3"], ["A. Bardakcı", 42, "2:2"], ["I. Jakobs", 4, "2:1"], ["L. Torreira", 34, "3:2"], ["M. Lemina", 99, "3:1"], ["Y. Akgün", 11, "4:3"], ["A. Batrakov", 83, "4:2"], ["B. Yılmaz", 53, "4:1"], ["V. Osimhen", 45, "5:1"]].map(([name, number, grid], index) => ({ id: index + 1, name: String(name), number: Number(number), grid: String(grid) })),
+  };
+  const last = reelLastLineup(raw);
+  it("canlı biçim: kaleciden forvete, hat içinde sütun sırası; 11 ya da diziliş yoksa null", () => {
+    assert.ok(last);
+    assert.equal(last.players[0]?.number, 1);
+    assert.deepEqual(last.players.slice(1, 5).map((player) => player.number), [4, 42, 6, 7]);
+    assert.equal(last.players[10]?.short_name, "V. Osimhen");
+    assert.equal(reelLastLineup({ ...raw, formation: null }), null);
+    assert.equal(reelLastLineup({ ...raw, startXI: raw.startXI.slice(1) }), null);
+    assert.equal(reelLastLineup(null), null);
+  });
+  it("hazırlık maçı resmî sayılmaz", () => {
+    assert.equal(isOfficialLeague("Friendlies Clubs"), false);
+    assert.equal(isOfficialLeague("Süper Lig"), true);
+  });
+  it("eksik ve kadro dışı \"?\" olur; değişiklik yalnız eksikte söylenir", () => {
+    assert.ok(last);
+    const resolved = resolveLineup({ last, edit: null, absent: [{ id: 2, name: "Sallai" }], inSquad: (id) => id !== 3 });
+    assert.equal(resolved?.source, "last_match");
+    assert.equal(resolved?.slots.filter((slot) => slot.player === null).length, 2);
+    assert.deepEqual(resolved?.changes.map((change) => [change.out.id, change.in, change.zone]), [[2, null, "defans"]]);
+  });
+  it("editör kazanır; aynı dizilişte yerine geçen okunur, diziliş değişince değişiklik söylenmez", () => {
+    assert.ok(last);
+    const players = last.players.map((player) => (player.id === 2 ? { id: 50, name: "Yeni", short_name: "Y. Yeni", number: 5 } : player));
+    const same = resolveLineup({ last, edit: { formation: "4-2-3-1", players }, absent: [{ id: 2, name: "Sallai" }], inSquad: () => true });
+    assert.equal(same?.source, "editor");
+    assert.equal(same?.changes[0]?.in?.name, "Yeni");
+    assert.deepEqual(resolveLineup({ last, edit: { formation: "4-4-2", players }, absent: [{ id: 2, name: "Sallai" }], inSquad: () => true })?.changes, []);
+  });
+  it("panel kaydı: diziliş, 11 yer, tekrar, kadro", () => {
+    assert.ok(last);
+    const squad = new Set(last.players.map((player) => player.id));
+    assert.equal(lineupEditProblem({ formation: "4-3-3", players: last.players }, squad), null);
+    assert.match(lineupEditProblem({ formation: "4-4-3", players: last.players }, squad) ?? "", /geçersiz/);
+    assert.match(lineupEditProblem({ formation: "4-3-3", players: last.players.slice(1) }, squad) ?? "", /11/);
+    assert.match(lineupEditProblem({ formation: "4-3-3", players: [...last.players.slice(1), last.players[1] ?? null] }, squad) ?? "", /iki yerde/);
+    assert.match(lineupEditProblem({ formation: "4-3-3", players: last.players }, new Set([1])) ?? "", /kadroda/);
+    assert.equal(lineupEditProblem({ formation: "4-3-3", players: Array.from({ length: 11 }, () => null) }, squad), null);
   });
 });

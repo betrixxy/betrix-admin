@@ -890,6 +890,8 @@ model ReelProject {
   analystScreenNote String?
   /// Seslendirme notu (1–3 cümle): voiceover'a ve video açıklamasına gider.
   analystVoiceNote  String?
+  /// Panelden düzenlenen Muhtemel 11: { home, away }, oyuncular güncel kadrodan. Boşsa son maçın ilk 11'i + eksikler.
+  lineupEdits       Json?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   snapshots   ReelSnapshot[]

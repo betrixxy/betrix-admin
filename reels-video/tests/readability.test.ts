@@ -51,8 +51,8 @@ describe("okunurluk kuralları", () => {
   it("her kart 4–6 sn; yalnız notu okuyan iki kart en çok 8 sn; ihlal yakalanır", () => {
     for (const scene of flow()) {
       const reads = scene.voiceover?.lines.some((line) => line.sources.includes("analyst_note"));
-      const limit = reads && (scene.type === "C07_KEY" || scene.type === "C09_SCENARIO") ? MAX_NOTE_CARD_FRAMES : 180;
-      assert.ok(scene.durationInFrames >= 120 && scene.durationInFrames <= limit, scene.type);
+      const limit = reads && (scene.type === "C07_KEY" || scene.type === "C09_SCENARIO") ? MAX_NOTE_CARD_FRAMES : scene.type === "S18_ENGAGE" ? 120 : 180;
+      assert.ok(scene.durationInFrames >= (scene.type === "S18_ENGAGE" ? 90 : 120) && scene.durationInFrames <= limit, scene.type);
     }
     assert.equal(flow().find((scene) => scene.type === "C07_KEY")?.durationInFrames, 210);
     for (const scene of pool(DERBY)) assert.ok(scene.durationInFrames <= 180, scene.type);
@@ -85,12 +85,12 @@ describe("okunurluk kuralları", () => {
     for (const data of [DERBY, FAVOURITE]) {
       for (const entry of evaluatePool(data, BRAND, SAMPLE_OPTIONS)) {
         // Akış dışı eski sahneler (S02–S16) seslendirme taşımaz, akışa girmez.
-        if (!entry.scene || (entry.type.startsWith("S") && entry.type !== "S01_COVER" && entry.type !== "S17_CLOSE")) continue;
+        if (!entry.scene || (entry.type.startsWith("S") && entry.type !== "S01_COVER" && entry.type !== "S17_CLOSE" && entry.type !== "S18_ENGAGE")) continue;
         const scene = entry.scene;
         assert.ok(scene.voiceover, scene.type);
         for (const line of scene.voiceover.lines) {
           assert.ok(line.sources.length > 0, line.id);
-          for (const source of line.sources) if (source !== "analyst_note") assert.notEqual(valueAt(data, source), undefined, `${line.id}: ${source}`);
+          for (const source of line.sources) if (source !== "analyst_note" && source !== "brand") assert.notEqual(valueAt(data, source), undefined, `${line.id}: ${source}`);
           assert.ok(!hasDigit(line.template), line.id);
         }
         assert.deepEqual(sceneReadabilityProblems(scene, [data.teams.home.name, data.teams.home.short_name, data.teams.away.name, data.teams.away.short_name]), [], scene.type);
@@ -101,7 +101,8 @@ describe("okunurluk kuralları", () => {
     for (const scene of flow()) {
       const bullets = screenBullets(scene) as { sources?: string[] }[];
       const screenKeys = new Set(bullets.flatMap((bullet) => bullet.sources ?? []).filter((key) => !key.startsWith("teams.")));
-      if (!screenKeys.size || scene.voiceover?.lines.some((line) => line.sources.includes("analyst_note"))) continue;
+      // Not okunan kartta ve kilit değişikliği anlatan takım kartında süre önce onlara gider; ekranda aynı veri tahtada.
+      if (!screenKeys.size || scene.voiceover?.lines.some((line) => line.sources.includes("analyst_note") || line.sources.some((source) => source.includes(".lineup")))) continue;
       const voiceKeys = (scene.voiceover?.lines ?? []).flatMap((line) => line.sources);
       assert.ok(voiceKeys.some((key) => screenKeys.has(key)), `${scene.type}: ${[...screenKeys].join(", ")} / ${voiceKeys.join(", ")}`);
     }

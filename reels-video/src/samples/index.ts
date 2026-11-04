@@ -1,4 +1,4 @@
-import { DERBY_CONTEXT, FAVOURITE_CONTEXT } from "./context";
+import { DERBY_AWAY_XI, DERBY_CONTEXT, DERBY_HOME_XI, FAVOURITE_CONTEXT } from "./context";
 import { buildTimeline } from "../lib/motion";
 import type { MatchData, MatchPlayers, PlayerSeason } from "../story/match-data";
 import { buildScript, evaluatePool, BRAND, pickStory, type StoryAngle } from "../story/pool";
@@ -21,8 +21,8 @@ const season = (id: number, name: string, teamId: number, appearances: number, m
 const DERBY_PLAYERS: MatchPlayers = {
   squad_checked_at: "2026-11-08T07:30:00Z",
   squads: {
-    home: [{ id: 90011, name: "Kurgu Forvet" }, { id: 90012, name: "Yedek Kanat" }],
-    away: [{ id: 90021, name: "Örnek Golcü" }, { id: 90022, name: "Yedek Orta" }],
+    home: DERBY_HOME_XI.players.map(({ id, name }) => ({ id, name })),
+    away: DERBY_AWAY_XI.players.map(({ id, name }) => ({ id, name })),
   },
   candidates: {
     home: [season(90011, "Kurgu Forvet", 9001, 13, 1084, 9, 4, 41, 21, 18), season(90012, "Yedek Kanat", 9001, 11, 612, 2, 3, 14, 6, 15)],
@@ -97,6 +97,7 @@ export const DERBY: MatchData = {
   context: DERBY_CONTEXT,
   analyst_screen_note: null,
   analyst_voice_note: null,
+  lineup_edits: null,
   form: {
     home: { last5: "WDWLW", goals_for: 1.8, goals_against: 1.1, xg_for: 1.72, xg_against: 1.08, clean_sheet_rate: 0.3, btts_rate: 0.6, euro_fatigue_days: 3.4 },
     away: { last5: "DWWDL", goals_for: 1.6, goals_against: 1.2, xg_for: 1.55, xg_against: 1.21, clean_sheet_rate: 0.2, btts_rate: 0.7, euro_fatigue_days: 99 },
@@ -147,6 +148,7 @@ export const FAVOURITE: MatchData = {
   context: FAVOURITE_CONTEXT,
   analyst_screen_note: null,
   analyst_voice_note: null,
+  lineup_edits: null,
   form: {
     home: { last5: "WWWDW", goals_for: 2.6, goals_against: 0.7, xg_for: 2.41, xg_against: 0.82, clean_sheet_rate: 0.5, btts_rate: 0.4, euro_fatigue_days: 4.1 },
     away: { last5: "LLDLW", goals_for: 0.9, goals_against: 1.9, xg_for: 0.94, xg_against: 1.87, clean_sheet_rate: 0.1, btts_rate: 0.5, euro_fatigue_days: 99 },

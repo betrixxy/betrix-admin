@@ -5,6 +5,9 @@ import { publishWindow } from "@/lib/reels/publish-window";
 import { reelQualityOk, reelSceneAvailability } from "@/lib/reels/scenes";
 import { screenNoteProblem, voiceNoteProblem } from "@/lib/reels/analyst-note";
 import { loadReelContext } from "@/lib/reels/context-data";
+import { reelLineupPlayer } from "@/lib/reels/context-rule";
+import { lineupEditProblem, type ReelLineupEdit, type ReelLineupEdits } from "@/lib/reels/lineup-rule";
+import { isReelSquadFresh, type ReelSquadPlayer } from "@/lib/reels/squad-rule";
 import { refreshProjectSquads } from "@/lib/reels/squad-data";
 import { contentLanguageGate } from "@/lib/prediction/content-language";
 import { canCancelReel, canFreezeReel, isReelSelectable, REEL_STATUS_LABELS, REELS_MAX_DAYS_AHEAD } from "@/lib/reels/selection";
@@ -83,6 +86,32 @@ export async function saveReelAnalystNote(projectId: string, note: { screen: str
   const problem = screenNoteProblem(screen) ?? voiceNoteProblem(voice) ?? contentLanguageGate({ card: { ekranOzeti: screen, seslendirmeNotu: voice } });
   if (problem) return { ok: false, error: { message: problem } };
   await prisma.reelProject.update({ where: { id: projectId }, data: { analystScreenNote: screen || null, analystVoiceNote: voice || null } });
+  return { ok: true, data: true };
+}
+
+/** Muhtemel 11 düzenlemesi: oyuncu bilgisi formdan alınmaz, kimlikle güncel kadrodan okunur. `choice` null: son maçın ilk 11'ine döner. */
+export async function saveReelLineup(projectId: string, side: "home" | "away", choice: { formation: string; playerIds: (number | null)[] } | null, now: Date = new Date()): Promise<Result<true, ReelActionError>> {
+  const project = await prisma.reelProject.findUnique({ where: { id: projectId }, select: { status: true, homeTeamId: true, awayTeamId: true, lineupEdits: true } });
+  if (!project) return { ok: false, error: { message: "Proje bulunamadı." } };
+  if (!canFreezeReel(project.status)) return { ok: false, error: { message: `Bu aşamada Muhtemel 11 değiştirilemez (${REEL_STATUS_LABELS[project.status]}).` } };
+  let edit: ReelLineupEdit | null = null;
+  if (choice) {
+    const row = await prisma.reelSquadCheck.findUnique({ where: { teamId: side === "home" ? project.homeTeamId : project.awayTeamId } });
+    if (!row || !isReelSquadFresh(row.checkedAt, now)) return { ok: false, error: { message: "Güncel kadro doğrulanamadı: önce veriyi dondurun." } };
+    const squad = new Map((row.players as unknown as ReelSquadPlayer[]).map((player) => [player.id, player]));
+    edit = {
+      formation: choice.formation,
+      players: choice.playerIds.map((id) => {
+        const player = id === null ? undefined : squad.get(id);
+        return id === null ? null : player ? reelLineupPlayer(player.id, player.name, player.number ?? null) : { id, name: "", short_name: "", number: null };
+      }),
+    };
+    const problem = lineupEditProblem(edit, new Set(squad.keys()));
+    if (problem) return { ok: false, error: { message: problem } };
+  }
+  const current = (project.lineupEdits ?? { home: null, away: null }) as unknown as ReelLineupEdits;
+  const next: ReelLineupEdits = { ...current, [side]: edit };
+  await prisma.reelProject.update({ where: { id: projectId }, data: { lineupEdits: next as unknown as Prisma.InputJsonValue } });
   return { ok: true, data: true };
 }
 

@@ -1,6 +1,7 @@
 import { cardPersonName } from "@/lib/names/person-name";
 import type { ApiFootballPlayerSeason } from "@/lib/services/api-football/player-season-types";
-import type { InjuryRaw, ReelStandingRowRaw, SidelinedRaw, TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
+import { formationLines, type ReelLastLineup, type ReelLineupPlayer } from "@/lib/reels/lineup-rule";
+import type { InjuryRaw, LastLineupRaw, ReelStandingRowRaw, SidelinedRaw, TeamStatisticsRaw } from "@/lib/services/api-football/reel-context";
 
 /**
  * Ham API-Football yanıtı → dondurulan futbol okuması (saf). Şekil `reels-video/src/story/match-context.ts` ile birebir;
@@ -28,6 +29,7 @@ export interface ReelTeamContext {
   clean_sheet_pct: number | null;
   failed_to_score_pct: number | null;
   formation: { name: string; played: number } | null;
+  lineup: ReelLastLineup | null;
   streaks: { wins: number; draws: number; loses: number };
   minutes: { for: (number | null)[]; against: (number | null)[] };
 }
@@ -91,7 +93,24 @@ export function longestRun(form: string | null, letter: "W" | "D" | "L"): number
   return (form ?? "").split("").reduce((run, item) => (item === letter ? { now: run.now + 1, best: Math.max(run.best, run.now + 1) } : { now: 0, best: run.best }), { now: 0, best: 0 }).best;
 }
 
-export function reelTeamContext(stats: TeamStatisticsRaw | null, row: ReelStandingRowRaw | undefined, side: "home" | "away", xgForAvg: number | null): ReelTeamContext {
+const gridPart = (grid: string | null | undefined, part: 0 | 1): number => Number.parseInt((grid ?? "").split(":")[part] ?? "", 10) || 99;
+
+/**
+ * Lineups → kaleciden forvete sıralı 11. `grid` "hat:sütun"; canlıda (11-04, Galatasaray) 1. sütun sol bek, 4. sütun sağ bek çıktı, tek
+ * örnek: ekranda sıra için kullanılır, seslendirmede sağ/sol iddiası kurulmaz. 11 oyuncu ya da geçerli diziliş yoksa null.
+ */
+export function reelLastLineup(raw: LastLineupRaw | null): ReelLastLineup | null {
+  if (!raw?.formation || !formationLines(raw.formation) || raw.startXI.length !== 11) return null;
+  const ordered = [...raw.startXI].sort((a, b) => gridPart(a.grid, 0) - gridPart(b.grid, 0) || gridPart(a.grid, 1) - gridPart(b.grid, 1));
+  return { fixture_id: raw.fixtureId, date: raw.date, formation: raw.formation, players: ordered.map((player) => reelLineupPlayer(player.id, player.name, player.number ?? null)) };
+}
+
+export function reelLineupPlayer(id: number, apiName: string, number: number | null): ReelLineupPlayer {
+  const card = cardPersonName({ apiName });
+  return { id, name: card.name, short_name: card.short, number };
+}
+
+export function reelTeamContext(stats: TeamStatisticsRaw | null, row: ReelStandingRowRaw | undefined, side: "home" | "away", xgForAvg: number | null, lastLineup: ReelLastLineup | null = null): ReelTeamContext {
   const played = stats?.fixtures?.played?.total ?? 0;
   const lineup = (stats?.lineups ?? []).flatMap((item) => (item.formation && item.played ? [{ name: item.formation, played: item.played }] : [])).sort((a, b) => b.played - a.played)[0] ?? null;
   const form = stats?.form ?? null;
@@ -107,6 +126,7 @@ export function reelTeamContext(stats: TeamStatisticsRaw | null, row: ReelStandi
     clean_sheet_pct: share(stats?.clean_sheet?.total, played),
     failed_to_score_pct: share(stats?.failed_to_score?.total, played),
     formation: lineup,
+    lineup: lastLineup,
     streaks: { wins: longestRun(form, "W"), draws: longestRun(form, "D"), loses: longestRun(form, "L") },
     minutes: { for: reelGoalMinutes(stats?.goals?.for), against: reelGoalMinutes(stats?.goals?.against) },
   };
