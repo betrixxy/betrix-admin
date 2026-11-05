@@ -12,7 +12,8 @@
     "board": "tsx scripts/style-board.ts",
     "render": "tsx scripts/render.ts --video",
     "flow": "tsx scripts/flow-stills.ts",
-    "reel": "tsx --tsconfig ../tsconfig.json scripts/reel.ts"
+    "reel": "tsx --tsconfig ../tsconfig.json scripts/reel.ts",
+    "voices": "tsx scripts/voice-samples.ts"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.539",
