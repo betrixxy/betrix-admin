@@ -678,6 +678,8 @@ https://checkmatch.net/{hedef-yol}?utm_source={x|instagram}&utm_medium=social&ut
 ### 5.5 Genel Disiplin
 
 - **Mac ortak kilidi:** Mac'te ağır işten (build, büyük kopyalama, restore, render, yük testi) önce `~/MAC-HEAVY.lock` dosyasına bakılır; varsa beklenir, yoksa içine oturum adı + iş + başlangıç saati yazılarak oluşturulur, iş bitince silinir. Diğer oturumlar için `~/MAC-HEAVY-README.md`.
+- **Bellek:** aynı anda en fazla BİR ağır iş (derleme, render, restore, büyük kopyalama, tam görsel test, doğrulama konteynerleri). Başlamadan önce boş RAM'e bakılır; 4 GB'ın altındaysa başlanmaz. Küçük yedek (ör. 159 MB `storage` arşivi) hafif iştir, eşik aranmaz, düşük öncelikle çalışır.
+- **Maç saatleri:** yalnız kullanıcının paylaşım yaptığı maçlar (Reels Stüdyo'da seçili projeler, Maç Günü Kartı üretilen maçlar) için: başlamadan 1 saat önce → maç sonu paylaşımı bitene kadar ağır iş ve deploy yok. Diğer maçlar kuralı tetiklemez.
 - **Canlı veritabanı:** veri değişikliği uygulamanın kendi eylemleriyle yapılır (oturumlu istek ya da konteyner içinde motor fonksiyonu); doğrudan SQL UPDATE/INSERT/DELETE yalnızca kullanıcının açık onayıyla ve önce yedek alınarak.
 - Yeni bir dış bağımlılık (npm paketi, üçüncü parti API) eklemeden önce mevcut yığında (Bölüm 1.1) karşılığı olup olmadığı kontrol edilir; gerekçesiz yeni bağımlılık eklenmez.
 - Gizli anahtar veya kimlik bilgisi asla kod içine, commit mesajına veya loglara yazılmaz; sızıntı şüphesi varsa iş durdurulup kullanıcı bilgilendirilir.
