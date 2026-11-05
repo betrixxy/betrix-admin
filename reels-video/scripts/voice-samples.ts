@@ -73,6 +73,8 @@ try {
   const rows: Row[] = [];
   let spent = 0;
   const produce = async (voice: Voice, model: Model, version: string, text: string, settings: VoiceSettings | null) => {
+    // Tahmin karakter başına 1 kredi varsayar; modelin gerçek oranı farklıysa harcama burada kesilir.
+    if (spent >= maxCredits) throw new Error(`Harcama sınırına ulaşıldı (${spent} / ${maxCredits}): üretim durdu.`);
     const base = `${slug(voice.name)}_${model.model_id}_${version}`;
     const request: TtsRequest = { text, voiceId: voice.voice_id, modelId: model.model_id, settings };
     let note = "";

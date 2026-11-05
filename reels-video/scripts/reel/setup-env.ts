@@ -17,7 +17,7 @@ function parse(file: string): Map<string, string> {
   const values = new Map<string, string>();
   for (const line of readFileSync(file, "utf8").split(/\r?\n/u)) {
     const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/u.exec(line);
-    if (match?.[1] && match[2] !== undefined) values.set(match[1], match[2].replace(/^(['"])(.*)\1$/u, "$2"));
+    if (match?.[1] && match[2] !== undefined) values.set(match[1], match[2].trim().replace(/^(['"])(.*)\1$/u, "$2"));
   }
   return values;
 }
