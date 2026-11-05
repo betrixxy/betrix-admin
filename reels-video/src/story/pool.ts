@@ -95,7 +95,7 @@ function evaluateDuel(data: MatchData, now: Date): PoolEntry {
       say(data, "duel.home", "{name} bu sezon {g} gol, {a} asist.", { name: { label: home.name }, g: { computed: home.goals ?? 0, from: [`players.candidates.home`], format: "int" }, a: { computed: home.assists ?? 0, from: [`players.candidates.home`], format: "int" } }),
       say(data, "duel.away", "{name} {g} gol, {a} asist.", { name: { label: away.name }, g: { computed: away.goals ?? 0, from: [`players.candidates.away`], format: "int" }, a: { computed: away.assists ?? 0, from: [`players.candidates.away`], format: "int" } }),
     ])),
-    data: { home: { name: home.name, team: teams.home.short_name, logo: teams.home.logo }, away: { name: away.name, team: teams.away.short_name, logo: teams.away.logo }, rows, scope: DUEL_SCOPE },
+    data: { home: { name: home.name, team: teams.home.short_name, logo: teams.home.logo }, away: { name: away.name, team: teams.away.short_name, logo: teams.away.logo }, rows, scope: players.duel_scope ?? DUEL_SCOPE },
   });
 }
 

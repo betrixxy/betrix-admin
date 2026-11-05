@@ -65,6 +65,8 @@ export interface MatchPlayers {
   squads: SidePair<{ id: number; name: string }[]>;
   candidates: SidePair<PlayerSeason[]>;
   vs_opponent: PlayerVsOpponent[];
+  /** Düello rakamlarının gerçek kapsamı; yoksa `DUEL_SCOPE`. Lig kaynaklı rakam "Tüm kulvarlar" yazmasın diye. */
+  duel_scope?: string;
 }
 
 export interface MatchData {
