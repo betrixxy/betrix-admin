@@ -216,6 +216,7 @@ internet ──HTTPS──► Cloudflare ──tünel──► cloudflared ─�
 - **Sırlar:** `.env.production` (gitignore'da, `chmod 600`) — şablon `.env.production.example`. `DATABASE_URL` compose tarafından `POSTGRES_*`'tan üretilir; şifre URL'e girdiği için hex olmalıdır (`openssl rand -hex 32`). Sır asla imaja girmez (`.dockerignore`).
 - **Akış:** `migrate` servisi bekleyen migration'ları uygulayıp çıkar; app yalnızca o başarıyla bitince kalkar, Caddy app sağlıklı olunca kalkar. `migrate`'in bağlantı adresi `IP_HASH_SECRET`'ı oturum ayarı olarak taşır (ham IP'lerin migration içinde özetlenmesi için, bkz. 4.3).
 - **Reels tüneli (`reels-tunnel`):** Mac'teki reels okuma servisine (`127.0.0.1:8011`) SSH yerel yönlendirmesi. Port host'a yayınlanmaz; yalnız `reels` ağındaki app erişir (`REELS_API_URL=http://reels-tunnel:8011`, `REELS_API_KEY`). Anahtar ve sabit `known_hosts` repo dışında (`../secrets/reels-tunnel`), salt okunur bağlanır; Mac'teki `authorized_keys` satırı anahtarı yalnız 8011 yönlendirmesiyle sınırlar. Tünel düşerse site etkilenmez; Reels Stüdyo hata gösterir.
+- **Sağlık ucu (`/api/health`):** dış izleme için, oturumsuz. Veritabanına `SELECT 1` gönderir (3 sn sınır): `200 {"status":"ok","db":"ok"}` ya da `503 {"status":"error","db":"error"}`, `no-store`. Sürüm, ortam, hata metni dönmez (`lib/ops/health.ts`).
 - **Metrik tetikleyicisi (`scheduler`):** alpine crond, saatte bir (`:05`) iç ağdan `app:3000/api/internal/metrics/tick`'i `INTERNAL_CRON_SECRET` ile çağırır; Caddy bu yolu dışarıya 404 döndürür. İş durumu `MetricJob` tablosundadır (bkz. 4.4). Yeni zorunlu env: `INTERNAL_CRON_SECRET`, `IP_HASH_SECRET`; isteğe bağlı: `X_DAILY_READ_LIMIT`, `SHORT_LINK_BASE_URL`.
 
 ```bash
@@ -676,6 +677,7 @@ https://checkmatch.net/{hedef-yol}?utm_source={x|instagram}&utm_medium=social&ut
 
 ### 5.5 Genel Disiplin
 
+- **Mac ortak kilidi:** Mac'te ağır işten (build, büyük kopyalama, restore, render, yük testi) önce `~/MAC-HEAVY.lock` dosyasına bakılır; varsa beklenir, yoksa içine oturum adı + iş + başlangıç saati yazılarak oluşturulur, iş bitince silinir. Diğer oturumlar için `~/MAC-HEAVY-README.md`.
 - **Canlı veritabanı:** veri değişikliği uygulamanın kendi eylemleriyle yapılır (oturumlu istek ya da konteyner içinde motor fonksiyonu); doğrudan SQL UPDATE/INSERT/DELETE yalnızca kullanıcının açık onayıyla ve önce yedek alınarak.
 - Yeni bir dış bağımlılık (npm paketi, üçüncü parti API) eklemeden önce mevcut yığında (Bölüm 1.1) karşılığı olup olmadığı kontrol edilir; gerekçesiz yeni bağımlılık eklenmez.
 - Gizli anahtar veya kimlik bilgisi asla kod içine, commit mesajına veya loglara yazılmaz; sızıntı şüphesi varsa iş durdurulup kullanıcı bilgilendirilir.
