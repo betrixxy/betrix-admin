@@ -108,6 +108,23 @@ function playerSeason(player: ApiFootballPlayerSeason, teamId: number, leagueId:
 
 const contribution = (player: PlayerSeason) => (player.goals ?? 0) + (player.assists ?? 0);
 
+type Lineup = NonNullable<NonNullable<Awaited<ReturnType<typeof loadReelContext>>["context"]>["teams"]["home"]["lineup"]>;
+
+/**
+ * İlk 11 adları API-Football diziliş ucundan Türkçe harfsiz gelebiliyor ("U. Cakir"). Aynı kimliğin güncel kadro adı
+ * ("U. Çakır") yazılır; kadroda olmayan oyuncunun adı değişmez (zaten "?" olur).
+ */
+export function restoreLineupNames(lineup: Lineup, squad: readonly { id: number; name: string }[]): Lineup {
+  const byId = new Map(squad.map((player) => [player.id, player.name]));
+  return {
+    ...lineup,
+    players: lineup.players.map((player) => {
+      const name = byId.get(player.id);
+      return name ? { ...player, short_name: name, name: name.replace(/^\p{L}\.\s*/u, "") } : player;
+    }),
+  };
+}
+
 export async function freezeMatch(matchId: number, now: Date = new Date()): Promise<Frozen> {
   const response = await getReelsMatch(matchId);
   if (!response.ok) throw new Error(response.error.message);
@@ -141,6 +158,15 @@ export async function freezeMatch(matchId: number, now: Date = new Date()): Prom
   const leagueName = competitionCardName(leagueId, detail.match.league.name);
   const cardName = (name: string) => cardTeamName(name);
 
+  const squadOf = { home: await storedSquad(homeTeam.id), away: await storedSquad(awayTeam.id) };
+  const context = reading.context && {
+    ...reading.context,
+    teams: {
+      home: { ...reading.context.teams.home, lineup: reading.context.teams.home.lineup && restoreLineupNames(reading.context.teams.home.lineup, squadOf.home) },
+      away: { ...reading.context.teams.away, lineup: reading.context.teams.away.lineup && restoreLineupNames(reading.context.teams.away.lineup, squadOf.away) },
+    },
+  };
+
   const extras: FrozenExtras = {
     league_name: leagueName,
     round: matchDayRoundLabel(fixture.ok ? fixture.data.details?.round ?? null : detail.match.league.round) || null,
@@ -149,12 +175,12 @@ export async function freezeMatch(matchId: number, now: Date = new Date()): Prom
     teams: { home: await sideInfo(homeTeam, warnings), away: await sideInfo(awayTeam, warnings) },
     players: {
       squad_checked_at: squads.checkedAt?.toISOString() ?? null,
-      squads: { home: await storedSquad(homeTeam.id), away: await storedSquad(awayTeam.id) },
+      squads: squadOf,
       candidates: { home: await candidates(homeTeam.id), away: await candidates(awayTeam.id) },
       vs_opponent: [],
       duel_scope: `${leagueName} · bu sezon`,
     },
-    context: reading.context,
+    context,
     h2h_matches: h2h.ok ? h2h.data.matches.map((match) => ({ date: match.kickoffUtc, home: cardName(match.homeTeamName), away: cardName(match.awayTeamName), home_score: match.homeGoals, away_score: match.awayGoals })) : [],
   };
   return { fetched_at: now.toISOString(), squad_checked_at: extras.players.squad_checked_at, quality_ok: reelQualityOk(detail) && !detail.quality.stale, detail, extras, warnings, requests: reading.requests };

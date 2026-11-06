@@ -10,6 +10,7 @@ import { sceneTexts } from "../../src/story/name-guard";
 import { BRAND, buildScript, evaluatePool, pickStory, storyProblems, type StoryAngle } from "../../src/story/pool";
 import { reelScriptSchema, type ReelScene, type ReelScript } from "../../src/schema";
 import type { Frozen } from "./freeze";
+import { estimateSeconds, pronounce, spokenTexts, VOICE_PROFILES, type VoiceProfile } from "./voice";
 
 /** Dondurulmuş veriden senaryo ve metin dosyaları. Saf: ağa çıkmaz, yazmaz. Şablon cümleler, LLM yok. */
 
@@ -20,6 +21,11 @@ export interface BuiltReel {
   seconds: number;
   problems: string[];
   photoNeeds: string[];
+  profile: VoiceProfile;
+  /** ElevenLabs'e giden sahne metinleri (etiket + okunuş); ekran metni `script` içinde, ayrı. */
+  spoken: (string | null)[];
+  /** Tahmini sesi kart süresine sığmayan sahneler: gerçek ses gelince süre sesten kurulur, 6 sn'yi geçerse render durur. */
+  longVoice: string[];
 }
 
 /** Olasılıklar başa baş ise "derbi" açısı; net favori varsa "favori". */
@@ -38,55 +44,77 @@ function photoNeedsOf(scenes: readonly ReelScene[]): string[] {
 }
 
 const FPS = 30;
-const framesFor = (text: string) => Math.ceil(wordCount(text) / WORDS_PER_SECOND) * FPS;
+/** Okunuşa göre (xG → "gol beklentisi") sözcük sayısı: ses bu metni okur. */
+const framesFor = (text: string, wordsPerSecond: number) => Math.ceil((wordCount(pronounce(text)) / wordsPerSecond) * FPS);
 
 /**
  * Ses henüz yokken süre tahmini: kart sesi taşıyacak kadar uzar (en çok 6 sn). Yine sığmıyorsa sondaki cümle düşer; rakam ya da
- * ekran maddesi değişmez. Gerçek ses gelince süreler ölçülen sesten yeniden kurulur. Etkileşim kartı ve notlu kartlar kendi kuralında.
+ * ekran maddesi değişmez. Hız seçilen sesin ölçülen hızıdır; gerçek ses gelince süreler ölçülen sesten yeniden kurulur.
+ * Etkileşim kartı kendi kuralında.
  */
-export function fitVoice(scene: ReelScene): ReelScene {
+export function fitVoice(scene: ReelScene, wordsPerSecond: number = WORDS_PER_SECOND): ReelScene {
   if (!scene.voiceover || scene.type === "S18_ENGAGE") return scene;
   let lines = scene.voiceover.lines;
   const textOf = (items: typeof lines) => items.map((line) => line.text).join(" ");
-  while (lines.length > 1 && framesFor(textOf(lines)) > MAX_CARD_FRAMES) lines = lines.slice(0, -1);
+  while (lines.length > 1 && framesFor(textOf(lines), wordsPerSecond) > MAX_CARD_FRAMES) lines = lines.slice(0, -1);
   const text = textOf(lines);
-  return { ...scene, voiceover: { text, lines }, durationInFrames: Math.max(scene.durationInFrames, Math.min(MAX_CARD_FRAMES, framesFor(text))) } as ReelScene;
+  return { ...scene, voiceover: { text, lines }, durationInFrames: Math.max(scene.durationInFrames, Math.min(MAX_CARD_FRAMES, framesFor(text, wordsPerSecond))) } as ReelScene;
 }
 
-export function buildReel(frozen: Frozen): BuiltReel {
+export function buildReel(frozen: Frozen, profile: VoiceProfile = VOICE_PROFILES.standart): BuiltReel {
   const data = matchDataFromContract(frozen.detail, frozen.extras);
   const now = new Date(frozen.fetched_at);
   const entries = evaluatePool(data, BRAND, { now });
   const angle = angleOf(data);
-  const scenes = pickStory(entries, angle).map(fitVoice);
+  // Kart süresi okunurluk kuralının hızıyla (3 sözcük/sn) kurulur; sesin ölçülen hızına göre sığmayanlar `longVoice`te raporlanır.
+  const scenes = pickStory(entries, angle).map((scene) => fitVoice(scene));
   const disabled = entries.flatMap((entry) => (entry.reason ? [{ type: entry.type, reason: entry.reason }] : []));
   const script = reelScriptSchema.parse(buildScript(data, scenes, disabled));
   const seconds = buildTimeline(scenes.map((scene) => scene.durationInFrames)).total / 30;
   const language = contentLanguageGate({ card: scenes.flatMap((scene) => sceneTexts([scene.headline, scene.data, scene.voiceover?.text ?? ""])) });
+  const spoken = spokenTexts(script.scenes, profile);
+  const longVoice = script.scenes.flatMap((scene, index) => {
+    const text = spoken[index];
+    const limit = scene.durationInFrames / FPS;
+    return text && estimateSeconds(text, profile) > limit + 0.5 ? [`${index + 1}. ${scene.type}: ses tahmini ${estimateSeconds(text, profile).toFixed(1)} sn, kart ${limit.toFixed(1)} sn`] : [];
+  });
   const problems = [
     ...storyProblems(scenes, data, seconds),
     ...readabilityProblems(script),
     ...(frozen.detail.quality.stale ? ["Veri bayat (data_stale)"] : []),
     ...(language ? [language] : []),
+    // Etiket ekran metnine asla girmez.
+    ...(script.scenes.some((scene) => sceneTexts([scene.headline, scene.data, scene.caption ?? ""]).some((text) => /\[[a-z ]+\]/u.test(text))) ? ["Ekran metninde ses etiketi"] : []),
   ];
-  return { data, script, angle, seconds, problems: [...new Set(problems)], photoNeeds: photoNeedsOf(scenes) };
+  return { data, script, angle, seconds, problems: [...new Set(problems)], photoNeeds: photoNeedsOf(scenes), profile, spoken, longVoice };
 }
 
-export function scenarioText(reel: BuiltReel, frozen: Frozen): string {
+/** Ekranda yazı olarak görünmeyen iç değerler (tahta seviyesi). */
+const INTERNAL_VALUES = new Set(["strong", "weak"]);
+
+export function scenarioText(reel: BuiltReel, frozen: Frozen, header: string[] = []): string {
   const { home, away } = reel.script.meta.teams;
+  const istanbul = new Date(frozen.detail.match.kickoff_utc).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", dateStyle: "full", timeStyle: "short" });
+  const voiced = reel.spoken.reduce((sum, text) => sum + (text ? estimateSeconds(text, reel.profile) : 0), 0);
   const lines = [
     `${home.name} – ${away.name}`,
-    `${reel.script.meta.league.name} | ${frozen.detail.match.kickoff_utc} | açı: ${reel.angle === "derby" ? "başa baş" : "favori"}`,
-    `Dondurma: ${frozen.fetched_at} | Kadro: ${frozen.squad_checked_at ?? "doğrulanamadı"} | Hesap: ${frozen.detail.model.computed_at}`,
-    `Süre: ${reel.seconds.toFixed(1)} sn (ses gelince sese göre değişir) | Sahne: ${reel.script.scenes.length}`,
+    `${reel.script.meta.league.name} | ${istanbul} TSİ (${frozen.detail.match.kickoff_utc}) | açı: ${reel.angle === "derby" ? "başa baş" : "favori"}`,
+    `Dondurma: ${frozen.fetched_at} | Kadro: ${frozen.squad_checked_at ?? "doğrulanamadı"} | Hesap: ${frozen.detail.model.computed_at} | data_stale: ${frozen.detail.quality.stale}`,
+    `Ses: ${reel.profile.label} · ${reel.profile.voiceName} · ${reel.profile.modelId} · canlı ayar${reel.profile.tags ? " · ses etiketleri AÇIK" : " · etiket yok"}`,
+    ...header,
+    `Süre: kartlar ${reel.seconds.toFixed(1)} sn | sesin tahmini toplamı ${voiced.toFixed(1)} sn (gerçek süre sesten ölçülür) | Sahne: ${reel.script.scenes.length}`,
     `Engel: ${reel.problems.length ? reel.problems.join(" | ") : "yok"}`,
+    ...(reel.longVoice.length ? [`Ses kartı aşabilir: ${reel.longVoice.join(" | ")}`] : []),
     "",
   ];
   reel.script.scenes.forEach((scene, index) => {
-    lines.push(`--- ${index + 1}. ${scene.type} (${(scene.durationInFrames / 30).toFixed(1)} sn)`);
+    const spoken = reel.spoken[index];
+    const estimate = spoken ? estimateSeconds(spoken, reel.profile) : 0;
+    lines.push(`--- ${index + 1}. ${scene.type} | kart ${(scene.durationInFrames / 30).toFixed(1)} sn | ses tahmini ${estimate.toFixed(1)} sn`);
     if (scene.headline) lines.push(`BAŞLIK: ${scene.headline.line1} ${scene.headline.line2}`);
-    lines.push(`EKRAN: ${sceneTexts(scene.data).join(" · ")}`);
-    lines.push(`SES: ${scene.voiceover?.text ?? "(yok)"}`, "");
+    const screen = sceneTexts(scene.data).filter((text) => !INTERNAL_VALUES.has(text));
+    lines.push(`EKRAN: ${screen.length ? screen.join(" · ") : "(yalnız başlık ve grafik)"}`);
+    lines.push(`SES: ${spoken ?? "(yok)"}`, "");
   });
   const failed = frozen.detail.quality.checks.filter((check) => !check.ok);
   if (failed.length) lines.push("--- KALİTE NOTLARI (zorunlu değil, yayın kararı için)", ...failed.map((check) => `${check.name}: ${check.detail}`), "");

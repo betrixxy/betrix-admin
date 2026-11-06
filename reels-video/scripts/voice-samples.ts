@@ -2,6 +2,7 @@ import "./reel/setup-env";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { elevenGet, synthesize, TtsError, type TtsRequest, type VoiceSettings } from "./reel/tts";
+import { LIVE_SETTINGS } from "./reel/voice";
 
 /**
  * Ses seçimi örnekleri. `npm run voices -- --plan`: yalnız liste ve kredi tahmini, üretim yok. `npm run voices`: üretir; önbellek sayesinde
@@ -13,7 +14,7 @@ const CACHE = path.join(OUT, "_onbellek");
 const SAMPLE = "Galatasaray bu akşam sahaya çıkmadan… biz maçı tam beş yüz bin kez oynattık. Sonuç mu? Galatasaray yüzde elli iki. Ama asıl hikâye burada değil. Stuttgart son sekiz deplasmanının yedisinde gol buldu… Peki bu akşam ilk golü kim atacak? Sonuna kadar izle, cevap videonun sonunda.";
 const TAGGED = "[excited] Galatasaray bu akşam sahaya çıkmadan… [short pause] biz maçı tam beş yüz bin kez oynattık. [curious] Sonuç mu? [excited] Galatasaray yüzde elli iki. [whispers] Ama asıl hikâye burada değil. [short pause] Stuttgart son sekiz deplasmanının yedisinde gol buldu… [curious] Peki bu akşam ilk golü kim atacak? [excited] Sonuna kadar izle, cevap videonun sonunda.";
 const PRONUNCIATION = "Stuttgart, Osimhen, Icardi, Barış Alper Yılmaz, xG, yüzde altmış sekiz, beş yüz bin.";
-const LIVE: VoiceSettings = { stability: 0.4, similarity_boost: 0.75, style: 0.4, use_speaker_boost: true, speed: 1.05 };
+const LIVE: VoiceSettings = LIVE_SETTINGS;
 /** v3 ailesi kararlılıkta yalnız bu değerleri kabul edebiliyor: reddedilirse en yakını denenir. */
 const DISCRETE_STABILITY = 0.5;
 const STABLE_MODEL = "eleven_multilingual_v2";

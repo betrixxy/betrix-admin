@@ -5,6 +5,9 @@ import { freezeMatch, REAL_ROOT, type Frozen } from "./reel/freeze";
 import { buildReel, captionFiles, scenarioText, slugOf, type BuiltReel } from "./reel/build";
 import { hasKey } from "./reel/setup-env";
 import { withReelsTunnel } from "./reel/tunnel";
+import { photoListText, photoPlan } from "./reel/photos";
+import { bigMatchReason, defaultProfile, VOICE_PROFILES, type VoiceProfile, type VoiceProfileId } from "./reel/voice";
+import { ARCHIVE_TEAM_NAMES } from "@/lib/archive/names";
 import { addDays, istanbulDay } from "@/lib/metrics/istanbul-time";
 import { publishWindow } from "@/lib/reels/publish-window";
 import { REELS_DEFAULT_LEAGUE_IDS } from "@/lib/reels/selection";
@@ -12,7 +15,8 @@ import { getReelsMatches } from "@/lib/services/reels-client";
 
 /**
  * Gerçek veriyle video hattı. Uygulamaya bağlı değil, veritabanına yazmaz. Çıktı `test-photos/reels-real/<maç>/`.
- *   npm run reel -- --match <id> [--photos <klasör>]   dondur, senaryo.txt ve aciklama.txt yaz, DUR
+ *   npm run reel -- --match <id> [--photos <klasör>]   dondur; senaryo.txt, fotograf-listesi.txt, aciklama.txt yaz, DUR
+ *     [--profile buyuk-mac|standart|alternatif] [--big-match | --no-big-match]   ses profili; varsayılan büyük maç önerisinden
  *   npm run reel -- --candidates                       yayın penceresi açık maçların listesi ve kalite özeti
  */
 
@@ -28,18 +32,39 @@ function summary(reel: BuiltReel, frozen: Frozen): string {
     `sahne ${reel.script.scenes.length}, ${reel.seconds.toFixed(1)} sn: ${reel.script.scenes.map((scene) => scene.type).join(" ")}`,
     `engel: ${reel.problems.length ? reel.problems.join(" | ") : "yok"}`,
     `uyarı: ${frozen.warnings.length ? frozen.warnings.join(" | ") : "yok"}`,
+    `ses kartı aşabilir: ${reel.longVoice.length ? reel.longVoice.join(" | ") : "yok"}`,
   ].join("\n");
+}
+
+const isTurkish = (teamId: number) => teamId in ARCHIVE_TEAM_NAMES;
+
+function chooseProfile(frozen: Frozen): { profile: VoiceProfile; header: string } {
+  const reason = bigMatchReason({ leagueId: frozen.detail.match.league.id, homeId: frozen.detail.teams.home.id, awayId: frozen.detail.teams.away.id, isTurkish });
+  const flag = has("--big-match") ? true : has("--no-big-match") ? false : reason !== null;
+  const asked = argument("--profile");
+  if (asked && !(asked in VOICE_PROFILES)) throw new Error(`Bilinmeyen ses profili: ${asked} (${Object.keys(VOICE_PROFILES).join(", ")})`);
+  const id = (asked as VoiceProfileId | null) ?? defaultProfile(flag);
+  const source = asked ? "elle seçildi" : has("--big-match") || has("--no-big-match") ? "büyük maç işareti elle" : reason ? `öneri: ${reason}` : "öneri yok (derbi / ŞL / Türk takımının Avrupa maçı değil)";
+  return { profile: VOICE_PROFILES[id], header: `Büyük maç: ${flag ? "işaretli" : "işaretsiz"} (${source}) → profil "${VOICE_PROFILES[id].label}"` };
 }
 
 async function produce(matchId: number): Promise<void> {
   const frozen = await withReelsTunnel(() => freezeMatch(matchId));
-  const reel = buildReel(frozen);
+  const { profile, header } = chooseProfile(frozen);
+  const reel = buildReel(frozen, profile);
   const folder = path.join(REAL_ROOT, slugOf(frozen, matchId));
   mkdirSync(folder, { recursive: true });
   writeFileSync(path.join(folder, "snapshot.json"), JSON.stringify(frozen, null, 1));
   writeFileSync(path.join(folder, "script.json"), JSON.stringify(reel.script, null, 1));
-  writeFileSync(path.join(folder, "senaryo.txt"), scenarioText(reel, frozen));
+  writeFileSync(path.join(folder, "seslendirme.json"), JSON.stringify({ profile: reel.profile, scenes: reel.script.scenes.map((scene, index) => ({ type: scene.type, text: reel.spoken[index] })) }, null, 1));
+  writeFileSync(path.join(folder, "senaryo.txt"), scenarioText(reel, frozen, [header]));
+  if (profile.id !== "buyuk-mac") {
+    const big = buildReel(frozen, VOICE_PROFILES["buyuk-mac"]);
+    writeFileSync(path.join(folder, "senaryo-buyuk-mac.txt"), scenarioText(big, frozen, ["Karşılaştırma: \"büyük maç\" işaretlenirse bu metin okunur."]));
+  }
+  writeFileSync(path.join(folder, "fotograf-listesi.txt"), photoListText(photoPlan(reel.data, reel.script.scenes, frozen.extras.league_name)));
   writeFileSync(path.join(folder, "aciklama.txt"), captionFiles(reel, frozen));
+  console.log(header);
   console.log(summary(reel, frozen));
   console.log(`ses: ${hasKey("ELEVENLABS_API_KEY") ? "anahtar var" : "anahtar yok, sessiz"}`);
   console.log(`çıktı: ${folder}`);
