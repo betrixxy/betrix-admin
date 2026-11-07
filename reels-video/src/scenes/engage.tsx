@@ -3,6 +3,7 @@ import { Panel, themeOf, useEnter } from "../design/kit";
 import { BOTTOM, HUD_TOP, labelStyle, type Theme, W, X } from "../design/tokens";
 import type { SceneProps } from "./common";
 import { StageCover } from "./players";
+import { SceneBackdrop } from "../components/SceneBackdrop";
 
 /** Son 12 kare kapağa erir: video başa akıcı döner. Denetim karesi bunun öncesindedir. */
 export const LOOP_FRAMES = 12;
@@ -57,7 +58,7 @@ export function EngageScene({ script, scene }: SceneProps<"S18_ENGAGE">) {
           <div style={{ ...labelStyle(theme, 44), color: theme.accentText, fontWeight: 800, whiteSpace: "nowrap" }}>{data.handle}</div>
         </Panel>
       </div>
-      {back > 0 && cover ? <AbsoluteFill style={{ opacity: back }}><Freeze frame={0}><StageCover script={script} scene={cover} /></Freeze></AbsoluteFill> : null}
+      {back > 0 && cover ? <AbsoluteFill style={{ opacity: back }}><SceneBackdrop script={script} type="S01_COVER" /><Freeze frame={0}><StageCover script={script} scene={cover} /></Freeze></AbsoluteFill> : null}
     </AbsoluteFill>
   );
 }

@@ -7,6 +7,7 @@ import { boardScript, flowScript, SAMPLE_KEYS, sampleScripts, singleSceneScript 
 import { DESIGN_DIRECTIONS } from "./schema";
 import { TypographyTest } from "./TypographyTest";
 
+
 for (const font of FONT_FILES) {
   void loadFont({ family: font.family, url: staticFile(`fonts/${font.file}`), weight: font.weight, ...("style" in font ? { style: font.style } : {}) });
 }
@@ -36,6 +37,17 @@ export function Root() {
           defaultProps={{ script, audit: false, strictSafe: false, maskText: false, videoRules: false }}
         />
       ))}
+      {/* Gerçek veriyle video (`scripts/reel-render.ts`): senaryo girdiden gelir, süre ondan hesaplanır. */}
+      <Composition
+        id="gercek"
+        component={ReelVideo}
+        width={WIDTH}
+        height={HEIGHT}
+        fps={FPS}
+        durationInFrames={1}
+        defaultProps={{ script: flowScript(), audit: false, strictSafe: true, maskText: false, videoRules: true }}
+        calculateMetadata={({ props }) => ({ durationInFrames: buildTimeline(props.script.scenes.map((scene) => scene.durationInFrames)).total })}
+      />
       {first ? <Composition id="tipografi" component={TypographyTest} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={1} defaultProps={{ script: sampleScripts(first).pool }} /> : null}
     </>
   );

@@ -38,13 +38,25 @@ export function screenBullets(scene: ReelScene): Bullet[] {
 /** Takım adındaki rakam ("Schalke 04") kural dışı: ad çıkarılarak bakılır. */
 const stripNames = (text: string, names: readonly string[]): string => names.reduce((value, name) => value.split(name).join(""), text);
 
-export function sceneReadabilityProblems(scene: ReelScene, names: readonly string[]): string[] {
+/**
+ * Ses bittikten sonra kartın kalan payı: 0,3 sn (kalite kuralı 11-06: ses ≤ kart − 0,3 sn). Geçiş son 8 karede başlar, pay 9 kare:
+ * ses bitmeden geçiş başlamaz.
+ */
+export const VOICE_TAIL_FRAMES = 9;
+/** Ölçülen sesle kart süresi: en az kartın kendi süresi, ses + pay; en çok 8 sn (etkileşim kartı 3–4 sn kuralında kalır). */
+export const voicedCardFrames = (base: number, audioFrames: number): number => Math.max(base, audioFrames + VOICE_TAIL_FRAMES);
+
+export function sceneReadabilityProblems(scene: ReelScene, names: readonly string[], audioFrames: number | null = null): string[] {
   const problems: string[] = [];
   const voiceNote = NOTE_CARDS.includes(scene.type) && readsNote(scene.voiceover);
+  // Ölçülen ses varsa kart sesi taşıyacak kadar uzar (en çok 8 sn, kullanıcı kararı 11-06); tahmini sözcük hızı yerine gerçek süre.
+  const voiced = audioFrames !== null;
+  if (voiced && audioFrames + VOICE_TAIL_FRAMES > scene.durationInFrames) problems.push(`ses ${(audioFrames / FPS).toFixed(1)} sn kartı aşıyor (${(scene.durationInFrames / FPS).toFixed(1)} sn)`);
   if (scene.type === "S18_ENGAGE") {
     if (scene.durationInFrames < ENGAGE_FRAMES[0] || scene.durationInFrames > ENGAGE_FRAMES[1]) problems.push("etkileşim kartı 3–4 sn olmalı");
-  } else if (scene.durationInFrames < MIN_CARD_FRAMES || scene.durationInFrames > (voiceNote ? MAX_NOTE_CARD_FRAMES : MAX_CARD_FRAMES)) problems.push(`süre ${(scene.durationInFrames / FPS).toFixed(1)} sn: ${voiceNote ? "notlu kart en çok 8 sn" : "4–6 sn olmalı"}`);
-  if (voiceNote && scene.durationInFrames > MAX_CARD_FRAMES && scene.durationInFrames > framesToSpeak(scene.voiceover?.text ?? "")) problems.push("notlu kart sesin gerektirdiğinden uzun");
+  } else if (scene.durationInFrames < MIN_CARD_FRAMES || scene.durationInFrames > (voiceNote || voiced ? MAX_NOTE_CARD_FRAMES : MAX_CARD_FRAMES)) problems.push(`süre ${(scene.durationInFrames / FPS).toFixed(1)} sn: ${voiceNote || voiced ? "sesli kart en çok 8 sn" : "4–6 sn olmalı"}`);
+  if (voiced && scene.durationInFrames > MAX_CARD_FRAMES && scene.durationInFrames > audioFrames + VOICE_TAIL_FRAMES) problems.push("kart sesin gerektirdiğinden uzun");
+  if (!voiced && voiceNote && scene.durationInFrames > MAX_CARD_FRAMES && scene.durationInFrames > framesToSpeak(scene.voiceover?.text ?? "")) problems.push("notlu kart sesin gerektirdiğinden uzun");
   const bullets = screenBullets(scene);
   if (bullets.length > MAX_BULLETS) problems.push(`${bullets.length} madde: en fazla ${MAX_BULLETS}`);
   for (const bullet of bullets) {
@@ -63,13 +75,13 @@ export function sceneReadabilityProblems(scene: ReelScene, names: readonly strin
   const spoken = voice.lines.filter((line) => !line.sources.includes("analyst_note")).map((line) => line.text).join(" ");
   if (/\d/u.test(stripNames(spoken, names))) problems.push(`seslendirmede rakam: ${spoken}`);
   const limit = Math.floor((scene.durationInFrames / FPS) * WORDS_PER_SECOND);
-  if (wordCount(voice.text) > limit) problems.push(`seslendirme ${wordCount(voice.text)} sözcük: ${scene.durationInFrames / FPS} sn için en fazla ${limit}`);
+  if (!voiced && wordCount(voice.text) > limit) problems.push(`seslendirme ${wordCount(voice.text)} sözcük: ${scene.durationInFrames / FPS} sn için en fazla ${limit}`);
   const longest = Math.max(0, ...bullets.map((bullet) => wordCount(bullet.text)));
   if (bullets.length && wordCount(voice.text) <= longest) problems.push("seslendirme ekrandaki maddeden uzun değil");
   return problems;
 }
 
-export function readabilityProblems(script: Pick<ReelScript, "scenes" | "meta">): string[] {
+export function readabilityProblems(script: Pick<ReelScript, "scenes" | "meta" | "voice">): string[] {
   const names = [script.meta.teams.home.name, script.meta.teams.home.shortName, script.meta.teams.away.name, script.meta.teams.away.shortName];
-  return script.scenes.flatMap((scene) => sceneReadabilityProblems(scene, names).map((problem) => `${scene.type}: ${problem}`));
+  return script.scenes.flatMap((scene, index) => sceneReadabilityProblems(scene, names, script.voice?.[index]?.frames ?? null).map((problem) => `${scene.type}: ${problem}`));
 }

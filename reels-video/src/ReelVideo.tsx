@@ -1,10 +1,11 @@
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import type { TransitionPresentation, TransitionPresentationComponentProps } from "@remotion/transitions";
 import { Fragment } from "react";
-import { AbsoluteFill } from "remotion";
+import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
 import { AuditProbe } from "./components/Primitives";
+import { SceneBackdrop } from "./components/SceneBackdrop";
 import { StageBackdrop, StageHud, themeOf } from "./design/kit";
-import { TRANSITION_FRAMES, WIDTH } from "./lib/motion";
+import { buildTimeline, TRANSITION_FRAMES, WIDTH } from "./lib/motion";
 import type { ReelScene, ReelScript } from "./schema";
 import { CompareScene, HeadToHeadScene, KeyGapScene } from "./scenes/compare";
 import { ChanceScene, FatigueScene, TrackRecordScene } from "./scenes/context";
@@ -67,6 +68,19 @@ const greenWipe = (color: string): TransitionPresentation<{ color: string }> => 
 /** Metni gizler: kontrast ölçümü metnin arkasındaki pikseli okur. */
 const MASK_CSS = "[data-reel-root] * { color: transparent !important; -webkit-text-fill-color: transparent !important; text-shadow: none !important; }";
 
+/** Seslendirme: her klip kendi sahnesinin başladığı karede başlar (geçiş bindirmesi `buildTimeline` ile aynı). */
+function VoiceTrack({ script }: { script: ReelScript }) {
+  const { entries } = buildTimeline(script.scenes.map((scene) => scene.durationInFrames));
+  return (
+    <>
+      {script.voice?.map((clip, index) => {
+        const entry = entries[index];
+        return clip && entry ? <Sequence key={index} from={entry.from} durationInFrames={entry.duration}><Audio src={staticFile(clip.src)} /></Sequence> : null;
+      })}
+    </>
+  );
+}
+
 /** Zemin ve HUD geçişlerin dışındadır: boş kare olmaz, logo ve çubuk yerinde kalır. */
 export function ReelVideo({ script, audit = false, strictSafe = false, maskText = false, videoRules = false }: { script: ReelScript; audit?: boolean; strictSafe?: boolean; maskText?: boolean; videoRules?: boolean }) {
   const accent = themeOf(script).accent;
@@ -79,11 +93,13 @@ export function ReelVideo({ script, audit = false, strictSafe = false, maskText 
           <Fragment key={scene.type}>
             {index > 0 ? <TransitionSeries.Transition presentation={greenWipe(accent)} timing={linearTiming({ durationInFrames: TRANSITION_FRAMES })} /> : null}
             <TransitionSeries.Sequence durationInFrames={scene.durationInFrames}>
+              <SceneBackdrop script={script} type={scene.type} />
               <SceneBody scene={scene} script={script} />
             </TransitionSeries.Sequence>
           </Fragment>
         ))}
       </TransitionSeries>
+      {script.voice ? <VoiceTrack script={script} /> : null}
       <StageHud script={script} />
       {audit ? <AuditProbe /> : null}
     </AbsoluteFill>

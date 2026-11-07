@@ -256,7 +256,7 @@ function scenario(data: MatchData, frames: Frames, voiceNote: string | null): En
 export function evaluateAnalysis(data: MatchData, frames: Frames, handle: string): Entry[] {
   const closeVoice = voiceOf([say(data, "close", "Sence kim kazanır, {home} ya da {away}? Yorumlara yaz, maçtan sonra bak.", { home: TEAM.home, away: TEAM.away })]);
   const close: Entry = on({ type: "S17_CLOSE", ...base(frames, "S17_CLOSE", "Sence kim", "kazanır?", closeVoice, BOTH), data: { options: [data.teams.home.short_name, "Beraberlik", data.teams.away.short_name], prompt: "Cevabını yorumlara yaz.", save: "Kaydet, maçtan sonra tekrar bak.", handle } });
-  const engage: Entry = on({ type: "S18_ENGAGE", ...base(frames, "S18_ENGAGE", "", "", voiceOf([say(data, "engage", "Beğen, yorum yap, paylaş, kaydet. Arkadaşını etiketle.", {}, ["brand"])])), headline: null, data: { calls: ["like", "comment", "share", "save"], prompt: "Arkadaşını etiketle — kim haklı çıkacak?", more: "Daha fazla analiz: checkmatch.net", handle } });
+  const engage: Entry = on({ type: "S18_ENGAGE", ...base(frames, "S18_ENGAGE", "", "", voiceOf([say(data, "engage", "Beğen, yorum yap, paylaş, kaydet.", {}, ["brand"]), say(data, "engage.tag", "Arkadaşını etiketle.", {}, ["brand"])])), headline: null, data: { calls: ["like", "comment", "share", "save"], prompt: "Arkadaşını etiketle — kim haklı çıkacak?", more: "Daha fazla analiz: checkmatch.net", handle } });
   const ctx = data.context;
   const closedTypes = ["C01_STORY", "C02_FORM", "C03_ABSENCES", "C04_TEAM_HOME", "C05_TEAM_AWAY", "C06_MINUTES", "C07_KEY", "C08_UPSET"] as const;
   const voiceNote = data.analyst_voice_note?.trim() || null;

@@ -173,6 +173,10 @@ export const reelScriptSchema = z.strictObject({
   }),
   brand: z.strictObject({ accent: hex, logo: z.string().min(1), mark: z.string().min(1), handle: z.string().min(1) }),
   photos: z.record(z.string(), reelPhotoSchema),
+  /** Sahne başına seslendirme klibi (sahne sırasıyla; null = sessiz). `frames` ölçülen ses süresi: kart süresi bundan kurulur. */
+  voice: z.array(z.strictObject({ src: z.string().min(1), frames: z.number().int().positive() }).nullable()).optional(),
+  /** Sahne türü → bulanık zemin fotoğrafı (`public/` altında). Kontrast denetimini geçemeyen sahnede verilmez. */
+  backdrops: z.record(z.string(), z.string().min(1)).optional(),
   scenes: z.array(reelSceneSchema).min(1),
   /** Video açıklama metni: analist notunun tam hali burada. */
   description: z.string().min(1),

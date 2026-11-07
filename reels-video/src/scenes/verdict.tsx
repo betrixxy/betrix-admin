@@ -31,7 +31,9 @@ export function KeyScene({ script, scene }: SceneProps<"C07_KEY">) {
   const line2 = scene.headline?.line2 ?? "";
   const lead = script.meta.teams[data.leader];
   const trail = script.meta.teams[data.leader === "home" ? "away" : "home"];
-  const heroSize = 190;
+  // Lider kutusu genişliğin 3/5'i (eksi boşluk ve iç pay). "%40" gibi değer 190 px'te taşıyordu (GS–Amed, 11-06): yazı kutuya
+  // sığacak kadar küçülür, glif başına ≈ 0,86 em. Ana rakam alt sınırı (160 px) okunurluk denetiminde.
+  const heroSize = Math.min(190, Math.floor(((W - 12) * 0.6 - 36) / (Math.max(1, data.leaderValue.length) * 0.86)));
   const boardHeight = 360;
   const shown = frame < 20 ? "" : data.leaderValue;
   return (
