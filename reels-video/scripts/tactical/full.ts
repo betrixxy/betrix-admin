@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import type { Frozen } from "../reel/freeze";
+import { LAYOUT_PREFIX } from "../../src/tactical/audit";
 import type { TacticalScript } from "../../src/tactical/types";
 import { baseScript } from "./build";
 import { finish } from "./finish";
@@ -15,11 +16,11 @@ import { creditPlan, PROFILE, voice } from "./voicing";
 /**
  * "Canlı taktik tahtası" tam video (7 beat). Üç kip:
  *   --plan (varsayılan)  senaryo + onaylı metin karşılaştırması + tahmini süre/kredi; ağa çıkmaz, render yok.
- *   --stills [duel,close] tahmini zamanlamayla tek kareler (renderStill); ses yok, kredi yok.
- *   --full --kredi-siniri N  ses (önbellek dışı beat'ler ElevenLabs'e) + tam render + rapor + aciklama + kapak + Telegram önizlemesi.
- *     ağır iş: boş RAM ≥ 4 GB, maç penceresi dışında. Render yalnız ses metni onaylı senaryoyla (`senaryo-tactical.txt`, SES satırları)
- *     birebir aynıysa başlar.
- *   npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --format tactical --full --kredi-siniri 1500
+ *   --stills [duel,close,cover] tahmini zamanlamayla tek kareler (renderStill, yerleşim denetimli) ve kapak; ses yok, kredi yok.
+ *   --full --kredi-siniri N  ses (önbellek dışı beat'ler ElevenLabs'e) + tam render (kare başına yerleşim denetimi; ihlalde durur)
+ *     + rapor + aciklama + kapak + Telegram önizlemesi. Ağır iş: boş RAM ≥ 4 GB, maç penceresi dışında. Render yalnız ses metni onaylı
+ *     senaryoyla (`senaryo-tactical.txt`, SES satırları) birebir aynıysa başlar.
+ *   npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --format tactical --full --kredi-siniri 700
  */
 
 const arg = (name: string) => { const at = process.argv.indexOf(name); return at >= 0 ? process.argv[at + 1] ?? null : null; };
@@ -75,6 +76,11 @@ const withPhotos: PlanItem[] = items.map((item) => (item.kind === "duel" ? { ...
 const scriptOf = (timeline: ReturnType<typeof buildTimeline>): TacticalScript => ({ ...base, beats: timeline.beats, words: timeline.words, durationInFrames: timeline.durationInFrames });
 const credit = creditPlan(withPhotos, voiceCache);
 
+async function renderCover(serveUrl: string, script: TacticalScript, output: string) {
+  const composition = await selectComposition({ serveUrl, id: "TacticalCover", inputProps: { script } });
+  await renderStill({ serveUrl, composition, inputProps: { script }, frame: 0, output, imageFormat: "png" });
+}
+
 if (mode === "plan" || mode === "stills") {
   const timeline = buildTimeline(withPhotos.map((item) => estimated(item, PROFILE.wordsPerSecond)));
   const summary = {
@@ -89,19 +95,25 @@ if (mode === "plan" || mode === "stills") {
   writeFileSync(path.join(work, "plan.json"), JSON.stringify({ summary, items: withPhotos }, null, 1));
   console.log(JSON.stringify(summary, null, 1));
   if (mode === "plan") process.exit(0);
-  // Tek kareler: hafif iş (render yok), yine de boş RAM ≥ 2 GB.
+  // Tek kareler: hafif iş (render yok), yine de boş RAM ≥ 2 GB. Her karede yerleşim denetimi; "cover" kapağı çizer.
   if (freemem() / 1024 ** 3 < 2) stop("boş RAM < 2 GB");
   const script = scriptOf(timeline);
   const serveUrl = await bundle({ entryPoint: path.join(PKG, "src", "index.ts"), publicDir: PUBLIC });
-  const composition = await selectComposition({ serveUrl, id: "TacticalReel", inputProps: { script } });
   const wanted = (arg("--stills") ?? "duel,close").split(",").filter((value) => value && !value.startsWith("--"));
   const stills = path.join(work, "stills");
   mkdirSync(stills, { recursive: true });
   for (const kind of wanted.length ? wanted : ["duel", "close"]) {
+    const output = path.join(stills, `${kind}.png`);
+    if (kind === "cover") {
+      await renderCover(serveUrl, script, output);
+      console.log(`kapak: ${output}`);
+      continue;
+    }
+    const composition = await selectComposition({ serveUrl, id: "TacticalReel", inputProps: { script, audit: true } });
     const beat = script.beats.find((item) => item.kind === kind) ?? stop(`beat yok: ${kind}`);
     const local = kind === "close" ? Number(beat.values.moreAt ?? 0) + 12 : Math.min(beat.duration - 3, 48);
-    const output = path.join(stills, `${kind}.png`);
-    await renderStill({ serveUrl, composition, inputProps: { script }, frame: beat.from + local, output, imageFormat: "png" });
+    await renderStill({ serveUrl, composition, inputProps: { script, audit: true }, frame: beat.from + local, output, imageFormat: "png",
+      onBrowserLog: ({ text }) => { if (text.includes(LAYOUT_PREFIX)) console.log(text.slice(text.indexOf(LAYOUT_PREFIX))); } });
     console.log(`still: ${output} (kare ${beat.from + local})`);
   }
   process.exit(0);
@@ -114,22 +126,38 @@ const freeGb = freemem() / 1024 ** 3;
 if (freeGb < 4) stop(`boş RAM ${freeGb.toFixed(1)} GB < 4`);
 console.log(`ses: ${credit.fresh.length} yeni beat (${credit.fresh.join(", ") || "—"}), tahmini ${credit.estimatedCredits} kredi, sınır ${limit}`);
 const voiced = await voice(withPhotos, voiceCache, process.env.ELEVENLABS_API_KEY ?? null, limit);
-console.log(`ElevenLabs harcaması: ${voiced.credits} kredi`);
+console.log(`ElevenLabs harcaması: ${voiced.credits} kredi; önbellek biçimleri: ${[...new Set(voiced.formats)].join(", ")}`);
 const timeline = buildTimeline(voiced.beats);
 const script = scriptOf(timeline);
 mkdirSync(out, { recursive: true });
 writeFileSync(path.join(work, "script.json"), JSON.stringify(script, null, 1));
 
 const serveUrl = await bundle({ entryPoint: path.join(PKG, "src", "index.ts"), publicDir: PUBLIC });
-const composition = await selectComposition({ serveUrl, id: "TacticalReel", inputProps: { script } });
+const composition = await selectComposition({ serveUrl, id: "TacticalReel", inputProps: { script, audit: true } });
 const CBR = ["-minrate", "11M", "-x264-params", "nal-hrd=cbr", "-profile:v", "high"];
 const silent = path.join(work, "goruntu.mp4");
-await renderMedia({ serveUrl, composition, inputProps: { script }, codec: "h264", videoBitrate: "11M", encodingMaxRate: "11M", encodingBufferSize: "22M", x264Preset: "slow",
-  ffmpegOverride: ({ args }) => (args.includes("libx264") ? [...args.slice(0, -1), ...CBR, ...args.slice(-1)] : args), pixelFormat: "yuv420p", colorSpace: "bt709", imageFormat: "png", muted: true, concurrency: 1, outputLocation: silent });
-const hook = script.beats[0] ?? stop("beat yok");
-await renderStill({ serveUrl, composition, inputProps: { script }, frame: hook.from + Math.round(hook.duration * 0.8), output: path.join(out, "kapak.png"), imageFormat: "png" });
+// Kare başına yerleşim denetimi: ihlalde kompozisyon `cancelRender` ile render'ı durdurur (renderMedia hata fırlatır).
+const audited = new Set<number>();
+const violations: string[] = [];
+const onBrowserLog = ({ text }: { text: string }) => {
+  if (!text.includes(LAYOUT_PREFIX)) return;
+  const parsed = JSON.parse(text.slice(text.indexOf(LAYOUT_PREFIX) + LAYOUT_PREFIX.length)) as { frame: number; issues: string[] };
+  audited.add(parsed.frame);
+  violations.push(...parsed.issues.map((issue) => `kare ${parsed.frame}: ${issue}`));
+};
+try {
+  await renderMedia({ serveUrl, composition, inputProps: { script, audit: true }, codec: "h264", videoBitrate: "11M", encodingMaxRate: "11M", encodingBufferSize: "22M", x264Preset: "slow",
+    ffmpegOverride: ({ args }) => (args.includes("libx264") ? [...args.slice(0, -1), ...CBR, ...args.slice(-1)] : args), pixelFormat: "yuv420p", colorSpace: "bt709", imageFormat: "png", muted: true, concurrency: 1, outputLocation: silent, onBrowserLog });
+} catch (error) {
+  writeFileSync(path.join(work, "yerlesim-ihlali.json"), JSON.stringify({ violations, error: String(error) }, null, 1));
+  stop(`render durdu: ${violations.slice(0, 6).join(" | ") || String(error)}`);
+}
+if (audited.size < script.durationInFrames) stop(`yerleşim denetimi eksik: ${audited.size}/${script.durationInFrames} kare`);
+await renderCover(serveUrl, script, path.join(out, "kapak.png"));
 writeFileSync(path.join(out, "aciklama.txt"), `${tacticalCaption(source, items)}\n`);
 
-const report = finish({ folder, work, out, silent, script, timeline, clips: voiced.clips });
-writeFileSync(path.join(out, "rapor.json"), JSON.stringify({ ...report, elevenlabs: { credits: voiced.credits, freshBeats: credit.fresh }, kadroNotlari: squadNotes, not: "Format testi: yayınlanmaz." }, null, 1));
+const report = await finish({ work, out, silent, script, timeline, clips: voiced.clips, layout: { frames: audited.size, violations } });
+const legacy = voiced.formats.filter((format) => format === "mp3_44100_128").length;
+const voiceNote = legacy ? `${legacy}/${voiced.formats.length} beat önbellekteki 128 kbps mp3 (mono, 44,1 kHz) ile; yeniden üretilmedi` : "hepsi güncel biçim (mp3 192 kbps)";
+writeFileSync(path.join(out, "rapor.json"), JSON.stringify({ ...report, elevenlabs: { credits: voiced.credits, freshBeats: credit.fresh, onbellekBicimi: voiced.formats, not: voiceNote }, kadroNotlari: squadNotes, not: "Format testi: yayınlanmaz." }, null, 1));
 console.log(JSON.stringify(report, null, 1));

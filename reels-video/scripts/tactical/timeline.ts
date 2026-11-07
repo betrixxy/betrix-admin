@@ -16,13 +16,13 @@ export interface VoicedBeat { item: PlanItem; seconds: number; words: TimedWord[
 
 export interface Timeline { beats: Beat[]; words: SpokenWord[]; durationInFrames: number; voiceAt: number[]; ticks: number[] }
 
-/** Altyazı yazımı: okunan "checkmatch nokta net'te" ekranda "checkmatch.net'te" (tek sözcük, ilk sözcüğün başı → son sözcüğün sonu). */
+/** Altyazı yazımı: okunan "checkmatch nokta net'te" ekranda "www.checkmatch.net'te" (tek sözcük, ilk sözcüğün başı → son sözcüğün sonu). */
 export function screenWords(words: readonly TimedWord[]): TimedWord[] {
   const out: TimedWord[] = [];
   for (let i = 0; i < words.length; i += 1) {
     const [a, b, c] = [words[i], words[i + 1], words[i + 2]];
     if (a && b && c && a.text.toLocaleLowerCase("tr-TR") === "checkmatch" && b.text.toLocaleLowerCase("tr-TR") === "nokta" && /^net/iu.test(c.text)) {
-      out.push({ text: `checkmatch.${c.text}`, start: a.start, end: c.end });
+      out.push({ text: `www.checkmatch.${c.text}`, start: a.start, end: c.end });
       i += 2;
     } else if (a) out.push(a);
   }

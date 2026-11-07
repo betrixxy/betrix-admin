@@ -69,9 +69,13 @@ export interface TacticalScript {
   simulations: number;
   kickoffLabel: string;
   competitionLabel: string;
+  /** Tam adres: "www.checkmatch.net" (Instagram adı yazılmaz, kullanıcı 2026-11-07). */
   site: string;
-  handle: string;
   legal: string;
+  /** Kapak: "7 KASIM CUMARTESİ · 19:00" (İstanbul saati). */
+  dateLabel: string;
+  /** Kapak: stadyum adı; yoksa satır çizilmez. */
+  venue: string | null;
   /** Bulanık stadyum zemini; yoksa koyu çim dokusu. */
   backdrop: string | null;
   home: TacticalTeam;

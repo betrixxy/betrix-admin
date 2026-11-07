@@ -84,6 +84,8 @@ describe("taktik tahtası senaryosu", () => {
     assert.match(caption, /^100 bin simülasyonda Galatasaray %75 — Amed SFK'nın ilk golü atma ihtimali ise %40\./u);
     assert.equal(caption.match(/#\S+/gu)?.length, 5);
     assert.match(caption, /Yasal uyarı:/u);
+    assert.ok(caption.split("\n").includes("Maçın tüm analizi ve 20+ ihtimal: www.checkmatch.net (link profilde)"));
+    assert.doesNotMatch(caption, /@checkmatch/u);
   });
 });
 
@@ -119,7 +121,7 @@ describe("taktik tahtası altyazısı", () => {
   it("okunan site adı ekranda alan adı olarak yazılır", () => {
     const { screenWords } = timelineModule;
     const words = ["Tüm", "analiz", "checkmatch", "nokta", "net'te."].map((text, index) => ({ text, start: index, end: index + 0.5 }));
-    assert.deepEqual(screenWords(words).map((word) => word.text), ["Tüm", "analiz", "checkmatch.net'te."]);
-    assert.deepEqual(screenWords(words).at(-1), { text: "checkmatch.net'te.", start: 2, end: 4.5 });
+    assert.deepEqual(screenWords(words).map((word) => word.text), ["Tüm", "analiz", "www.checkmatch.net'te."]);
+    assert.deepEqual(screenWords(words).at(-1), { text: "www.checkmatch.net'te.", start: 2, end: 4.5 });
   });
 });

@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { ttsCacheKey, type Alignment, type TtsRequest } from "./tts";
+import { findCached, type Alignment, type TtsRequest } from "./tts";
 
 /**
  * Ses izi (kalite kuralları 11-06): sahne klipleri 40 ms yumuşak giriş/çıkış ile yerine konur (çıt yok), iz iki geçişli loudnorm ile
@@ -20,11 +20,9 @@ const run = (args: string[]) => execFileSync(FFMPEG, ["-hide_banner", "-loglevel
 
 /** Önbellekten okur; yoksa hata (kredi harcamaz). */
 export function cachedVoice(request: TtsRequest, cacheDir: string): { file: string; alignment: Alignment | null } {
-  const key = ttsCacheKey(request);
-  const file = path.join(cacheDir, `${key}.mp3`);
-  const meta = path.join(cacheDir, `${key}.json`);
-  if (!existsSync(file) || !existsSync(meta)) throw new Error(`önbellekte ses yok: ${request.text.slice(0, 40)}…`);
-  return { file, alignment: (JSON.parse(readFileSync(meta, "utf8")) as { alignment: Alignment | null }).alignment };
+  const hit = findCached(request, cacheDir);
+  if (!hit) throw new Error(`önbellekte ses yok: ${request.text.slice(0, 40)}…`);
+  return { file: hit.audioFile, alignment: (JSON.parse(readFileSync(hit.metaFile, "utf8")) as { alignment: Alignment | null }).alignment };
 }
 
 export interface Span { start: number; end: number }
@@ -105,15 +103,16 @@ export const secondsOf = (samples: Float32Array) => samples.length / 2 / RATE;
 interface Loudness { input_i: string; input_tp: string; input_lra: string; input_thresh: string; target_offset: string }
 
 /** loudnorm ölçümü JSON olarak stderr'e yazılır. */
-function loudness(input: string[]): Loudness {
-  const result = spawnSync(FFMPEG, ["-hide_banner", ...input, "-af", `loudnorm=I=${TARGET.lufs}:TP=${TARGET.truePeak}:LRA=11:print_format=json`, "-f", "null", "-"], { encoding: "utf8", maxBuffer: 1 << 26 });
+function loudness(input: string[], truePeak: number = TARGET.truePeak): Loudness {
+  const result = spawnSync(FFMPEG, ["-hide_banner", ...input, "-af", `loudnorm=I=${TARGET.lufs}:TP=${truePeak}:LRA=11:print_format=json`, "-f", "null", "-"], { encoding: "utf8", maxBuffer: 1 << 26 });
   const json = /\{[\s\S]*?"target_offset"[\s\S]*?\}/u.exec(result.stderr ?? "");
   if (!json) throw new Error("loudnorm ölçümü okunamadı");
   return JSON.parse(json[0]) as Loudness;
 }
 
 /** Klipleri zaman çizelgesine yerleştirir, normalize eder, AAC yazar; ölçümleri döndürür. */
-export function buildTrack(clips: { samples: Float32Array; at: number }[], totalSeconds: number, work: string, output: string) {
+/** `truePeak`: loudnorm hedefi (dBTP); AAC kodlaması tepeyi ~0,1–0,3 dB yükseltebilir, sonuç çıkış dosyasından yeniden ölçülür. */
+export function buildTrack(clips: { samples: Float32Array; at: number }[], totalSeconds: number, work: string, output: string, truePeak: number = TARGET.truePeak) {
   const mix = new Float32Array(Math.ceil(totalSeconds * RATE) * 2);
   for (const clip of clips) {
     const offset = Math.round(clip.at * RATE) * 2;
@@ -122,8 +121,8 @@ export function buildTrack(clips: { samples: Float32Array; at: number }[], total
   const raw = path.join(work, "ses-izi.f32");
   writeFileSync(raw, Buffer.from(mix.buffer));
   const input = ["-f", "f32le", "-ar", String(RATE), "-ac", "2", "-i", raw];
-  const first = loudness(input);
-  const filter = `loudnorm=I=${TARGET.lufs}:TP=${TARGET.truePeak}:LRA=11:measured_I=${first.input_i}:measured_TP=${first.input_tp}:measured_LRA=${first.input_lra}:measured_thresh=${first.input_thresh}:offset=${first.target_offset}:linear=true`;
+  const first = loudness(input, truePeak);
+  const filter = `loudnorm=I=${TARGET.lufs}:TP=${truePeak}:LRA=11:measured_I=${first.input_i}:measured_TP=${first.input_tp}:measured_LRA=${first.input_lra}:measured_thresh=${first.input_thresh}:offset=${first.target_offset}:linear=true`;
   // Bu ffmpeg derlemesinde "ipod" (m4a) kabı yok: mp4 kabı açıkça seçilir.
   run([...input, "-af", filter, "-ar", String(RATE), "-ac", "2", "-c:a", "aac", "-b:a", "192k", "-f", "mp4", output]);
   // Doğrulama: çıkış dosyası yeniden ölçülür; kırpılma örnek düzeyinde sayılır.

@@ -12,7 +12,7 @@ import type { Alignment, TtsRequest } from "../reel/tts";
 import { VOICE_PROFILES } from "../reel/voice";
 import type { Beat, SpokenWord, TacticalScript } from "../../src/tactical/types";
 import { CAMERAS, baseScript, bannedHits, pct, wordsOf } from "./build";
-import { ambience, rms, scaleTo, SFX_SOURCE, whoosh } from "./sfx";
+import { SFX_SOURCE } from "./sfx";
 import { tighten } from "./tighten";
 
 /**
@@ -110,15 +110,10 @@ const silent = path.join(work, "stil-testi-goruntu.mp4");
 await renderMedia({ serveUrl, composition, inputProps, codec: "h264", videoBitrate: "11M", encodingMaxRate: "11M", encodingBufferSize: "22M", x264Preset: "slow",
   ffmpegOverride: ({ args }) => (args.includes("libx264") ? [...args.slice(0, -1), ...CBR, ...args.slice(-1)] : args), pixelFormat: "yuv420p", colorSpace: "bt709", imageFormat: "png", muted: true, concurrency: 1, outputLocation: silent });
 
-// 4. Ses izi: ses + saha ambiyansı (sesten ~14 dB aşağı → −14 LUFS'ta ≈ −28) + beat geçişlerinde whoosh.
-const voiceRms = rms(voiceClips.reduce((all, clip) => { const out = new Float32Array(all.length + clip.samples.length); out.set(all); out.set(clip.samples, all.length); return out; }, new Float32Array(0)));
+// 4. Ses izi: yalnız seslendirme (2026-11-07: gürültü tabanlı efektler kaldırıldı).
 const total = durationInFrames / FPS;
-const effects = [
-  { samples: scaleTo(ambience(total), voiceRms * 10 ** (-14 / 20)), at: 0 },
-  ...beats.slice(1).map((beat) => ({ samples: scaleTo(whoosh(), voiceRms * 10 ** (-16 / 20)), at: Math.max(0, beat.from / FPS - 0.12) })),
-];
 const audio = path.join(work, "stil-testi-ses.m4a");
-const loud = buildTrack([...voiceClips, ...effects], total, work, audio);
+const loud = buildTrack(voiceClips, total, work, audio);
 const voiceOnly = path.join(work, "stil-testi-yalniz-ses.m4a");
 buildTrack(voiceClips, total, work, voiceOnly);
 const output = path.join(folder, "taktik-stil-testi.mp4");

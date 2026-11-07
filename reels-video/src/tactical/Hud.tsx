@@ -1,24 +1,28 @@
+import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
-import { CAMERA_FRAMES, countTo } from "./camera";
-import { GREEN, GREEN_TEXT, INK, labelFont, numberFont, PANEL, SAFE, SAFE_WIDTH, bodyFont, upper } from "./parts";
+import { countTo } from "./camera";
+import { BAND, BIG_BAND, CAPTION, COUNTER, GREEN, GREEN_TEXT, INK, PANEL, SAFE, SAFE_WIDTH, TICKER, bodyFont, box, labelFont, numberFont, reveal, upper } from "./parts";
 import type { TacticalScript } from "./types";
 
 /**
- * Video boyunca sabit katman: logo (sol üst), site + hesap (sağ üst), maç bandı, simülasyon sayacı, altyazı, yasal not, gren, vinyet.
- * Hepsi güvenli alanda, ilk 0,3 sn'de belirir. Beat katmanları bunun ALTINDA çizilir: hiçbir şey bunların üstüne binmez.
+ * Video boyunca sabit katman: logo (sol üst), site (sağ üst, "www.checkmatch.net"; Instagram adı yok), maç bandı, simülasyon sayacı,
+ * altyazı, alttaki kayan yasal şerit, gren, vinyet. Beat katmanları bunun ALTINDA çizilir. Kutular `data-box` ile denetlenir.
  */
 
 const LOGO = { width: 194, height: Math.round((194 * 248) / 1269) };
+/** Kayan şerit: sağdan sola ~90 px/sn, kesintisiz döngü. */
+export const TICKER_SPEED = 90;
+const TICKER_FONT = { ...bodyFont, fontWeight: 500, fontSize: 26 } as const;
 
 function Band({ script }: { script: TacticalScript }) {
   const frame = useCurrentFrame();
   const shrinkAt = script.beats[1]?.from ?? script.durationInFrames;
-  const t = interpolate(frame, [shrinkAt, shrinkAt + CAMERA_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const big = interpolate(frame, [shrinkAt, shrinkAt + 5], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Büyük bant hook boyunca; ikinci beat'te 3 karede kapanır, küçük bant (üstte, kendi yerinde) 3–6. karede açılır.
+  const big = interpolate(frame, [shrinkAt, shrinkAt + 3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const small = interpolate(frame, [shrinkAt + 3, shrinkAt + 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
     <>
-      {/* Büyük bant: hook'ta içerik alanının altında. */}
-      <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: 1120 - t * 120, height: 160, opacity: big, background: PANEL, borderTop: `5px solid ${GREEN}`, borderRadius: 10, display: big > 0.01 ? "flex" : "none", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6 }}>
+      <div {...box("büyük-bant")} style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: BIG_BAND.top, height: BIG_BAND.height, background: PANEL, borderTop: `5px solid ${GREEN}`, borderRadius: 10, boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, ...reveal(big) }}>
         <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
           <Img src={staticFile(script.home.logo)} style={{ width: 92, height: 92, objectFit: "contain" }} />
           <span style={{ ...numberFont, fontSize: 64, color: INK }}>{upper(script.kickoffLabel)}</span>
@@ -26,8 +30,7 @@ function Band({ script }: { script: TacticalScript }) {
         </div>
         <span style={{ ...labelFont, fontSize: 36, color: INK }}>{upper(script.competitionLabel)}</span>
       </div>
-      {/* Küçük bant: logonun altında sonuna kadar. */}
-      <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: 324, height: 60, opacity: t, background: PANEL, borderLeft: `6px solid ${GREEN}`, borderRadius: 6, display: t > 0.01 ? "flex" : "none", alignItems: "center", gap: 14, paddingLeft: 14 }}>
+      <div {...box("bant")} style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: BAND.top, height: BAND.height, background: PANEL, borderLeft: `6px solid ${GREEN}`, borderRadius: 6, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, paddingLeft: 14, ...reveal(small) }}>
         <Img src={staticFile(script.home.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
         <span style={{ ...numberFont, fontSize: 38, color: INK }}>{upper(script.kickoffLabel)}</span>
         <Img src={staticFile(script.away.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
@@ -43,7 +46,7 @@ function SimCounter({ script }: { script: TacticalScript }) {
   const hook = script.beats[0];
   const value = hook ? countTo(script.simulations, frame - hook.from, 24) : script.simulations;
   return (
-    <div style={{ position: "absolute", left: SAFE.left, top: 394, display: "flex", alignItems: "center", gap: 10 }}>
+    <div {...box("sayaç")} style={{ position: "absolute", left: SAFE.left, top: COUNTER.top, height: COUNTER.height, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, background: PANEL, borderRadius: 6, padding: "0 12px" }}>
       <span style={{ width: 14, height: 14, borderRadius: 7, background: GREEN }} />
       <span style={{ ...numberFont, fontSize: 30, color: INK, minWidth: 92 }}>{value.toLocaleString("tr-TR")}</span>
       <span style={{ ...labelFont, fontSize: 28, color: "rgba(246,248,244,0.86)" }}>MAÇ SİMÜLASYONU</span>
@@ -51,7 +54,9 @@ function SimCounter({ script }: { script: TacticalScript }) {
   );
 }
 
-/** Kelime kelime altyazı: beat'in sözcükleri en çok 4'lü öbeklerde; konuşulan sözcük yeşil. */
+const shown = (text: string) => { const clean = text.replace(/[.,:?!]+$/u, ""); return /\.net/iu.test(clean) ? clean : upper(clean); };
+
+/** Kelime kelime altyazı: beat'in sözcükleri en çok 4'lü öbeklerde; konuşulan sözcük yeşil. Kutu opak, şeridin 24 px üstünde biter. */
 function Captions({ script }: { script: TacticalScript }) {
   const frame = useCurrentFrame();
   const spoken = script.words.filter((word) => word.start <= frame);
@@ -66,14 +71,42 @@ function Captions({ script }: { script: TacticalScript }) {
     else last.push(word);
   }
   const chunk = chunks.find((items) => items.includes(current)) ?? [];
+  // Tek satır: öbek uzunsa yazı küçülür (Barlow Condensed 800 ≈ 0,5 em/harf; en az 40 px), iki satıra bölünmez.
+  const estimate = chunk.reduce((sum, word) => sum + shown(word.text).length * 27, 0) + Math.max(0, chunk.length - 1) * 14;
+  const size = Math.max(40, Math.min(54, Math.floor((54 * (SAFE_WIDTH - 60)) / Math.max(1, estimate))));
   return (
-    <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, bottom: 1920 - 1396, display: "flex", justifyContent: "center" }}>
-      <div style={{ background: "rgba(4,8,6,0.82)", borderRadius: 12, padding: "10px 22px 8px", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 14px", maxWidth: SAFE_WIDTH }}>
+    <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: CAPTION.top, height: CAPTION.bottom - CAPTION.top, display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
+      <div {...box("altyazı")} style={{ background: PANEL, borderRadius: 12, padding: "10px 22px 8px", display: "flex", flexWrap: "nowrap", justifyContent: "center", gap: "0 14px", maxWidth: SAFE_WIDTH, whiteSpace: "nowrap" }}>
         {chunk.map((word) => (
-          <span key={`${word.start}-${word.text}`} style={{ ...labelFont, fontSize: 54, color: word.start <= frame ? (word === current ? GREEN_TEXT : INK) : "rgba(246,248,244,0.5)" }}>
-            {/\.net/iu.test(word.text) ? word.text.replace(/[.,:?!]+$/u, "") : upper(word.text.replace(/[.,:?!]+$/u, ""))}
+          <span key={`${word.start}-${word.text}`} style={{ ...labelFont, fontSize: size, color: word.start <= frame ? (word === current ? GREEN_TEXT : INK) : "rgba(246,248,244,0.5)" }}>
+            {shown(word.text)}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Metin genişliği (yüklü yazı tipiyle, tarayıcıda; döngü dikişi için). */
+function textWidth(text: string): number {
+  if (typeof document === "undefined") return text.length * 13;
+  const context = document.createElement("canvas").getContext("2d");
+  if (!context) return text.length * 13;
+  context.font = `${TICKER_FONT.fontWeight} ${TICKER_FONT.fontSize}px ${TICKER_FONT.fontFamily}`;
+  return context.measureText(text).width;
+}
+
+/** Ekranın görünen en alt çizgisinde (Instagram arayüzünün hemen üstü) tam genişlikte koyu şerit; yasal not + site sağdan sola kayar. */
+function Ticker({ script }: { script: TacticalScript }) {
+  const frame = useCurrentFrame();
+  const text = `${script.legal}   •   ${script.site}   •   `;
+  const width = useMemo(() => textWidth(text), [text]);
+  const offset = ((frame / 30) * TICKER_SPEED) % Math.max(1, width);
+  const copies = Math.ceil(1080 / Math.max(1, width)) + 2;
+  return (
+    <div {...box("kayan-şerit")} style={{ position: "absolute", left: 0, width: 1080, top: TICKER.top, height: TICKER.height, background: "#030705", overflow: "hidden", display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", transform: `translateX(${-offset}px)`, whiteSpace: "pre" }}>
+        {Array.from({ length: copies }, (_, index) => <span key={index} style={{ ...TICKER_FONT, color: "rgba(255,255,255,0.8)" }}>{text}</span>)}
       </div>
     </div>
   );
@@ -96,21 +129,17 @@ export function Hud({ script }: { script: TacticalScript }) {
     <AbsoluteFill>
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)" }} />
       <Grain />
+      {/* Altyazı ve şeridin arkası: saha noktaları yazının altında kalır. */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION.top - 40, height: 1920 - CAPTION.top + 40, background: "linear-gradient(180deg, rgba(3,7,5,0) 0%, rgba(3,7,5,0.9) 18%, rgba(3,7,5,0.94) 100%)" }} />
       <div style={{ opacity: appear }}>
-        <Img src={staticFile("brand/checkmatch-logo.png")} style={{ position: "absolute", left: SAFE.left, top: SAFE.top + 6, width: LOGO.width, height: LOGO.height, opacity: 0.8 }} />
-        <div style={{ position: "absolute", right: 1080 - SAFE.right, top: SAFE.top, textAlign: "right" }}>
-          <div style={{ ...bodyFont, fontSize: 30, color: INK }}>checkmatch.net</div>
-          <div style={{ ...bodyFont, fontWeight: 500, fontSize: 22, color: "rgba(246,248,244,0.82)" }}>@checkmatch_tr</div>
-        </div>
-        <Band script={script} />
-        <SimCounter script={script} />
+        <Img {...box("logo", true)} src={staticFile("brand/checkmatch-logo.png")} style={{ position: "absolute", left: SAFE.left, top: SAFE.top + 6, width: LOGO.width, height: LOGO.height, opacity: 0.8 }} />
+        <div {...box("site", true)} style={{ position: "absolute", right: 1080 - SAFE.right, top: SAFE.top + 4, ...bodyFont, fontSize: 30, color: INK }}>{script.site}</div>
       </div>
-      {/* Altyazı ve yasal notun arkası: saha noktaları yazının altında kalır. */}
-      <div style={{ position: "absolute", left: 0, right: 0, top: 1270, height: 260, background: "linear-gradient(180deg, rgba(3,7,5,0) 0%, rgba(3,7,5,0.88) 22%, rgba(3,7,5,0.92) 100%)" }} />
+      {/* Bant ve sayaç saydamlıkla belirmez (altlarında nokta görünmesin): ilk kareden opak. */}
+      <Band script={script} />
+      <SimCounter script={script} />
       <Captions script={script} />
-      <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, bottom: 1920 - SAFE.bottom, textAlign: "center", ...bodyFont, fontWeight: 500, fontSize: 22, lineHeight: 1.25, color: "#FFFFFF", opacity: 0.7, textShadow: "0 1px 3px rgba(0,0,0,0.9)" }}>
-        {script.legal}
-      </div>
+      <Ticker script={script} />
     </AbsoluteFill>
   );
 }

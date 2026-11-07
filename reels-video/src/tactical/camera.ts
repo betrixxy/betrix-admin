@@ -32,15 +32,15 @@ export function cameraAt(beats: readonly Beat[], frame: number): Camera {
 }
 
 /**
- * Beat'in görünürlüğü: önceki katman 4 karede söner, yenisi 2. karede belirmeye başlar ve 7. karede tam görünür (rakam ≤ 6 kare
- * kuralı; iki katman üst üste hayalet bırakmaz). Saha ve kamera kesintisiz sürer.
+ * Beat'in görünürlüğü: önceki katman 3 karede kapanır, yenisi ancak o bitince (3. kare) açılmaya başlar ve 6. karede tam görünür
+ * (rakam ≤ 6 kare kuralı). İki beat'in panelleri hiçbir karede aynı anda görünmez (çakışma denetimi). Saha ve kamera kesintisiz.
  */
 export function beatPresence(beat: Beat, next: Beat | undefined, frame: number): number {
   const local = frame - beat.from;
   if (local < 0) return 0;
-  const fadeIn = beat.from === 0 ? 1 : interpolate(local, [1, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const fadeIn = beat.from === 0 ? 1 : interpolate(local, [3, 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const end = next ? next.from : beat.from + beat.duration;
-  const fadeOut = next ? interpolate(frame, [end, end + 4], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
+  const fadeOut = next ? interpolate(frame, [end, end + 3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" }) : 1;
   return Math.min(fadeIn, fadeOut);
 }
 

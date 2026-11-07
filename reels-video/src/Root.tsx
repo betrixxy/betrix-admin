@@ -6,11 +6,12 @@ import { ReelVideo } from "./ReelVideo";
 import { boardScript, flowScript, SAMPLE_KEYS, sampleScripts, singleSceneScript } from "./samples";
 import { DESIGN_DIRECTIONS } from "./schema";
 import { TypographyTest } from "./TypographyTest";
+import { TacticalCover } from "./tactical/Cover";
 import { TacticalReel } from "./tactical/TacticalReel";
 import type { TacticalScript } from "./tactical/types";
 
 const EMPTY_TEAM = { name: "", short: "", logo: "brand/checkmatch-mark.png", primary: "#333333", secondary: "#777777", formation: "", players: [] };
-const EMPTY_TACTICAL: TacticalScript = { durationInFrames: 1, simulations: 0, kickoffLabel: "", competitionLabel: "", site: "checkmatch.net", handle: "@checkmatch_tr", legal: "", backdrop: null, home: EMPTY_TEAM, away: EMPTY_TEAM, beats: [], words: [] };
+const EMPTY_TACTICAL: TacticalScript = { durationInFrames: 1, simulations: 0, kickoffLabel: "", competitionLabel: "", site: "www.checkmatch.net", legal: "", dateLabel: "", venue: null, backdrop: null, home: EMPTY_TEAM, away: EMPTY_TEAM, beats: [], words: [] };
 
 for (const font of FONT_FILES) {
   void loadFont({ family: font.family, url: staticFile(`fonts/${font.file}`), weight: font.weight, ...("style" in font ? { style: font.style } : {}) });
@@ -60,9 +61,11 @@ export function Root() {
         height={HEIGHT}
         fps={FPS}
         durationInFrames={1}
-        defaultProps={{ script: EMPTY_TACTICAL }}
+        defaultProps={{ script: EMPTY_TACTICAL, audit: false }}
         calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, props.script.durationInFrames) })}
       />
+      {/* Taktik tahtası kapağı (tek kare, kapak.png). */}
+      <Composition id="TacticalCover" component={TacticalCover} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={1} defaultProps={{ script: EMPTY_TACTICAL }} />
       {first ? <Composition id="tipografi" component={TypographyTest} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={1} defaultProps={{ script: sampleScripts(first).pool }} /> : null}
     </>
   );

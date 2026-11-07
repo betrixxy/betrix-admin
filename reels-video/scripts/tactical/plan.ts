@@ -11,7 +11,7 @@ import { LEGAL_CAPTION, bannedHits, pct } from "./build";
 
 export const MAX_WORDS = 90;
 /** Kullanıcının verdiği kilitli satır metni (snapshot'ta sayılmıyor; kapanış çağrısı gibi sabit). */
-export const MORE_LABEL = "+20 ihtimal daha → checkmatch.net";
+export const MORE_LABEL = "+20 ihtimal daha → www.checkmatch.net";
 export const CLOSE_SENTENCE = "Listeyi kaydet, maçtan sonra birlikte bakalım. Tüm analiz checkmatch nokta net'te. Sence skor ne olur? Yorumlara yaz.";
 
 interface Record3 { played: number; win: number; draw: number; lose: number }
@@ -204,7 +204,7 @@ export function tacticalCaption(source: PlanSource, items: readonly PlanItem[]):
   const tag = (name: string) => `#${name.replace(/\s+/gu, "")}`;
   return [
     `${(source.simulations / 1000).toLocaleString("tr-TR")} bin simülasyonda ${String(hook?.heroLabel ?? "").replace(/ kazanma ihtimali$/u, "")} %${String(hook?.hero ?? "")} — ${genitive(source.away.name)} ilk golü atma ihtimali ise %${String(both?.firstAway ?? "")}.`,
-    "Maçın tüm analizi ve 20+ ihtimal: checkmatch.net (link profilde)",
+    "Maçın tüm analizi ve 20+ ihtimal: www.checkmatch.net (link profilde)",
     [tag(source.home.name), tag(source.away.name), "#SüperLig", "#MaçAnalizi", "#CheckMatch"].join(" "),
     LEGAL_CAPTION,
   ].join("\n");

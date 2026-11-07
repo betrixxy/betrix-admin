@@ -1,14 +1,14 @@
 import { Img, interpolate, staticFile } from "remotion";
 import { seeded } from "../lib/motion";
 import { PITCH, countTo } from "./camera";
-import { CONTENT, GREEN, GREEN_TEXT, INK, PANEL, Percent, SAFE, SAFE_WIDTH, Tag, Title, labelFont, numberFont, upper } from "./parts";
+import { Column, GREEN, GREEN_TEXT, Header, INK, PANEL, Percent, box, labelFont, numberFont, reveal, upper } from "./parts";
 import type { Beat, TacticalScript } from "./types";
 import { num, optNum, text } from "./values";
 
 /**
  * Gol beat'leri. "Kaç gol olur?": kamera kaleye iner, toplar kaleye düşer; iki tamamlayıcı çubuk (%80 / %20, toplam 100).
  * "İki takım da gol atar mı?": iki kale aynı anda yanar; ikinci cümlede ilk golü atma ihtimali + kaleye ok.
- * Saha üstünde marka yeşili yok: toplar beyaz, ışıklar beyaz/takım rengi.
+ * Saha üstünde marka yeşili yok: toplar beyaz, ışıklar beyaz/takım rengi. Paneller opak (`data-box`).
  */
 
 /** Toplar orta sahadan üst kaleye (ev sahibinin hücum yönü) süzülür; pay kadar top girer, kalanı aşağı düşer. */
@@ -37,11 +37,11 @@ export function GoalsBoard({ beat, local }: { beat: Beat; local: number }) {
   );
 }
 
-function Bar({ value, label, local, strong }: { value: number; label: string; local: number; strong: boolean }) {
+function Bar({ name, value, label, local, strong }: { name: string; value: number; label: string; local: number; strong: boolean }) {
   const grow = interpolate(local, [4, 20], [0, value / 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const glow = strong ? 0.35 + 0.25 * Math.sin(local / 5) : 0;
   return (
-    <div style={{ width: SAFE_WIDTH, boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: strong ? "16px 26px 18px" : "12px 26px 14px", boxShadow: strong ? `0 0 ${24 + glow * 30}px rgba(76,196,86,${glow})` : undefined }}>
+    <div {...box(name)} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: strong ? "16px 26px 18px" : "12px 26px 14px", boxShadow: strong ? `0 0 ${24 + glow * 30}px rgba(76,196,86,${glow})` : undefined }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 22 }}>
         <Percent value={countTo(value, local)} size={strong ? 190 : 120} color={strong ? INK : "rgba(246,248,244,0.82)"} />
         <span style={{ ...labelFont, fontSize: strong ? 50 : 40, color: INK, marginBottom: strong ? 22 : 12 }}>{upper(label)}</span>
@@ -55,14 +55,11 @@ function Bar({ value, label, local, strong }: { value: number; label: string; lo
 
 export function GoalsOverlay({ beat, local }: { beat: Beat; local: number }) {
   return (
-    <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: CONTENT.top, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-      <Tag>{beat.tag}</Tag>
-      <Title>{upper(beat.title)}</Title>
-      <div style={{ marginTop: 22, display: "flex", flexDirection: "column", gap: 16 }}>
-        <Bar value={num(beat, "over")} label={text(beat, "overLabel")} local={local} strong />
-        <Bar value={num(beat, "under")} label={text(beat, "underLabel")} local={local - 4} strong={false} />
-      </div>
-    </div>
+    <Column>
+      <Header tag={beat.tag} title={upper(beat.title)} />
+      <Bar name="çok-gol" value={num(beat, "over")} label={text(beat, "overLabel")} local={local} strong />
+      <Bar name="az-gol" value={num(beat, "under")} label={text(beat, "underLabel")} local={local - 4} strong={false} />
+    </Column>
   );
 }
 
@@ -75,14 +72,13 @@ export function BothBoard({ script, beat, local }: { script: TacticalScript; bea
   const homeFirst = num(beat, "firstHome") >= num(beat, "firstAway");
   const color = homeFirst ? script.home.primary : script.away.primary;
   const goalY = homeFirst ? 30 : h - 30;
-  const length = Math.abs(goalY - h / 2);
   return (
     <svg width={w} height={h} style={{ position: "absolute", inset: 0 }}>
       <defs>
         <radialGradient id="goal-light"><stop offset="0%" stopColor="rgba(255,255,255,0.85)" /><stop offset="100%" stopColor="rgba(255,255,255,0)" /></radialGradient>
       </defs>
       {[0, h].map((y) => <ellipse key={y} cx={w / 2} cy={y} rx={w * 0.26} ry={h * 0.07} fill="url(#goal-light)" opacity={pulse} />)}
-      <line x1={w / 2} y1={h / 2} x2={w / 2} y2={h / 2 + (goalY - h / 2) * arrow} stroke={color} strokeWidth={16} strokeLinecap="round" opacity={arrow > 0 ? 0.95 : 0} strokeDasharray={`${length}`} />
+      <line x1={w / 2} y1={h / 2} x2={w / 2} y2={h / 2 + (goalY - h / 2) * arrow} stroke={color} strokeWidth={16} strokeLinecap="round" opacity={arrow > 0 ? 0.95 : 0} />
       {arrow > 0.95 ? <path d={homeFirst ? `M${w / 2 - 34} ${goalY + 44} L${w / 2} ${goalY} L${w / 2 + 34} ${goalY + 44}` : `M${w / 2 - 34} ${goalY - 44} L${w / 2} ${goalY} L${w / 2 + 34} ${goalY - 44}`} stroke={color} strokeWidth={16} fill="none" strokeLinecap="round" strokeLinejoin="round" /> : null}
     </svg>
   );
@@ -97,14 +93,13 @@ export function BothOverlay({ script, beat, local }: { script: TacticalScript; b
     { label: "GOL YOK", value: num(beat, "firstNone"), logo: null },
   ];
   return (
-    <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: CONTENT.top, display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-      <Tag>{beat.tag}</Tag>
-      <Title>{upper(beat.title)}</Title>
-      <div style={{ marginTop: 20, width: SAFE_WIDTH, boxSizing: "border-box", background: PANEL, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24 }}>
+    <Column>
+      <Header tag={beat.tag} title={upper(beat.title)} />
+      <div {...box("iki-takım-gol")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24 }}>
         <Percent value={countTo(num(beat, "both"), local)} size={200} />
         <span style={{ ...labelFont, fontSize: 44, color: INK, lineHeight: 1.1 }}>{upper(text(beat, "bothLabel"))}</span>
       </div>
-      <div style={{ marginTop: 16, width: SAFE_WIDTH, boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 22px 14px", opacity: firstIn, transform: `translateY(${(1 - firstIn) * 24}px)` }}>
+      <div {...box("ilk-gol")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 22px 14px", ...reveal(firstIn) }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ ...labelFont, fontSize: 38, color: INK }}>{upper(text(beat, "firstLabel"))}</span>
           <span style={{ ...numberFont, fontSize: 40, color: GREEN_TEXT, border: `3px solid ${GREEN_TEXT}`, borderRadius: 8, padding: "2px 10px 0" }}>0&apos;</span>
@@ -121,6 +116,6 @@ export function BothOverlay({ script, beat, local }: { script: TacticalScript; b
           ))}
         </div>
       </div>
-    </div>
+    </Column>
   );
 }

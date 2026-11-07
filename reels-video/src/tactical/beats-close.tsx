@@ -1,12 +1,12 @@
 import { AbsoluteFill, Img, interpolate, staticFile } from "remotion";
-import { CONTENT, GREEN, GREEN_TEXT, INK, PANEL, SAFE, SAFE_WIDTH, bodyFont, labelFont, upper } from "./parts";
+import { Column, GREEN, GREEN_TEXT, Header, INK, PANEL, bodyFont, box, labelFont, reveal, upper, upperKeepSite } from "./parts";
 import type { Beat, TacticalScript } from "./types";
 import { num, text } from "./values";
 
 /**
- * Kapanış: saha kararır, MAÇ SONU KONTROL LİSTESİ kutuları sırayla tiklenir (tık sesi aynı karelerde, `timeline.ts`), 3 bulanık
- * kilitli satır + "+20 ihtimal daha → checkmatch.net"; ses bitince büyük logo, ✓ kendini 0,6 sn'de çizer, bekleme ≤ 1 sn.
- * Kilitli satırlarda gerçek veri yok: yalnız bulanık yer tutucu çubuk.
+ * Kapanış: saha kararır (oyuncu noktaları söner, `TacticalReel`), MAÇ SONU KONTROL LİSTESİ kutuları sırayla tiklenir (tık sesi aynı
+ * karelerde, `timeline.ts`), 3 bulanık kilitli satır + "+20 ihtimal daha → www.checkmatch.net"; ses bitince büyük logo, ✓ kendini
+ * 0,6 sn'de çizer, bekleme ≤ 1 sn. Kilitli satırlarda gerçek veri yok: yalnız bulanık yer tutucu çubuk. Instagram adı yok.
  */
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -37,47 +37,49 @@ export function CloseDim({ beat, local }: { beat: Beat; local: number }) {
 
 export function CloseOverlay({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
   const logoAt = num(beat, "logoAt");
-  const listOut = interpolate(local, [logoAt - 4, logoAt + 2], [1, 0], clamp);
+  // Liste ile logo hiçbir karede birlikte görünmez: liste 3 karede kapanır, logo ondan sonra açılır.
+  const listOut = interpolate(local, [logoAt - 3, logoAt], [1, 0], clamp);
   const items = ["c1", "c2", "c3", "c4"].map((key, index) => ({ label: text(beat, key), at: num(beat, `t${index + 1}`) }));
   const lockedAt = num(beat, "lockedAt");
   const moreAt = num(beat, "moreAt");
-  const logoIn = interpolate(local, [logoAt, logoAt + 5], [0, 1], clamp);
+  const logoIn = interpolate(local, [logoAt, logoAt + 4], [0, 1], clamp);
   const draw = interpolate(local, [logoAt, logoAt + num(beat, "logoDraw")], [0, 1], clamp);
   return (
     <AbsoluteFill>
       <CloseDim beat={beat} local={local} />
-      <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: CONTENT.top, display: "flex", flexDirection: "column", opacity: listOut }}>
-        <div style={{ ...labelFont, fontSize: 66, color: INK, textShadow: "0 3px 12px rgba(0,0,0,0.85)" }}>{upper(beat.title)}</div>
-        <div style={{ marginTop: 18, background: PANEL, borderRadius: 14, padding: "8px 24px" }}>
-          {items.map((item, index) => {
-            const on = interpolate(local, [item.at, item.at + 6], [0, 1], clamp);
-            return (
-              <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 20, height: 84, borderTop: index ? "2px solid rgba(255,255,255,0.12)" : undefined }}>
-                <div style={{ width: 54, height: 54, borderRadius: 8, border: `4px solid ${on > 0 ? GREEN : "rgba(246,248,244,0.6)"}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Check progress={on} size={46} />
+      <AbsoluteFill style={reveal(listOut)}>
+        <Column>
+          <Header title={upper(beat.title)} size={66} />
+          <div {...box("kontrol-listesi")} style={{ background: PANEL, borderRadius: 14, padding: "8px 24px" }}>
+            {items.map((item, index) => {
+              const on = interpolate(local, [item.at, item.at + 6], [0, 1], clamp);
+              return (
+                <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 20, height: 84, borderTop: index ? "2px solid rgba(255,255,255,0.12)" : undefined }}>
+                  <div style={{ width: 54, height: 54, borderRadius: 8, border: `4px solid ${on > 0 ? GREEN : "rgba(246,248,244,0.6)"}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Check progress={on} size={46} />
+                  </div>
+                  <span style={{ ...labelFont, fontSize: 46, color: INK, opacity: 0.55 + 0.45 * on }}>{upper(item.label)}</span>
                 </div>
-                <span style={{ ...labelFont, fontSize: 46, color: INK, opacity: 0.55 + 0.45 * on }}>{upper(item.label)}</span>
+              );
+            })}
+            {[0, 1, 2].map((index) => (
+              <div key={`lock${index}`} style={{ display: "flex", alignItems: "center", gap: 20, height: 70, borderTop: "2px solid rgba(255,255,255,0.12)", opacity: interpolate(local, [lockedAt + index * 3, lockedAt + index * 3 + 6], [0, 1], clamp) }}>
+                <Lock />
+                <div style={{ height: 30, width: [420, 360, 470][index], borderRadius: 15, background: "rgba(246,248,244,0.55)", filter: "blur(9px)" }} />
               </div>
-            );
-          })}
-          {[0, 1, 2].map((index) => (
-            <div key={`lock${index}`} style={{ display: "flex", alignItems: "center", gap: 20, height: 70, borderTop: "2px solid rgba(255,255,255,0.12)", opacity: interpolate(local, [lockedAt + index * 3, lockedAt + index * 3 + 6], [0, 1], clamp) }}>
-              <Lock />
-              <div style={{ height: 30, width: [420, 360, 470][index], borderRadius: 15, background: "rgba(246,248,244,0.55)", filter: "blur(9px)" }} />
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: 16, alignSelf: "center", ...labelFont, fontSize: 48, color: GREEN_TEXT, opacity: interpolate(local, [moreAt, moreAt + 6], [0, 1], clamp) }}>
-          {upper(text(beat, "more")).replace("CHECKMATCH.NET", "checkmatch.net")}
-        </div>
-      </div>
-      <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: 640, display: "flex", flexDirection: "column", alignItems: "center", opacity: logoIn }}>
+            ))}
+          </div>
+          <div {...box("daha-fazla")} style={{ alignSelf: "center", background: PANEL, borderRadius: 10, padding: "10px 22px 8px", ...labelFont, fontSize: 44, color: GREEN_TEXT, ...reveal(interpolate(local, [moreAt, moreAt + 6], [0, 1], clamp)) }}>
+            {upperKeepSite(text(beat, "more"))}
+          </div>
+        </Column>
+      </AbsoluteFill>
+      <div {...box("kapanış-logosu", true)} style={{ position: "absolute", left: 90, width: 790, top: 700, display: "flex", flexDirection: "column", alignItems: "center", opacity: logoIn > 0 ? 1 : 0, ...reveal(logoIn) }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           <Img src={staticFile("brand/checkmatch-logo.png")} style={{ width: 560, height: Math.round((560 * 248) / 1269) }} />
           <Check progress={draw} size={120} />
         </div>
-        <div style={{ marginTop: 36, ...bodyFont, fontSize: 64, color: INK }}>{script.site}</div>
-        <div style={{ marginTop: 8, ...bodyFont, fontWeight: 500, fontSize: 40, color: "rgba(246,248,244,0.86)" }}>{script.handle}</div>
+        <div style={{ marginTop: 40, ...bodyFont, fontSize: 60, color: INK }}>{script.site}</div>
       </div>
     </AbsoluteFill>
   );

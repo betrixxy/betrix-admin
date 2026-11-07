@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { synthesize, ttsCacheKey, TtsError, type TtsRequest } from "../scripts/reel/tts";
+import { findCached, LEGACY_FORMATS, OUTPUT_FORMAT, synthesize, ttsCacheKey, TtsError, type TtsRequest } from "../scripts/reel/tts";
 
 const KEY = "gizli-anahtar-degeri";
 const dir = mkdtempSync(path.join(tmpdir(), "tts-"));
@@ -60,11 +60,28 @@ describe("seslendirme önbelleği (kredi koruma)", () => {
     const fetcher = (async (url: string | URL | Request) => {
       attempts += 1;
       if (String(url).includes("with-timestamps")) return new Response("{}", { status: 422 });
-      return new Response(new Uint8Array(16000), { headers: { "character-cost": "5" } });
+      // 1 sn @ 192 kbps (OUTPUT_FORMAT mp3_44100_192).
+      return new Response(new Uint8Array(24000), { headers: { "character-cost": "5" } });
     }) as typeof fetch;
     const result = await synthesize(request({ text: "Düz uç." }), { apiKey: KEY, cacheDir: dir, fetch: fetcher });
     assert.equal(attempts, 2);
     assert.equal(result.alignment, null);
     assert.equal(result.seconds, 1);
+  });
+
+  it("biçim 192 kbps'ye geçti ama eski 128 kbps önbellek kullanılır: istek yok, kredi yok", async () => {
+    const legacy = request({ text: "Eski biçimde üretilmiş cümle." });
+    const key = ttsCacheKey(legacy, LEGACY_FORMATS[0]);
+    writeFileSync(path.join(dir, `${key}.mp3`), Buffer.alloc(16000));
+    writeFileSync(path.join(dir, `${key}.json`), JSON.stringify({ alignment: null, credits: 30 }));
+    const { calls, fetcher } = fakeApi();
+    const result = await synthesize(legacy, { apiKey: KEY, cacheDir: dir, fetch: fetcher });
+    assert.equal(calls.length, 0);
+    assert.equal(result.cached, true);
+    assert.equal(result.credits, 0);
+    assert.equal(result.seconds, 1);
+    assert.equal(findCached(legacy, dir)?.format, "mp3_44100_128");
+    assert.notEqual(ttsCacheKey(legacy), key);
+    assert.equal(OUTPUT_FORMAT, "mp3_44100_192");
   });
 });

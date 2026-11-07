@@ -53,7 +53,7 @@ export function Dot({ player, side, team, dim = 1, showName = false }: { player:
   const fill = player.out ? "#6B716E" : team.primary;
   return (
     <div style={{ position: "absolute", left: x - 34, top: y - 34, width: 68, height: 68, opacity: dim }}>
-      <div style={{ width: 68, height: 68, borderRadius: 34, background: fill, border: `6px solid ${player.out ? "#9AA09D" : team.secondary}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 14px rgba(0,0,0,0.55)" }}>
+      <div data-dot={`${side}-${player.number ?? player.id}`} style={{ width: 68, height: 68, borderRadius: 34, background: fill, border: `6px solid ${player.out ? "#9AA09D" : team.secondary}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 14px rgba(0,0,0,0.55)" }}>
         <span style={{ fontFamily: "Barlow Condensed", fontWeight: 900, fontSize: 34, color: "#FFFFFF", fontVariantNumeric: "tabular-nums", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{player.number ?? ""}</span>
       </div>
       {player.out ? (

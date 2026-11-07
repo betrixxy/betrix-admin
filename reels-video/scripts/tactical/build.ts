@@ -55,6 +55,15 @@ export function kickoffLabel(utc: string): string {
   return `${day} ${time}`;
 }
 
+/** "7 KASIM CUMARTESİ · 19:00" (İstanbul). */
+export function dateLabel(utc: string): string {
+  const date = new Date(utc);
+  const day = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Istanbul" }).formatToParts(date);
+  const part = (type: string) => day.find((item) => item.type === type)?.value ?? "";
+  const time = new Intl.DateTimeFormat("tr-TR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Istanbul" }).format(date);
+  return `${part("day")} ${part("month")} ${part("weekday")} · ${time}`.toLocaleUpperCase("tr-TR");
+}
+
 export function baseScript(frozen: Frozen, backdrop: string | null): { script: Omit<TacticalScript, "beats" | "words" | "durationInFrames">; problems: string[] } {
   const detail = frozen.detail as Detail;
   const extras = frozen.extras as Extras;
@@ -68,9 +77,10 @@ export function baseScript(frozen: Frozen, backdrop: string | null): { script: O
       simulations: detail.model.simulations ?? 0,
       kickoffLabel: kickoffLabel(detail.match.kickoff_utc),
       competitionLabel: `${detail.match.league.name} · ${round}`,
-      site: "checkmatch.net",
-      handle: "@checkmatch_tr",
+      site: "www.checkmatch.net",
       legal: LEGAL_SCREEN,
+      dateLabel: dateLabel(detail.match.kickoff_utc),
+      venue: (extras as unknown as { venue: string | null }).venue ?? null,
       backdrop,
       home,
       away,
