@@ -21,8 +21,12 @@ export const GREEN = BRAND_GREEN;
 /** Koyu zeminde yazı olarak yeşil (marka yeşili yazıda 4,5'in altında kalır). */
 export const GREEN_TEXT = "#4CC456";
 export const INK = "#F6F8F4";
-/** Paneller TAM OPAK: altında kalan oyuncu noktası görünmez (kullanıcı 2026-11-07). */
-export const PANEL = "#070D09";
+/**
+ * Paneller BUZLU CAM (kullanıcı 2026-11-07, düzeltme 2): koyu yarı saydam zemin + 14 px arka bulanıklık + 1 px açık kenar; saha
+ * çizgileri arkadan hafifçe görünür. Saydamlık `--panel-alpha` (kök, varsayılan 0,58); kontrast denetimi geçmezse en çok 0,70.
+ */
+export const PANEL_ALPHA = { base: 0.58, max: 0.7 } as const;
+export const GLASS: CSSProperties = { background: "rgba(10,14,12,var(--panel-alpha, 0.58))", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,0.12)" };
 
 export const numberFont: CSSProperties = { fontFamily: "Barlow Condensed", fontWeight: 900, fontVariantNumeric: "tabular-nums lining-nums", fontFeatureSettings: '"tnum" 1, "lnum" 1', lineHeight: 0.9 };
 export const labelFont: CSSProperties = { fontFamily: "Barlow Condensed", fontWeight: 800, lineHeight: 1, letterSpacing: 1 };
@@ -47,7 +51,7 @@ export function Percent({ value, size, color = INK, style }: { value: number; si
 
 export function Tag({ children }: { children: ReactNode }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", gap: 12, background: GREEN, color: "#04140A", padding: "8px 18px 6px", borderRadius: 6, ...labelFont, fontSize: 34 }}>
+    <div data-fill style={{ display: "inline-flex", alignItems: "center", gap: 12, background: GREEN, color: "#04140A", padding: "8px 18px 6px", borderRadius: 6, ...labelFont, fontSize: 34 }}>
       {children}
     </div>
   );
@@ -58,7 +62,7 @@ export function Header({ tag, title, sub, size = 76 }: { tag?: string; title: st
   // Başlık tek satır: Barlow Condensed 800 ≈ 0,47 em/harf; sığmazsa küçülür (en az 56 px).
   const fit = Math.max(56, Math.min(size, Math.floor((SAFE_WIDTH - 60) / Math.max(1, title.length * 0.47))));
   return (
-    <div {...box("başlık")} style={{ alignSelf: "flex-start", maxWidth: SAFE_WIDTH, boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 22px 14px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+    <div {...box("başlık")} style={{ alignSelf: "flex-start", maxWidth: SAFE_WIDTH, boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "14px 22px 14px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
       {tag ? <Tag>{tag}</Tag> : null}
       <div style={{ ...labelFont, fontSize: fit, color: INK, whiteSpace: "nowrap" }}>{title}</div>
       {sub ? <div style={{ ...labelFont, fontSize: 36, color: "rgba(246,248,244,0.86)" }}>{sub}</div> : null}

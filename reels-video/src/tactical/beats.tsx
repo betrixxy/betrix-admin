@@ -2,8 +2,9 @@ import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { seeded, splitDots } from "../lib/motion";
 import { PITCH, countTo } from "./camera";
 import { Dot } from "./Board";
-import { BIG_BAND, Column, GAP, GREEN, GREEN_TEXT, Header, INK, PANEL, Percent, Tag, box, labelFont, numberFont, upper } from "./parts";
+import { BIG_BAND, Column, GAP, GREEN, GREEN_TEXT, Header, INK, GLASS, Percent, Tag, box, labelFont, numberFont, upper } from "./parts";
 import { BothBoard, BothOverlay, GoalsBoard, GoalsOverlay } from "./beats-goals";
+import { HookOverlay, hookBoardOpacity } from "./beats-hook";
 import { CloseOverlay } from "./beats-close";
 import { DuelBoard, DuelOverlay, WhyOverlay } from "./beats-story";
 import type { Beat, TacticalScript } from "./types";
@@ -66,34 +67,13 @@ function OutcomeZones({ script, beat, local }: { script: TacticalScript; beat: B
 
 export function BoardLayer({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
   switch (beat.kind) {
-    case "hook": return <BallPaths beat={beat} local={local} />;
+    case "hook": return <div style={{ position: "absolute", inset: 0, opacity: hookBoardOpacity(local) }}><BallPaths beat={beat} local={local} /></div>;
     case "outcome": return <OutcomeZones script={script} beat={beat} local={local} />;
     case "goals": return <GoalsBoard beat={beat} local={local} />;
     case "both": return <BothBoard script={script} beat={beat} local={local} />;
     case "duel": return <DuelBoard script={script} beat={beat} local={local} />;
     default: return null;
   }
-}
-
-/** Hook: içerik büyük maç bandının 24 px üstünde biter. */
-function HookOverlay({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
-  const sims = countTo(script.simulations, local, 12);
-  return (
-    <Column bottom={BIG_BAND.top - GAP}>
-      <div {...box("etiket")} style={{ alignSelf: "center" }}><Tag>{beat.tag}</Tag></div>
-      <div {...box("sayaç-paneli")} style={{ alignSelf: "center", background: PANEL, borderRadius: 14, padding: "18px 30px 12px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <span style={{ ...numberFont, fontSize: 196, color: INK }}>{sims.toLocaleString("tr-TR")}</span>
-        <span style={{ ...labelFont, fontSize: 60, color: GREEN_TEXT, marginTop: 4 }}>{upper(text(beat, "countLabel"))}</span>
-      </div>
-      <div {...box("kazanma-paneli")} style={{ alignSelf: "center", background: PANEL, borderRadius: 14, padding: "12px 36px 10px", display: "flex", alignItems: "center", gap: 26 }}>
-        <Img src={staticFile(script.home.logo)} style={{ width: 120, height: 120, objectFit: "contain" }} />
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <Percent value={countTo(num(beat, "hero"), local, 10)} size={210} />
-          <span style={{ ...labelFont, fontSize: 40, color: INK }}>{upper(text(beat, "heroLabel"))}</span>
-        </div>
-      </div>
-    </Column>
-  );
 }
 
 function OutcomeOverlay({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
@@ -104,14 +84,14 @@ function OutcomeOverlay({ script, beat, local }: { script: TacticalScript; beat:
   return (
     <Column>
       <Header tag={beat.tag} title={upper(beat.title)} />
-      <div {...box("ev-sahibi")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "16px 28px 12px", display: "flex", alignItems: "center", gap: 28 }}>
+      <div {...box("ev-sahibi")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "16px 28px 12px", display: "flex", alignItems: "center", gap: 28 }}>
         <Img src={staticFile(script.home.logo)} style={{ width: 130, height: 130, objectFit: "contain" }} />
         <div style={{ display: "flex", flexDirection: "column" }}>
           <Percent value={countTo(num(beat, "home"), local)} size={250} />
           <span style={{ ...labelFont, fontSize: 48, color: INK }}>{upper(script.home.short)}</span>
         </div>
       </div>
-      <div {...box("diğer-sonuçlar")} style={{ display: "flex", gap: 16, background: PANEL, borderRadius: 14, padding: "6px 0" }}>
+      <div {...box("diğer-sonuçlar")} style={{ display: "flex", gap: 16, ...GLASS, borderRadius: 14, padding: "6px 0" }}>
         {row.map((item) => (
           <div key={item.label} style={{ flex: 1, padding: "8px 20px 4px", display: "flex", alignItems: "center", gap: 14 }}>
             {item.logo ? <Img src={staticFile(item.logo)} style={{ width: 72, height: 72, objectFit: "contain" }} /> : null}
@@ -122,7 +102,7 @@ function OutcomeOverlay({ script, beat, local }: { script: TacticalScript; beat:
           </div>
         ))}
       </div>
-      <div {...box("çünkü")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 24px 12px", ...labelFont, fontSize: 40, color: INK }}>
+      <div {...box("çünkü")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "14px 24px 12px", ...labelFont, fontSize: 40, color: INK }}>
         {upper(text(beat, "because"))}
       </div>
     </Column>

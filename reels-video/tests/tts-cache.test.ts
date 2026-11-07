@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
-import { findCached, LEGACY_FORMATS, OUTPUT_FORMAT, synthesize, ttsCacheKey, TtsError, type TtsRequest } from "../scripts/reel/tts";
+import { findCached, LEGACY_FORMATS, OUTPUT_FORMAT, PCM_FORMAT, synthesize, ttsCacheKey, TtsError, type TtsRequest } from "../scripts/reel/tts";
 
 const KEY = "gizli-anahtar-degeri";
 const dir = mkdtempSync(path.join(tmpdir(), "tts-"));
@@ -83,5 +83,23 @@ describe("seslendirme önbelleği (kredi koruma)", () => {
     assert.equal(findCached(legacy, dir)?.format, "mp3_44100_128");
     assert.notEqual(ttsCacheKey(legacy), key);
     assert.equal(OUTPUT_FORMAT, "mp3_44100_192");
+  });
+
+  it("pcm_44100 istenirse adreste biçim, önbellekte WAV başlıklı dosya", async () => {
+    const urls: string[] = [];
+    const pcm = Buffer.alloc(88200); // 1 sn, 16 bit mono 44,1 kHz
+    const fetcher = (async (url: string | URL | Request) => {
+      urls.push(String(url));
+      return new Response(JSON.stringify({ audio_base64: pcm.toString("base64"), alignment: null }), { headers: { "character-cost": "7" } });
+    }) as typeof fetch;
+    const wanted = request({ text: "Kayıpsız ses." });
+    const result = await synthesize(wanted, { apiKey: KEY, cacheDir: dir, fetch: fetcher, format: PCM_FORMAT });
+    assert.match(urls[0] ?? "", /output_format=pcm_44100/u);
+    assert.equal(result.audio.subarray(0, 4).toString("ascii"), "RIFF");
+    assert.equal(result.audio.length, 88200 + 44);
+    assert.equal(result.seconds, 1);
+    const hit = findCached(wanted, dir);
+    assert.equal(hit?.format, PCM_FORMAT);
+    assert.match(hit?.audioFile ?? "", /\.wav$/u);
   });
 });

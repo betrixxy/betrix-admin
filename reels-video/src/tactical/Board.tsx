@@ -80,7 +80,7 @@ export function Board({ script, camera, children }: { script: TacticalScript; ca
           <AbsoluteFill style={{ background: "repeating-linear-gradient(0deg, #0C1F12 0px, #0C1F12 60px, #0E2415 60px, #0E2415 120px)" }} />
         )}
       </AbsoluteFill>
-      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(3,8,5,0.82) 0%, rgba(3,8,5,0.55) 40%, rgba(3,8,5,0.6) 70%, rgba(3,8,5,0.9) 100%)" }} />
+      <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(3,8,5,0.8) 0%, rgba(3,8,5,0.5) 40%, rgba(3,8,5,0.5) 75%, rgba(3,8,5,0.62) 100%)" }} />
       <AbsoluteFill style={{ perspective: 1700, perspectiveOrigin: "50% 40%" }}>
         <div
           style={{

@@ -61,7 +61,7 @@ export function Root() {
         height={HEIGHT}
         fps={FPS}
         durationInFrames={1}
-        defaultProps={{ script: EMPTY_TACTICAL, audit: false }}
+        defaultProps={{ script: EMPTY_TACTICAL, audit: false, textless: false }}
         calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, props.script.durationInFrames) })}
       />
       {/* Taktik tahtası kapağı (tek kare, kapak.png). */}

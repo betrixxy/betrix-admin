@@ -34,8 +34,27 @@ export interface PlanItem {
   tag: string;
   title: string;
   sentence: string;
+  /** ElevenLabs'e giden metin (ses etiketi dahil); yoksa `sentence`. Ekran ve altyazı `sentence`'tan. */
+  voiceText?: string;
   values: Beat["values"];
 }
+
+/** Ekrandaki sayımla sözcük: ardışık rakam sözcükleri ("yüzde yetmiş beş", "yüz bin") tek sözcük sayılır (%75, 100.000). */
+const NUMBER_WORD = /^(yüzde|sıfır|bir|iki|üç|dört|beş|altı|yedi|sekiz|dokuz|on|yirmi|otuz|kırk|elli|altmış|yetmiş|seksen|doksan|yüz|bin)$/iu;
+export function screenWordCount(text: string): number {
+  let count = 0, inNumber = false;
+  for (const raw of text.split(/\s+/u).filter(Boolean)) {
+    const word = raw.replace(/[.,:;?!…]+$/u, "").toLocaleLowerCase("tr-TR");
+    const isNumber = NUMBER_WORD.test(word);
+    if (!isNumber || !inNumber) count += 1;
+    inNumber = isNumber && !/[.,:;?!…]$/u.test(raw);
+  }
+  return count;
+}
+/** Kanca ≤ 12 sözcük (ekran sayımı; kullanıcı 2026-11-07). */
+export const HOOK_MAX_WORDS = 12;
+/** Sürpriz eşiği: favori olmayanın ilk golü atma ihtimali en az bu kadarsa kanca "ilk golde sürpriz" der. */
+export const SURPRISE_MIN = 30;
 
 export function planSource(frozen: Frozen): PlanSource {
   const detail = frozen.detail;
@@ -140,9 +159,11 @@ export function tacticalPlan(source: PlanSource): { items: PlanItem[]; problems:
 
   const items: PlanItem[] = [
     {
+      // Kanca (kullanıcı metni 2026-11-07): favori + açık döngü ("ilk golde sürpriz", "both" beat'inde kapanır) + simülasyon sayısı.
       kind: "hook", tag: "SİMÜLASYON", title: "",
-      sentence: `${capital(numberWords(source.simulations))} simülasyonun ${percentInWords(favourite.value)} ${favourite.name} kazandı.`,
-      values: { ...outcome, hero: favourite.value, heroLabel: `${favourite.name} kazanma ihtimali`, countLabel: "kez oynattık", heroSide: favourite.side },
+      sentence: `${favourite.name} ${percentWords(favourite.value)} favori… ama ilk golde bir sürpriz var. ${capital(numberWords(source.simulations))} kez oynattık.`,
+      voiceText: `[excited] ${favourite.name} ${percentWords(favourite.value)} favori… ama ilk golde bir sürpriz var. ${capital(numberWords(source.simulations))} kez oynattık.`,
+      values: { ...outcome, hero: favourite.value, heroSide: favourite.side, hookFavourite: favourite.name, hookLine2: "ama ilk golde sürpriz var", hookAccent: "sürpriz", countLabel: "kez oynattık" },
     },
     {
       kind: "outcome", tag: "SİMÜLASYON", title: "Kazanma ihtimali",
@@ -187,9 +208,15 @@ export function tacticalPlan(source: PlanSource): { items: PlanItem[]; problems:
     },
   ];
 
-  const words = items.reduce((sum, item) => sum + wordCount(item.sentence), 0);
+  const surprise = favourite.side === "home" ? first.away : first.home;
+  if (surprise < SURPRISE_MIN) problems.push(`kanca: ilk golde sürpriz yok (%${surprise} < %${SURPRISE_MIN})`);
+  const hookWords = screenWordCount(items[0]?.sentence ?? "");
+  if (hookWords > HOOK_MAX_WORDS) problems.push(`kanca ${hookWords} sözcük > ${HOOK_MAX_WORDS}`);
+  // Toplam sözcük ekran sayımıyla (rakam öbeği tek sözcük); süre sınırı (≤ 42 sn) ölçülen sesle `full.ts`'de.
+  const words = items.reduce((sum, item) => sum + screenWordCount(item.sentence), 0);
   if (words > MAX_WORDS) problems.push(`seslendirme ${words} sözcük > ${MAX_WORDS}`);
-  for (const item of items.slice(0, -1)) {
+  // Rakamla başlama kuralı: kanca (kullanıcı metni) ve kapanış çağrısı hariç.
+  for (const item of items.slice(1, -1)) {
     for (const sentence of sentencesOf(item.sentence)) if (!NUMBER_START.test(sentence)) problems.push(`${item.kind}: cümle rakamla başlamıyor: "${sentence}"`);
   }
   const texts = items.flatMap((item) => [item.sentence, item.tag, item.title, ...Object.values(item.values).filter((value): value is string => typeof value === "string")]);
@@ -203,7 +230,7 @@ export function tacticalCaption(source: PlanSource, items: readonly PlanItem[]):
   const both = items.find((item) => item.kind === "both")?.values;
   const tag = (name: string) => `#${name.replace(/\s+/gu, "")}`;
   return [
-    `${(source.simulations / 1000).toLocaleString("tr-TR")} bin simülasyonda ${String(hook?.heroLabel ?? "").replace(/ kazanma ihtimali$/u, "")} %${String(hook?.hero ?? "")} — ${genitive(source.away.name)} ilk golü atma ihtimali ise %${String(both?.firstAway ?? "")}.`,
+    `${(source.simulations / 1000).toLocaleString("tr-TR")} bin simülasyonda ${String(hook?.hookFavourite ?? "")} %${String(hook?.hero ?? "")} — ${genitive(source.away.name)} ilk golü atma ihtimali ise %${String(both?.firstAway ?? "")}.`,
     "Maçın tüm analizi ve 20+ ihtimal: www.checkmatch.net (link profilde)",
     [tag(source.home.name), tag(source.away.name), "#SüperLig", "#MaçAnalizi", "#CheckMatch"].join(" "),
     LEGAL_CAPTION,

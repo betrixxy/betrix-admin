@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ablative, distributiveWords, genitive, MAX_WORDS, tacticalCaption, tacticalPlan, type PlanSource } from "../scripts/tactical/plan";
+import { ablative, distributiveWords, genitive, HOOK_MAX_WORDS, MAX_WORDS, screenWordCount, tacticalCaption, tacticalPlan, type PlanSource } from "../scripts/tactical/plan";
 import * as timelineModule from "../scripts/tactical/timeline";
 import { buildTimeline, CLOSE_TIMING, estimated, FPS } from "../scripts/tactical/timeline";
-import { wordCount } from "../src/story/speech";
 
 /** Galatasaray – Amed SFK (1584461) dondurmasının plan alanları (11-06 15:34Z). */
 const GS_AMED: PlanSource = {
@@ -17,9 +16,9 @@ const GS_AMED: PlanSource = {
   duelScope: "Trendyol Süper Lig · bu sezon",
 };
 
-/** senaryo-tactical.txt SES satırları, kullanıcı onayı 2026-11-07 17:19. */
+/** senaryo-tactical.txt SES satırları, kullanıcı onayı 2026-11-07 17:19; kanca kullanıcı metni (düzeltme 2, 2026-11-07). */
 const APPROVED = [
-  "Yüz bin simülasyonun yüzde yetmiş beşinde Galatasaray kazandı.",
+  "Galatasaray yüzde yetmiş beş favori… ama ilk golde bir sürpriz var. Yüz bin kez oynattık.",
   "Yüzde dokuz beraberlik, yüzde on altı Amed SFK, çünkü Galatasaray iç sahada beş maçtır kaybetmedi.",
   "Yüzde seksen ihtimalle üç ve daha fazla gol.",
   "Yüzde altmış iki ihtimalle iki takım da gol atar. Yüzde elli sekiz ilk gol Galatasaray'dan, ama yüzde kırk Amed SFK'dan.",
@@ -35,7 +34,10 @@ describe("taktik tahtası senaryosu", () => {
     assert.deepEqual(problems, []);
     assert.deepEqual(items.map((item) => item.sentence), APPROVED);
     assert.deepEqual(items.map((item) => item.kind), ["hook", "outcome", "goals", "both", "why", "duel", "close"]);
-    assert.equal(items.reduce((sum, item) => sum + wordCount(item.sentence), 0), MAX_WORDS);
+    assert.ok(items.reduce((sum, item) => sum + screenWordCount(item.sentence), 0) <= MAX_WORDS);
+    assert.equal(screenWordCount(items[0]?.sentence ?? ""), 12);
+    assert.ok(screenWordCount(items[0]?.sentence ?? "") <= HOOK_MAX_WORDS);
+    assert.equal(items[0]?.voiceText, `[excited] ${APPROVED[0]}`);
   });
 
   it("ekran değerleri aynı kaynaktan; gol çubukları tamamlayıcı", () => {
@@ -64,6 +66,16 @@ describe("taktik tahtası senaryosu", () => {
   it("düello kalıbı gol eşitliği ister", () => {
     const uneven = tacticalPlan({ ...GS_AMED, away: { ...GS_AMED.away, duel: { ...GS_AMED.away.duel!, goals: 8 } } });
     assert.ok(uneven.problems.some((problem) => problem.startsWith("düello")));
+  });
+
+  it("ekran sözcük sayımı: rakam öbeği tek sözcük", () => {
+    assert.equal(screenWordCount("Yüzde seksen ihtimalle üç ve daha fazla gol."), 7);
+    assert.equal(screenWordCount("Galatasaray yirmi beş, Amed SFK yirmi üç puan."), 6);
+  });
+
+  it("kanca: ilk golde sürpriz yoksa engel", () => {
+    const flat = tacticalPlan({ ...GS_AMED, firstGoal: { home: 0.8, away: 0.18, none: 0.02 } });
+    assert.ok(flat.problems.some((problem) => problem.startsWith("kanca")));
   });
 
   it("Türkçe ekler", () => {

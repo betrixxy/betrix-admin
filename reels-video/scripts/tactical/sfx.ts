@@ -2,9 +2,9 @@ import { RATE } from "../reel/audio-track";
 
 /**
  * Efekt sesi KODLA üretilir (lisans gerekmez, dış kaynak yok). 2026-11-07 kullanıcı kararı: gürültü tabanlı ambiyans ve whoosh
- * kaldırıldı ("üfleme/hışırtı"); yalnız saf sinüs tık kalır. Çıktı 48 kHz stereo iç içe float.
+ * kaldırıldı ("üfleme/hışırtı"); yalnız saf sinüs tık ve bas thump kalır. Çıktı 48 kHz stereo iç içe float.
  */
-export const SFX_SOURCE = "Tık sesi betrix-studio kodunda üretildi: reels-video/scripts/tactical/sfx.ts (saf sinüs, gürültü yok; dış ses dosyası/lisans yok).";
+export const SFX_SOURCE = "Tık ve thump sesleri betrix-studio kodunda üretildi: reels-video/scripts/tactical/sfx.ts (saf sinüs, gürültü yok; dış ses dosyası/lisans yok).";
 
 const stereo = (mono: Float32Array, spread = 0): Float32Array => {
   const out = new Float32Array(mono.length * 2);
@@ -31,6 +31,20 @@ export function tick(): Float32Array {
   for (let i = 0; i < n; i += 1) {
     const t = i / RATE;
     mono[i] = (Math.sin(2 * Math.PI * 2400 * t) + 0.4 * Math.sin(2 * Math.PI * 4800 * t)) * Math.exp(-t / 0.012) * Math.min(1, i / 24);
+  }
+  return stereo(mono);
+}
+
+/** Bas "thump" (logo çarpışması): 70 → 45 Hz inen saf sinüs, ~80 ms, üstel sönüm; gürültü yok. */
+export function thump(): Float32Array {
+  const n = Math.round(0.08 * RATE);
+  const mono = new Float32Array(n);
+  let phase = 0;
+  for (let i = 0; i < n; i += 1) {
+    const t = i / RATE;
+    const freq = 45 + 25 * Math.exp(-t / 0.03);
+    phase += (2 * Math.PI * freq) / RATE;
+    mono[i] = Math.sin(phase) * Math.exp(-t / 0.028) * Math.min(1, i / 96);
   }
   return stereo(mono);
 }

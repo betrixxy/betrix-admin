@@ -1,6 +1,6 @@
 import { Img, interpolate, staticFile } from "remotion";
 import { Dot, playerPoint } from "./Board";
-import { Column, Header, INK, PANEL, box, labelFont, numberFont, reveal, upper } from "./parts";
+import { Column, Header, INK, GLASS, box, labelFont, numberFont, reveal, upper } from "./parts";
 import type { Beat, Side, TacticalScript } from "./types";
 import { num, optText, text } from "./values";
 
@@ -20,7 +20,7 @@ export function WhyOverlay({ script, beat, local }: { script: TacticalScript; be
   return (
     <Column>
       <Header tag={beat.tag} title={upper(beat.title)} />
-      <div {...box("puan-durumu")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "10px 24px", display: "flex", flexDirection: "column" }}>
+      <div {...box("puan-durumu")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "10px 24px", display: "flex", flexDirection: "column" }}>
         {rows.map((row, index) => (
           <div key={row.rank} style={{ display: "flex", alignItems: "center", gap: 20, padding: "10px 0", borderTop: index ? "2px solid rgba(255,255,255,0.14)" : undefined, opacity: appear(local, index * 5) }}>
             <span style={{ ...numberFont, fontSize: 96, color: INK, width: 84 }}>{row.rank}.</span>
@@ -31,7 +31,7 @@ export function WhyOverlay({ script, beat, local }: { script: TacticalScript; be
           </div>
         ))}
       </div>
-      <div {...box("karne")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 24px 12px", display: "flex", flexDirection: "column", gap: 10, ...reveal(appear(local, 14)) }}>
+      <div {...box("karne")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "14px 24px 12px", display: "flex", flexDirection: "column", gap: 10, ...reveal(appear(local, 14)) }}>
         {[text(beat, "homeRecord"), text(beat, "awayRecord")].map((line) => (
           <span key={line} style={{ ...labelFont, fontSize: 44, color: INK }}>{upper(line)}</span>
         ))}
@@ -95,7 +95,7 @@ export function DuelOverlay({ script, beat, local }: { script: TacticalScript; b
         <Cutout src={optText(beat, "homePhoto")} logo={script.home.logo} color={script.home.primary} local={local} delay={4} align="left" />
         <Cutout src={optText(beat, "awayPhoto")} logo={script.away.logo} color={script.away.primary} local={local} delay={8} align="right" />
       </div>
-      <div {...box("düello-tablosu")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "6px 24px" }}>
+      <div {...box("düello-tablosu")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "6px 24px" }}>
         {rows.map((row, index) => (
           <div key={row.label} style={{ display: "flex", alignItems: "center", height: 62, borderTop: index ? "2px solid rgba(255,255,255,0.12)" : undefined, opacity: appear(local, 10 + index * 4) }}>
             <span style={{ ...numberFont, fontSize: 56, color: INK, width: 150 }}>{row.home}</span>

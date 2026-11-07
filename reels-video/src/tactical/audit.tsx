@@ -4,15 +4,20 @@ import { GAP } from "./parts";
 
 /**
  * Kare başına yerleşim (tarayıcıda, gerçek kutular; kullanıcı 2026-11-07), ekran görüntüsünden ÖNCE:
- *   0. Gizleme: bir kutuya (`data-box`, 8 px pay) değen oyuncu noktası o karede tamamen gizlenir — panel kenarından yarım nokta
- *      ya da yazının arkasında numara görünmez. Her karede önce bütün noktalar geri açılır (önceki karenin gizlemesi taşınmaz).
+ *   0. Kısma (düzeltme 2): panellerin altına önce kamera kadrajıyla nokta düşürülmez (`framing.ts`); yine de bir kutuya (`data-box`,
+ *      8 px pay) değen oyuncu noktası o karede %20 opaklığa iner (`data-under`; kaybolmaz). Her karede önce işaretler kaldırılır.
  *   1. Denetim (`audit`): görünen her `data-box` çifti arasında en az 24 px boşluk (iç içe değilse); çakışma ya da dar aralık → ihlal.
- *   2. Denetim: görünen bir nokta hiçbir kutuya değemez (gizleme çalıştıysa bu hiç olmaz; olursa ihlal).
+ *   2. Denetim: bir kutunun arkasında %20'den opak nokta numarası olamaz.
+ * Günlüğe kutular ve noktalar da yazılır (kontrast denetimi ve kadraj doğrulaması bu kutuları kullanır).
  * İhlal varsa günlüğe yazılır ve render durdurulur (`cancelRender`).
  */
 
 export const LAYOUT_PREFIX = "TACTICAL_LAYOUT:";
 const DOT_MARGIN = 8;
+/** Panel altındaki noktanın opaklığı. */
+export const UNDER_OPACITY = 0.2;
+/** Kökte bir kez: işaretli nokta %20 (satır içi opaklığı ezer). */
+export const UNDER_CSS = `[data-under="1"]{opacity:${UNDER_OPACITY} !important}`;
 
 interface Box { name: string; x: number; y: number; w: number; h: number; opacity: number }
 
@@ -41,17 +46,17 @@ const grow = (item: Box, by: number): Box => ({ ...item, x: item.x - by, y: item
 
 const visibleBoxes = (root: Element) => [...root.querySelectorAll("[data-box]")].map((element) => read(element, element.getAttribute("data-box") ?? "kutu")).filter((item) => item.opacity > 0.02 && item.w > 0 && item.h > 0);
 
-/** Kutuya değen noktaları gizler; gizlenen nokta sayısını döner. */
-export function maskDots(root: Element): number {
+/** Kutuya değen noktaları %20'ye indirir; kısılan nokta sayısını döner. */
+export function dimDots(root: Element): number {
   const dots = [...root.querySelectorAll<HTMLElement>("[data-dot]")];
-  for (const dot of dots) if (dot.parentElement) dot.parentElement.style.visibility = "";
+  for (const dot of dots) dot.parentElement?.removeAttribute("data-under");
   const boxes = visibleBoxes(root);
-  let hidden = 0;
+  let dimmed = 0;
   for (const dot of dots) {
     const rect = grow(read(dot, "nokta"), DOT_MARGIN);
-    if (boxes.some((item) => gapBetween(rect, item).overlap) && dot.parentElement) { dot.parentElement.style.visibility = "hidden"; hidden += 1; }
+    if (boxes.some((item) => gapBetween(rect, item).overlap) && dot.parentElement) { dot.parentElement.setAttribute("data-under", "1"); dimmed += 1; }
   }
-  return hidden;
+  return dimmed;
 }
 
 export function auditLayout(root: Element): string[] {
@@ -66,7 +71,7 @@ export function auditLayout(root: Element): string[] {
       if (overlap || gap < GAP) issues.push(`${a.name} ↔ ${b.name}: ${overlap ? "üst üste" : `${gap.toFixed(0)} px`}`);
     }
   }
-  for (const dot of dots) for (const item of boxes) if (gapBetween(dot, item).overlap) issues.push(`nokta ${dot.name} → ${item.name} ile kesişiyor`);
+  for (const dot of dots) for (const item of boxes) if (gapBetween(dot, item).overlap && dot.opacity > UNDER_OPACITY + 0.01) issues.push(`nokta ${dot.name} (%${Math.round(dot.opacity * 100)}) → ${item.name} arkasında`);
   return issues;
 }
 
@@ -77,10 +82,12 @@ export function TacticalLayout({ audit }: { audit: boolean }) {
     void document.fonts.ready.then(() => {
       const root = document.querySelector("[data-tactical-root]");
       if (!root) { cancelRender(new Error("taktik kök yok")); return; }
-      const hidden = maskDots(root);
+      const dimmed = dimDots(root);
       if (audit) {
         const issues = auditLayout(root);
-        console.log(LAYOUT_PREFIX + JSON.stringify({ frame, hidden, boxes: visibleBoxes(root).length, issues }));
+        const round = (item: Box) => ({ name: item.name, x: Math.round(item.x), y: Math.round(item.y), w: Math.round(item.w), h: Math.round(item.h) });
+        const dots = [...root.querySelectorAll("[data-dot]")].map((element) => read(element, element.getAttribute("data-dot") ?? "nokta")).filter((item) => item.opacity > 0.02).map(round);
+        console.log(LAYOUT_PREFIX + JSON.stringify({ frame, dimmed, boxes: visibleBoxes(root).filter((item) => item.name !== "kayan-şerit").map(round), dots, issues }));
         if (issues.length) { cancelRender(new Error(`yerleşim ihlali, kare ${frame}: ${issues.join(" | ")}`)); return; }
       }
       continueRender(handle);

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
-import { countTo } from "./camera";
-import { BAND, BIG_BAND, CAPTION, COUNTER, GREEN, GREEN_TEXT, INK, PANEL, SAFE, SAFE_WIDTH, TICKER, bodyFont, box, labelFont, numberFont, reveal, upper } from "./parts";
+import { countTo, INTRO } from "./camera";
+import { BAND, CAPTION, COUNTER, GREEN, GREEN_TEXT, INK, GLASS, SAFE, SAFE_WIDTH, TICKER, bodyFont, box, labelFont, numberFont, reveal, upper } from "./parts";
 import type { TacticalScript } from "./types";
 
 /**
@@ -14,39 +14,28 @@ const LOGO = { width: 194, height: Math.round((194 * 248) / 1269) };
 export const TICKER_SPEED = 90;
 const TICKER_FONT = { ...bodyFont, fontWeight: 500, fontSize: 26 } as const;
 
+/** Logoların dönüştüğü küçük maç bandı: girişin iniş bölümünde (`INTRO`) açılır, video boyunca kalır. */
 function Band({ script }: { script: TacticalScript }) {
   const frame = useCurrentFrame();
-  const shrinkAt = script.beats[1]?.from ?? script.durationInFrames;
-  // Büyük bant hook boyunca; ikinci beat'te 3 karede kapanır, küçük bant (üstte, kendi yerinde) 3–6. karede açılır.
-  const big = interpolate(frame, [shrinkAt, shrinkAt + 3], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const small = interpolate(frame, [shrinkAt + 3, shrinkAt + 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const open = interpolate(frame, [INTRO.settleEnd - 24, INTRO.settleEnd], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   return (
-    <>
-      <div {...box("büyük-bant")} style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: BIG_BAND.top, height: BIG_BAND.height, background: PANEL, borderTop: `5px solid ${GREEN}`, borderRadius: 10, boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, ...reveal(big) }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
-          <Img src={staticFile(script.home.logo)} style={{ width: 92, height: 92, objectFit: "contain" }} />
-          <span style={{ ...numberFont, fontSize: 64, color: INK }}>{upper(script.kickoffLabel)}</span>
-          <Img src={staticFile(script.away.logo)} style={{ width: 92, height: 92, objectFit: "contain" }} />
-        </div>
-        <span style={{ ...labelFont, fontSize: 36, color: INK }}>{upper(script.competitionLabel)}</span>
-      </div>
-      <div {...box("bant")} style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: BAND.top, height: BAND.height, background: PANEL, borderLeft: `6px solid ${GREEN}`, borderRadius: 6, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, paddingLeft: 14, ...reveal(small) }}>
-        <Img src={staticFile(script.home.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
-        <span style={{ ...numberFont, fontSize: 38, color: INK }}>{upper(script.kickoffLabel)}</span>
-        <Img src={staticFile(script.away.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
-        <span style={{ width: 2, height: 34, background: "rgba(255,255,255,0.35)", marginLeft: 6, marginRight: 6 }} />
-        <span style={{ ...labelFont, fontSize: 30, color: INK }}>{upper(script.competitionLabel)}</span>
-      </div>
-    </>
+    <div {...box("bant")} style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: BAND.top, height: BAND.height, ...GLASS, borderLeft: `6px solid ${GREEN}`, borderRadius: 6, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 14, paddingLeft: 14, ...reveal(open) }}>
+      <Img src={staticFile(script.home.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
+      <span style={{ ...numberFont, fontSize: 38, color: INK }}>{upper(script.kickoffLabel)}</span>
+      <Img src={staticFile(script.away.logo)} style={{ width: 44, height: 44, objectFit: "contain" }} />
+      <span style={{ width: 2, height: 34, background: "rgba(255,255,255,0.35)", marginLeft: 6, marginRight: 6 }} />
+      <span style={{ ...labelFont, fontSize: 30, color: INK }}>{upper(script.competitionLabel)}</span>
+    </div>
   );
 }
 
+/** "100.000 maç simülasyonu" sayacı: inişte köşeye yerleşirken sayar. */
 function SimCounter({ script }: { script: TacticalScript }) {
   const frame = useCurrentFrame();
-  const hook = script.beats[0];
-  const value = hook ? countTo(script.simulations, frame - hook.from, 24) : script.simulations;
+  const open = interpolate(frame, [INTRO.settleEnd - 24, INTRO.settleEnd], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const value = countTo(script.simulations, frame - (INTRO.settleEnd - 24), 24);
   return (
-    <div {...box("sayaç")} style={{ position: "absolute", left: SAFE.left, top: COUNTER.top, height: COUNTER.height, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, background: PANEL, borderRadius: 6, padding: "0 12px" }}>
+    <div {...box("sayaç")} style={{ position: "absolute", left: SAFE.left, top: COUNTER.top, height: COUNTER.height, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, ...GLASS, borderRadius: 6, padding: "0 12px", ...reveal(open) }}>
       <span style={{ width: 14, height: 14, borderRadius: 7, background: GREEN }} />
       <span style={{ ...numberFont, fontSize: 30, color: INK, minWidth: 92 }}>{value.toLocaleString("tr-TR")}</span>
       <span style={{ ...labelFont, fontSize: 28, color: "rgba(246,248,244,0.86)" }}>MAÇ SİMÜLASYONU</span>
@@ -76,7 +65,7 @@ function Captions({ script }: { script: TacticalScript }) {
   const size = Math.max(40, Math.min(54, Math.floor((54 * (SAFE_WIDTH - 60)) / Math.max(1, estimate))));
   return (
     <div style={{ position: "absolute", left: SAFE.left, width: SAFE_WIDTH, top: CAPTION.top, height: CAPTION.bottom - CAPTION.top, display: "flex", justifyContent: "center", alignItems: "flex-end" }}>
-      <div {...box("altyazı")} style={{ background: PANEL, borderRadius: 12, padding: "10px 22px 8px", display: "flex", flexWrap: "nowrap", justifyContent: "center", gap: "0 14px", maxWidth: SAFE_WIDTH, whiteSpace: "nowrap" }}>
+      <div {...box("altyazı")} style={{ ...GLASS, borderRadius: 12, padding: "10px 22px 8px", display: "flex", flexWrap: "nowrap", justifyContent: "center", gap: "0 14px", maxWidth: SAFE_WIDTH, whiteSpace: "nowrap" }}>
         {chunk.map((word) => (
           <span key={`${word.start}-${word.text}`} style={{ ...labelFont, fontSize: size, color: word.start <= frame ? (word === current ? GREEN_TEXT : INK) : "rgba(246,248,244,0.5)" }}>
             {shown(word.text)}
@@ -124,13 +113,14 @@ function Grain() {
 
 export function Hud({ script }: { script: TacticalScript }) {
   const frame = useCurrentFrame();
-  const appear = interpolate(frame, [0, 9], [0, 1], { extrapolateRight: "clamp" });
+  // İlk kare boş olamaz (düzeltme 2): marka ve site ilk kareden görünür.
+  const appear = 1;
   return (
     <AbsoluteFill>
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%)" }} />
       <Grain />
-      {/* Altyazı ve şeridin arkası: saha noktaları yazının altında kalır. */}
-      <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION.top - 40, height: 1920 - CAPTION.top + 40, background: "linear-gradient(180deg, rgba(3,7,5,0) 0%, rgba(3,7,5,0.9) 18%, rgba(3,7,5,0.94) 100%)" }} />
+      {/* Altyazı ve şerit bandı hafif koyulaşır; şeridin altında saha yine görünür (düzeltme 2: alt çeyrek siyah değil). */}
+      <div style={{ position: "absolute", left: 0, right: 0, top: CAPTION.top - 60, height: TICKER.top + TICKER.height + 80 - (CAPTION.top - 60), background: "linear-gradient(180deg, rgba(3,7,5,0) 0%, rgba(3,7,5,0.55) 30%, rgba(3,7,5,0.55) 75%, rgba(3,7,5,0) 100%)" }} />
       <div style={{ opacity: appear }}>
         <Img {...box("logo", true)} src={staticFile("brand/checkmatch-logo.png")} style={{ position: "absolute", left: SAFE.left, top: SAFE.top + 6, width: LOGO.width, height: LOGO.height, opacity: 0.8 }} />
         <div {...box("site", true)} style={{ position: "absolute", right: 1080 - SAFE.right, top: SAFE.top + 4, ...bodyFont, fontSize: 30, color: INK }}>{script.site}</div>

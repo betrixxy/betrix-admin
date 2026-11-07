@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { decodeSpans, secondsOf, type Span } from "../reel/audio-track";
-import { findCached, synthesize, type Alignment, type TtsRequest } from "../reel/tts";
+import { findCached, OUTPUT_FORMAT, PCM_FORMAT, synthesize, TtsError, type Alignment, type TtsRequest } from "../reel/tts";
 import { VOICE_PROFILES } from "../reel/voice";
 import { wordsOf } from "./build";
 import { gatePauses } from "./gate";
@@ -16,14 +16,18 @@ import { tighten } from "./tighten";
 
 export const PROFILE = VOICE_PROFILES["buyuk-mac"];
 export const request = (text: string): TtsRequest => ({ text, voiceId: PROFILE.voiceId, modelId: PROFILE.modelId, settings: PROFILE.settings });
+/** ElevenLabs'e giden metin: kancada ses etiketi ([excited]) dahil. */
+export const spokenText = (item: PlanItem) => item.voiceText ?? item.sentence;
+/** Yeni üretim biçimi: kayıpsız PCM 44,1 kHz (kullanıcı 2026-11-07). Plan izin vermezse (Pro) 192 kbps mp3'e düşülür ve raporlanır. */
+export const NEW_FORMAT = PCM_FORMAT;
 
 /** Önbellekte olmayan beat'ler ve tahmini kredi (ElevenLabs karakter başına; gerçek harcama yanıt başlığından raporlanır). */
 export function creditPlan(items: readonly PlanItem[], cacheDir: string): { fresh: string[]; estimatedCredits: number } {
-  const fresh = items.filter((item) => !findCached(request(item.sentence), cacheDir));
-  return { fresh: fresh.map((item) => item.kind), estimatedCredits: fresh.reduce((sum, item) => sum + item.sentence.length, 0) };
+  const fresh = items.filter((item) => !findCached(request(spokenText(item)), cacheDir));
+  return { fresh: fresh.map((item) => item.kind), estimatedCredits: fresh.reduce((sum, item) => sum + spokenText(item).length, 0) };
 }
 
-export interface Voiced { beats: VoicedBeat[]; clips: Float32Array[]; credits: number; formats: string[] }
+export interface Voiced { beats: VoicedBeat[]; clips: Float32Array[]; credits: number; formats: string[]; notes: string[] }
 
 export async function voice(items: readonly PlanItem[], cacheDir: string, apiKey: string | null, creditLimit: number): Promise<Voiced> {
   const { estimatedCredits } = creditPlan(items, cacheDir);
@@ -32,12 +36,22 @@ export async function voice(items: readonly PlanItem[], cacheDir: string, apiKey
   const beats: VoicedBeat[] = [];
   const clips: Float32Array[] = [];
   const formats: string[] = [];
+  const notes: string[] = [];
   let credits = 0;
   for (const item of items) {
-    const result = await synthesize(request(item.sentence), { apiKey: apiKey ?? "", cacheDir });
+    const deps = { apiKey: apiKey ?? "", cacheDir };
+    let result;
+    try {
+      result = await synthesize(request(spokenText(item)), { ...deps, format: NEW_FORMAT });
+    } catch (error) {
+      // Reddedilen istek kredi harcamaz; PCM plan dışıysa 192 kbps mp3 (sessizce değil: rapora yazılır).
+      if (!(error instanceof TtsError) || ![400, 401, 403, 422].includes(error.status)) throw error;
+      notes.push(`${item.kind}: ${NEW_FORMAT} reddedildi (${error.message}); ${OUTPUT_FORMAT} ile üretildi`);
+      result = await synthesize(request(spokenText(item)), { ...deps, format: OUTPUT_FORMAT });
+    }
     credits += result.credits;
     if (credits > creditLimit) throw new Error(`harcanan kredi ${credits} > sınır ${creditLimit}`);
-    const hit = findCached(request(item.sentence), cacheDir) ?? (() => { throw new Error(`${item.kind}: önbellek yazılmadı`); })();
+    const hit = findCached(request(spokenText(item)), cacheDir) ?? (() => { throw new Error(`${item.kind}: önbellek yazılmadı`); })();
     formats.push(hit.format);
     const alignment = (JSON.parse(readFileSync(hit.metaFile, "utf8")) as { alignment: Alignment | null }).alignment;
     if (!alignment) throw new Error(`${item.kind}: zaman damgası yok`);
@@ -51,5 +65,5 @@ export async function voice(items: readonly PlanItem[], cacheDir: string, apiKey
       words: wordsOf(alignment, span.start, span.end).map((word) => ({ text: word.text, start: tight.map(word.start - span.start), end: tight.map(word.end - span.start) })),
     });
   }
-  return { beats, clips, credits, formats };
+  return { beats, clips, credits, formats, notes };
 }

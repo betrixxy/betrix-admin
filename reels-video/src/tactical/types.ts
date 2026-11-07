@@ -76,6 +76,10 @@ export interface TacticalScript {
   dateLabel: string;
   /** Kapak: stadyum adı; yoksa satır çizilmez. */
   venue: string | null;
+  /** Buzlu cam panel saydamlığı (0,58 varsayılan; kontrast için en çok 0,70). */
+  panelAlpha?: number;
+  /** Girişte (0–1,2 sn) daha net stadyum fotoğrafı; yoksa bulanık zemin. */
+  backdropSharp?: string | null;
   /** Bulanık stadyum zemini; yoksa koyu çim dokusu. */
   backdrop: string | null;
   home: TacticalTeam;

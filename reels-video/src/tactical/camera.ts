@@ -7,6 +7,14 @@ const ease = Easing.bezier(0.65, 0, 0.35, 1);
 
 export const PITCH = { width: 880, height: 1360 } as const;
 
+/**
+ * Giriş (kullanıcı 2026-11-07, düzeltme 2): 0–1,2 sn net stadyum + logo çarpışması (`INTRO.collide` karesinde VS, 2–3 kare sarsıntı,
+ * bas "thump"); 1,2–2,8 sn kamera yukarıdan eğilip taktik tahtasına iner, logolar banda, sayaç köşeye yerleşir.
+ */
+export const INTRO = { collide: 10, shakeFrames: 3, settleStart: 36, settleEnd: 84 } as const;
+/** Girişte tahta kuşbakışı ve uzak: fotoğrafın altında görünmez, iniş sırasında belirir. */
+export const INTRO_CAMERA: Camera = { tilt: 4, zoom: 0.7, panX: 0, panY: -420, rotate: 0 };
+
 const mix = (a: Camera, b: Camera, t: number): Camera => ({
   tilt: a.tilt + (b.tilt - a.tilt) * t,
   zoom: a.zoom + (b.zoom - a.zoom) * t,
@@ -26,7 +34,11 @@ export function cameraAt(beats: readonly Beat[], frame: number): Camera {
   const beat = beats[index];
   if (!beat) return { tilt: 30, zoom: 1, panX: 0, panY: 0, rotate: 0 };
   const previous = beats[index - 1];
-  if (!previous) return beat.camera;
+  if (!previous) {
+    if (beat.kind !== "hook") return beat.camera;
+    const t = interpolate(frame, [INTRO.settleStart, INTRO.settleEnd], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
+    return mix(INTRO_CAMERA, beat.camera, t);
+  }
   const t = interpolate(frame - beat.from, [0, CAMERA_FRAMES], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: ease });
   return mix(previous.camera, beat.camera, t);
 }

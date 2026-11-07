@@ -1,7 +1,7 @@
 import { Img, interpolate, staticFile } from "remotion";
 import { seeded } from "../lib/motion";
 import { PITCH, countTo } from "./camera";
-import { Column, GREEN, GREEN_TEXT, Header, INK, PANEL, Percent, box, labelFont, numberFont, reveal, upper } from "./parts";
+import { Column, GREEN, GREEN_TEXT, Header, INK, GLASS, Percent, box, labelFont, numberFont, reveal, upper } from "./parts";
 import type { Beat, TacticalScript } from "./types";
 import { num, optNum, text } from "./values";
 
@@ -41,12 +41,12 @@ function Bar({ name, value, label, local, strong }: { name: string; value: numbe
   const grow = interpolate(local, [4, 20], [0, value / 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const glow = strong ? 0.35 + 0.25 * Math.sin(local / 5) : 0;
   return (
-    <div {...box(name)} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: strong ? "16px 26px 18px" : "12px 26px 14px", boxShadow: strong ? `0 0 ${24 + glow * 30}px rgba(76,196,86,${glow})` : undefined }}>
+    <div {...box(name)} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: strong ? "16px 26px 18px" : "12px 26px 14px", boxShadow: strong ? `0 0 ${24 + glow * 30}px rgba(76,196,86,${glow})` : undefined }}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 22 }}>
         <Percent value={countTo(value, local)} size={strong ? 190 : 120} color={strong ? INK : "rgba(246,248,244,0.82)"} />
         <span style={{ ...labelFont, fontSize: strong ? 50 : 40, color: INK, marginBottom: strong ? 22 : 12 }}>{upper(label)}</span>
       </div>
-      <div style={{ marginTop: 10, height: strong ? 26 : 18, borderRadius: 13, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
+      <div data-fill style={{ marginTop: 10, height: strong ? 26 : 18, borderRadius: 13, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
         <div style={{ width: `${grow * 100}%`, height: "100%", borderRadius: 13, background: strong ? GREEN : "rgba(246,248,244,0.55)" }} />
       </div>
     </div>
@@ -87,26 +87,35 @@ export function BothBoard({ script, beat, local }: { script: TacticalScript; bea
 export function BothOverlay({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
   const second = optNum(beat, "sentence2At", 0);
   const firstIn = interpolate(local, [second, second + 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  // Açık döngü kapanışı (kancadaki "ilk golde sürpriz"): "ama" anında favori olmayanın ilk gol ihtimali vurgulanır.
+  const surpriseAt = optNum(beat, "surpriseAt", beat.duration);
+  const surprise = interpolate(local, [surpriseAt, surpriseAt + 5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const pop = surprise > 0 ? 1 + 0.12 * Math.sin(Math.min(1, (local - surpriseAt) / 8) * Math.PI) : 1;
+  const underdog = num(beat, "firstHome") >= num(beat, "firstAway") ? "away" : "home";
   const items = [
-    { label: upper(script.home.short), value: num(beat, "firstHome"), logo: script.home.logo as string | null },
-    { label: upper(script.away.short), value: num(beat, "firstAway"), logo: script.away.logo as string | null },
-    { label: "GOL YOK", value: num(beat, "firstNone"), logo: null },
+    { key: "home", label: upper(script.home.short), value: num(beat, "firstHome"), logo: script.home.logo as string | null },
+    { key: "away", label: upper(script.away.short), value: num(beat, "firstAway"), logo: script.away.logo as string | null },
+    { key: "none", label: "GOL YOK", value: num(beat, "firstNone"), logo: null },
   ];
   return (
     <Column>
       <Header tag={beat.tag} title={upper(beat.title)} />
-      <div {...box("iki-takım-gol")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24 }}>
+      <div {...box("iki-takım-gol")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24 }}>
         <Percent value={countTo(num(beat, "both"), local)} size={200} />
         <span style={{ ...labelFont, fontSize: 44, color: INK, lineHeight: 1.1 }}>{upper(text(beat, "bothLabel"))}</span>
       </div>
-      <div {...box("ilk-gol")} style={{ boxSizing: "border-box", background: PANEL, borderRadius: 14, padding: "14px 22px 14px", ...reveal(firstIn) }}>
+      <div {...box("ilk-gol")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "14px 22px 14px", ...reveal(firstIn) }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ ...labelFont, fontSize: 38, color: INK }}>{upper(text(beat, "firstLabel"))}</span>
-          <span style={{ ...numberFont, fontSize: 40, color: GREEN_TEXT, border: `3px solid ${GREEN_TEXT}`, borderRadius: 8, padding: "2px 10px 0" }}>0&apos;</span>
+          {surprise > 0 ? (
+            <span data-fill style={{ ...labelFont, fontSize: 34, color: "#04140A", background: GREEN, borderRadius: 8, padding: "6px 12px 4px", transform: `scale(${pop})`, opacity: surprise }}>İŞTE SÜRPRİZ</span>
+          ) : (
+            <span style={{ ...numberFont, fontSize: 40, color: GREEN_TEXT, border: `3px solid ${GREEN_TEXT}`, borderRadius: 8, padding: "2px 10px 0" }}>0&apos;</span>
+          )}
         </div>
         <div style={{ marginTop: 12, display: "flex", gap: 14 }}>
           {items.map((item) => (
-            <div key={item.label} style={{ flex: item.logo ? 1.2 : 0.9, display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={item.label} style={{ flex: item.logo ? 1.2 : 0.9, display: "flex", alignItems: "center", gap: 10, borderRadius: 10, padding: 4, outline: item.key === underdog && surprise > 0 ? `3px solid rgba(76,196,86,${surprise})` : undefined, transform: item.key === underdog ? `scale(${pop})` : undefined }}>
               {item.logo ? <Img src={staticFile(item.logo)} style={{ width: 64, height: 64, objectFit: "contain" }} /> : null}
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <Percent value={countTo(item.value, local - second)} size={item.logo ? 104 : 80} color={item.logo ? INK : "rgba(246,248,244,0.8)"} />

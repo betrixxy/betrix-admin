@@ -14,8 +14,23 @@ const API = "https://api.elevenlabs.io";
  */
 export const OUTPUT_FORMAT = "mp3_44100_192";
 export const LEGACY_FORMATS = ["mp3_44100_128"] as const;
-/** Zaman damgası yoksa süre bayt sayısından: biçimin bit hızı ("mp3_44100_192" → 24 000 B/sn). */
-const bytesPerSecond = (format: string) => (Number(format.split("_").at(-1)) || 128) * 1000 / 8;
+/** Kayıpsız 44,1 kHz PCM (16 bit mono). ElevenLabs'te Pro plan ister; Creator'da reddedilir (reddedilen istek kredi harcamaz). */
+export const PCM_FORMAT = "pcm_44100";
+const isPcm = (format: string) => format.startsWith("pcm_");
+/** Önbellek dosya uzantısı: PCM WAV başlığıyla saklanır (ffmpeg doğrudan okur). */
+export const audioExtension = (format: string) => (isPcm(format) ? "wav" : "mp3");
+/** Zaman damgası yoksa süre bayt sayısından: PCM 16 bit mono, mp3 biçimin bit hızı ("mp3_44100_192" → 24 000 B/sn). */
+const bytesPerSecond = (format: string) => (isPcm(format) ? Number(format.split("_")[1]) * 2 : ((Number(format.split("_").at(-1)) || 128) * 1000) / 8);
+
+/** Ham PCM (s16le mono) → WAV. */
+export function wavFromPcm(pcm: Buffer, sampleRate: number): Buffer {
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0); header.writeUInt32LE(36 + pcm.length, 4); header.write("WAVE", 8);
+  header.write("fmt ", 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(sampleRate, 24); header.writeUInt32LE(sampleRate * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+  header.write("data", 36); header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
+}
 
 export interface VoiceSettings {
   stability: number;
@@ -54,6 +69,8 @@ export interface TtsDeps {
   apiKey: string;
   cacheDir: string;
   fetch?: typeof fetch;
+  /** Yeni üretimin biçimi (varsayılan OUTPUT_FORMAT). Önbellekte başka biçimde aynı ses varsa o kullanılır. */
+  format?: string;
 }
 
 /** Yalnız sesi değiştiren alanlar: sıra farkı yeniden üretim yaptırmaz. */
@@ -65,9 +82,9 @@ export function ttsCacheKey(request: TtsRequest, format: string = OUTPUT_FORMAT)
 
 /** Önbellekteki ses (önce güncel biçim, sonra eski biçimler); yoksa null. */
 export function findCached(request: TtsRequest, cacheDir: string): { audioFile: string; metaFile: string; format: string } | null {
-  for (const format of [OUTPUT_FORMAT, ...LEGACY_FORMATS]) {
+  for (const format of [PCM_FORMAT, OUTPUT_FORMAT, ...LEGACY_FORMATS]) {
     const key = ttsCacheKey(request, format);
-    const audioFile = path.join(cacheDir, `${key}.mp3`);
+    const audioFile = path.join(cacheDir, `${key}.${audioExtension(format)}`);
     const metaFile = path.join(cacheDir, `${key}.json`);
     if (existsSync(audioFile) && existsSync(metaFile)) return { audioFile, metaFile, format };
   }
@@ -100,8 +117,9 @@ const costOf = (response: Response, text: string): number => {
 
 export async function synthesize(request: TtsRequest, deps: TtsDeps): Promise<TtsResult> {
   const hit = findCached(request, deps.cacheDir);
-  const key = ttsCacheKey(request);
-  const audioFile = path.join(deps.cacheDir, `${key}.mp3`);
+  const format = deps.format ?? OUTPUT_FORMAT;
+  const key = ttsCacheKey(request, format);
+  const audioFile = path.join(deps.cacheDir, `${key}.${audioExtension(format)}`);
   const metaFile = path.join(deps.cacheDir, `${key}.json`);
   if (hit) {
     const meta = JSON.parse(readFileSync(hit.metaFile, "utf8")) as { alignment: Alignment | null; credits: number };
@@ -111,7 +129,7 @@ export async function synthesize(request: TtsRequest, deps: TtsDeps): Promise<Tt
   const run = deps.fetch ?? fetch;
   const body = JSON.stringify({ text: request.text, model_id: request.modelId, ...(request.settings ? { voice_settings: request.settings } : {}) });
   const headers = { "xi-api-key": deps.apiKey, "Content-Type": "application/json" };
-  const url = (suffix: string) => `${API}/v1/text-to-speech/${encodeURIComponent(request.voiceId)}${suffix}?output_format=${OUTPUT_FORMAT}`;
+  const url = (suffix: string) => `${API}/v1/text-to-speech/${encodeURIComponent(request.voiceId)}${suffix}?output_format=${format}`;
 
   let audio: Buffer;
   let alignment: Alignment | null = null;
@@ -120,6 +138,7 @@ export async function synthesize(request: TtsRequest, deps: TtsDeps): Promise<Tt
   if (timed.ok) {
     const json = (await timed.json()) as { audio_base64: string; alignment?: Alignment | null; normalized_alignment?: Alignment | null };
     audio = Buffer.from(json.audio_base64, "base64");
+    if (isPcm(format)) audio = wavFromPcm(audio, Number(format.split("_")[1]));
     alignment = json.alignment ?? json.normalized_alignment ?? null;
     credits = costOf(timed, request.text);
   } else if (timed.status === 400 || timed.status === 404 || timed.status === 422) {
@@ -127,14 +146,15 @@ export async function synthesize(request: TtsRequest, deps: TtsDeps): Promise<Tt
     const plain = await run(url(""), { method: "POST", headers, body });
     if (!plain.ok) throw await failure(plain, "üretim reddedildi");
     audio = Buffer.from(await plain.arrayBuffer());
+    if (isPcm(format)) audio = wavFromPcm(audio, Number(format.split("_")[1]));
     credits = costOf(plain, request.text);
   } else {
     throw await failure(timed, "üretim başarısız");
   }
   mkdirSync(deps.cacheDir, { recursive: true });
   writeFileSync(audioFile, audio);
-  writeFileSync(metaFile, JSON.stringify({ request: { ...request }, alignment, credits }));
-  return { audio, alignment, seconds: secondsOf(audio, alignment), credits, originalCredits: credits, cached: false };
+  writeFileSync(metaFile, JSON.stringify({ request: { ...request }, format, alignment, credits }));
+  return { audio, alignment, seconds: secondsOf(isPcm(format) ? audio.subarray(44) : audio, alignment, format), credits, originalCredits: credits, cached: false };
 }
 
 export async function elevenGet<T>(pathname: string, deps: Pick<TtsDeps, "apiKey" | "fetch">): Promise<T> {

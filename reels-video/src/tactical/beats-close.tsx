@@ -1,5 +1,5 @@
 import { AbsoluteFill, Img, interpolate, staticFile } from "remotion";
-import { Column, GREEN, GREEN_TEXT, Header, INK, PANEL, bodyFont, box, labelFont, reveal, upper, upperKeepSite } from "./parts";
+import { Column, GREEN, GREEN_TEXT, Header, INK, GLASS, bodyFont, box, labelFont, reveal, upper, upperKeepSite } from "./parts";
 import type { Beat, TacticalScript } from "./types";
 import { num, text } from "./values";
 
@@ -50,12 +50,12 @@ export function CloseOverlay({ script, beat, local }: { script: TacticalScript; 
       <AbsoluteFill style={reveal(listOut)}>
         <Column>
           <Header title={upper(beat.title)} size={66} />
-          <div {...box("kontrol-listesi")} style={{ background: PANEL, borderRadius: 14, padding: "8px 24px" }}>
+          <div {...box("kontrol-listesi")} style={{ ...GLASS, borderRadius: 14, padding: "8px 24px" }}>
             {items.map((item, index) => {
               const on = interpolate(local, [item.at, item.at + 6], [0, 1], clamp);
               return (
                 <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 20, height: 84, borderTop: index ? "2px solid rgba(255,255,255,0.12)" : undefined }}>
-                  <div style={{ width: 54, height: 54, borderRadius: 8, border: `4px solid ${on > 0 ? GREEN : "rgba(246,248,244,0.6)"}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div data-fill style={{ width: 54, height: 54, borderRadius: 8, border: `4px solid ${on > 0 ? GREEN : "rgba(246,248,244,0.6)"}`, boxSizing: "border-box", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Check progress={on} size={46} />
                   </div>
                   <span style={{ ...labelFont, fontSize: 46, color: INK, opacity: 0.55 + 0.45 * on }}>{upper(item.label)}</span>
@@ -65,11 +65,11 @@ export function CloseOverlay({ script, beat, local }: { script: TacticalScript; 
             {[0, 1, 2].map((index) => (
               <div key={`lock${index}`} style={{ display: "flex", alignItems: "center", gap: 20, height: 70, borderTop: "2px solid rgba(255,255,255,0.12)", opacity: interpolate(local, [lockedAt + index * 3, lockedAt + index * 3 + 6], [0, 1], clamp) }}>
                 <Lock />
-                <div style={{ height: 30, width: [420, 360, 470][index], borderRadius: 15, background: "rgba(246,248,244,0.55)", filter: "blur(9px)" }} />
+                <div data-fill style={{ height: 30, width: [420, 360, 470][index], borderRadius: 15, background: "rgba(246,248,244,0.55)", filter: "blur(9px)" }} />
               </div>
             ))}
           </div>
-          <div {...box("daha-fazla")} style={{ alignSelf: "center", background: PANEL, borderRadius: 10, padding: "10px 22px 8px", ...labelFont, fontSize: 44, color: GREEN_TEXT, ...reveal(interpolate(local, [moreAt, moreAt + 6], [0, 1], clamp)) }}>
+          <div {...box("daha-fazla")} style={{ alignSelf: "center", ...GLASS, borderRadius: 10, padding: "10px 22px 8px", ...labelFont, fontSize: 44, color: GREEN_TEXT, ...reveal(interpolate(local, [moreAt, moreAt + 6], [0, 1], clamp)) }}>
             {upperKeepSite(text(beat, "more"))}
           </div>
         </Column>

@@ -6,7 +6,7 @@ import { buildTrack, decode, FFMPEG, TARGET } from "../reel/audio-track";
 import { extractFrame, probe } from "../reel/checks";
 import { noiseFloor, silences, spectrogram } from "./audio-qc";
 import { bannedHits } from "./build";
-import { rms, scaleTo, SFX_SOURCE, tick } from "./sfx";
+import { rms, scaleTo, SFX_SOURCE, thump, tick } from "./sfx";
 import { FPS, type Timeline } from "./timeline";
 
 /**
@@ -28,8 +28,9 @@ export async function finish(input: { work: string; out: string; silent: string;
   const voiceClips = clips.map((samples, index) => ({ samples, at: (timeline.voiceAt[index] ?? 0) / FPS }));
   const joined = clips.reduce((all, clip) => { const next = new Float32Array(all.length + clip.length); next.set(all); next.set(clip, all.length); return next; }, new Float32Array(0));
   const ticks = timeline.ticks.map((frame) => ({ samples: scaleTo(tick(), rms(joined) * 10 ** (-10 / 20)), at: frame / FPS }));
+  const thumps = timeline.thumps.map((frame) => ({ samples: scaleTo(thump(), rms(joined) * 10 ** (-8 / 20)), at: frame / FPS }));
   const audio = path.join(work, "ses.m4a");
-  const loud = buildTrack([...voiceClips, ...ticks], total, work, audio, TRUE_PEAK_TARGET);
+  const loud = buildTrack([...voiceClips, ...ticks, ...thumps], total, work, audio, TRUE_PEAK_TARGET);
   const voiceOnly = path.join(work, "yalniz-ses.m4a");
   buildTrack(voiceClips, total, work, voiceOnly, TRUE_PEAK_TARGET);
   const output = path.join(out, "taktik-tahtasi.mp4");
