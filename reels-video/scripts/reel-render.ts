@@ -28,6 +28,11 @@ import { pronounce, VOICE_PROFILES } from "./reel/voice";
  */
 
 const arg = (name: string) => { const at = process.argv.indexOf(name); return at >= 0 ? process.argv[at + 1] ?? null : null; };
+// `--format tactical`: "Canlı taktik tahtası" (ayrı kompozisyon `TacticalReel`, `scripts/tactical/run.ts`). Eski sahne havuzu aşağıda, değişmedi.
+if (arg("--format") === "tactical") {
+  await import("./tactical/run");
+  process.exit(0);
+}
 const stop =(message: string): never => { console.error(`DUR: ${message}`); process.exit(1); };
 const folder = process.argv[2] ?? stop("maç klasörü yok");
 const PKG = path.resolve(import.meta.dirname, "..");
