@@ -37,7 +37,19 @@ export function GoalsBoard({ beat, local }: { beat: Beat; local: number }) {
   );
 }
 
-function Bar({ name, value, label, local, strong }: { name: string; value: number; label: string; local: number; strong: boolean }) {
+/** "İŞTE SÜRPRİZ" çipi (kancadaki çelişkinin kapanışı): kısa büyüme + belirme. */
+function surpriseState(beat: Beat, local: number) {
+  const at = optNum(beat, "surpriseAt", beat.duration);
+  const shown = interpolate(local, [at, at + 5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const pop = shown > 0 ? 1 + 0.12 * Math.sin(Math.min(1, (local - at) / 8) * Math.PI) : 1;
+  return { shown, pop };
+}
+
+function SurpriseChip({ shown, pop }: { shown: number; pop: number }) {
+  return <span data-fill style={{ ...labelFont, fontSize: 34, color: "#04140A", background: GREEN, borderRadius: 8, padding: "6px 12px 4px", transform: `scale(${pop})`, opacity: shown, whiteSpace: "nowrap" }}>İŞTE SÜRPRİZ</span>;
+}
+
+function Bar({ name, value, label, local, strong, chip }: { name: string; value: number; label: string; local: number; strong: boolean; chip?: { shown: number; pop: number } }) {
   const grow = interpolate(local, [4, 20], [0, value / 100], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const glow = strong ? 0.35 + 0.25 * Math.sin(local / 5) : 0;
   return (
@@ -45,6 +57,7 @@ function Bar({ name, value, label, local, strong }: { name: string; value: numbe
       <div style={{ display: "flex", alignItems: "flex-end", gap: 22 }}>
         <Percent value={countTo(value, local)} size={strong ? 190 : 120} color={strong ? INK : "rgba(246,248,244,0.82)"} />
         <span style={{ ...labelFont, fontSize: strong ? 50 : 40, color: INK, marginBottom: strong ? 22 : 12 }}>{upper(label)}</span>
+        {chip && chip.shown > 0 ? <div style={{ marginLeft: "auto", alignSelf: "flex-start" }}><SurpriseChip {...chip} /></div> : null}
       </div>
       <div data-fill style={{ marginTop: 10, height: strong ? 26 : 18, borderRadius: 13, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
         <div style={{ width: `${grow * 100}%`, height: "100%", borderRadius: 13, background: strong ? GREEN : "rgba(246,248,244,0.55)" }} />
@@ -54,10 +67,11 @@ function Bar({ name, value, label, local, strong }: { name: string; value: numbe
 }
 
 export function GoalsOverlay({ beat, local }: { beat: Beat; local: number }) {
+  const chip = beat.values.surprise === "goals" ? surpriseState(beat, local) : undefined;
   return (
     <Column>
       <Header tag={beat.tag} title={upper(beat.title)} />
-      <Bar name="çok-gol" value={num(beat, "over")} label={text(beat, "overLabel")} local={local} strong />
+      <Bar name="çok-gol" value={num(beat, "over")} label={text(beat, "overLabel")} local={local} strong {...(chip ? { chip } : {})} />
       <Bar name="az-gol" value={num(beat, "under")} label={text(beat, "underLabel")} local={local - 4} strong={false} />
     </Column>
   );
@@ -87,10 +101,13 @@ export function BothBoard({ script, beat, local }: { script: TacticalScript; bea
 export function BothOverlay({ script, beat, local }: { script: TacticalScript; beat: Beat; local: number }) {
   const second = optNum(beat, "sentence2At", 0);
   const firstIn = interpolate(local, [second, second + 6], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  // Açık döngü kapanışı (kancadaki "ilk golde sürpriz"): "ama" anında favori olmayanın ilk gol ihtimali vurgulanır.
-  const surpriseAt = optNum(beat, "surpriseAt", beat.duration);
-  const surprise = interpolate(local, [surpriseAt, surpriseAt + 5], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  const pop = surprise > 0 ? 1 + 0.12 * Math.sin(Math.min(1, (local - surpriseAt) / 8) * Math.PI) : 1;
+  // Açık döngü kapanışı: ilk gol çelişkisinde "ama" anında favori olmayanın ilk gol ihtimali, iki takım da gol çelişkisinde
+  // üstteki %62 paneli vurgulanır.
+  const mode = beat.values.surprise;
+  const state = surpriseState(beat, local);
+  const surprise = mode === "first" ? state.shown : 0;
+  const pop = mode === "first" ? state.pop : 1;
+  const bothChip = mode === "both" ? state : null;
   const underdog = num(beat, "firstHome") >= num(beat, "firstAway") ? "away" : "home";
   const items = [
     { key: "home", label: upper(script.home.short), value: num(beat, "firstHome"), logo: script.home.logo as string | null },
@@ -100,15 +117,18 @@ export function BothOverlay({ script, beat, local }: { script: TacticalScript; b
   return (
     <Column>
       <Header tag={beat.tag} title={upper(beat.title)} />
-      <div {...box("iki-takım-gol")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24 }}>
+      <div {...box("iki-takım-gol")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, borderLeft: `10px solid ${GREEN}`, padding: "14px 26px 14px", display: "flex", alignItems: "center", gap: 24, outline: bothChip && bothChip.shown > 0 ? `3px solid rgba(76,196,86,${bothChip.shown})` : undefined }}>
         <Percent value={countTo(num(beat, "both"), local)} size={200} />
-        <span style={{ ...labelFont, fontSize: 44, color: INK, lineHeight: 1.1 }}>{upper(text(beat, "bothLabel"))}</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {bothChip && bothChip.shown > 0 ? <div style={{ alignSelf: "flex-start" }}><SurpriseChip {...bothChip} /></div> : null}
+          <span style={{ ...labelFont, fontSize: 44, color: INK, lineHeight: 1.1 }}>{upper(text(beat, "bothLabel"))}</span>
+        </div>
       </div>
       <div {...box("ilk-gol")} style={{ boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "14px 22px 14px", ...reveal(firstIn) }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <span style={{ ...labelFont, fontSize: 38, color: INK }}>{upper(text(beat, "firstLabel"))}</span>
           {surprise > 0 ? (
-            <span data-fill style={{ ...labelFont, fontSize: 34, color: "#04140A", background: GREEN, borderRadius: 8, padding: "6px 12px 4px", transform: `scale(${pop})`, opacity: surprise }}>İŞTE SÜRPRİZ</span>
+            <SurpriseChip shown={surprise} pop={pop} />
           ) : (
             <span style={{ ...numberFont, fontSize: 40, color: GREEN_TEXT, border: `3px solid ${GREEN_TEXT}`, borderRadius: 8, padding: "2px 10px 0" }}>0&apos;</span>
           )}

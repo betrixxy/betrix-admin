@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { ablative, distributiveWords, genitive, HOOK_MAX_WORDS, MAX_WORDS, screenWordCount, tacticalCaption, tacticalPlan, type PlanSource } from "../scripts/tactical/plan";
+import { ablative, chooseTwist, distributiveWords, genitive, MAX_WORDS, screenWordCount, tacticalCaption, tacticalPlan, type PlanSource } from "../scripts/tactical/plan";
+import { bannedHits } from "../scripts/tactical/build";
 import * as timelineModule from "../scripts/tactical/timeline";
 import { buildTimeline, CLOSE_TIMING, estimated, FPS } from "../scripts/tactical/timeline";
 
@@ -16,9 +17,9 @@ const GS_AMED: PlanSource = {
   duelScope: "Trendyol Süper Lig · bu sezon",
 };
 
-/** senaryo-tactical.txt SES satırları, kullanıcı onayı 2026-11-07 17:19; kanca kullanıcı metni (düzeltme 2, 2026-11-07). */
+/** senaryo-tactical.txt SES satırları, kullanıcı onayı 2026-11-07 17:19; kanca kullanıcı metni (son düzeltme, 2026-11-07). */
 const APPROVED = [
-  "Galatasaray yüzde yetmiş beş favori… ama ilk golde bir sürpriz var. Yüz bin kez oynattık.",
+  "Galatasaray yüzde yetmiş beş favori… ama ilk golde sürpriz var. Analiz modelimizle bu maçı yüz bin kez simüle ettik.",
   "Yüzde dokuz beraberlik, yüzde on altı Amed SFK, çünkü Galatasaray iç sahada beş maçtır kaybetmedi.",
   "Yüzde seksen ihtimalle üç ve daha fazla gol.",
   "Yüzde altmış iki ihtimalle iki takım da gol atar. Yüzde elli sekiz ilk gol Galatasaray'dan, ama yüzde kırk Amed SFK'dan.",
@@ -35,9 +36,12 @@ describe("taktik tahtası senaryosu", () => {
     assert.deepEqual(items.map((item) => item.sentence), APPROVED);
     assert.deepEqual(items.map((item) => item.kind), ["hook", "outcome", "goals", "both", "why", "duel", "close"]);
     assert.ok(items.reduce((sum, item) => sum + screenWordCount(item.sentence), 0) <= MAX_WORDS);
-    assert.equal(screenWordCount(items[0]?.sentence ?? ""), 12);
-    assert.ok(screenWordCount(items[0]?.sentence ?? "") <= HOOK_MAX_WORDS);
     assert.equal(items[0]?.voiceText, `[excited] ${APPROVED[0]}`);
+    assert.deepEqual([items[0]?.values.hookLine1, items[0]?.values.hookLine2, items[0]?.values.hookAccent, items[0]?.values.twist], ["Galatasaray %75 favori", "ama ilk golde sürpriz var", "sürpriz", "first"]);
+    assert.equal(items[0]?.values.countLabel, "Analiz modeli · maç simülasyonu");
+    // Açık döngü "both" beat'inde (ilk gol paneli) kapanır.
+    assert.equal(items.find((item) => item.kind === "both")?.values.surprise, "first");
+    assert.equal(items.find((item) => item.kind === "goals")?.values.surprise, "none");
   });
 
   it("ekran değerleri aynı kaynaktan; gol çubukları tamamlayıcı", () => {
@@ -58,14 +62,42 @@ describe("taktik tahtası senaryosu", () => {
     assert.doesNotMatch(all, /\d\s*[-–]\s*\d|en sık skor|score/iu);
   });
 
-  it("çünkü kalıbı yalnız olgu tutarsa; tutmazsa engel", () => {
+  it("çünkü yan cümlesi yalnız olgu tutarsa; tutmazsa cümle çünküsüz kurulur (engel değil)", () => {
     const beaten = tacticalPlan({ ...GS_AMED, home: { ...GS_AMED.home, venue: { played: 5, win: 3, draw: 1, lose: 1 } } });
-    assert.ok(beaten.problems.some((problem) => problem.startsWith("çünkü")));
+    assert.deepEqual(beaten.problems, []);
+    assert.equal(beaten.items[1]?.sentence, "Yüzde dokuz beraberlik, yüzde on altı Amed SFK.");
   });
 
-  it("düello kalıbı gol eşitliği ister", () => {
+  it("düello: goller farklıysa önde olan söylenir", () => {
     const uneven = tacticalPlan({ ...GS_AMED, away: { ...GS_AMED.away, duel: { ...GS_AMED.away.duel!, goals: 8 } } });
-    assert.ok(uneven.problems.some((problem) => problem.startsWith("düello")));
+    assert.deepEqual(uneven.problems, []);
+    assert.equal(uneven.items.find((item) => item.kind === "duel")?.sentence, "Dokuz golle Osimhen önde, Orban sekiz golde.");
+  });
+
+  it("kanca çelişkisi sırayla: ilk gol ≥ %35, iki takım gol ≥ %55, 3+ gol ≥ %65, yoksa soru", () => {
+    assert.equal(chooseTwist({ underdogFirst: 35, both: 70, three: 90 }).kind, "first");
+    assert.equal(chooseTwist({ underdogFirst: 34, both: 55, three: 90 }).kind, "both");
+    assert.equal(chooseTwist({ underdogFirst: 34, both: 54, three: 65 }).kind, "goals");
+    assert.equal(chooseTwist({ underdogFirst: 34, both: 54, three: 64 }).kind, "question");
+    const question = tacticalPlan({ ...GS_AMED, firstGoal: { home: 0.7, away: 0.25, none: 0.05 }, bothScore: 0.4, threePlus: 0.5 });
+    assert.equal(question.items[0]?.sentence, "Galatasaray yüzde yetmiş beş favori… peki kaç gol çıkar? Analiz modelimizle bu maçı yüz bin kez simüle ettik.");
+    assert.equal(question.items.find((item) => item.kind === "both")?.values.surprise, "none");
+    const goals = tacticalPlan({ ...GS_AMED, firstGoal: { home: 0.7, away: 0.25, none: 0.05 }, bothScore: 0.4 });
+    assert.match(goals.items[0]?.sentence ?? "", /ama gol yağmuru ihtimali yüksek\./u);
+    assert.equal(goals.items.find((item) => item.kind === "goals")?.values.surprise, "goals");
+  });
+
+  it("favori yoksa (< %45) kanca başa baş ile başlar", () => {
+    const even = tacticalPlan({ ...GS_AMED, outcome: { home_win: 0.41, draw: 0.21, away_win: 0.38 } });
+    assert.equal(even.items[0]?.sentence, "Bu maç başa baş: Galatasaray yüzde kırk bir, Amed SFK yüzde otuz sekiz. Analiz modelimizle bu maçı yüz bin kez simüle ettik.");
+    assert.deepEqual([even.items[0]?.values.hookLine1, even.items[0]?.values.hookLine2, even.items[0]?.values.twist], ["Bu maç başa baş", "%41 – %38", "none"]);
+  });
+
+  it("'yapay zekâ' hiçbir yerde yok (yasak listede)", () => {
+    assert.equal(bannedHits(["Yapay zekâ ile hesapladık"]).length, 1);
+    assert.equal(bannedHits(["yapay zeka"]).length, 1);
+    const all = [...items.flatMap((item) => [item.sentence, item.voiceText ?? "", ...Object.values(item.values).map(String)]), tacticalCaption(GS_AMED, items)];
+    assert.deepEqual(bannedHits(all), []);
   });
 
   it("ekran sözcük sayımı: rakam öbeği tek sözcük", () => {
@@ -73,10 +105,6 @@ describe("taktik tahtası senaryosu", () => {
     assert.equal(screenWordCount("Galatasaray yirmi beş, Amed SFK yirmi üç puan."), 6);
   });
 
-  it("kanca: ilk golde sürpriz yoksa engel", () => {
-    const flat = tacticalPlan({ ...GS_AMED, firstGoal: { home: 0.8, away: 0.18, none: 0.02 } });
-    assert.ok(flat.problems.some((problem) => problem.startsWith("kanca")));
-  });
 
   it("Türkçe ekler", () => {
     assert.equal(ablative("Galatasaray"), "Galatasaray'dan");
@@ -103,9 +131,10 @@ describe("taktik tahtası senaryosu", () => {
 
 describe("taktik tahtası zaman çizelgesi", () => {
   const { items } = tacticalPlan(GS_AMED);
-  const timeline = buildTimeline(items.map((item) => estimated(item, 2.36)));
+  // 2,64 sözcük/sn: 11-07 kancasında ölçülen gerçek hız (cümle içi sessizlik kırpıldıktan sonra).
+  const timeline = buildTimeline(items.map((item) => estimated(item, 2.64)));
 
-  it("beat'ler ardışık, toplam 35–45 sn", () => {
+  it("beat'ler ardışık, toplam 35–45 sn (kalıcı üst sınır 45)", () => {
     timeline.beats.forEach((beat, index) => { if (index) assert.equal(beat.from, (timeline.beats[index - 1]?.from ?? 0) + (timeline.beats[index - 1]?.duration ?? 0)); });
     const seconds = timeline.durationInFrames / FPS;
     assert.ok(seconds >= 35 && seconds <= 45, `${seconds}`);

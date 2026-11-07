@@ -37,6 +37,7 @@ function SimCounter({ script }: { script: TacticalScript }) {
   return (
     <div {...box("sayaç")} style={{ position: "absolute", left: SAFE.left, top: COUNTER.top, height: COUNTER.height, boxSizing: "border-box", display: "flex", alignItems: "center", gap: 10, ...GLASS, borderRadius: 6, padding: "0 12px", ...reveal(open) }}>
       <span style={{ width: 14, height: 14, borderRadius: 7, background: GREEN }} />
+      <span style={{ ...labelFont, fontSize: 28, color: "rgba(246,248,244,0.86)" }}>ANALİZ MODELİ ·</span>
       <span style={{ ...numberFont, fontSize: 30, color: INK, minWidth: 92 }}>{value.toLocaleString("tr-TR")}</span>
       <span style={{ ...labelFont, fontSize: 28, color: "rgba(246,248,244,0.86)" }}>MAÇ SİMÜLASYONU</span>
     </div>

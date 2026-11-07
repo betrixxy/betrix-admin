@@ -23,13 +23,14 @@ import { pronounce, VOICE_PROFILES } from "./reel/voice";
  * Onaylı senaryodan video. Kalite kuralları (kullanıcı 11-06, CLAUDE.md): süre hedef 75–95 sn, 100 sn üstü durur; kısaltma yalnız
  * metinden (onaylı satır listesi), ses hızı sabit; ses kartı − 0,3 sn'yi geçmez; klipler 40 ms yumuşak geçişli; −14 LUFS / −1 dBTP;
  * AAC 48 kHz 192 kbps; H.264 High ~11 Mbps BT.709. `--plan`: kısaltılmış senaryoyu ölçülen ses süreleriyle yazar, ses/görüntü üretmez.
- *   npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --senaryo <onaylı.txt> [--kisaltma <satırlar.json>] [--plan]
+ *   (eski format) npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --format legacy --senaryo <onaylı.txt> [--kisaltma <satırlar.json>] [--plan]
  *     --home --away --venue --home-team --away-team <fotoğraf>
  */
 
 const arg = (name: string) => { const at = process.argv.indexOf(name); return at >= 0 ? process.argv[at + 1] ?? null : null; };
-// `--format tactical`: "Canlı taktik tahtası" (ayrı kompozisyon `TacticalReel`, `scripts/tactical/run.ts`). Eski sahne havuzu aşağıda, değişmedi.
-if (arg("--format") === "tactical") {
+// Varsayılan format "Canlı taktik tahtası" (`TacticalReel`, `scripts/tactical/run.ts`; kullanıcı 2026-11-07). Eski sahne havuzu
+// aşağıda, değişmedi: `--format legacy`.
+if (arg("--format") !== "legacy") {
   await import("./tactical/run");
   process.exit(0);
 }

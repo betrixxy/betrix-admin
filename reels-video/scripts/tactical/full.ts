@@ -1,18 +1,20 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { freemem } from "node:os";
 import path from "node:path";
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, renderStill, selectComposition } from "@remotion/renderer";
 import type { Frozen } from "../reel/freeze";
 import { LAYOUT_PREFIX } from "../../src/tactical/audit";
 import type { TacticalScript } from "../../src/tactical/types";
+import { prepareCutout } from "../reel/assets";
+import { checkAssets } from "./assets";
 import { baseScript } from "./build";
 import { finish } from "./finish";
 import { planSource, tacticalCaption, tacticalPlan, type PlanItem } from "./plan";
 import { prepare, type Prepared } from "./prepare";
-import { buildTimeline, estimated, FPS, MAX_SECONDS } from "./timeline";
-import { creditPlan, PROFILE, voice } from "./voicing";
+import { buildTimeline, estimated, FPS, MAX_HOOK_SECONDS, MAX_SECONDS } from "./timeline";
+import { creditPlan, profileOf, voice } from "./voicing";
 
 /**
  * "Canlı taktik tahtası" tam video (7 beat). Üç kip:
@@ -21,7 +23,9 @@ import { creditPlan, PROFILE, voice } from "./voicing";
  *   --full --kredi-siniri N  ses (önbellek dışı beat'ler ElevenLabs'e) + tam render (kare başına yerleşim denetimi; ihlalde durur)
  *     + rapor + aciklama + kapak + Telegram önizlemesi. Ağır iş: boş RAM ≥ 4 GB, maç penceresi dışında. Render yalnız ses metni onaylı
  *     senaryoyla (`senaryo-tactical.txt`, SES satırları) birebir aynıysa başlar.
- *   npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --format tactical --full --kredi-siniri 700
+ *   npx tsx --tsconfig tsconfig.json reels-video/scripts/reel-render.ts <maç klasörü> --full --kredi-siniri 700 [--profile buyuk-mac]
+ * Varsayılan format budur (eski sahne havuzu: `--format legacy`). Tek komutla üretim: `npm run reel -- --match <id>` (`reel.ts`).
+ * Varlıklar `assets.ts`'ten (stadyum, logolar, düello fotoğrafı: forma takımı + sezon); eksik varsa durur.
  */
 
 const arg = (name: string) => { const at = process.argv.indexOf(name); return at >= 0 ? process.argv[at + 1] ?? null : null; };
@@ -38,52 +42,60 @@ const work = path.join(folder, "_taktik");
 const out = path.join(folder, "taktik");
 mkdirSync(work, { recursive: true });
 const voiceCache = path.resolve(PKG, "../../test-photos/reels-voice/_onbellek");
+const profile = profileOf(arg("--profile"));
 
-// 1. Zemin (stil testindekiyle aynı: ev sahibi stadyumu bulanık; yoksa koyu çim).
-const venue = arg("--venue") ?? path.join(folder, "fotograflar", "Rams Park", "1e3a7a1a16773d78f5a1d7abc722b9f8.jpg");
-let backdrop: string | null = null;
-if (existsSync(venue)) {
-  backdrop = `_local/reel/${slug}/taktik-zemin.jpg`;
-  const target = path.join(PUBLIC, backdrop);
+// 1. Varlıklar (eksik varsa dur): stadyum, logolar, düello fotoğrafları.
+const source = planSource(frozen);
+const assets = checkAssets(folder, frozen, source, PUBLIC, path.resolve(PKG, ".."));
+if (assets.missing.length) stop(`eksik varlık:\n  - ${assets.missing.join("\n  - ")}`);
+for (const note of assets.notes) console.log(`not: ${note}`);
+
+// 2. Zemin: stadyum fotoğrafı bulanık (tahta) ve net (giriş). Kaynak değişirse yeniden üretilir.
+const venue = arg("--venue") ?? assets.venue ?? stop("stadyum fotoğrafı yok");
+async function backdropFile(name: string, make: (input: Sharp) => Sharp): Promise<string> {
+  const published = `_local/reel/${slug}/${name}.jpg`;
+  const target = path.join(PUBLIC, published);
+  const marker = `${target}.kaynak`;
   mkdirSync(path.dirname(target), { recursive: true });
-  if (!existsSync(target)) await sharp(readFileSync(venue)).rotate().resize(1080, 1920, { fit: "cover", position: sharp.strategy.attention }).blur(9).modulate({ brightness: 0.75, saturation: 0.9 }).jpeg({ quality: 90 }).toFile(target);
+  // İşaret yoksa (eski üretim) mevcut dosya bu kaynaktan sayılır.
+  if (existsSync(target) && !existsSync(marker)) writeFileSync(marker, venue);
+  if (!existsSync(target) || readFileSync(marker, "utf8") !== venue) {
+    await make(sharp(readFileSync(venue)).rotate().resize(1080, 1920, { fit: "cover", position: sharp.strategy.attention })).jpeg({ quality: 90 }).toFile(target);
+    writeFileSync(marker, venue);
+  }
+  return published;
 }
-// Giriş için daha net zemin (düzeltme 2): hafif bulanıklık, aynı kırpma.
-let backdropSharp: string | null = null;
-if (existsSync(venue)) {
-  backdropSharp = `_local/reel/${slug}/taktik-zemin-net.jpg`;
-  const target = path.join(PUBLIC, backdropSharp);
-  if (!existsSync(target)) await sharp(readFileSync(venue)).rotate().resize(1080, 1920, { fit: "cover", position: sharp.strategy.attention }).blur(1.2).modulate({ brightness: 0.85 }).jpeg({ quality: 92 }).toFile(target);
-}
+const backdrop = await backdropFile("taktik-zemin", (input) => input.blur(9).modulate({ brightness: 0.75, saturation: 0.9 }));
+const backdropSharp = await backdropFile("taktik-zemin-net", (input) => input.blur(1.2).modulate({ brightness: 0.85 }));
 const { script: baseRaw, problems: squadNotes } = baseScript(frozen, backdrop);
 const base = { ...baseRaw, backdropSharp };
 
-// 2. Senaryo (saf kurucu) + onaylı metin.
-const source = planSource(frozen);
+// 3. Senaryo (saf kurucu) + onaylı metin.
 const { items, problems } = tacticalPlan(source);
 if (problems.length) stop(`senaryo engeli: ${problems.join(" | ")}`);
 const approvedFile = path.join(folder, "senaryo-tactical.txt");
 const approved = existsSync(approvedFile) ? readFileSync(approvedFile, "utf8").split(/\r?\n/u).filter((line) => line.startsWith("SES: ")).map((line) => line.slice(5).trim()) : [];
 const drift = items.map((item, index) => (approved[index] === item.sentence ? null : `${item.kind}: onaylı "${approved[index] ?? "—"}" ≠ kurulan "${item.sentence}"`)).filter((line): line is string => line !== null);
 
-// 3. Düello kesimleri: onaylı fotoğrafların önceki üretimdeki kesimleri (yeni Fal çağrısı yok) ya da --duel-home/--duel-away.
-function duelPhoto(side: "home" | "away"): string {
+// 4. Düello kesimleri: seçilen fotoğraftan (kesim önbellekteyse Fal'a gidilmez; değilse ESRGAN/birefnet, maliyet raporlanır).
+//    Plan kipinde kesim yapılmaz. --duel-home/--duel-away hazır kesim dosyası verir.
+async function duelPhoto(side: "home" | "away"): Promise<string> {
   const given = arg(`--duel-${side}`);
   if (given) {
     const target = `_local/reel/${slug}/duel-${side}${path.extname(given)}`;
     copyFileSync(given, path.join(PUBLIC, target));
     return target;
   }
-  const previous = path.join(folder, "_uretim", "script.json");
-  if (!existsSync(previous)) return "";
-  const photos = (JSON.parse(readFileSync(previous, "utf8")) as { photos?: Record<string, { src: string }> }).photos ?? {};
-  const src = photos[`${side}-1`]?.src ?? "";
-  return src && existsSync(path.join(PUBLIC, src)) ? src : "";
+  const choice = assets.duel[side];
+  if (!choice || mode === "plan") return "";
+  const prepared = await prepareCutout(choice.file, side, path.join(folder, "fotograflar", "_secim"), PUBLIC, slug);
+  return prepared.photo.src;
 }
-const withPhotos: PlanItem[] = items.map((item) => (item.kind === "duel" ? { ...item, values: { ...item.values, homePhoto: duelPhoto("home"), awayPhoto: duelPhoto("away") } } : item));
+const duelPhotos = { home: await duelPhoto("home"), away: await duelPhoto("away") };
+const withPhotos: PlanItem[] = items.map((item) => (item.kind === "duel" ? { ...item, values: { ...item.values, homePhoto: duelPhotos.home, awayPhoto: duelPhotos.away } } : item));
 
 const scriptOf = (timeline: ReturnType<typeof buildTimeline>): TacticalScript => ({ ...base, beats: timeline.beats, words: timeline.words, durationInFrames: timeline.durationInFrames });
-const credit = creditPlan(withPhotos, voiceCache);
+const credit = creditPlan(withPhotos, voiceCache, profile);
 
 function preparedReport(prepared: Prepared) {
   return {
@@ -100,7 +112,7 @@ async function renderCover(serveUrl: string, script: TacticalScript, output: str
 }
 
 if (mode === "plan" || mode === "stills") {
-  const timeline = buildTimeline(withPhotos.map((item) => estimated(item, PROFILE.wordsPerSecond)));
+  const timeline = buildTimeline(withPhotos.map((item) => estimated(item, profile.wordsPerSecond)));
   const summary = {
     sozcuk: items.reduce((sum, item) => sum + item.sentence.split(/\s+/u).length, 0),
     tahminiSure: Number((timeline.durationInFrames / FPS).toFixed(1)),
@@ -146,11 +158,13 @@ const limit = Number(arg("--kredi-siniri") ?? stop("--kredi-siniri yok (önce --
 const freeGb = freemem() / 1024 ** 3;
 if (freeGb < 4) stop(`boş RAM ${freeGb.toFixed(1)} GB < 4`);
 console.log(`ses: ${credit.fresh.length} yeni beat (${credit.fresh.join(", ") || "—"}), tahmini ${credit.estimatedCredits} kredi, sınır ${limit}`);
-const voiced = await voice(withPhotos, voiceCache, process.env.ELEVENLABS_API_KEY ?? null, limit);
+const voiced = await voice(withPhotos, voiceCache, process.env.ELEVENLABS_API_KEY ?? null, limit, profile);
 console.log(`ElevenLabs harcaması: ${voiced.credits} kredi; önbellek biçimleri: ${[...new Set(voiced.formats)].join(", ")}`);
 for (const note of voiced.notes) console.log(`not: ${note}`);
 const timeline = buildTimeline(voiced.beats);
 if (timeline.durationInFrames / FPS > MAX_SECONDS) stop(`süre ${(timeline.durationInFrames / FPS).toFixed(2)} sn > ${MAX_SECONDS}`);
+const hookSeconds = (timeline.beats[0]?.duration ?? 0) / FPS;
+if (hookSeconds > MAX_HOOK_SECONDS) stop(`kanca ${hookSeconds.toFixed(2)} sn > ${MAX_HOOK_SECONDS} (ses ${voiced.beats[0]?.seconds.toFixed(2)} sn); render başlamadı`);
 mkdirSync(out, { recursive: true });
 
 const serveUrl = await bundle({ entryPoint: path.join(PKG, "src", "index.ts"), publicDir: PUBLIC });

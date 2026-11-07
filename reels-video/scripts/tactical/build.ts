@@ -12,7 +12,7 @@ export const LEGAL_SCREEN = "Bilgilendirme amaçlıdır. Olasılıklar gerçek m
 export const LEGAL_CAPTION = "Yasal uyarı: Bu içerik, gerçek maç verileri ve istatistiksel simülasyon modelleri kullanılarak yalnızca bilgilendirme amacıyla hazırlanmıştır. Yer alan olasılıklar kesin sonuç garantisi vermez; yatırım, yönlendirme veya tavsiye niteliği taşımaz. İçeriğe dayanılarak verilen kararlardan CheckMatch sorumlu tutulamaz.";
 
 /** Ekran, ses, altyazı ve açıklamada yasak (tam sözcük; "üst üste" serbest). */
-export const BANNED = [/\bbahis\w*/iu, /\boran\b|\boranı\b|\boranlar\w*/iu, /\bkupon\w*/iu, /\biddaa\b/iu, /\bbanko\b/iu, /(^|[^\p{L}])üst($|[^\p{L}])(?!üste)/iu, /(^|[^\p{L}])alt($|[^\p{L}])/iu, /\bKG\b/u, /handikap/iu, /tahmin tutar/iu, /kazandırır/iu];
+export const BANNED = [/\bbahis\w*/iu, /\boran\b|\boranı\b|\boranlar\w*/iu, /\bkupon\w*/iu, /\biddaa\b/iu, /\bbanko\b/iu, /(^|[^\p{L}])üst($|[^\p{L}])(?!üste)/iu, /(^|[^\p{L}])alt($|[^\p{L}])/iu, /\bKG\b/u, /handikap/iu, /tahmin tutar/iu, /kazandırır/iu, /yapay\s*zek[aâ]/iu];
 
 export function bannedHits(texts: readonly string[]): string[] {
   return texts.flatMap((value) => BANNED.filter((pattern) => pattern.test(value.replace(/üst üste/giu, ""))).map((pattern) => `${pattern.source} → "${value}"`));

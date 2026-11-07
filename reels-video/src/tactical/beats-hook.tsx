@@ -37,15 +37,18 @@ export function HookOverlay({ script, beat, local }: { script: TacticalScript; b
   const logosOut = interpolate(local, [INTRO.settleEnd - 12, INTRO.settleEnd], [1, 0], clamp);
   const homeX = toBand(60 + (LOGO.home - 60) * fly);
   const awayX = toBand(1020 + (LOGO.away - 1020) * fly) + 100 * settle;
-  const fav = text(beat, "hookFavourite");
-  const line1 = `${upper(fav)} %${num(beat, "hero")} FAVORİ`;
+  const line1 = upper(text(beat, "hookLine1"));
   const line2 = upper(text(beat, "hookLine2"));
   const accent = upper(text(beat, "hookAccent"));
+  // Favori satırında yüzde sayarak gelir ("GALATASARAY %75 FAVORİ"); başa baş kancada rakamlar düz.
+  const hero = `%${num(beat, "hero")}`;
+  const counting = num(beat, "hookCount") === 1 && line1.includes(hero);
+  const [line1Before = line1, line1After = ""] = counting ? line1.split(hero) : [line1, ""];
   const scale = 1 - 0.38 * settle;
   const size1 = fitSize(line1, HOOK_WIDTH - 60, 120) * scale;
   const size2 = fitSize(line2, HOOK_WIDTH - 60, 120) * scale;
   const hookTop = 880 + (CONTENT.top - 880) * settle;
-  const [before, after] = line2.split(accent);
+  const [before = line2, after = ""] = accent ? line2.split(accent) : [line2, ""];
   // Simülasyon paneli "Yüz bin" anında, ama iniş bitmeden asla (kanca paneli henüz yukarı çıkmamış olur).
   const simsAt = Math.max(INTRO.settleEnd, optNum(beat, "sentence2At", beat.duration));
   const simsIn = interpolate(local, [simsAt, simsAt + 6], [0, 1], clamp);
@@ -69,16 +72,16 @@ export function HookOverlay({ script, beat, local }: { script: TacticalScript; b
         ) : null}
         <div {...box("kanca")} style={{ position: "absolute", left: SAFE.left + (1 - settle) * (540 - HOOK_WIDTH / 2 - SAFE.left), top: hookTop, width: HOOK_WIDTH - (HOOK_WIDTH - 790) * settle, boxSizing: "border-box", ...GLASS, borderRadius: 16, padding: `${18 * scale}px 30px ${16 * scale}px`, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 * scale }}>
           <div style={{ ...numberFont, fontSize: size1, color: INK, whiteSpace: "nowrap" }}>
-            {upper(fav)} %{countTo(num(beat, "hero"), local, 12)} FAVORİ
+            {line1Before}{counting ? `%${countTo(num(beat, "hero"), local, 12)}` : null}{line1After}
           </div>
           <div style={{ ...labelFont, fontSize: size2, color: INK, whiteSpace: "nowrap" }}>
-            {before}<span style={{ color: GREEN_TEXT }}>{accent}</span>{after}
+            {before}{accent ? <span style={{ color: GREEN_TEXT }}>{accent}</span> : null}{after}
           </div>
         </div>
       </AbsoluteFill>
       <div {...box("simülasyon-paneli")} style={{ position: "absolute", left: 540 - 330, width: 660, top: 860, boxSizing: "border-box", ...GLASS, borderRadius: 14, padding: "16px 30px 12px", display: "flex", flexDirection: "column", alignItems: "center", ...reveal(simsIn) }}>
         <span style={{ ...numberFont, fontSize: 170, color: INK }}>{countTo(script.simulations, local - simsAt, 12).toLocaleString("tr-TR")}</span>
-        <span style={{ ...labelFont, fontSize: 56, color: GREEN_TEXT, marginTop: 4 }}>{upper(text(beat, "countLabel"))}</span>
+        <span style={{ ...labelFont, fontSize: 48, color: GREEN_TEXT, marginTop: 4 }}>{upper(text(beat, "countLabel"))}</span>
       </div>
     </AbsoluteFill>
   );

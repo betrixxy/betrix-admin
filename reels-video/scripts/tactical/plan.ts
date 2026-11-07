@@ -51,10 +51,25 @@ export function screenWordCount(text: string): number {
   }
   return count;
 }
-/** Kanca ≤ 12 sözcük (ekran sayımı; kullanıcı 2026-11-07). */
-export const HOOK_MAX_WORDS = 12;
-/** Sürpriz eşiği: favori olmayanın ilk golü atma ihtimali en az bu kadarsa kanca "ilk golde sürpriz" der. */
-export const SURPRISE_MIN = 30;
+/** Favori eşiği: en yüksek kazanma ihtimali bunun altındaysa maç "başa baş" (kullanıcı 2026-11-07). */
+export const FAVOURITE_MIN = 45;
+/** Kancanın son cümlesi (ses); "yapay zekâ" denmez, "analiz modeli" denir. */
+export const MODEL_SENTENCE = (simulations: number) => `Analiz modelimizle bu maçı ${numberWords(simulations)} kez simüle ettik.`;
+/** Ekrandaki sayaç / simülasyon etiketi. */
+export const MODEL_LABEL = "Analiz modeli";
+
+/**
+ * Kancanın çelişkisi (açık döngü), sırayla ilk tutan: 1) favoriye karşı ilk gol ≥ %35, 2) iki takımın da gol atması ≥ %55,
+ * 3) 3+ gol ≥ %65; hiçbiri yoksa soru ("peki kaç gol çıkar?"). Seçilen çelişki ilgili beat'te "İŞTE SÜRPRİZ" ile kapanır.
+ */
+export interface Twist { kind: "first" | "both" | "goals" | "question"; voice: string; line: string; accent: string }
+export const TWIST_THRESHOLDS = { first: 35, both: 55, goals: 65 } as const;
+export function chooseTwist(input: { underdogFirst: number; both: number; three: number }): Twist {
+  if (input.underdogFirst >= TWIST_THRESHOLDS.first) return { kind: "first", voice: "ama ilk golde sürpriz var", line: "ama ilk golde sürpriz var", accent: "sürpriz" };
+  if (input.both >= TWIST_THRESHOLDS.both) return { kind: "both", voice: "ama iki takım da gol atabilir", line: "ama iki takım da gol atabilir", accent: "iki takım" };
+  if (input.three >= TWIST_THRESHOLDS.goals) return { kind: "goals", voice: "ama gol yağmuru ihtimali yüksek", line: "ama gol yağmuru ihtimali yüksek", accent: "gol yağmuru" };
+  return { kind: "question", voice: "peki kaç gol çıkar?", line: "peki kaç gol çıkar?", accent: "kaç gol" };
+}
 
 export function planSource(frozen: Frozen): PlanSource {
   const detail = frozen.detail;
@@ -139,8 +154,10 @@ export function tacticalPlan(source: PlanSource): { items: PlanItem[]; problems:
   const underdog = favourite.side === "home" ? { name: away.name, value: outcome.away } : { name: home.name, value: outcome.home };
 
   // 2 · "çünkü": favori ev sahibiyse ve iç sahada yenilmediyse (olgu; modelin nedeni iddia edilmez).
+  // Olgu tutmazsa "çünkü" yan cümlesi kurulmaz (şablon her maçta çalışır); panelde favorinin ilgili karnesi.
   const unbeaten = favourite.side === "home" && home.venue.played > 0 && home.venue.lose === 0;
-  if (!unbeaten) problems.push("çünkü cümlesi: favori iç sahada yenilmemiş ev sahibi değil, kalıp yok");
+  const favouriteVenue = favourite.side === "home" ? home.venue : away.venue;
+  const venueWord = favourite.side === "home" ? "İç sahada" : "Deplasmanda";
 
   const three = pct(source.threePlus);
   const both = pct(source.bothScore);
@@ -150,35 +167,54 @@ export function tacticalPlan(source: PlanSource): { items: PlanItem[]; problems:
   const duelAway = away.duel;
   let duelSentence = "";
   if (!duelHome || !duelAway) problems.push("düello oyuncusu yok");
-  else if (duelHome.goals !== duelAway.goals) problems.push("düello cümlesi: gol sayıları farklı, kalıp yok");
-  else if (duelHome.shots_on_target === duelAway.shots_on_target) problems.push("düello cümlesi: isabetli şut eşit, kalıp yok");
-  else {
-    const leader = duelHome.shots_on_target > duelAway.shots_on_target ? duelHome : duelAway;
-    duelSentence = `${capital(distributiveWords(duelHome.goals))} gol: ${shortName(duelHome)} ve ${shortName(duelAway)}. ${capital(numberWords(leader.shots_on_target))} isabetli şutla ${shortName(leader)} önde.`;
+  else if (duelHome.goals === duelAway.goals) {
+    const tie = `${capital(distributiveWords(duelHome.goals))} gol: ${shortName(duelHome)} ve ${shortName(duelAway)}.`;
+    if (duelHome.shots_on_target === duelAway.shots_on_target) duelSentence = tie;
+    else {
+      const leader = duelHome.shots_on_target > duelAway.shots_on_target ? duelHome : duelAway;
+      duelSentence = `${tie} ${capital(numberWords(leader.shots_on_target))} isabetli şutla ${shortName(leader)} önde.`;
+    }
+  } else {
+    const [leader, other] = duelHome.goals > duelAway.goals ? [duelHome, duelAway] : [duelAway, duelHome];
+    duelSentence = `${capital(numberWords(leader.goals))} golle ${shortName(leader)} önde, ${shortName(other)} ${numberWords(other.goals)} golde.`;
   }
 
+  // Kanca (kullanıcı 2026-11-07, son düzeltme): "<favori> yüzde X favori… ama <çelişki>. Analiz modelimizle …" ya da başa baş.
+  const contested = favourite.value < FAVOURITE_MIN;
+  const twist = chooseTwist({ underdogFirst: favourite.side === "home" ? first.away : first.home, both, three });
+  const opening = contested
+    ? `Bu maç başa baş: ${home.name} ${percentWords(outcome.home)}, ${away.name} ${percentWords(outcome.away)}.`
+    : `${favourite.name} ${percentWords(favourite.value)} favori… ${twist.voice}${twist.kind === "question" ? "" : "."}`;
+  const hookSentence = `${opening} ${capital(MODEL_SENTENCE(source.simulations))}`;
   const items: PlanItem[] = [
     {
-      // Kanca (kullanıcı metni 2026-11-07): favori + açık döngü ("ilk golde sürpriz", "both" beat'inde kapanır) + simülasyon sayısı.
       kind: "hook", tag: "SİMÜLASYON", title: "",
-      sentence: `${favourite.name} ${percentWords(favourite.value)} favori… ama ilk golde bir sürpriz var. ${capital(numberWords(source.simulations))} kez oynattık.`,
-      voiceText: `[excited] ${favourite.name} ${percentWords(favourite.value)} favori… ama ilk golde bir sürpriz var. ${capital(numberWords(source.simulations))} kez oynattık.`,
-      values: { ...outcome, hero: favourite.value, heroSide: favourite.side, hookFavourite: favourite.name, hookLine2: "ama ilk golde sürpriz var", hookAccent: "sürpriz", countLabel: "kez oynattık" },
+      sentence: hookSentence,
+      voiceText: `[excited] ${hookSentence}`,
+      values: {
+        ...outcome, hero: favourite.value, heroSide: favourite.side, hookFavourite: favourite.name,
+        hookLine1: contested ? "Bu maç başa baş" : `${favourite.name} %${favourite.value} favori`,
+        hookLine2: contested ? `%${outcome.home} – %${outcome.away}` : twist.line,
+        hookAccent: contested ? "" : twist.accent,
+        hookCount: contested ? 0 : 1,
+        twist: contested ? "none" : twist.kind,
+        countLabel: `${MODEL_LABEL} · maç simülasyonu`,
+      },
     },
     {
       kind: "outcome", tag: "SİMÜLASYON", title: "Kazanma ihtimali",
-      sentence: `${capital(percentWords(outcome.draw))} beraberlik, ${percentWords(underdog.value)} ${underdog.name}, çünkü ${home.name} iç sahada ${numberWords(home.venue.played)} maçtır kaybetmedi.`,
-      values: { ...outcome, because: `İç sahada ${home.venue.played} maç: ${home.venue.win} galibiyet, ${home.venue.draw} beraberlik, ${home.venue.lose} yenilgi` },
+      sentence: `${capital(percentWords(outcome.draw))} beraberlik, ${percentWords(underdog.value)} ${underdog.name}${unbeaten ? `, çünkü ${home.name} iç sahada ${numberWords(home.venue.played)} maçtır kaybetmedi` : ""}.`,
+      values: { ...outcome, because: `${venueWord} ${favouriteVenue.played} maç: ${favouriteVenue.win} galibiyet, ${favouriteVenue.draw} beraberlik, ${favouriteVenue.lose} yenilgi` },
     },
     {
       kind: "goals", tag: "GOL", title: "Kaç gol olur?",
       sentence: `${capital(percentWords(three))} ihtimalle üç ve daha fazla gol.`,
-      values: { over: three, under: 100 - three, overLabel: "3 ve daha fazla gol", underLabel: "2 veya daha az gol" },
+      values: { over: three, under: 100 - three, overLabel: "3 ve daha fazla gol", underLabel: "2 veya daha az gol", surprise: !contested && twist.kind === "goals" ? "goals" : "none" },
     },
     {
       kind: "both", tag: "GOL", title: "İki takım da gol atar mı?",
       sentence: `${capital(percentWords(both))} ihtimalle iki takım da gol atar. ${capital(percentWords(first.home))} ilk gol ${ablative(home.name)}, ama ${percentWords(first.away)} ${ablative(away.name)}.`,
-      values: { both, bothLabel: "İki takımın da gol atma ihtimali", firstLabel: "İlk golü atma ihtimali", firstHome: first.home, firstAway: first.away, firstNone: first.none },
+      values: { both, bothLabel: "İki takımın da gol atma ihtimali", firstLabel: "İlk golü atma ihtimali", firstHome: first.home, firstAway: first.away, firstNone: first.none, surprise: !contested && (twist.kind === "first" || twist.kind === "both") ? twist.kind : "none" },
     },
     {
       kind: "why", tag: "PUAN DURUMU", title: "Neden?",
@@ -208,10 +244,7 @@ export function tacticalPlan(source: PlanSource): { items: PlanItem[]; problems:
     },
   ];
 
-  const surprise = favourite.side === "home" ? first.away : first.home;
-  if (surprise < SURPRISE_MIN) problems.push(`kanca: ilk golde sürpriz yok (%${surprise} < %${SURPRISE_MIN})`);
-  const hookWords = screenWordCount(items[0]?.sentence ?? "");
-  if (hookWords > HOOK_MAX_WORDS) problems.push(`kanca ${hookWords} sözcük > ${HOOK_MAX_WORDS}`);
+  // Kanca ≤ 6 sn ve toplam ≤ 45 sn ölçülen sesle full.ts'de denetlenir.
   // Toplam sözcük ekran sayımıyla (rakam öbeği tek sözcük); süre sınırı (≤ 42 sn) ölçülen sesle `full.ts`'de.
   const words = items.reduce((sum, item) => sum + screenWordCount(item.sentence), 0);
   if (words > MAX_WORDS) problems.push(`seslendirme ${words} sözcük > ${MAX_WORDS}`);

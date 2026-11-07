@@ -16,8 +16,10 @@ export interface TimedWord { text: string; start: number; end: number }
 export interface VoicedBeat { item: PlanItem; seconds: number; words: TimedWord[] }
 
 export interface Timeline { beats: Beat[]; words: SpokenWord[]; durationInFrames: number; voiceAt: number[]; ticks: number[]; thumps: number[] }
-/** Toplam süre üst sınırı (kullanıcı 2026-11-07, düzeltme 2). */
-export const MAX_SECONDS = 42;
+/** Toplam süre üst sınırı (kalıcı kural, kullanıcı 2026-11-07). */
+export const MAX_SECONDS = 45;
+/** Kanca beat'i üst sınırı (kullanıcı 2026-11-07, son düzeltme). */
+export const MAX_HOOK_SECONDS = 6;
 
 /** Altyazı yazımı: okunan "checkmatch nokta net'te" ekranda "www.checkmatch.net'te" (tek sözcük, ilk sözcüğün başı → son sözcüğün sonu). */
 export function screenWords(words: readonly TimedWord[]): TimedWord[] {
@@ -59,11 +61,11 @@ export function buildTimeline(voiced: readonly VoicedBeat[]): Timeline {
       duration = Math.max(duration, INTRO.settleEnd + 6);
       thumps.push(from + INTRO.collide);
     }
-    if (item.kind === "both") {
-      // Açık döngü kapanışı: "ama" sözcüğü anında "İŞTE SÜRPRİZ".
+    // Açık döngü kapanışı: ilk gol çelişkisi "ama" anında, diğerleri beat açılır açılmaz (6. kare) "İŞTE SÜRPRİZ".
+    if (item.values.surprise === "first") {
       const ama = spoken.find((word) => /^ama[,.]?$/iu.test(word.text));
-      if (ama) values.surpriseAt = Math.round(ama.start * FPS);
-    }
+      values.surpriseAt = ama ? Math.round(ama.start * FPS) : 6;
+    } else if (item.values.surprise === "both" || item.values.surprise === "goals") values.surpriseAt = 6;
     if (item.kind === "close") {
       const every = Math.max(8, Math.min(CLOSE_TIMING.tickEvery, Math.floor((voiceFrames - CLOSE_TIMING.tickStart - 24) / 5)));
       const tickFrames = [0, 1, 2, 3].map((k) => CLOSE_TIMING.tickStart + k * every);

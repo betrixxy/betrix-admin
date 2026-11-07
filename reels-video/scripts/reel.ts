@@ -1,6 +1,11 @@
 import "./reel/setup-env";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { checkAssets } from "./tactical/assets";
+import { planSource, tacticalPlan } from "./tactical/plan";
+import { scenarioTacticalText } from "./tactical/scenario";
+import { creditPlan } from "./tactical/voicing";
 import { freezeMatch, REAL_ROOT, type Frozen } from "./reel/freeze";
 import { buildReel, captionFiles, scenarioText, slugOf, type BuiltReel } from "./reel/build";
 import { hasKey } from "./reel/setup-env";
@@ -15,7 +20,15 @@ import { getReelsMatches } from "@/lib/services/reels-client";
 
 /**
  * Gerçek veriyle video hattı. Uygulamaya bağlı değil, veritabanına yazmaz. Çıktı `test-photos/reels-real/<maç>/`.
- *   npm run reel -- --match <id> [--photos <klasör>]   dondur; senaryo.txt, fotograf-listesi.txt, aciklama.txt yaz, DUR
+ * Varsayılan format "Canlı taktik tahtası" (kullanıcı 2026-11-07):
+ *   npm run reel -- --match <id> [--profile buyuk-mac|standart|alternatif] [--dondur]
+ *       1. snapshot dondur (klasörde varsa onu kullanır; --dondur yeniden dondurur)
+ *       2. varlık kontrolü (stadyum, logolar, düello fotoğrafı: forma takımı + sezon); eksik varsa eksik-varliklar.txt, DUR
+ *       3. senaryo-tactical.txt yaz, DUR (onay beklenir)
+ *   npm run reel -- --match <id> --onay [--profile …] [--kredi-siniri 700]
+ *       ses (yalnız önbellekte olmayan beat'ler) + render + kapak + aciklama.txt + Telegram önizlemesi + rapor → <maç>/taktik/
+ * Eski sahne havuzu (`--format legacy`):
+ *   npm run reel -- --match <id> --format legacy [--photos <klasör>]   dondur; senaryo.txt, fotograf-listesi.txt, aciklama.txt yaz, DUR
  *     [--profile buyuk-mac|standart|alternatif] [--big-match | --no-big-match]   ses profili; varsayılan büyük maç önerisinden
  *   npm run reel -- --candidates                       yayın penceresi açık maçların listesi ve kalite özeti
  */
@@ -71,6 +84,60 @@ async function produce(matchId: number): Promise<void> {
   process.exitCode = reel.problems.length || !frozen.quality_ok ? 1 : 0;
 }
 
+const PKG = path.resolve(import.meta.dirname, "..");
+const STUDIO = path.resolve(PKG, "..");
+const PUBLIC = path.join(PKG, "public");
+const VOICE_CACHE = path.resolve(STUDIO, "../test-photos/reels-voice/_onbellek");
+
+/** Taktik tahtası: dondur → varlık kontrolü → senaryo (DUR) | --onay ile tam üretim. */
+async function produceTactical(matchId: number): Promise<void> {
+  const existing = existsSync(REAL_ROOT) ? readdirSync(REAL_ROOT).find((name) => name.endsWith(`-${matchId}`) && existsSync(path.join(REAL_ROOT, name, "snapshot.json"))) : undefined;
+  let folder: string;
+  let frozen: Frozen;
+  if (existing && !has("--dondur")) {
+    folder = path.join(REAL_ROOT, existing);
+    frozen = JSON.parse(readFileSync(path.join(folder, "snapshot.json"), "utf8")) as Frozen;
+    console.log(`snapshot: mevcut (${frozen.fetched_at}); yeniden dondurmak için --dondur`);
+  } else {
+    frozen = await withReelsTunnel(() => freezeMatch(matchId));
+    folder = path.join(REAL_ROOT, slugOf(frozen, matchId));
+    mkdirSync(folder, { recursive: true });
+    writeFileSync(path.join(folder, "snapshot.json"), JSON.stringify(frozen, null, 1));
+    console.log(`snapshot: donduruldu (${frozen.fetched_at})`);
+  }
+  if (!frozen.quality_ok) throw new Error("kalite denetimi geçmedi (snapshot quality_ok = false)");
+  const { profile, header } = chooseProfile(frozen);
+  const source = planSource(frozen);
+  const { items, problems } = tacticalPlan(source);
+  if (problems.length) throw new Error(`senaryo engeli: ${problems.join(" | ")}`);
+  const assets = checkAssets(folder, frozen, source, PUBLIC, STUDIO);
+  if (assets.missing.length) {
+    const list = `EKSİK VARLIKLAR (${frozen.extras.teams.home.name} – ${frozen.extras.teams.away.name})\n${assets.missing.map((item) => `- ${item}`).join("\n")}\n`;
+    writeFileSync(path.join(folder, "eksik-varliklar.txt"), list);
+    console.error(list);
+    console.error(`çıktı: ${folder}`);
+    process.exitCode = 1;
+    return;
+  }
+  const scenario = path.join(folder, "senaryo-tactical.txt");
+  if (!has("--onay")) {
+    const credit = creditPlan(items, VOICE_CACHE, profile);
+    writeFileSync(scenario, scenarioTacticalText({ frozen, source, items, profile, assets, fresh: credit.fresh, estimatedCredits: credit.estimatedCredits }));
+    console.log(header);
+    console.log(`senaryo: ${scenario}`);
+    console.log(`onay bekleniyor → npm run reel -- --match ${matchId} --onay   (profil: ${profile.id}, senaryodan okunur)`);
+    return;
+  }
+  if (!existsSync(scenario)) throw new Error("önce senaryo üret (--onay olmadan) ve oku");
+  // Onaylanan metni seslendirecek profil senaryodan okunur (maça göre yeniden seçilmez); --profile ile çelişirse durulur.
+  const approvedProfile = /^Profil: (\S+)$/mu.exec(readFileSync(scenario, "utf8"))?.[1];
+  if (!approvedProfile) throw new Error("senaryoda profil satırı yok: senaryoyu yeniden üret");
+  const asked = argument("--profile");
+  if (asked && asked !== approvedProfile) throw new Error(`--profile ${asked} onaylı senaryonun profiliyle (${approvedProfile}) çelişiyor`);
+  const run = spawnSync(process.platform === "win32" ? "npx.cmd" : "npx", ["tsx", "--tsconfig", "tsconfig.json", "reels-video/scripts/reel-render.ts", folder, "--full", "--kredi-siniri", argument("--kredi-siniri") ?? "700", "--profile", approvedProfile], { cwd: STUDIO, stdio: "inherit", shell: process.platform === "win32" });
+  process.exitCode = run.status ?? 1;
+}
+
 async function candidates(): Promise<void> {
   const now = new Date();
   const today = istanbulDay(now);
@@ -106,8 +173,9 @@ try {
   if (has("--candidates")) await candidates();
   else {
     const id = Number(argument("--match"));
-    if (!Number.isInteger(id) || id <= 0) throw new Error("Kullanım: npm run reel -- --match <id> [--photos <klasör>] | --candidates [--ids a,b,c]");
-    await produce(id);
+    if (!Number.isInteger(id) || id <= 0) throw new Error("Kullanım: npm run reel -- --match <id> [--profile …] [--onay] | --format legacy | --candidates [--ids a,b,c]");
+    if (argument("--format") === "legacy") await produce(id);
+    else await produceTactical(id);
   }
 } catch (cause) {
   // Hata metnine yalnız mesaj yazılır: anahtar taşıyan istek ayrıntısı dökülmez.
